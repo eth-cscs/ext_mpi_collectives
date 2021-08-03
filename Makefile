@@ -4,21 +4,22 @@ BIN = bin
 LIBNAME = ext_mpi_collectives
 INCLUDE = -I. -Iinclude/core -Iinclude/mpi
 
-CFLAGS = -g -O2 -Wall $(INCLUDE) -DD_EBUG -DV_ERBOSE -DM_MAP
+DEPDIR := .deps
+directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(BIN); mkdir -p lib))
+
+CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DV_ERBOSE -DM_MAP
 
 SOURCES = $(wildcard src/core/*.c src/mpi/*.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))
 TESTS = $(wildcard tests/*.c)
 TESTSBIN = $(subst tests,bin,$(TESTS:.c=.x))
 
+.PHONY: all clean
 all: lib/libext_mpi_collectives.a $(TESTSBIN)
-.PHONY: all
 
 lib/libext_mpi_collectives.a: $(OBJECTS)
-	mkdir -p lib
 	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o
 
-DEPDIR := .deps
 DEPFLAGS = -MMD -MT $(OBJ)/$*.o -MP -MF $(DEPDIR)/$*.d
 DEPENDENCIES = $(subst src,$(DEPDIR),$(SOURCES:.c=.d))
 

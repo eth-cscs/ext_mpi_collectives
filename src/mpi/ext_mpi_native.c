@@ -70,13 +70,13 @@ struct header_byte_code {
 #endif
 };
 
-static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
+/*static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
   MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (comm_column != MPI_COMM_NULL) {
     MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_column);
   }
   return (i);
-}
+}*/
 
 static void code_put_char(char **code, char c, int isdryrun) {
   if (!isdryrun)
