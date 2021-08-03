@@ -4,7 +4,7 @@ BIN = bin
 LIBNAME = ext_mpi_collectives
 INCLUDE = -I. -Iinclude/core -Iinclude/mpi
 
-CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DV_ERBOSE -DM_MAP
+CFLAGS = -g -O2 -Wall $(INCLUDE) -DD_EBUG -DV_ERBOSE -DM_MAP
 
 SOURCES = $(wildcard src/core/*.c src/mpi/*.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))
