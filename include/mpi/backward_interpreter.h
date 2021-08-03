@@ -5,11 +5,11 @@
 #include <mpi.h>
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-int generate_backward_interpreter(char *buffer_in, char *buffer_out, MPI_Comm comm_row);
+int generate_backward_interpreter(char *buffer_in, char *buffer_out,
+                                  MPI_Comm comm_row);
 
 #ifdef __cplusplus
 }

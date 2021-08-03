@@ -5,11 +5,11 @@
 #include <mpi.h>
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-int clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row, MPI_Comm comm_column);
+int clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
+                   MPI_Comm comm_column);
 
 #ifdef __cplusplus
 }
