@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
       nbuffer_out += sprintf(buffer_in + nbuffer_out, "%s", line_return);
     }
   }
-  clean_barriers(buffer_in, buffer_out);
+//FIXME  clean_barriers(buffer_in, buffer_out);
   printf("%s", buffer_out);
   free(buffer_out);
   free(buffer_in);
