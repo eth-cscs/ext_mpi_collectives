@@ -700,7 +700,10 @@ int EXT_MPI_Progress_native() {
 
 int EXT_MPI_Wait_native(int handle) {
   active_wait[handle] = 1;
-  EXT_MPI_Progress_native();
+  if (execution_pointer[handle]) {
+    exec_native(comm_code[handle], &execution_pointer[handle],
+                active_wait[handle]);
+  }
   active_wait[handle] = 0;
   return (0);
 }
