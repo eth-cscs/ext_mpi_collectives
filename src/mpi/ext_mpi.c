@@ -8,6 +8,7 @@
 #include "ext_mpi_native.h"
 #include "prime_factors.h"
 #include "read_bench.h"
+#include "cost_simple_recursive.h"
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #endif
@@ -589,111 +590,6 @@ error:
   return ERROR_MALLOC;
 }
 
-static double cost_recursive(int p, double n, int fac, int port_max,
-                             int *rarray) {
-  double T, T_min, ma, mb;
-  int r, i, j, k, tarray[p + 1];
-  T_min = 1e60;
-  if (port_max > ext_mpi_file_input[ext_mpi_file_input_max - 1].nports) {
-    port_max = ext_mpi_file_input[ext_mpi_file_input_max - 1].nports;
-  }
-  if (port_max > (p - 1) / fac + 1) {
-    port_max = (p - 1) / fac + 1;
-  }
-  if (port_max < 1) {
-    port_max = 1;
-  }
-  for (i = 1; i <= port_max; i++) {
-    r = i + 1;
-    ma = fac;
-    if (ma * r > p) {
-      ma = (p - ma) / (r - 1);
-    }
-    mb = n * ma;
-    mb /= ext_mpi_file_input[(r - 1 - 1) * ext_mpi_file_input_max_per_core].parallel;
-    j = floor(mb / (ext_mpi_file_input[1].msize - ext_mpi_file_input[0].msize)) - 1;
-    k = j + 1;
-    if (j < 0) {
-      T = ext_mpi_file_input[0 + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT;
-    } else {
-      if (k >= ext_mpi_file_input_max_per_core) {
-        T = ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                       (r - 1 - 1) * ext_mpi_file_input_max_per_core]
-                .deltaT *
-            mb /
-            ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                       (r - 1 - 1) * ext_mpi_file_input_max_per_core]
-                .msize;
-      } else {
-        T = ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT +
-            (mb - ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize) *
-                (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT -
-                 ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT) /
-                (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize -
-                 ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize);
-      }
-    }
-    if (fac * r < p) {
-      T += cost_recursive(p, n, fac * r, port_max, tarray + 1);
-    } else {
-      tarray[1] = 0;
-    }
-    if (T < T_min) {
-      T_min = T;
-      tarray[0] = r;
-      j = 0;
-      while (tarray[j] > 0) {
-        rarray[j] = tarray[j];
-        j++;
-      }
-      rarray[j] = 0;
-    }
-  }
-  return (T_min);
-}
-
-/*static void cost_estimated(int p, double n, int port_max, int *rarray){
-  double T, T_min, mb;
-  int r, i, j, k, l, rr;
-  if (port_max>file_input[file_input_max-1].nports){
-    port_max = file_input[file_input_max-1].nports;
-  }
-  if (port_max<1){
-    port_max = 1;
-  }
-  l = 0;
-  rr = 1;
-  while (rr<p){
-    T_min = 1e60;
-    for (i=1; i<=port_max; i++){
-      r = i+1;
-      mb = n*rr;
-      mb /= file_input[(r-1-1)*file_input_max_per_core].parallel;
-      j = floor(mb/(file_input[1].msize-file_input[0].msize))-1;
-      k = j+1;
-      if (j<0){
-        T = file_input[0+(r-1-1)*file_input_max_per_core].deltaT;
-      }else{
-        if (k>=file_input_max_per_core){
-          T =
-file_input[file_input_max_per_core-1+(r-1-1)*file_input_max_per_core].deltaT*mb/file_input[file_input_max_per_core-1+(r-1-1)*file_input_max_per_core].msize;
-        }else{
-          T =
-file_input[j+(r-1-1)*file_input_max_per_core].deltaT+(mb-file_input[j+(r-1-1)*file_input_max_per_core].msize)*(file_input[k+(r-1-1)*file_input_max_per_core].deltaT-file_input[j+(r-1-1)*file_input_max_per_core].deltaT)
-                                                                                                                           /(file_input[k+(r-1-1)*file_input_max_per_core].msize-file_input[j+(r-1-1)*file_input_max_per_core].msize);
-        }
-        T /= r;
-      }
-      if (T<T_min){
-        T_min = T;
-        rarray[l] = r;
-      }
-    }
-    rr*=rarray[l];
-    l++;
-  }
-}*/
-
 int get_num_cores_per_node(MPI_Comm comm) {
   int my_mpi_rank, num_cores, num_cores_min, num_cores_max;
   MPI_Comm comm_node;
@@ -763,13 +659,13 @@ int EXT_MPI_Allgatherv_init_general(void *sendbuf, int sendcount,
   if (scount * type_size <= 25000000) {
     if (fixed_factors_ports == NULL) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
-        if (cost_recursive(comm_size_row / my_cores_per_node_row,
+        if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size, 1,
                            my_cores_per_node_row * my_cores_per_node_column,
                            num_ports) < 0)
           goto error;
       } else {
-        if (cost_recursive(comm_size_row / my_cores_per_node_row,
+        if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size, 1, 12, num_ports) < 0)
           goto error;
       }
@@ -921,13 +817,13 @@ int EXT_MPI_Gatherv_init_general(void *sendbuf, int sendcount,
   if (scount * type_size <= 25000000) {
     if (fixed_factors_ports == NULL) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
-        if (cost_recursive(comm_size_row / my_cores_per_node_row,
+        if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size, 1,
                            my_cores_per_node_row * my_cores_per_node_column,
                            num_ports) < 0)
           goto error;
       } else {
-        if (cost_recursive(comm_size_row / my_cores_per_node_row,
+        if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size, 1, 12, num_ports) < 0)
           goto error;
       }
@@ -1118,13 +1014,13 @@ int EXT_MPI_Reduce_scatter_init_general(
   if (rcount * type_size <= 25000000) {
     if (fixed_factors_ports == NULL) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
-        if (cost_recursive(comm_size_row / my_cores_per_node_row,
+        if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            rcount * type_size, 1,
                            my_cores_per_node_row * my_cores_per_node_column,
                            num_ports) < 0)
           goto error;
       } else {
-        if (cost_recursive(comm_size_row / my_cores_per_node_row,
+        if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            rcount * type_size, 1, 12, num_ports) < 0)
           goto error;
       }
@@ -1289,13 +1185,13 @@ int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
   if (rcount * type_size <= 25000000) {
     if (fixed_factors_ports == NULL) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
-        if (cost_recursive(comm_size_row / my_cores_per_node_row,
+        if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            rcount * type_size, 1,
                            my_cores_per_node_row * my_cores_per_node_column,
                            num_ports) < 0)
           goto error;
       } else {
-        if (cost_recursive(comm_size_row / my_cores_per_node_row,
+        if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            rcount * type_size, 1, 12, num_ports) < 0)
           goto error;
       }
@@ -1510,14 +1406,14 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
     num_ports[i] = groups[i] = 0;
   }
   if (fixed_factors_ports == NULL) {
-    /*    d1 = cost_recursive(comm_size_row/my_cores_per_node_row, message_size,
+    /*    d1 = ext_mpi_cost_simple_recursive(comm_size_row/my_cores_per_node_row, message_size,
        1, my_cores_per_node_row*my_cores_per_node_column, num_ports); i =
        message_size/(comm_size_row/my_cores_per_node_row); if (i<type_size){
           i=type_size;
         }
-        d2 = 2*cost_recursive(comm_size_row/my_cores_per_node_row, i, 1,
+        d2 = 2*ext_mpi_cost_simple_recursive(comm_size_row/my_cores_per_node_row, i, 1,
        my_cores_per_node_row*my_cores_per_node_column, num_ports); j=(d1<d2); if
-       (j){ cost_recursive(comm_size_row/my_cores_per_node_row, message_size, 1,
+       (j){ ext_mpi_cost_simple_recursive(comm_size_row/my_cores_per_node_row, message_size, 1,
        my_cores_per_node_row*my_cores_per_node_column, num_ports);
         }
         i = 0;
@@ -2090,14 +1986,14 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     num_ports[i] = groups[i] = 0;
   }
   if (fixed_factors_ports == NULL) {
-    /*    d1 = cost_recursive(comm_size_row/my_cores_per_node_row, message_size,
+    /*    d1 = ext_mpi_cost_simple_recursive(comm_size_row/my_cores_per_node_row, message_size,
        1, my_cores_per_node_row*my_cores_per_node_column, num_ports); i =
        message_size/(comm_size_row/my_cores_per_node_row); if (i<type_size){
           i=type_size;
         }
-        d2 = 2*cost_recursive(comm_size_row/my_cores_per_node_row, i, 1,
+        d2 = 2*ext_mpi_cost_simple_recursive(comm_size_row/my_cores_per_node_row, i, 1,
        my_cores_per_node_row*my_cores_per_node_column, num_ports); j=(d1<d2); if
-       (j){ cost_recursive(comm_size_row/my_cores_per_node_row, message_size, 1,
+       (j){ ext_mpi_cost_simple_recursive(comm_size_row/my_cores_per_node_row, message_size, 1,
        my_cores_per_node_row*my_cores_per_node_column, num_ports);
         }
         i = 0;
