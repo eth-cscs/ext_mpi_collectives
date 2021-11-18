@@ -1,12 +1,13 @@
-#include "ext_mpi.h"
-#include "constants.h"
-#include "ext_mpi_native.h"
-#include "prime_factors.h"
 #include <math.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ext_mpi.h"
+#include "constants.h"
+#include "ext_mpi_native.h"
+#include "prime_factors.h"
+#include "read_bench.h"
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #endif
@@ -15,16 +16,6 @@
 
 int ext_mpi_bit_identical = 0;
 
-typedef struct _FileData {
-  int nnodes;
-  int nports;
-  int parallel;
-  int msize;
-  double deltaT;
-} FileData;
-
-static FileData *file_input;
-static int file_input_max, file_input_max_per_core;
 static int is_initialised = 0;
 static int copyin_method = 0;
 static int alternating = 0;
@@ -32,8 +23,6 @@ int *fixed_factors_ports = NULL;
 int *fixed_factors_groups = NULL;
 int fixed_tile_size_row = 0;
 int fixed_tile_size_column = 0;
-static int node_size_threshold_max = 0;
-static int *node_size_threshold = NULL;
 
 static int read_env() {
   int mpi_comm_rank, mpi_comm_size, var, i, j;
@@ -177,122 +166,6 @@ error:
   return ERROR_MALLOC;
 }
 
-static int read_bench() {
-  FileData *file_input_raw = NULL;
-  double distance;
-  int file_input_max_raw = 0, file_input_max_per_core_raw;
-  int cores, i, j, mpi_comm_rank, mpi_comm_size, fallback;
-#include "node_size_threshold.tmp"
-  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_comm_rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &mpi_comm_size);
-  fallback = 0;
-  MPI_Bcast(&fallback, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (!fallback) {
-    if (mpi_comm_rank == 0) {
-#include "latency_bandwidth.tmp"
-      file_input_max_per_core_raw =
-          file_input_max_raw / file_input_raw[file_input_max_raw - 1].nports;
-      distance = file_input_raw[1].msize - file_input_raw[0].msize;
-      file_input_max_per_core = (file_input_raw[file_input_max_raw - 1].msize -
-                                 file_input_raw[0].msize) /
-                                distance;
-      file_input_max = file_input_max_per_core *
-                       file_input_raw[file_input_max_raw - 1].nports;
-      file_input = (FileData *)malloc(file_input_max * sizeof(*file_input));
-      if (!file_input)
-        goto error;
-      for (cores = 1; cores <= file_input_raw[file_input_max_raw - 1].nports;
-           cores++) {
-        j = 0;
-        for (i = 0; i < file_input_max_per_core; i++) {
-          for (; file_input_raw[j].msize <
-                     i * distance + file_input_raw[0].msize &&
-                 j < file_input_max_per_core_raw;
-               j++) {
-          }
-          if (j == file_input_max_per_core_raw) {
-            file_input[i + file_input_max_per_core * (cores - 1)] =
-                file_input_raw[j + file_input_max_per_core_raw * (cores - 1)];
-          } else {
-            if (j == 0) {
-              file_input[i + file_input_max_per_core * (cores - 1)] =
-                  file_input_raw[j + file_input_max_per_core_raw * (cores - 1)];
-            } else {
-              file_input[i + file_input_max_per_core * (cores - 1)].nnodes =
-                  file_input_raw[j + file_input_max_per_core_raw * (cores - 1)]
-                      .nnodes;
-              file_input[i + file_input_max_per_core * (cores - 1)].nports =
-                  file_input_raw[j + file_input_max_per_core_raw * (cores - 1)]
-                      .nports;
-              file_input[i + file_input_max_per_core * (cores - 1)].parallel =
-                  file_input_raw[j + file_input_max_per_core_raw * (cores - 1)]
-                      .parallel;
-              file_input[i + file_input_max_per_core * (cores - 1)].msize =
-                  i * distance + file_input_raw[0].msize;
-              file_input[i + file_input_max_per_core * (cores - 1)].deltaT =
-                  file_input_raw[j - 1 +
-                                 file_input_max_per_core_raw * (cores - 1)]
-                      .deltaT +
-                  (file_input[i + file_input_max_per_core * (cores - 1)].msize -
-                   file_input_raw[j - 1 +
-                                  file_input_max_per_core_raw * (cores - 1)]
-                       .msize) *
-                      (file_input_raw[j +
-                                      file_input_max_per_core_raw * (cores - 1)]
-                           .deltaT -
-                       file_input_raw[j - 1 +
-                                      file_input_max_per_core_raw * (cores - 1)]
-                           .deltaT) /
-                      (file_input_raw[j +
-                                      file_input_max_per_core_raw * (cores - 1)]
-                           .msize -
-                       file_input_raw[j - 1 +
-                                      file_input_max_per_core_raw * (cores - 1)]
-                           .msize);
-            }
-          }
-        }
-      }
-      free(file_input_raw);
-      for (i = 0; i < file_input_max / file_input_max_per_core; i++) {
-        for (j = file_input_max_per_core - 1 - 1; j >= 0; j--) {
-          if (file_input[j + i * file_input_max_per_core].deltaT >
-              file_input[(j + 1) + i * file_input_max_per_core].deltaT) {
-            file_input[j + i * file_input_max_per_core].deltaT =
-                file_input[(j + 1) + i * file_input_max_per_core].deltaT;
-          }
-        }
-      }
-    }
-    MPI_Bcast(&file_input_max, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&file_input_max_per_core, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (mpi_comm_rank != 0) {
-      file_input = (FileData *)malloc(file_input_max * sizeof(*file_input));
-      if (!file_input)
-        goto error;
-    }
-    MPI_Bcast(file_input, file_input_max * sizeof(*file_input), MPI_CHAR, 0,
-              MPI_COMM_WORLD);
-  } else {
-    i = 1;
-    j = 2;
-    while (i < mpi_comm_size) {
-      j++;
-      i *= 2;
-    }
-    fixed_factors_ports = (int *)malloc((j + 1) * sizeof(int));
-    if (!fixed_factors_ports)
-      goto error;
-    for (i = 0; i < j; i++) {
-      fixed_factors_ports[i] = 2;
-    }
-    fixed_factors_ports[j] = -1;
-  }
-  return 0;
-error:
-  return ERROR_MALLOC;
-}
-
 struct cost_list {
   double T;
   int depth;
@@ -396,8 +269,8 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
                          int comm_size_row, int comm_rank_row, int simulate) {
   double T_step, ma, mb;
   int r, i, j, k, *trarray = NULL, *tgarray = NULL, *ttgarray = NULL;
-  if (port_max > file_input[file_input_max - 1].nports) {
-    port_max = file_input[file_input_max - 1].nports;
+  if (port_max > ext_mpi_file_input[ext_mpi_file_input_max - 1].nports) {
+    port_max = ext_mpi_file_input[ext_mpi_file_input_max - 1].nports;
   }
   if (port_max > (abs(garray[depth]) - 1) / fac + 1) {
     port_max = (abs(garray[depth]) - 1) / fac + 1;
@@ -412,28 +285,28 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
       ma = (abs(garray[depth]) - ma) / (r - 1);
     }
     mb = n * ma;
-    mb /= file_input[(r - 1 - 1) * file_input_max_per_core].parallel;
-    j = floor(mb / (file_input[1].msize - file_input[0].msize)) - 1;
+    mb /= ext_mpi_file_input[(r - 1 - 1) * ext_mpi_file_input_max_per_core].parallel;
+    j = floor(mb / (ext_mpi_file_input[1].msize - ext_mpi_file_input[0].msize)) - 1;
     k = j + 1;
     if (j < 0) {
-      T_step = file_input[0 + (r - 1 - 1) * file_input_max_per_core].deltaT;
+      T_step = ext_mpi_file_input[0 + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT;
     } else {
-      if (k >= file_input_max_per_core) {
-        T_step = file_input[file_input_max_per_core - 1 +
-                            (r - 1 - 1) * file_input_max_per_core]
+      if (k >= ext_mpi_file_input_max_per_core) {
+        T_step = ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
+                            (r - 1 - 1) * ext_mpi_file_input_max_per_core]
                      .deltaT *
                  mb /
-                 file_input[file_input_max_per_core - 1 +
-                            (r - 1 - 1) * file_input_max_per_core]
+                 ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
+                            (r - 1 - 1) * ext_mpi_file_input_max_per_core]
                      .msize;
       } else {
         T_step =
-            file_input[j + (r - 1 - 1) * file_input_max_per_core].deltaT +
-            (mb - file_input[j + (r - 1 - 1) * file_input_max_per_core].msize) *
-                (file_input[k + (r - 1 - 1) * file_input_max_per_core].deltaT -
-                 file_input[j + (r - 1 - 1) * file_input_max_per_core].deltaT) /
-                (file_input[k + (r - 1 - 1) * file_input_max_per_core].msize -
-                 file_input[j + (r - 1 - 1) * file_input_max_per_core].msize);
+            ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT +
+            (mb - ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize) *
+                (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT -
+                 ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT) /
+                (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize -
+                 ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize);
       }
     }
     rarray[depth] = r - 1;
@@ -665,33 +538,33 @@ static int cost_simulate(int count, MPI_Datatype datatype, int comm_size_row,
     for (i = 0; num_steps[i]; i++) {
       r = num_steps[i] + 1;
       mb = counts[i];
-      mb /= file_input[(r - 1 - 1) * file_input_max_per_core].parallel;
+      mb /= ext_mpi_file_input[(r - 1 - 1) * ext_mpi_file_input_max_per_core].parallel;
       p1->nsteps += 1e0;
       p1->nvolume += mb;
-      j = floor(mb / (file_input[1].msize - file_input[0].msize)) - 1;
+      j = floor(mb / (ext_mpi_file_input[1].msize - ext_mpi_file_input[0].msize)) - 1;
       k = j + 1;
       if (j < 0) {
-        T_step = file_input[0 + (r - 1 - 1) * file_input_max_per_core].deltaT;
+        T_step = ext_mpi_file_input[0 + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT;
       } else {
-        if (k >= file_input_max_per_core) {
-          T_step = file_input[file_input_max_per_core - 1 +
-                              (r - 1 - 1) * file_input_max_per_core]
+        if (k >= ext_mpi_file_input_max_per_core) {
+          T_step = ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
+                              (r - 1 - 1) * ext_mpi_file_input_max_per_core]
                        .deltaT *
                    mb /
-                   file_input[file_input_max_per_core - 1 +
-                              (r - 1 - 1) * file_input_max_per_core]
+                   ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
+                              (r - 1 - 1) * ext_mpi_file_input_max_per_core]
                        .msize;
         } else {
           T_step =
-              file_input[j + (r - 1 - 1) * file_input_max_per_core].deltaT +
+              ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT +
               (mb -
-               file_input[j + (r - 1 - 1) * file_input_max_per_core].msize) *
-                  (file_input[k + (r - 1 - 1) * file_input_max_per_core]
+               ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize) *
+                  (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core]
                        .deltaT -
-                   file_input[j + (r - 1 - 1) * file_input_max_per_core]
+                   ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core]
                        .deltaT) /
-                  (file_input[k + (r - 1 - 1) * file_input_max_per_core].msize -
-                   file_input[j + (r - 1 - 1) * file_input_max_per_core].msize);
+                  (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize -
+                   ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize);
         }
       }
       p1->T_simulated += T_step;
@@ -721,8 +594,8 @@ static double cost_recursive(int p, double n, int fac, int port_max,
   double T, T_min, ma, mb;
   int r, i, j, k, tarray[p + 1];
   T_min = 1e60;
-  if (port_max > file_input[file_input_max - 1].nports) {
-    port_max = file_input[file_input_max - 1].nports;
+  if (port_max > ext_mpi_file_input[ext_mpi_file_input_max - 1].nports) {
+    port_max = ext_mpi_file_input[ext_mpi_file_input_max - 1].nports;
   }
   if (port_max > (p - 1) / fac + 1) {
     port_max = (p - 1) / fac + 1;
@@ -737,27 +610,27 @@ static double cost_recursive(int p, double n, int fac, int port_max,
       ma = (p - ma) / (r - 1);
     }
     mb = n * ma;
-    mb /= file_input[(r - 1 - 1) * file_input_max_per_core].parallel;
-    j = floor(mb / (file_input[1].msize - file_input[0].msize)) - 1;
+    mb /= ext_mpi_file_input[(r - 1 - 1) * ext_mpi_file_input_max_per_core].parallel;
+    j = floor(mb / (ext_mpi_file_input[1].msize - ext_mpi_file_input[0].msize)) - 1;
     k = j + 1;
     if (j < 0) {
-      T = file_input[0 + (r - 1 - 1) * file_input_max_per_core].deltaT;
+      T = ext_mpi_file_input[0 + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT;
     } else {
-      if (k >= file_input_max_per_core) {
-        T = file_input[file_input_max_per_core - 1 +
-                       (r - 1 - 1) * file_input_max_per_core]
+      if (k >= ext_mpi_file_input_max_per_core) {
+        T = ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
+                       (r - 1 - 1) * ext_mpi_file_input_max_per_core]
                 .deltaT *
             mb /
-            file_input[file_input_max_per_core - 1 +
-                       (r - 1 - 1) * file_input_max_per_core]
+            ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
+                       (r - 1 - 1) * ext_mpi_file_input_max_per_core]
                 .msize;
       } else {
-        T = file_input[j + (r - 1 - 1) * file_input_max_per_core].deltaT +
-            (mb - file_input[j + (r - 1 - 1) * file_input_max_per_core].msize) *
-                (file_input[k + (r - 1 - 1) * file_input_max_per_core].deltaT -
-                 file_input[j + (r - 1 - 1) * file_input_max_per_core].deltaT) /
-                (file_input[k + (r - 1 - 1) * file_input_max_per_core].msize -
-                 file_input[j + (r - 1 - 1) * file_input_max_per_core].msize);
+        T = ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT +
+            (mb - ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize) *
+                (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT -
+                 ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT) /
+                (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize -
+                 ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize);
       }
     }
     if (fac * r < p) {
@@ -842,7 +715,7 @@ int get_num_cores_per_node(MPI_Comm comm) {
 }
 
 int EXT_MPI_Init() {
-  read_bench();
+  ext_mpi_read_bench();
   read_env();
   EXT_MPI_Init_native();
   is_initialised = 1;
@@ -1302,12 +1175,12 @@ int EXT_MPI_Reduce_scatter_init_general(
       for (i = 0; i < comm_size_row; i++) {
         rcount += recvcounts[i];
       }
-      if (my_cores_per_node_row > node_size_threshold_max) {
+      if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
         cin_method = (rcount * type_size >
-                      node_size_threshold[node_size_threshold_max - 1]);
+                      ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
       } else {
         cin_method = (rcount * type_size >
-                      node_size_threshold[my_cores_per_node_row - 1]);
+                      ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
       }
     }
     alt = 0;
@@ -1472,12 +1345,12 @@ int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
       for (i = 0; i < comm_size_row; i++) {
         rcount += sendcounts[i];
       }
-      if (my_cores_per_node_row > node_size_threshold_max) {
+      if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
         cin_method = (rcount * type_size >
-                      node_size_threshold[node_size_threshold_max - 1]);
+                      ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
       } else {
         cin_method = (rcount * type_size >
-                      node_size_threshold[my_cores_per_node_row - 1]);
+                      ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
       }
     }
     alt = 0;
@@ -1759,12 +1632,12 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
   } else {
-    if (my_cores_per_node_row > node_size_threshold_max) {
+    if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
       cin_method = (count * type_size >
-                    node_size_threshold[node_size_threshold_max - 1]);
+                    ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
     } else {
       cin_method =
-          (count * type_size > node_size_threshold[my_cores_per_node_row - 1]);
+          (count * type_size > ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
     }
   }
   alt = 0;
@@ -2039,12 +1912,12 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
   } else {
-    if (my_cores_per_node_row > node_size_threshold_max) {
+    if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
       cin_method = (count * type_size >
-                    node_size_threshold[node_size_threshold_max - 1]);
+                    ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
     } else {
       cin_method =
-          (count * type_size > node_size_threshold[my_cores_per_node_row - 1]);
+          (count * type_size > ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
     }
   }
   alt = 0;
@@ -2339,12 +2212,12 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
   } else {
-    if (my_cores_per_node_row > node_size_threshold_max) {
+    if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
       cin_method = (count * type_size >
-                    node_size_threshold[node_size_threshold_max - 1]);
+                    ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
     } else {
       cin_method =
-          (count * type_size > node_size_threshold[my_cores_per_node_row - 1]);
+          (count * type_size > ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
     }
   }
   alt = 0;
