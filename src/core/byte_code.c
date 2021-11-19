@@ -318,13 +318,6 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
   buffer_in += read_parameters(buffer_in, &parameters);
   ascii = parameters->ascii_in;
   delete_parameters(parameters);
-#ifdef VERBOSE
-  int rank;
-  MPI_Comm_rank(EXT_MPI_COMM_WORLD, &rank);
-  if ((rank == 0) && ip) {
-    printf("%s\n", buffer_in);
-  }
-#endif
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
     header = &header_temp;

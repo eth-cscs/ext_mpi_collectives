@@ -65,7 +65,7 @@ static int factors_minimum_compare_reverse(const void *a, const void *b) {
   return (*(int *)b - *(int *)a);
 }
 
-int factors_minimum(int number, int factor_min, int *factors) {
+int ext_mpi_factors_minimum(int number, int factor_min, int *factors) {
   int factors_max, i;
   factors_max = plain_prime_factors(number, factors);
   while ((factors[0] < factor_min) && (factors_max >= 2)) {
@@ -82,7 +82,7 @@ int factors_minimum(int number, int factor_min, int *factors) {
   return (factors_max);
 }
 
-int factor_sqrt(int number) {
+int ext_mpi_factor_sqrt(int number) {
   int factors[number], factors_max, i;
   factors_max = plain_prime_factors(number, factors);
   while ((factors[0] < sqrt(number)) && (factors_max >= 2)) {

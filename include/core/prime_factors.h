@@ -7,8 +7,8 @@ extern "C"
 {
 #endif
 
-int factors_minimum(int number, int factor_min, int *factors);
-int factor_sqrt(int number);
+int ext_mpi_factors_minimum(int number, int factor_min, int *factors);
+int ext_mpi_factor_sqrt(int number);
 
 #ifdef __cplusplus
 }

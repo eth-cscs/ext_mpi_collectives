@@ -291,8 +291,8 @@ int ext_mpi_cost_estimation(int count, int type_size, int comm_size_row,
                     num_ports, groups, 1, comm_size_rowb, comm_rank_row,
                     simulate) < 0)
     goto error;
-  factors_minimum(comm_size_row / my_cores_per_node_row,
-                  my_cores_per_node_row * my_cores_per_node_column, groups);
+  ext_mpi_factors_minimum(comm_size_row / my_cores_per_node_row,
+                          my_cores_per_node_row * my_cores_per_node_column, groups);
   for (j = 0; groups[j]; j++) {
     groups[j] *= -1;
   }
@@ -306,7 +306,7 @@ int ext_mpi_cost_estimation(int count, int type_size, int comm_size_row,
                     num_ports, groups, 1, comm_size_rowb, comm_rank_row,
                     simulate) < 0)
     goto error;
-  i = factor_sqrt(comm_size_row / my_cores_per_node_row);
+  i = ext_mpi_factor_sqrt(comm_size_row / my_cores_per_node_row);
   if ((i > 1) && (i < comm_size_row / my_cores_per_node_row)) {
     groups[0] = -(comm_size_row / my_cores_per_node_row) / i;
     groups[1] = -i;

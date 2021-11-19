@@ -10,10 +10,6 @@ struct allreduce_data_element {
   int max_lines;
   int *frac;
   int *source;
-#ifdef VERBOSE
-  int *num_sources;
-  int *sources_value;
-#endif
   int *num_from;
   int *from_value;
   int *from_line;
@@ -41,10 +37,6 @@ static int allreduce_start(struct allreduce_data_element **stages,
     (*stages)[step].from_line = NULL;
     (*stages)[step].num_to = NULL;
     (*stages)[step].to_value = NULL;
-#ifdef VERBOSE
-    (*stages)[step].sources_value = NULL;
-    (*stages)[step].num_sources = NULL;
-#endif
   }
   if (!stages_in) {
     for (step = 0; step <= nsteps; step++) {
@@ -93,16 +85,6 @@ static int allreduce_start(struct allreduce_data_element **stages,
           (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
       if (!(*stages)[step].source)
         goto error;
-#ifdef VERBOSE
-      (*stages)[step].num_sources =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
-      if (!(*stages)[step].num_sources)
-        goto error;
-      (*stages)[step].sources_value = (int *)malloc(
-          sizeof(int) * (*stages)[step].max_lines * num_processors);
-      if (!(*stages)[step].sources_value)
-        goto error;
-#endif
       (*stages)[step].num_from =
           (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
       if (!(*stages)[step].num_from)
@@ -131,10 +113,6 @@ static int allreduce_start(struct allreduce_data_element **stages,
         (*stages)[0].frac[i] = (i + task) % num_processors;
       }
       (*stages)[0].source[i] = task;
-#ifdef VERBOSE
-      (*stages)[0].num_sources[i] = 1;
-      (*stages)[0].sources_value[i] = task;
-#endif
       (*stages)[0].num_from[i] = 1;
       (*stages)[0].from_value[i] = -1;
       (*stages)[0].from_line[i] = i;
@@ -191,10 +169,6 @@ static int allreduce_start(struct allreduce_data_element **stages,
           (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
       if (!(*stages)[step].source)
         goto error;
-#ifdef VERBOSE
-      (*stages)[step].num_sources = NULL;
-      (*stages)[step].sources_value = NULL;
-#endif
       (*stages)[step].num_from =
           (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
       if (!(*stages)[step].num_from)
@@ -219,10 +193,6 @@ static int allreduce_start(struct allreduce_data_element **stages,
     for (i = 0; i < (*stages)[0].max_lines; i++) {
       (*stages)[0].frac[i] = stages_in[0].frac[i];
       (*stages)[0].source[i] = stages_in[0].source[i];
-#ifdef VERBOSE
-      (*stages)[0].num_sources[i] = -1;
-      (*stages)[0].sources_value[i] = -1;
-#endif
       (*stages)[0].num_from[i] = 1;
       (*stages)[0].from_value[i] = -1;
       (*stages)[0].from_line[i] = i;
@@ -239,10 +209,6 @@ error:
       free((*stages)[step].from_line);
       free((*stages)[step].num_to);
       free((*stages)[step].to_value);
-#ifdef VERBOSE
-      free((*stages)[step].sources_value);
-      free((*stages)[step].num_sources);
-#endif
     }
   }
   free(*stages);
@@ -260,49 +226,11 @@ static void allreduce_done(struct allreduce_data_element *stages,
     free(stages[step].from_line);
     free(stages[step].from_value);
     free(stages[step].num_from);
-#ifdef VERBOSE
-    free(stages[step].sources_value);
-    free(stages[step].num_sources);
-#endif
     free(stages[step].source);
     free(stages[step].frac);
   }
   free(stages);
 }
-
-#ifdef VERBOSE
-static int allreduce_complete(struct allreduce_data_element *stages, int step,
-                              int num_processors, int line) {
-  return (stages[step].num_sources[line] == num_processors);
-}
-
-static int allreduce_independent(struct allreduce_data_element *stages,
-                                 int step, int num_processors, int line1,
-                                 int line2) {
-  int i, j;
-  char temp_array[num_processors];
-  step++;
-  if (stages[step].frac[line1] != stages[step].frac[line2]) {
-    return 0;
-  }
-  if (stages[step].num_sources[line1] + stages[step].num_sources[line2] >
-      num_processors) {
-    return 0;
-  }
-  memset(temp_array, 0, num_processors);
-  for (i = 0; i < stages[step].num_sources[line1]; i++) {
-    temp_array[stages[step].sources_value[i * stages[step].max_lines + line1]] =
-        1;
-  }
-  for (j = 0; j < stages[step].num_sources[line2]; j++) {
-    if (temp_array[stages[step]
-                       .sources_value[j * stages[step].max_lines + line2]]) {
-      return 0;
-    }
-  }
-  return 1;
-}
-#endif
 
 static int update_lines_used(struct allreduce_data_element *stages,
                              int *num_ports, int *lines_used) {
@@ -356,14 +284,6 @@ static int allreduce_init(struct allreduce_data_element **stages,
       (*stages)[step + 1].num_from[i] = 1;
       (*stages)[step + 1].from_value[i] = task;
       (*stages)[step + 1].from_line[i] = -1;
-#ifdef VERBOSE
-      (*stages)[step + 1].num_sources[i] = (*stages)[step].num_sources[i];
-      for (j = 0; j < (*stages)[step + 1].num_sources[i]; j++) {
-        (*stages)[step + 1]
-            .sources_value[j * (*stages)[step + 1].max_lines + i] =
-            (*stages)[step].sources_value[j * (*stages)[step].max_lines + i];
-      }
-#endif
     }
     for (port = 0; port < num_ports[step]; port++) {
       for (i = 0;
@@ -398,22 +318,6 @@ static int allreduce_init(struct allreduce_data_element **stages,
                                           (*stages)[step + 1].num_from[i] +
                                       i] = (port + 1) * gbstep + i;
         (*stages)[step + 1].num_from[i]++;
-#ifdef VERBOSE
-        for (j = 0; j < (*stages)[step].num_sources[gbstep * (port + 1) + i];
-             j++) {
-          (*stages)[step + 1]
-              .sources_value[((*stages)[step + 1].num_sources[i] + j) *
-                                 (*stages)[step + 1].max_lines +
-                             i] =
-              (num_processors +
-               (*stages)[step]
-                   .sources_value[j * (*stages)[step].max_lines + i] +
-               task_dup - task) %
-              num_processors;
-        }
-        (*stages)[step + 1].num_sources[i] +=
-            (*stages)[step].num_sources[gbstep * (port + 1) + i];
-#endif
       }
     }
   }
@@ -433,14 +337,6 @@ static int allreduce_init(struct allreduce_data_element **stages,
       (*stages)[step + 1].num_from[i] = 1;
       (*stages)[step + 1].from_value[i] = task;
       (*stages)[step + 1].from_line[i] = i;
-#ifdef VERBOSE
-      (*stages)[step + 1].num_sources[i] = (*stages)[step].num_sources[i];
-      for (j = 0; j < (*stages)[step + 1].num_sources[i]; j++) {
-        (*stages)[step + 1]
-            .sources_value[j * (*stages)[step + 1].max_lines + i] =
-            (*stages)[step].sources_value[j * (*stages)[step].max_lines + i];
-      }
-#endif
     }
     for (port = 0; port < abs(num_ports[step]); port++) {
       task_dup = (num_processors + task + (port + 1) * gbstep) % num_processors;
@@ -468,19 +364,6 @@ static int allreduce_init(struct allreduce_data_element **stages,
         (*stages)[step + 1].source[chunk * (port + 1) + i] =
             (num_processors + (*stages)[step].source[i] + task_dup - task) %
             num_processors;
-#ifdef VERBOSE
-        for (j = 0; j < (*stages)[step].num_sources[i]; j++) {
-          (*stages)[step + 1].sources_value[(*stages)[step + 1].max_lines * j +
-                                            chunk * (port + 1) + i] =
-              (num_processors +
-               (*stages)[step]
-                   .sources_value[(*stages)[step].max_lines * j + i] +
-               task_dup - task) %
-              num_processors;
-        }
-        (*stages)[step + 1].num_sources[chunk * (port + 1) + i] =
-            (*stages)[step].num_sources[i];
-#endif
       }
     }
     for (port = 0; port < abs(num_ports[step]); port++) {
@@ -496,25 +379,6 @@ static int allreduce_init(struct allreduce_data_element **stages,
              (j >= 0) && used[(*stages)[step + 1].frac[j]]; j--) {
           if ((*stages)[step + 1].frac[j] ==
               (*stages)[step + 1].frac[chunk * (port + 1) + i]) {
-#ifdef VERBOSE
-            if (!allreduce_independent(*stages, step, num_processors,
-                                       chunk * (port + 1) + i, j)) {
-              printf("lines not independent %d %d %d\n", step,
-                     chunk * (port + 1) + i, j);
-              exit(2);
-            }
-            for (k = 0; k < (*stages)[step + 1].num_sources[j]; k++) {
-              (*stages)[step + 1]
-                  .sources_value[(*stages)[step + 1].max_lines *
-                                     (k + (*stages)[step + 1].num_sources
-                                              [chunk * (port + 1) + i]) +
-                                 chunk * (port + 1) + i] =
-                  (*stages)[step + 1]
-                      .sources_value[(*stages)[step + 1].max_lines * k + j];
-            }
-            (*stages)[step + 1].num_sources[chunk * (port + 1) + i] +=
-                (*stages)[step + 1].num_sources[j];
-#endif
             (*stages)[step + 1].from_value
                 [(*stages)[step + 1].max_lines *
                      (*stages)[step + 1].num_from[chunk * (port + 1) + i] +
@@ -529,22 +393,14 @@ static int allreduce_init(struct allreduce_data_element **stages,
         }
       }
     }
-#ifndef VERBOSE
     for (i = 0; i < used_max; i++) {
       used[i] = 1;
     }
-#endif
     for (i = (*stages)[step + 1].max_lines - 1; i >= 0; i--) {
-#ifdef VERBOSE
-      if (allreduce_complete(*stages, step + 1, num_processors, i)) {
-        lines_used[i] = 1;
-      }
-#else
       if (used[(*stages)[step + 1].frac[i]]) {
         lines_used[i] = 1;
         used[(*stages)[step + 1].frac[i]] = 0;
       }
-#endif
     }
   }
   flag = 1;
@@ -656,26 +512,17 @@ static int allreduce_init(struct allreduce_data_element **stages,
     }
     gbstep *= (abs(num_ports[step]) + 1);
   }
-#ifndef VERBOSE
   for (i = 0; i < used_max; i++) {
     used[i] = 1;
   }
-#endif
   for (i = (*stages)[step].max_lines - 1; i >= 0; i--) {
     (*stages)[step].num_to[i] = 1;
     (*stages)[step].to_value[i] = task;
-#ifdef VERBOSE
-    if (allreduce_complete(*stages, step, num_processors, i) || (!allreduce)) {
-      (*stages)[step].to_value[(*stages)[step].max_lines + i] = -1;
-      (*stages)[step].num_to[i]++;
-    }
-#else
     if (used[(*stages)[step].frac[i]]) {
       (*stages)[step].to_value[(*stages)[step].max_lines + i] = -1;
       (*stages)[step].num_to[i]++;
       used[(*stages)[step].frac[i]] = 0;
     }
-#endif
   }
   free(used);
   return 0;
@@ -801,52 +648,6 @@ int generate_allreduce(char *buffer_in, char *buffer_out) {
     free(stages_in);
   }
   delete_algorithm(size_level0, size_level1, data);
-#ifdef VERBOSE
-  for (i = 0; i <= nstep; i++) {
-    for (j = 0; j < stages[i].max_lines; j++) {
-      if ((i == 0) || (num_ports[i - 1] > 0)) {
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, " STAGE %d", i);
-      } else {
-        if (lines_used[j]) {
-          nbuffer_out += sprintf(buffer_out + nbuffer_out, " STAGE %d", i);
-        } else {
-          if (verbose) {
-            nbuffer_out += sprintf(buffer_out + nbuffer_out, "#STAGE %d", i);
-          }
-        }
-      }
-      if (lines_used[j] || verbose || (i == 0) || (num_ports[i - 1] > 0)) {
-        nbuffer_out +=
-            sprintf(buffer_out + nbuffer_out, " FRAC %d", stages[i].frac[j]);
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOURCE %d",
-                               stages[i].source[j]);
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, " TO");
-        for (k = 0; k < stages[i].num_to[j]; k++) {
-          nbuffer_out +=
-              sprintf(buffer_out + nbuffer_out, " %d",
-                      stages[i].to_value[k * stages[i].max_lines + j]);
-        }
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, " FROM");
-        for (k = 0; k < stages[i].num_from[j]; k++) {
-          nbuffer_out +=
-              sprintf(buffer_out + nbuffer_out, " %d|%d",
-                      stages[i].from_value[k * stages[i].max_lines + j],
-                      stages[i].from_line[k * stages[i].max_lines + j]);
-        }
-        if (verbose) {
-          nbuffer_out += sprintf(buffer_out + nbuffer_out, " #");
-          for (k = 0; k < stages[i].num_sources[j]; k++) {
-            nbuffer_out +=
-                sprintf(buffer_out + nbuffer_out, " %d",
-                        stages[i].sources_value[k * stages[i].max_lines + j]);
-          }
-        }
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
-      }
-    }
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, "#\n");
-  }
-#else
   size_level0 = nstep + 1;
   size_level1 = (int *)malloc(sizeof(int) * size_level0);
   if (!size_level1)
@@ -916,7 +717,6 @@ int generate_allreduce(char *buffer_in, char *buffer_out) {
       write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
                       parameters->ascii_out);
   delete_algorithm(size_level0, size_level1, data);
-#endif
   nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   allreduce_done(stages, num_ports);
   free(lines_used);
