@@ -9,6 +9,7 @@
 #include "read_bench.h"
 #include "cost_simple_recursive.h"
 #include "cost_simulation.h"
+#include "count_instructions.h"
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #endif
@@ -170,10 +171,11 @@ static int cost_simulate(int count, MPI_Datatype datatype, int comm_size_row,
                          int my_cores_per_node_column, int comm_size_rowb,
                          int comm_rank_row, int simulate) {
   struct cost_list *p1;
-  int handle, type_size, *num_ports = NULL, *groups = NULL, i,
-                         *num_steps = NULL, r, j, k;
+  int type_size, *num_ports = NULL, *groups = NULL, i,
+                 *num_steps = NULL, r, j, k;
   void *sendbuf = NULL, *recvbuf = NULL;
   double T_step, mb, *counts = NULL;
+  char *code_address;
   MPI_Type_size(datatype, &type_size);
   ext_mpi_cost_simulation(count, type_size, comm_size_row,
                           my_cores_per_node_row, comm_size_column,
@@ -204,18 +206,16 @@ static int cost_simulate(int count, MPI_Datatype datatype, int comm_size_row,
       groups[i] = p1->garray[i];
     }
     num_ports[p1->depth] = groups[p1->depth] = 0;
-    handle = EXT_MPI_Allreduce_init_draft(
-        sendbuf, recvbuf, count, datatype, MPI_SUM,
+    if (ext_mpi_allreduce_init_draft(
+        sendbuf, recvbuf, count, type_size,
         comm_size_row / my_cores_per_node_row, my_cores_per_node_row,
         comm_size_column / my_cores_per_node_column, my_cores_per_node_column,
         num_ports, groups, my_cores_per_node_row * my_cores_per_node_column, 0,
-        ext_mpi_bit_identical);
-    if (handle < 0)
+        ext_mpi_bit_identical, &code_address) < 0)
       goto error;
-    if (EXT_MPI_Count_native(handle, counts, num_steps) < 0)
+    if (ext_mpi_count_native(code_address, counts, num_steps) < 0)
       goto error;
-    if (EXT_MPI_Done_native(handle) < 0)
-      goto error;
+    free(code_address);
     p1->T_simulated = 0e0;
     T_step = -1e0;
     p1->nsteps = 0e0;

@@ -29,4 +29,43 @@
 #define ERROR_SHMEM -2
 #define ERROR_SYNTAX -3
 
+inline void code_put_char(char **code, char c, int isdryrun) {
+  if (!isdryrun)
+    *((char *)(*code)) = c;
+  *code += sizeof(char);
+}
+
+inline void code_put_int(char **code, int i, int isdryrun) {
+  if (!isdryrun)
+    *((int *)(*code)) = i;
+  *code += sizeof(int);
+}
+
+inline void code_put_pointer(char **code, void *p, int isdryrun) {
+  if (!isdryrun)
+    *((void **)(*code)) = p;
+  *code += sizeof(void *);
+}
+
+inline char code_get_char(char **code) {
+  char c;
+  c = *((char *)(*code));
+  *code += sizeof(char);
+  return c;
+}
+
+inline int code_get_int(char **code) {
+  int i;
+  i = *((int *)(*code));
+  *code += sizeof(int);
+  return i;
+}
+
+inline void *code_get_pointer(char **code) {
+  void *p;
+  p = *((void **)(*code));
+  *code += sizeof(void *);
+  return p;
+}
+
 #endif
