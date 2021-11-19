@@ -360,87 +360,6 @@ static int node_btest(char volatile *shmem, int *barrier_count, int node_rank,
   return (0);
 }
 
-/*static int size_of_code(int handle){
-  char *ip, instruction;
-  int n_r, i;
-  ip = comm_code[handle];
-  ip+=sizeof(struct header_byte_code);
-      do
-        {
-          instruction = code_get_char (&ip);
-          switch (instruction)
-            {
-            case OPCODE_RETURN:
-              break;
-            case OPCODE_MEMCPY:
-              code_get_pointer (&ip);
-              code_get_pointer (&ip);
-              code_get_int (&ip);
-              break;
-            case OPCODE_MPIIRECV:
-              code_get_pointer (&ip);
-              code_get_int (&ip);
-              code_get_int (&ip);
-              code_get_pointer (&ip);
-              break;
-            case OPCODE_MPIISEND:
-              code_get_pointer (&ip);
-              code_get_int (&ip);
-              code_get_int (&ip);
-              code_get_pointer (&ip);
-              break;
-            case OPCODE_MPIWAITALL:
-              code_get_int (&ip);
-              code_get_pointer (&ip);
-              break;
-            case OPCODE_NODEBARRIER:
-              break;
-            case OPCODE_SETNUMCORES:
-              code_get_int (&ip);
-              break;
-            case OPCODE_SETNODERANK:
-              code_get_int (&ip);
-              break;
-            case OPCODE_REDUCE:
-              code_get_char (&ip);
-              code_get_pointer (&ip);
-              code_get_pointer (&ip);
-              code_get_int (&ip);
-              break;
-            case OPCODE_MPISENDRECV:
-              code_get_pointer (&ip);
-              code_get_int (&ip);
-              code_get_int (&ip);
-              code_get_pointer (&ip);
-              code_get_int (&ip);
-              code_get_int (&ip);
-              break;
-            case OPCODE_MPISEND:
-              code_get_pointer (&ip);
-              code_get_int (&ip);
-              code_get_int (&ip);
-              break;
-            case OPCODE_MPIRECV:
-              code_get_pointer (&ip);
-              code_get_int (&ip);
-              code_get_int (&ip);
-              break;
-            case OPCODE_LOCALMEM:
-              code_get_int (&ip);
-              n_r = code_get_int (&ip);
-              for (i=0; i<n_r; i++){
-                code_get_int (&ip);
-              }
-              break;
-            default:
-              printf ("illegal MPI_OPCODE size_of_code\n");
-              exit (1);
-            }
-        }
-      while (instruction != OPCODE_RETURN);
-  return(ip-comm_code[handle]);
-}*/
-
 static int exec_native(char *ip, char **ip_exec, int active_wait) {
   char instruction, instruction2; //, *r_start, *r_temp, *ipl;
   void volatile *p1, *p2;
@@ -1786,12 +1705,12 @@ error:
 int EXT_MPI_Init_native() {
   MPI_Comm_dup(MPI_COMM_WORLD, &EXT_MPI_COMM_WORLD);
   is_initialised = 1;
-  return (0);
+  return 0;
 }
 
 int EXT_MPI_Initialized_native() { return (is_initialised); }
 
 int EXT_MPI_Finalize_native() {
   MPI_Comm_free(&EXT_MPI_COMM_WORLD);
-  return (0);
+  return 0;
 }
