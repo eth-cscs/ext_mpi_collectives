@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 char* ext_mpi_print_ports_groups(int *ports, int *groups){
   char *rvalue;
@@ -18,19 +19,57 @@ char* ext_mpi_print_ports_groups(int *ports, int *groups){
   return rvalue;
 }
 
-int ext_mpi_scan_ports_groups(){
+int ext_mpi_scan_ports_groups(char *str, int **ports, int **groups){
+  char *c, *c2, *c3;
+  int size=0, i=0, j=0, flag;
+  for (c=str; *c; c++){
+    if ((*c==' ')||(*c==',')){
+      size++;
+    }
+  }
+  size=(size+1)*2;
+  *ports=(int*)malloc(size*sizeof(int));
+  *groups=(int*)malloc(size*sizeof(int));
+  c2=c=strdup(str);
+  while ((*c2==' ')||(*c2==',')){
+    c2++;
+  }
+  while (*c2){
+    c3=c2;
+    while ((*c3!=' ')&&(*c3!=',')&&(*c3!='(')&&(*c3)){
+      c3++;
+    }
+    *c3=0;
+    sscanf(c2, "%d", &(*groups)[i]);
+    c2=c3+1;
+    while ((*c2==' ')||(*c2==',')||(*c2=='(')){
+      c2++;
+    }
+    j=i;
+    flag=1;
+    while (flag){
+      c3=c2;
+      while ((*c3!=' ')&&(*c3!=',')&&(*c3!=')')){
+        c3++;
+      }
+      flag=(*c3!=')');
+      *c3=0;
+      sscanf(c2, "%d", &(*ports)[j]);
+      (*ports)[j]*=-1;
+      (*groups)[j]=(*groups)[i];
+      j++;
+      c2=c3+1;
+      while ((*c2==' ')||(*c2==',')){
+        c2++;
+      }
+    }
+    (*groups)[j]*=-1;
+    i=j;
+    while ((*c2==' ')||(*c2==',')){
+      c2++;
+    }
+  }
+  (*ports)[i]=(*groups)[i]=0;
+  free(c);
   return 0;
 }
-
-/*int main(){
-  int ports[20], groups[20];
-  char *c;
-  groups[0] = 8; ports[0] = 1;
-  groups[1] = 8; ports[1] = -1;
-  groups[2] = 8; ports[2] = -1;
-  groups[3] = -8; ports[3] = -1;
-  groups[4] = -2; ports[4] = -1;
-  c=ext_mpi_print_ports_groups(ports, groups);
-  printf("%s\n", c);
-  return 0;
-}*/
