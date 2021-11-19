@@ -29,6 +29,11 @@ int ext_mpi_cost_simulation(int count, int type_size, int comm_size_row,
                             int my_cores_per_node_column, int comm_size_rowb,
                             int comm_rank_row, int simulate);
 
+int ext_mpi_allreduce_simulate(int count, int type_size,
+                               int comm_size_row, int my_cores_per_node_row,
+                               int comm_size_column,
+                               int my_cores_per_node_column);
+
 #ifdef __cplusplus
 }
 #endif
