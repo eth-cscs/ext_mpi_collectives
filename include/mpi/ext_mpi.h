@@ -87,10 +87,6 @@ int EXT_MPI_Test(int handle);
 int EXT_MPI_Progress();
 int EXT_MPI_Wait(int handle);
 int EXT_MPI_Done(int handle);
-int EXT_MPI_Allreduce_simulate(int count, MPI_Datatype datatype, MPI_Op op,
-                               int comm_size_row, int my_cores_per_node_row,
-                               int comm_size_column,
-                               int my_cores_per_node_column);
 
 #ifdef __cplusplus
 }

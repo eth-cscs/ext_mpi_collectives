@@ -328,3 +328,72 @@ error:
   free(num_ports);
   return ERROR_MALLOC;
 }
+
+int ext_mpi_allreduce_simulate(int count, int type_size,
+                               int comm_size_row, int my_cores_per_node_row,
+                               int comm_size_column,
+                               int my_cores_per_node_column) {
+  int comm_rank_row, i;
+  int *num_ports = NULL, *groups = NULL;
+  struct cost_list *p1, *p2;
+  comm_rank_row = 0;
+  num_ports = (int *)malloc((2 * comm_size_row + 1) * sizeof(int));
+  if (!num_ports)
+    goto error;
+  groups = (int *)malloc((2 * comm_size_row + 1) * sizeof(int));
+  if (!groups)
+    goto error;
+  for (i = 0; i < comm_size_row; i++) {
+    num_ports[i] = groups[i] = 0;
+  }
+  if (comm_size_row / my_cores_per_node_row > 1) {
+    if (my_cores_per_node_row == 1) {
+      if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
+                                  comm_size_column, my_cores_per_node_column,
+                                  comm_size_row, comm_rank_row, 1) < 0)
+        goto error;
+    } else {
+      if (ext_mpi_cost_simulation(count, type_size, comm_size_row, my_cores_per_node_row,
+                                  comm_size_column, my_cores_per_node_column,
+                                  comm_size_row, comm_rank_row, 1) < 0)
+        goto error;
+    }
+    p1 = cost_list_start;
+    while (p1) {
+      for (i = 0; p1->rarray[i]; i++) {
+        num_ports[i] = p1->rarray[i];
+        groups[i] = p1->garray[i];
+      }
+      groups[i] = num_ports[i] = 0;
+      for (i = 0; groups[i]; i++) {
+        printf(" %d ", groups[i]);
+      }
+      printf("|");
+      for (i = 0; num_ports[i]; i++) {
+        printf(" %d ", num_ports[i]);
+      }
+      printf("| %e %e\n", p1->nsteps, p1->nvolume);
+      p2 = p1;
+      p1 = p1->next;
+      free(p2->garray);
+      free(p2->rarray);
+      free(p2);
+    }
+    cost_list_start = NULL;
+    cost_list_length = 0;
+    cost_list_counter = 0;
+    for (i = 0; num_ports[i]; i++)
+      ;
+    groups[i] = num_ports[i] = 0;
+  } else {
+    groups[0] = num_ports[0] = -1;
+    groups[1] = num_ports[1] = 0;
+  }
+  free(groups);
+  free(num_ports);
+  return 0;
+error:
+  free(groups);
+  free(num_ports);
+  return ERROR_MALLOC;
+}
