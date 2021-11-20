@@ -12,6 +12,7 @@
 #include "cost_estimation.h"
 #include "cost_simulation.h"
 #include "count_instructions.h"
+#include "ports_groups.h"
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #endif
@@ -938,6 +939,7 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
   } composition;
 #ifdef VERBOSE
   int world_rank;
+  char *str;
 #endif
 #ifdef DEBUG
   int j;
@@ -1083,21 +1085,11 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
 #ifdef VERBOSE
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   if (world_rank == 0) {
-    printf("# allreduce parameters %d %d %d %d ports ",
+    str = ext_mpi_print_ports_groups(num_ports, groups);
+    printf("# allreduce parameters %d %d %d %d ports %s\n",
            comm_size_row / my_cores_per_node_row, count * message_size, 1,
-           my_cores_per_node_row * my_cores_per_node_column);
-    i = 0;
-    while (num_ports[i]) {
-      printf("%d ", num_ports[i]);
-      i++;
-    }
-    printf("groups ");
-    i = 0;
-    while (groups[i]) {
-      printf("%d ", groups[i]);
-      i++;
-    }
-    printf("\n");
+           my_cores_per_node_row * my_cores_per_node_column, str);
+    free(str);
   }
 #endif
   cin_method = 0;

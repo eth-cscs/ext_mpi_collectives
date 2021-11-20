@@ -7,6 +7,7 @@
 #include "read.h"
 #include "read_bench.h"
 #include "count_instructions.h"
+#include "ports_groups.h"
 #include "cost_estimation.h"
 #include "cost_simulation.h"
 
@@ -121,10 +122,10 @@ int ext_mpi_allreduce_simulate(int count, int type_size,
                                int comm_size_row, int my_cores_per_node_row,
                                int comm_size_column,
                                int my_cores_per_node_column) {
-  int comm_rank_row, i;
+  int comm_rank_row = 0, i;
   int *num_ports = NULL, *groups = NULL;
   struct cost_list *p1, *p2;
-  comm_rank_row = 0;
+  char *str;
   num_ports = (int *)malloc((2 * comm_size_row + 1) * sizeof(int));
   if (!num_ports)
     goto error;
@@ -153,14 +154,9 @@ int ext_mpi_allreduce_simulate(int count, int type_size,
         groups[i] = p1->garray[i];
       }
       groups[i] = num_ports[i] = 0;
-      for (i = 0; groups[i]; i++) {
-        printf(" %d ", groups[i]);
-      }
-      printf("|");
-      for (i = 0; num_ports[i]; i++) {
-        printf(" %d ", num_ports[i]);
-      }
-      printf("| %e %e\n", p1->nsteps, p1->nvolume);
+      str=ext_mpi_print_ports_groups(num_ports, groups);
+      printf("%s | %e %e\n", str, p1->nsteps, p1->nvolume);
+      free(str);
       p2 = p1;
       p1 = p1->next;
       free(p2->garray);
