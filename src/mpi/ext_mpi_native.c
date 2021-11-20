@@ -33,6 +33,7 @@
 #include "read.h"
 #include "reduce_copyin.h"
 #include "reduce_copyout.h"
+#include "ports_groups.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
@@ -840,7 +841,7 @@ int EXT_MPI_Reduce_init_native(void *sendbuf, void *recvbuf, int count,
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int coarse_count, *counts = NULL, iret;
-  char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp;
+  char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   int nbuffer1 = 0, msize, *msizes = NULL, *msizes2 = NULL, *rank_perm = NULL,
       i, allreduce_short = (num_ports[0] < 0);
   int reduction_op;
@@ -975,18 +976,9 @@ int EXT_MPI_Reduce_init_native(void *sendbuf, void *recvbuf, int count,
   free(counts);
   counts = NULL;
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS");
-  i = 0;
-  while (num_ports[i]) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", num_ports[i++]);
-  }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER GROUPS");
-  i = 0;
-  while (groups[i]) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", groups[i++]);
-  }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
+  str = ext_mpi_print_ports_groups(num_ports, groups);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
+  free(str);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   if (!allreduce_short) {
     for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
@@ -1130,8 +1122,8 @@ int EXT_MPI_Gatherv_init_native(
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
-  char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp;
-  int nbuffer1 = 0, i, j;
+  char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
+  int nbuffer1 = 0, i, j, *groups;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer1)
     goto error;
@@ -1229,12 +1221,16 @@ int EXT_MPI_Gatherv_init_native(
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS");
-  i = 0;
-  while (num_ports[i]) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", num_ports[i++]);
+  for (i=0; num_ports[i]; i++);
+  groups = (int*) malloc(i*sizeof(int));
+  for (j=0; j<i; j++){
+    groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
+  groups[i-1]*=-1;
+  str = ext_mpi_print_ports_groups(num_ports, groups);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
+  free(str);
+  free(groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", coarse_counts[i]);
@@ -1334,8 +1330,8 @@ int EXT_MPI_Scatterv_init_native(void *sendbuf, int *sendcounts, int *displs,
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
-  char *buffer1 = NULL, *buffer2 = NULL;
-  int nbuffer1 = 0, i, j;
+  char *buffer1 = NULL, *buffer2 = NULL, *str;
+  int nbuffer1 = 0, i, j, *groups;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer1)
     goto error;
@@ -1431,12 +1427,15 @@ int EXT_MPI_Scatterv_init_native(void *sendbuf, int *sendcounts, int *displs,
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
   local_counts = NULL;
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS");
-  i = 0;
-  while (num_ports[i]) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", num_ports[i++]);
+  groups = (int*) malloc(i*sizeof(int));
+  for (j=0; j<i; j++){
+    groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
+  groups[i-1]*=-1;
+  str = ext_mpi_print_ports_groups(num_ports, groups);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
+  free(str);
+  free(groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", coarse_counts[i]);
@@ -1517,8 +1516,8 @@ int EXT_MPI_Reduce_scatter_init_native(
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
-  char *buffer1 = NULL, *buffer2 = NULL;
-  int nbuffer1 = 0, i, j;
+  char *buffer1 = NULL, *buffer2 = NULL, *str;
+  int nbuffer1 = 0, i, j, *groups;
   int reduction_op;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer1)
@@ -1626,12 +1625,15 @@ int EXT_MPI_Reduce_scatter_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
   local_counts = NULL;
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS");
-  i = 0;
-  while (num_ports[i]) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", num_ports[i++]);
+  groups = (int*) malloc(i*sizeof(int));
+  for (j=0; j<i; j++){
+    groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
+  groups[i-1]*=-1;
+  str = ext_mpi_print_ports_groups(num_ports, groups);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
+  free(str);
+  free(groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", coarse_counts[i]);

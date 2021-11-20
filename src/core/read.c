@@ -1,8 +1,9 @@
-#include "read.h"
-#include "constants.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "constants.h"
+#include "ports_groups.h"
+#include "read.h"
 
 int ext_mpi_bit_identical = 0;
 
@@ -298,25 +299,16 @@ int read_parameters(char *buffer_in, struct parameters_block **parameters) {
         }
         if (strcmp(string2, "NUM_PORTS") == 0) {
           free((*parameters)->num_ports);
-          while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
-                 (*buffer_in_copy != '-') && (*buffer_in_copy != '\0')) {
-            buffer_in_copy++;
-          }
-          (*parameters)->num_ports_max =
-              read_int_series(buffer_in_copy, &((*parameters)->num_ports));
-          if ((*parameters)->num_ports_max < 0)
-            goto error;
-        }
-        if (strcmp(string2, "GROUPS") == 0) {
           free((*parameters)->groups);
           while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
                  (*buffer_in_copy != '-') && (*buffer_in_copy != '\0')) {
             buffer_in_copy++;
           }
-          (*parameters)->groups_max =
-              read_int_series(buffer_in_copy, &((*parameters)->groups));
-          if ((*parameters)->groups_max < 0)
+          if (ext_mpi_scan_ports_groups(buffer_in_copy, &(*parameters)->num_ports, &(*parameters)->groups)<0)
             goto error;
+          for ((*parameters)->num_ports_max = 0; (*parameters)->num_ports[(*parameters)->num_ports_max];
+               (*parameters)->num_ports_max++);
+          (*parameters)->groups_max = (*parameters)->num_ports_max;
         }
         if (strcmp(string2, "MESSAGE_SIZE") == 0) {
           free((*parameters)->message_sizes);
@@ -378,6 +370,7 @@ error:
 
 int write_parameters(struct parameters_block *parameters, char *buffer_out) {
   int nbuffer_out = 0, i;
+  char *str;
   if (!parameters->ascii_out) {
     buffer_out[0] = '\0';
     nbuffer_out++;
@@ -488,20 +481,9 @@ int write_parameters(struct parameters_block *parameters, char *buffer_out) {
     nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
   }
   if (parameters->num_ports_max > 0) {
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NUM_PORTS");
-    for (i = 0; i < parameters->num_ports_max; i++) {
-      nbuffer_out +=
-          sprintf(buffer_out + nbuffer_out, " %d", parameters->num_ports[i]);
-    }
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
-  }
-  if (parameters->groups_max > 0) {
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER GROUPS");
-    for (i = 0; i < parameters->groups_max; i++) {
-      nbuffer_out +=
-          sprintf(buffer_out + nbuffer_out, " %d", parameters->groups[i]);
-    }
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
+    str = ext_mpi_print_ports_groups(parameters->num_ports, parameters->groups);
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NUM_PORTS %s\n", str);
+    free(str);
   }
   if (parameters->message_sizes_max > 0) {
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER MESSAGE_SIZE");

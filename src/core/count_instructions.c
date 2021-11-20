@@ -25,6 +25,7 @@
 #include "reduce_copyin.h"
 #include "reduce_copyout.h"
 #include "byte_code.h"
+#include "ports_groups.h"
 #include "count_instructions.h"
 
 int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
@@ -41,7 +42,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   int nbuffer1 = 0, msize, *msizes = NULL, *msizes2 = NULL, i,
       allreduce_short = (num_ports[0] < 0);
   int reduction_op=-1;
-  char *ip;
+  char *ip, *str;
   int *global_ranks = NULL, code_size;
   int gpu_byte_code_counter = 0;
   if (allreduce_short) {
@@ -156,18 +157,8 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   free(counts);
   counts = NULL;
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS");
-  i = 0;
-  while (num_ports[i]) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", num_ports[i++]);
-  }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER GROUPS");
-  i = 0;
-  while (groups[i]) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", groups[i++]);
-  }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
+  str = ext_mpi_print_ports_groups(num_ports, groups);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   if (!allreduce_short) {
     for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {

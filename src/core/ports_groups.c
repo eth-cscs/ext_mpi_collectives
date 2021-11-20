@@ -63,7 +63,7 @@ int ext_mpi_scan_ports_groups(char *str, int **ports, int **groups){
         c2++;
       }
     }
-    (*groups)[j]*=-1;
+    (*groups)[j-1]*=-1;
     i=j;
     while ((*c2==' ')||(*c2==',')){
       c2++;
