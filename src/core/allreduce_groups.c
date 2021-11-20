@@ -164,7 +164,7 @@ static int frac_translate(int num_nodes, int *groups, int node_from,
 static int print_algorithm(char *buffer, int node, int num_nodes_l,
                            int node_rank, int node_row_size,
                            int node_column_size, int copy_method, int *counts,
-                           int counts_max, int *num_ports, int *msizes,
+                           int counts_max, int *num_ports, int *groups, int *msizes,
                            int msizes_max, enum edata_type data_type,
                            int num_nodes, int size_level0, int *size_level1,
                            struct data_line **data, int stage_offset,
@@ -195,8 +195,8 @@ static int print_algorithm(char *buffer, int node, int num_nodes_l,
     parameters.message_sizes_max = msizes_max;
     parameters.message_sizes = msizes;
     parameters.data_type = data_type;
-    parameters.groups_max = 0;
-    parameters.groups = NULL;
+    parameters.groups_max = parameters.num_ports_max;
+    parameters.groups = groups;
     parameters.rank_perm_max = 0;
     parameters.rank_perm = NULL;
     parameters.iocounts_max = 0;
@@ -284,7 +284,7 @@ int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, *msizes = NULL, msizes_max = 0,
       *msizes_l = NULL, msizes_max_l = 0, *num_ports = NULL, num_port,
       num_ports_max = 0, *groups = NULL, group, ngroups = 0, igroup,
-      *num_ports_l = NULL, num_nodes_start;
+      *num_ports_l = NULL, num_nodes_start, *groups_l=NULL;
   int i, j, k, l, m, n, o, q,
       *size_level0_l = NULL, **size_level1_l = NULL, gbstep, component,
       ports_chunk, node_l, num_nodes_l, *counts = NULL, counts_max, stage = -1;
@@ -317,6 +317,9 @@ int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   }
   num_ports_l = (int *)malloc((num_ports_max + 1) * sizeof(int));
   if (!num_ports_l)
+    goto error;
+  groups_l = (int *)malloc((num_ports_max + 1) * sizeof(int));
+  if (!groups_l)
     goto error;
   buffer_in_temp = (char **)malloc(ngroups * sizeof(char *));
   if (!buffer_in_temp)
@@ -375,9 +378,14 @@ int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
     for (i = 0; i < msizes_max_l; i++) {
       msizes_l[i] = 11;
     }
+    for (i = 0; i < ports_chunk; i++) {
+      groups_l[i] = num_nodes_l;
+    }
+    groups_l[i-1]*=-1;
+    groups_l[i] = 0;
     print_algorithm(buffer_in_temp[group], node_l, num_nodes_l, node_rank,
                     node_row_size, node_column_size, copy_method, counts,
-                    counts_max, num_ports_l, msizes_l, msizes_max_l,
+                    counts_max, num_ports_l, groups_l, msizes_l, msizes_max_l,
                     parameters->data_type, num_nodes_start, 0, NULL, NULL, 0, 0,
                     NULL, NULL, flag, parameters->ascii_out, parameters->root,
                     parameters->bit_identical);
@@ -766,7 +774,7 @@ int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
       if (group > 0) {
         print_algorithm(buffer_out_temp[group], node, num_nodes, node_rank,
                         node_row_size, node_column_size, copy_method, counts,
-                        counts_max, num_ports, msizes, msizes_max,
+                        counts_max, num_ports, groups, msizes, msizes_max,
                         parameters->data_type, 0, size_level0_l[group],
                         size_level1_l[group], data_l[group], stage_offset,
                         size_level0_l[group - 1], size_level1_l[group - 1],
@@ -775,7 +783,7 @@ int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
       } else {
         print_algorithm(
             buffer_out_temp[group], node, num_nodes, node_rank, node_row_size,
-            node_column_size, copy_method, counts, counts_max, num_ports,
+            node_column_size, copy_method, counts, counts_max, num_ports, groups,
             msizes, msizes_max, parameters->data_type, 0, size_level0_l[group],
             size_level1_l[group], data_l[group], stage_offset, 0, NULL, NULL, 0,
             parameters->ascii_out, parameters->root, parameters->bit_identical);
@@ -784,7 +792,7 @@ int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
       if (group > 0) {
         print_algorithm(buffer_out_temp[group], node, num_nodes, node_rank,
                         node_row_size, node_column_size, copy_method, counts,
-                        counts_max, num_ports, msizes, msizes_max,
+                        counts_max, num_ports, groups, msizes, msizes_max,
                         parameters->data_type, 0, size_level0_l[group],
                         size_level1_l[group], data_l[group], stage_offset,
                         size_level0_l[group - 1], size_level1_l[group - 1],
@@ -793,7 +801,7 @@ int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
       } else {
         print_algorithm(
             buffer_out_temp[group], node, num_nodes, node_rank, node_row_size,
-            node_column_size, copy_method, counts, counts_max, num_ports,
+            node_column_size, copy_method, counts, counts_max, num_ports, groups,
             msizes, msizes_max, parameters->data_type, 0, size_level0_l[group],
             size_level1_l[group], data_l[group], stage_offset, 0, NULL, NULL, 0,
             parameters->ascii_out, parameters->root, parameters->bit_identical);
@@ -821,6 +829,7 @@ int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   free(frac_start);
   free(buffer_out_temp);
   free(buffer_in_temp);
+  free(groups_l);
   free(num_ports_l);
   delete_parameters(parameters);
   return nbuffer_out;
@@ -841,6 +850,7 @@ error:
   free(frac_start);
   free(buffer_out_temp);
   free(buffer_in_temp);
+  free(groups_l);
   free(num_ports_l);
   delete_parameters(parameters);
   return ERROR_MALLOC;

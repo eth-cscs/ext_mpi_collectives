@@ -1227,6 +1227,7 @@ int EXT_MPI_Gatherv_init_native(
     groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
   groups[i-1]*=-1;
+  groups[i] = 0;
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
   free(str);
@@ -1432,6 +1433,7 @@ int EXT_MPI_Scatterv_init_native(void *sendbuf, int *sendcounts, int *displs,
     groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
   groups[i-1]*=-1;
+  groups[i] = 0;
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
   free(str);
@@ -1630,6 +1632,7 @@ int EXT_MPI_Reduce_scatter_init_native(
     groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
   groups[i-1]*=-1;
+  groups[i] = 0;
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
   free(str);
