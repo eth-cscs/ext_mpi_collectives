@@ -20,10 +20,9 @@
 static int is_initialised = 0;
 static int copyin_method = 0;
 static int alternating = 0;
-int *fixed_factors_ports = NULL;
-int *fixed_factors_groups = NULL;
-int fixed_tile_size_row = 0;
-int fixed_tile_size_column = 0;
+static int verbose = 0;
+static int *fixed_factors_ports = NULL;
+static int *fixed_factors_groups = NULL;
 
 static int read_env() {
   int mpi_comm_rank, mpi_comm_size, var, i, j;
@@ -31,47 +30,19 @@ static int read_env() {
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_comm_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_comm_size);
   if (mpi_comm_rank == 0) {
-    var = ((c = getenv("EXT_MPI_FIXED_TILE_SIZE_ROW")) != NULL);
+    var = ((c = getenv("EXT_MPI_VERBOSE")) != NULL);
     if (var) {
-      sscanf(c, "%d", &fixed_tile_size_row);
-      printf("fixed tile size row %d\n", fixed_tile_size_row);
+      verbose = 1;
+      printf("verbose\n");
     }
   }
-  MPI_Bcast(&fixed_tile_size_row, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (mpi_comm_rank == 0) {
-    var = ((c = getenv("EXT_MPI_FIXED_TILE_SIZE_COLUMN")) != NULL);
-    if (var) {
-      sscanf(c, "%d", &fixed_tile_size_column);
-      printf("fixed tile size column %d\n", fixed_tile_size_column);
-    }
-  }
-  MPI_Bcast(&fixed_tile_size_column, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&verbose, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_COPYIN_METHOD")) != NULL);
     if (var) {
-      if (c[0] == '1') {
-        copyin_method = 1;
-        printf("copy in short\n");
-      }
-      if (c[0] == '2') {
-        copyin_method = 2;
-        printf("copy in long\n");
-      }
-      if (c[0] == '3') {
-        copyin_method = 3;
-        printf("copy in very short\n");
-      }
-      if (c[0] == '4') {
-        copyin_method = 4;
-        printf("copy in unordered\n");
-      }
-      if (c[0] == '5') {
-        copyin_method = 5;
-        printf("copy in atomic\n");
-      }
-      if (c[0] == '6') {
-        copyin_method = 6;
-        printf("copy in very very small\n");
+      copyin_method = c[0]-'0';
+      if (verbose) {
+        printf("copy in method %d\n", copyin_method);
       }
     }
   }
@@ -192,17 +163,29 @@ int EXT_MPI_Init() {
   read_env();
   EXT_MPI_Init_native();
   is_initialised = 1;
-  return (0);
+  return 0;
 }
 
 int EXT_MPI_Initialized(int *flag) {
   *flag = is_initialised;
-  return (0);
+  return 0;
 }
 
 int EXT_MPI_Finalize() {
   EXT_MPI_Finalize_native();
-  return (0);
+  return 0;
+}
+
+static int is_rank_zero(MPI_Comm comm_row, MPI_Comm comm_column){
+  int comm_rank_row, comm_rank_column=0;
+  if (comm_row == MPI_COMM_NULL){
+    return 0;
+  }
+  MPI_Comm_rank(comm_row, &comm_rank_row);
+  if (comm_column != MPI_COMM_NULL){
+    MPI_Comm_rank(comm_column, &comm_rank_column);
+  }
+  return (!comm_rank_row)&&(!comm_rank_column);
 }
 
 int EXT_MPI_Allgatherv_init_general(void *sendbuf, int sendcount,
@@ -212,19 +195,20 @@ int EXT_MPI_Allgatherv_init_general(void *sendbuf, int sendcount,
                                     int my_cores_per_node_row,
                                     MPI_Comm comm_column,
                                     int my_cores_per_node_column, int *handle) {
-  int comm_size_row, *num_ports = NULL, *num_parallel = NULL, type_size, scount,
+  int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, scount,
                      i, alt, rcount;
+  char *str;
 #ifdef DEBUG
   void *recvbuf_ref = NULL, *sendbuf_org = NULL, *recvbuf_org = NULL;
   int world_rank, comm_rank_row, max_sendcount, max_displs, j, k;
-#endif
-#ifdef VERBOSE
-  int world_rankv;
 #endif
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(sendtype, &type_size);
   num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_ports)
+    goto error;
+  groups = (int *)malloc((comm_size_row + 1) * sizeof(int));
+  if (!groups)
     goto error;
   num_parallel = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_parallel)
@@ -237,13 +221,13 @@ int EXT_MPI_Allgatherv_init_general(void *sendbuf, int sendcount,
     if (fixed_factors_ports == NULL) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           scount * type_size, 1,
+                           scount * type_size,
                            my_cores_per_node_row * my_cores_per_node_column,
-                           num_ports) < 0)
+                           num_ports, groups) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           scount * type_size, 1, 12, num_ports) < 0)
+                           scount * type_size, 12, num_ports, groups) < 0)
           goto error;
       }
     } else {
@@ -251,27 +235,18 @@ int EXT_MPI_Allgatherv_init_general(void *sendbuf, int sendcount,
       do {
         i++;
         num_ports[i] = fixed_factors_ports[i];
+        groups[i] = fixed_factors_groups[i];
       } while (fixed_factors_ports[i] > 0);
     }
-    i = 0;
-    while (num_ports[i] != 0) {
-      num_ports[i]--;
-      i++;
-    }
-#ifdef VERBOSE
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rankv);
-    if (world_rankv == 0) {
-      printf("# allgatherv parameters %d %d %d %d ports ",
-             comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
-             my_cores_per_node_row * my_cores_per_node_column);
-      i = 0;
-      while (num_ports[i] > 0) {
-        printf("%d ", num_ports[i]);
-        i++;
+    if (verbose){
+      if (is_rank_zero(comm_row, comm_column)){
+        str = ext_mpi_print_ports_groups(num_ports, groups);
+        printf("# allgatherv parameters %d %d %d %d ports %s\n",
+               comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
+               my_cores_per_node_row * my_cores_per_node_column, str);
+        free(str);
       }
-      printf("\n");
     }
-#endif
     for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
       num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
                         (abs(num_ports[i]) + 1);
@@ -296,6 +271,7 @@ int EXT_MPI_Allgatherv_init_general(void *sendbuf, int sendcount,
       goto error;
   }
   free(num_parallel);
+  free(groups);
   free(num_ports);
 #ifdef DEBUG
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -359,6 +335,7 @@ error:
   free(recvbuf_ref);
 #endif
   free(num_parallel);
+  free(groups);
   free(num_ports);
   return ERROR_MALLOC;
 }
@@ -370,19 +347,20 @@ int EXT_MPI_Gatherv_init_general(void *sendbuf, int sendcount,
                                  MPI_Comm comm_row, int my_cores_per_node_row,
                                  MPI_Comm comm_column,
                                  int my_cores_per_node_column, int *handle) {
-  int comm_size_row, *num_ports = NULL, *num_parallel = NULL, type_size, scount,
+  int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, scount,
                      i, alt, rcount;
+  char *str;
 #ifdef DEBUG
   void *recvbuf_ref = NULL, *sendbuf_org = NULL, *recvbuf_org = NULL;
   int world_rank, comm_rank_row, max_sendcount, max_displs, j, k;
-#endif
-#ifdef VERBOSE
-  int world_rankv;
 #endif
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(sendtype, &type_size);
   num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_ports)
+    goto error;
+  groups = (int *)malloc((comm_size_row + 1) * sizeof(int));
+  if (!groups)
     goto error;
   num_parallel = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_parallel)
@@ -395,13 +373,13 @@ int EXT_MPI_Gatherv_init_general(void *sendbuf, int sendcount,
     if (fixed_factors_ports == NULL) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           scount * type_size, 1,
+                           scount * type_size,
                            my_cores_per_node_row * my_cores_per_node_column,
-                           num_ports) < 0)
+                           num_ports, groups) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           scount * type_size, 1, 12, num_ports) < 0)
+                           scount * type_size, 12, num_ports, groups) < 0)
           goto error;
       }
     } else {
@@ -411,25 +389,15 @@ int EXT_MPI_Gatherv_init_general(void *sendbuf, int sendcount,
         num_ports[i] = fixed_factors_ports[i];
       } while (fixed_factors_ports[i] > 0);
     }
-    i = 0;
-    while (num_ports[i] != 0) {
-      num_ports[i]--;
-      i++;
-    }
-#ifdef VERBOSE
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rankv);
-    if (world_rankv == 0) {
-      printf("# gatherv parameters %d %d %d %d ports ",
-             comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
-             my_cores_per_node_row * my_cores_per_node_column);
-      i = 0;
-      while (num_ports[i] > 0) {
-        printf("%d ", num_ports[i]);
-        i++;
+    if (verbose) {
+      if (is_rank_zero(comm_row, comm_column)){
+        str = ext_mpi_print_ports_groups(num_ports, groups);
+        printf("# gatherv parameters %d %d %d %d ports %s\n",
+               comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
+               my_cores_per_node_row * my_cores_per_node_column, str);
+        free(str);
       }
-      printf("\n");
     }
-#endif
     for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
       num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
                         (abs(num_ports[i]) + 1);
@@ -454,6 +422,7 @@ int EXT_MPI_Gatherv_init_general(void *sendbuf, int sendcount,
       goto error;
   }
   free(num_parallel);
+  free(groups);
   free(num_ports);
 #ifdef DEBUG
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -519,6 +488,7 @@ error:
   free(recvbuf_ref);
 #endif
   free(num_parallel);
+  free(groups);
   free(num_ports);
   return ERROR_MALLOC;
 }
@@ -553,11 +523,9 @@ int EXT_MPI_Reduce_scatter_init_general(
     void *sendbuf, void *recvbuf, int *recvcounts, MPI_Datatype datatype,
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *handle) {
-  int comm_size_row, *num_ports = NULL, *num_parallel = NULL, type_size, rcount,
+  int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, rcount,
                      i, j, k, cin_method, alt;
-#ifdef VERBOSE
-  int world_rankv;
-#endif
+  char *str;
 #ifdef DEBUG
   void *recvbuf_ref = NULL, *sendbuf_org = NULL, *recvbuf_org = NULL;
   int world_rank, comm_rank_row, tsize;
@@ -576,6 +544,9 @@ int EXT_MPI_Reduce_scatter_init_general(
   num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_ports)
     goto error;
+  groups = (int *)malloc((comm_size_row + 1) * sizeof(int));
+  if (!groups)
+    goto error;
   num_parallel = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_parallel)
     goto error;
@@ -592,13 +563,13 @@ int EXT_MPI_Reduce_scatter_init_general(
     if (fixed_factors_ports == NULL) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           rcount * type_size, 1,
+                           rcount * type_size,
                            my_cores_per_node_row * my_cores_per_node_column,
-                           num_ports) < 0)
+                           num_ports, groups) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           rcount * type_size, 1, 12, num_ports) < 0)
+                           rcount * type_size, 12, num_ports, groups) < 0)
           goto error;
       }
     } else {
@@ -608,26 +579,16 @@ int EXT_MPI_Reduce_scatter_init_general(
         num_ports[i] = fixed_factors_ports[i];
       } while (fixed_factors_ports[i] > 0);
     }
-    i = 0;
-    while (num_ports[i] != 0) {
-      num_ports[i]--;
-      i++;
-    }
-#ifdef VERBOSE
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rankv);
-    if (world_rankv == 0) {
-      i = recvcounts[0];
-      printf("# reduce_scatter parameters %d %d %d %d ports ",
-             comm_size_row / my_cores_per_node_row, i * type_size, 1,
-             my_cores_per_node_row * my_cores_per_node_column);
-      i = 0;
-      while (num_ports[i] > 0) {
-        printf("%d ", num_ports[i]);
-        i++;
+    if (verbose) {
+      if (is_rank_zero(comm_row, comm_column)){
+        str = ext_mpi_print_ports_groups(num_ports, groups);
+        i = recvcounts[0];
+        printf("# reduce_scatter parameters %d %d %d %d ports %s\n",
+               comm_size_row / my_cores_per_node_row, i * type_size, 1,
+               my_cores_per_node_row * my_cores_per_node_column, str);
+        free(str);
       }
-      printf("\n");
     }
-#endif
     for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
       num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
                         (num_ports[i] + 1);
@@ -671,6 +632,7 @@ int EXT_MPI_Reduce_scatter_init_general(
       goto error;
   }
   free(num_parallel);
+  free(groups);
   free(num_ports);
 #ifdef DEBUG
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -727,6 +689,7 @@ error:
   free(recvbuf_ref);
 #endif
   free(num_parallel);
+  free(groups);
   free(num_ports);
   return ERROR_MALLOC;
 }
@@ -738,11 +701,9 @@ int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
                                   int my_cores_per_node_row,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *handle) {
-  int comm_size_row, *num_ports = NULL, *num_parallel = NULL, type_size, rcount,
+  int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, rcount,
                      i, j, k, cin_method, alt;
-#ifdef VERBOSE
-  int world_rankv;
-#endif
+  char *str;
 #ifdef DEBUG
   void *recvbuf_ref = NULL, *sendbuf_org = NULL, *recvbuf_org = NULL;
   int world_rank, comm_rank_row;
@@ -751,6 +712,9 @@ int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
   MPI_Type_size(sendtype, &type_size);
   num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_ports)
+    goto error;
+  groups = (int *)malloc((comm_size_row + 1) * sizeof(int));
+  if (!groups)
     goto error;
   num_parallel = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_parallel)
@@ -763,13 +727,13 @@ int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
     if (fixed_factors_ports == NULL) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           rcount * type_size, 1,
+                           rcount * type_size,
                            my_cores_per_node_row * my_cores_per_node_column,
-                           num_ports) < 0)
+                           num_ports, groups) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           rcount * type_size, 1, 12, num_ports) < 0)
+                           rcount * type_size, 12, num_ports, groups) < 0)
           goto error;
       }
     } else {
@@ -779,25 +743,15 @@ int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
         num_ports[i] = fixed_factors_ports[i];
       } while (fixed_factors_ports[i] > 0);
     }
-    i = 0;
-    while (num_ports[i] != 0) {
-      num_ports[i]--;
-      i++;
-    }
-#ifdef VERBOSE
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rankv);
-    if (world_rankv == 0) {
-      printf("# scatterv parameters %d %d %d %d ports ",
-             comm_size_row / my_cores_per_node_row, recvcount * type_size, 1,
-             my_cores_per_node_row * my_cores_per_node_column);
-      i = 0;
-      while (num_ports[i] > 0) {
-        printf("%d ", num_ports[i]);
-        i++;
+    if (verbose) {
+      if (is_rank_zero(comm_row, comm_column)){
+        str = ext_mpi_print_ports_groups(num_ports, groups);
+        printf("# scatterv parameters %d %d %d %d ports %s\n",
+               comm_size_row / my_cores_per_node_row, recvcount * type_size, 1,
+               my_cores_per_node_row * my_cores_per_node_column, str);
+        free(str);
       }
-      printf("\n");
     }
-#endif
     for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
       num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
                         (num_ports[i] + 1);
@@ -841,6 +795,7 @@ int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
       goto error;
   }
   free(num_parallel);
+  free(groups);
   free(num_ports);
 #ifdef DEBUG
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -902,6 +857,7 @@ error:
   free(recvbuf_ref);
 #endif
   free(num_parallel);
+  free(groups);
   free(num_ports);
   return ERROR_MALLOC;
 }
@@ -937,10 +893,7 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
     double value;
     int rank;
   } composition;
-#ifdef VERBOSE
-  int world_rank;
   char *str;
-#endif
 #ifdef DEBUG
   int j;
 #ifdef GPU_ENABLED
@@ -1082,16 +1035,15 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
       groups[i] = fixed_factors_groups[i];
     } while (fixed_factors_ports[i]);
   }
-#ifdef VERBOSE
-  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-  if (world_rank == 0) {
-    str = ext_mpi_print_ports_groups(num_ports, groups);
-    printf("# allreduce parameters %d %d %d %d ports %s\n",
-           comm_size_row / my_cores_per_node_row, count * message_size, 1,
-           my_cores_per_node_row * my_cores_per_node_column, str);
-    free(str);
+  if (verbose) {
+    if (is_rank_zero(comm_row, comm_column)) {
+      str = ext_mpi_print_ports_groups(num_ports, groups);
+      printf("# allreduce parameters %d %d %d %d ports %s\n",
+             comm_size_row / my_cores_per_node_row, count * message_size, 1,
+             my_cores_per_node_row * my_cores_per_node_column, str);
+      free(str);
+    }
   }
-#endif
   cin_method = 0;
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
@@ -1236,14 +1188,12 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
   int message_size, type_size;
   int *num_ports = NULL, *groups = NULL;
   double d1;
+  char *str;
   struct cost_list *p1, *p2;
   struct {
     double value;
     int rank;
   } composition;
-#ifdef VERBOSE
-  int world_rank;
-#endif
 #ifdef DEBUG
   int j;
 #ifdef GPU_ENABLED
@@ -1352,26 +1302,15 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
       groups[i] = fixed_factors_groups[i];
     } while (fixed_factors_ports[i]);
   }
-#ifdef VERBOSE
-  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-  if (world_rank == 0) {
-    printf("# reduce parameters %d %d %d %d ports ",
-           comm_size_row / my_cores_per_node_row, count * message_size, 1,
-           my_cores_per_node_row * my_cores_per_node_column);
-    i = 0;
-    while (num_ports[i]) {
-      printf("%d ", num_ports[i]);
-      i++;
+  if (verbose) {
+    if (is_rank_zero(comm_row, comm_column)){
+      str = ext_mpi_print_ports_groups(num_ports, groups);
+      printf("# reduce parameters %d %d %d %d ports %s\n",
+             comm_size_row / my_cores_per_node_row, count * message_size, 1,
+             my_cores_per_node_row * my_cores_per_node_column, str);
+      free(str);
     }
-    printf("groups ");
-    i = 0;
-    while (groups[i]) {
-      printf("%d ", groups[i]);
-      i++;
-    }
-    printf("\n");
   }
-#endif
   cin_method = 0;
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
@@ -1517,14 +1456,12 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   int message_size, type_size;
   int *num_ports = NULL, *groups = NULL;
   double d1;
+  char *str;
   struct cost_list *p1, *p2;
   struct {
     double value;
     int rank;
   } composition;
-#ifdef VERBOSE
-  int world_rank;
-#endif
 #ifdef DEBUG
   int j;
 #ifdef GPU_ENABLED
@@ -1652,26 +1589,15 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
       groups[i] = fixed_factors_groups[i];
     } while (fixed_factors_ports[i]);
   }
-#ifdef VERBOSE
-  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-  if (world_rank == 0) {
-    printf("# bcast parameters %d %d %d %d ports ",
-           comm_size_row / my_cores_per_node_row, message_size, 1,
-           my_cores_per_node_row * my_cores_per_node_column);
-    i = 0;
-    while (num_ports[i]) {
-      printf("%d ", num_ports[i]);
-      i++;
+  if (verbose) {
+    if (is_rank_zero(comm_row, comm_column)){
+      str = ext_mpi_print_ports_groups(num_ports, groups);
+      printf("# bcast parameters %d %d %d %d ports %s\n",
+             comm_size_row / my_cores_per_node_row, message_size, 1,
+             my_cores_per_node_row * my_cores_per_node_column, str);
+      free(str);
     }
-    printf("groups ");
-    i = 0;
-    while (groups[i]) {
-      printf("%d ", groups[i]);
-      i++;
-    }
-    printf("\n");
   }
-#endif
   cin_method = 0;
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
