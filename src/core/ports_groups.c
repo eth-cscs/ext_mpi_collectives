@@ -1,11 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "ports_groups.h"
 
 char* ext_mpi_print_ports_groups(int *ports, int *groups){
   char *rvalue;
   int nrvalue=0, i, j, k;
-  rvalue=malloc(10000);
+  rvalue=(char *)malloc(10000);
   for (i=0; groups[i]&&ports[i]; i++){
     for (j=i; groups[j]>0; j++);
     nrvalue+=sprintf(rvalue+nrvalue, "%d(", abs(groups[i]));

@@ -651,7 +651,7 @@ int EXT_MPI_Done_native(int handle) {
   return 0;
 }
 
-static int init_epilogue(char *buffer_in, void *sendbuf, void *recvbuf,
+static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                          int reduction_op, MPI_Comm comm_row,
                          int my_cores_per_node_row, MPI_Comm comm_column,
                          int my_cores_per_node_column, int alt) {
@@ -831,7 +831,7 @@ error_shared:
   return ERROR_SHMEM;
 }
 
-int EXT_MPI_Reduce_init_native(void *sendbuf, void *recvbuf, int count,
+int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                MPI_Datatype datatype, MPI_Op op, int root,
                                MPI_Comm comm_row, int my_cores_per_node_row,
                                MPI_Comm comm_column,
@@ -1088,7 +1088,7 @@ error:
   return ERROR_MALLOC;
 }
 
-int EXT_MPI_Allreduce_init_native(void *sendbuf, void *recvbuf, int count,
+int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Datatype datatype, MPI_Op op,
                                   MPI_Comm comm_row, int my_cores_per_node_row,
                                   MPI_Comm comm_column,

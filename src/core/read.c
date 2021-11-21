@@ -678,7 +678,7 @@ int read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
   enum eassembler_type estring1;
   *size_level1 = NULL;
   *data = NULL;
-  line = malloc(100000);
+  line = (char *)malloc(100000);
   if (!line)
     goto error;
   if (!ascii_in) {
