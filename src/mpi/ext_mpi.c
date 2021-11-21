@@ -52,56 +52,27 @@ static int read_env() {
     if (var) {
       if (c[0] == '1') {
         alternating = 1;
-        printf("not alternating\n");
+        if (verbose) {
+          printf("not alternating\n");
+        }
       }
       if (c[0] == '2') {
         alternating = 2;
-        printf("alternating\n");
+        if (verbose) {
+          printf("alternating\n");
+        }
       }
     }
   }
   MPI_Bcast(&alternating, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
-    var = ((c = getenv("EXT_MPI_FIXED_PORTS")) != NULL);
+    var = ((c = getenv("EXT_MPI_NUM_PORTS")) != NULL);
   }
   MPI_Bcast(&var, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (var && (fixed_factors_ports != NULL)) {
     free(fixed_factors_ports);
-  }
-  if (var) {
-    i = 1;
-    j = 2;
-    while (i < mpi_comm_size) {
-      j++;
-      i *= 2;
-    }
-    fixed_factors_ports = (int *)malloc((2 * j + 1) * sizeof(int));
-    if (!fixed_factors_ports)
-      goto error;
-    if (mpi_comm_rank == 0) {
-      i = 0;
-      j = 0;
-      while (c[i] != 0) {
-        sscanf(c, "%d", &fixed_factors_ports[j]);
-        j++;
-        while ((c[i] != 0) && (c[i] != ',')) {
-          c++;
-        }
-        if (c[i] == ',') {
-          c++;
-        }
-      }
-    }
-    fixed_factors_ports[j++] = 0;
-    MPI_Bcast(&j, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(fixed_factors_ports, j, MPI_INT, 0, MPI_COMM_WORLD);
-  }
-  if (mpi_comm_rank == 0) {
-    var = ((c = getenv("EXT_MPI_FIXED_GROUPS")) != NULL);
-  }
-  MPI_Bcast(&var, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (var && (fixed_factors_groups != NULL)) {
     free(fixed_factors_groups);
+    fixed_factors_ports=fixed_factors_groups=0;
   }
   if (var) {
     i = 1;
@@ -110,26 +81,21 @@ static int read_env() {
       j++;
       i *= 2;
     }
-    fixed_factors_groups = (int *)malloc((2 * j + 1) * sizeof(int));
-    if (!fixed_factors_groups)
-      goto error;
     if (mpi_comm_rank == 0) {
-      i = 0;
-      j = 0;
-      while (c[i] != 0) {
-        sscanf(c, "%d", &fixed_factors_groups[j]);
-        j++;
-        while ((c[i] != 0) && (c[i] != ',')) {
-          c++;
-        }
-        if (c[i] == ',') {
-          c++;
-        }
-      }
+      ext_mpi_scan_ports_groups(c, &fixed_factors_ports, &fixed_factors_groups);
+      for (i=0; fixed_factors_ports[i]; i++);
+      i++;
+    }else{
+      fixed_factors_ports = (int *)malloc((2 * j + 1) * sizeof(int));
+      if (!fixed_factors_ports)
+        goto error;
+      fixed_factors_groups = (int *)malloc((2 * j + 1) * sizeof(int));
+      if (!fixed_factors_groups)
+        goto error;
     }
-    fixed_factors_groups[j++] = 0;
-    MPI_Bcast(&j, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(fixed_factors_groups, j, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&i, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(fixed_factors_ports, i, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(fixed_factors_groups, i, MPI_INT, 0, MPI_COMM_WORLD);
   }
   return 0;
 error:

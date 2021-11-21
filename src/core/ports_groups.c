@@ -23,7 +23,7 @@ int ext_mpi_scan_ports_groups(char *str, int **ports, int **groups){
   char *c, *c2, *c3;
   int size=0, i=0, j=0, flag;
   for (c=str; *c; c++){
-    if ((*c==' ')||(*c==',')){
+    if ((*c==' ')||(*c==',')||(*c=='(')||(*c==')')){
       size++;
     }
   }
