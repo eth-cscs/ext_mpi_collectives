@@ -48,7 +48,7 @@ static double ext_mpi_cost_simple_recursive_rec(int p, double n, int fac, int po
       }
     }
     if (fac * r < p) {
-      T += ext_mpi_cost_simple_recursive(p, n, fac * r, port_max, tarray + 1);
+      T += ext_mpi_cost_simple_recursive_rec(p, n, fac * r, port_max, tarray + 1);
     } else {
       tarray[1] = 0;
     }
@@ -67,14 +67,16 @@ static double ext_mpi_cost_simple_recursive_rec(int p, double n, int fac, int po
 }
 
 double ext_mpi_cost_simple_recursive(int p, double n, int port_max, int *num_ports, int *groups) {
+  double cost;
   int i = 0;
-  ext_mpi_cost_simple_recursive_rec(p, n, 1, port_max, num_ports);
+  cost = ext_mpi_cost_simple_recursive_rec(p, n, 1, port_max, num_ports);
   while (num_ports[i] != 0) {
     num_ports[i]--;
     groups[i] = p;
     i++;
   }
   groups[i] = 0;
+  return cost;
 }
 
 /*static void cost_estimated(int p, double n, int port_max, int *rarray){
