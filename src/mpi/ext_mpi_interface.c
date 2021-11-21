@@ -2,6 +2,7 @@
 #include <mpi.h>
 #include "hash_table.h"
 #include "ext_mpi.h"
+#include "ext_mpi_interface.h"
 
 int MPI_Init(int *argc, char ***argv){
   int ret = PMPI_Init(argc, argv);
