@@ -75,6 +75,7 @@ double ext_mpi_cost_simple_recursive(int p, double n, int port_max, int *num_por
     groups[i] = p;
     i++;
   }
+  groups[i-1]*=-1;
   groups[i] = 0;
   return cost;
 }
