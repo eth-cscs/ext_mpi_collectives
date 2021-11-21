@@ -35,7 +35,7 @@ node_size_threshold.tmp: latency_bandwidth/ext_mpi_nst.txt
 	$(COMPILE.c) $< -E > /dev/null
 
 bin/%.x: tests/%.c
-	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) tests/$*.c -Llib -l$(LIBNAME)
+	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) tests/$*.c -Llib -l$(LIBNAME) -lrt -lm
 
 DEPFILES := $(patsubst %.c,%.d,$(subst src,$(DEPDIR),$(SOURCES)))
 $(DEPFILES):
