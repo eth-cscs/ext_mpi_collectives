@@ -525,7 +525,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
   return (0);
 }
 
-int EXT_MPI_Exec_native(int handle) {
+int EXT_MPI_Start_native(int handle) {
   char *hcomm;
   if (comm_code[handle + 1]) {
     hcomm = comm_code[handle];

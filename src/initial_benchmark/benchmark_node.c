@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(new_comm);
         t_start = MPI_Wtime();
         for (i = 0; i < 100000; i++) {
-          EXT_MPI_Exec_native(handle);
+          EXT_MPI_Start_native(handle);
           MPI_Barrier(new_comm);
         }
         t_end = MPI_Wtime();
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(new_comm);
         t_start = MPI_Wtime();
         for (i = 0; i < 100000; i++) {
-          EXT_MPI_Exec_native(handle);
+          EXT_MPI_Start_native(handle);
           MPI_Barrier(new_comm);
         }
         t_end = MPI_Wtime();

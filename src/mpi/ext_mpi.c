@@ -267,7 +267,7 @@ int EXT_MPI_Allgatherv_init_general(void *sendbuf, int sendcount,
   }
   MPI_Allgatherv(sendbuf, sendcount, sendtype, recvbuf_ref, recvcounts, displs,
                  recvtype, comm_row);
-  if (EXT_MPI_Exec_native(*handle) < 0)
+  if (EXT_MPI_Start_native(*handle) < 0)
     goto error;
   if (EXT_MPI_Wait_native(*handle) < 0)
     goto error;
@@ -418,7 +418,7 @@ int EXT_MPI_Gatherv_init_general(void *sendbuf, int sendcount,
   }
   MPI_Gatherv(sendbuf, sendcount, sendtype, recvbuf_ref, recvcounts, displs,
               recvtype, root, comm_row);
-  if (EXT_MPI_Exec_native(*handle) < 0)
+  if (EXT_MPI_Start_native(*handle) < 0)
     goto error;
   if (EXT_MPI_Wait_native(*handle) < 0)
     goto error;
@@ -625,7 +625,7 @@ int EXT_MPI_Reduce_scatter_init_general(
     }
     MPI_Reduce_scatter(sendbuf, recvbuf_ref, recvcounts, MPI_LONG, MPI_SUM,
                        comm_row);
-    if (EXT_MPI_Exec_native(*handle) < 0)
+    if (EXT_MPI_Start_native(*handle) < 0)
       goto error;
     if (EXT_MPI_Wait_native(*handle) < 0)
       goto error;
@@ -793,7 +793,7 @@ int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
   }
   MPI_Scatterv(sendbuf, sendcounts, displs, MPI_LONG, recvbuf_ref, recvcount,
                MPI_LONG, root, comm_row);
-  if (EXT_MPI_Exec_native(*handle) < 0)
+  if (EXT_MPI_Start_native(*handle) < 0)
     goto error;
   if (EXT_MPI_Wait_native(*handle) < 0)
     goto error;
@@ -1065,7 +1065,7 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
       }
       gpu_memcpy_hd(sendbuf, sendbuf_h, count * type_size);
       MPI_Allreduce(sendbuf, recvbuf_ref, count, MPI_LONG, MPI_SUM, comm_row);
-      if (EXT_MPI_Exec_native(*handle) < 0)
+      if (EXT_MPI_Start_native(*handle) < 0)
         goto error;
       if (EXT_MPI_Wait_native(*handle) < 0)
         goto error;
@@ -1104,7 +1104,7 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
       MPI_Allreduce(sendbuf, recvbuf_ref,
                     (count * type_size) / sizeof(long int), MPI_LONG, MPI_SUM,
                     comm_row);
-      if (EXT_MPI_Exec_native(*handle) < 0)
+      if (EXT_MPI_Start_native(*handle) < 0)
         goto error;
       if (EXT_MPI_Wait_native(*handle) < 0)
         goto error;
@@ -1333,7 +1333,7 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
       gpu_memcpy_hd(sendbuf, sendbuf_h, count * type_size);
       MPI_Reduce(sendbuf, recvbuf_ref, count, MPI_LONG, MPI_SUM, root,
                  comm_row);
-      EXT_MPI_Exec_native(*handle);
+      EXT_MPI_Start_native(*handle);
       EXT_MPI_Wait_native(*handle);
       gpu_memcpy_dh(recvbuf_h, recvbuf, count * type_size);
       gpu_memcpy_dh(recvbuf_ref_h, recvbuf_ref, count * type_size);
@@ -1371,7 +1371,7 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
       }
       MPI_Reduce(sendbuf, recvbuf_ref, count, MPI_LONG, MPI_SUM, root,
                  comm_row);
-      if (EXT_MPI_Exec_native(*handle) < 0)
+      if (EXT_MPI_Start_native(*handle) < 0)
         goto error;
       if (EXT_MPI_Wait_native(*handle) < 0)
         goto error;
@@ -1617,7 +1617,7 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     }
     gpu_memcpy_hd(sendbuf, sendbuf_h, count * type_size);
     MPI_Allreduce(sendbuf, recvbuf_ref, count, MPI_LONG, MPI_SUM, comm_row);
-    if (EXT_MPI_Exec_native(*handle) < 0)
+    if (EXT_MPI_Start_native(*handle) < 0)
       goto error;
     if (EXT_MPI_Wait_native(*handle) < 0)
       goto error;
@@ -1651,7 +1651,7 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
           world_rankd * count + i + 1000;
     }
     MPI_Bcast(buffer_ref, count, datatype, root, comm_row);
-    if (EXT_MPI_Exec_native(*handle) < 0)
+    if (EXT_MPI_Start_native(*handle) < 0)
       goto error;
     if (EXT_MPI_Wait_native(*handle) < 0)
       goto error;
@@ -1822,9 +1822,9 @@ int EXT_MPI_Reduce_init(void *sendbuf, void *recvbuf, int count,
   }
 }
 
-int EXT_MPI_Exec(int handle) {
+int EXT_MPI_Start(int handle) {
   if (handle >= 0) {
-    return (EXT_MPI_Exec_native(handle));
+    return (EXT_MPI_Start_native(handle));
   } else {
     return (0);
   }

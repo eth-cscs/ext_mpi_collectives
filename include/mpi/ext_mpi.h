@@ -82,7 +82,7 @@ int EXT_MPI_Bcast_init(void *sendbuf, int count, MPI_Datatype datatype,
 int EXT_MPI_Reduce_init(void *sendbuf, void *recvbuf, int count,
                         MPI_Datatype datatype, MPI_Op op, int root,
                         MPI_Comm comm, int *handle);
-int EXT_MPI_Exec(int handle);
+int EXT_MPI_Start(int handle);
 int EXT_MPI_Test(int handle);
 int EXT_MPI_Progress();
 int EXT_MPI_Wait(int handle);

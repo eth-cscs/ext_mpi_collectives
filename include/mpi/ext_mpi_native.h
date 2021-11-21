@@ -53,7 +53,7 @@ int EXT_MPI_Scatterv_init_native(void *sendbuf, int *sendcounts, int *displs,
                                  int my_cores_per_node_column, int *num_ports,
                                  int *num_parallel, int num_active_ports,
                                  int copyin, int alt);
-int EXT_MPI_Exec_native(int handle);
+int EXT_MPI_Start_native(int handle);
 int EXT_MPI_Test_native(int handle);
 int EXT_MPI_Progress_native();
 int EXT_MPI_Wait_native(int handle);
