@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <mpi.h>
 #include "hash_table.h"
 #include "ext_mpi.h"
