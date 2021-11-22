@@ -309,8 +309,8 @@ int EXT_MPI_Allgatherv_init_general(const void *sendbuf, int sendcount,
 error:
   free(sendbuf_h);
   free(recvbuf_ref);
-#endif
   return ERROR_MALLOC;
+#endif
 }
 
 int EXT_MPI_Gatherv_init_general(void *sendbuf, int sendcount,
@@ -659,8 +659,8 @@ int EXT_MPI_Reduce_scatter_init_general(
 error:
   free(sendbuf_h);
   free(recvbuf_ref);
-#endif
   return ERROR_MALLOC;
+#endif
 }
 
 int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
@@ -1142,15 +1142,15 @@ error:
 #endif
   free(sendbuf_h);
   free(recvbuf_ref);
-#endif
   return ERROR_MALLOC;
+#endif
 }
 
-int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
-                                MPI_Datatype datatype, MPI_Op op, int root,
-                                MPI_Comm comm_row, int my_cores_per_node_row,
-                                MPI_Comm comm_column,
-                                int my_cores_per_node_column, int *handle) {
+static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
+                               MPI_Datatype datatype, MPI_Op op, int root,
+                               MPI_Comm comm_row, int my_cores_per_node_row,
+                               MPI_Comm comm_column,
+                               int my_cores_per_node_column, int *handle) {
   int comm_size_row, comm_rank_row, i, cin_method, alt, comm_size_column;
   int message_size, type_size;
   int *num_ports = NULL, *groups = NULL;
@@ -1161,28 +1161,9 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
     double value;
     int rank;
   } composition;
-#ifdef DEBUG
-  int j;
-#ifdef GPU_ENABLED
-  void *sendbuf_h = NULL, *recvbuf_h = NULL, *recvbuf_ref_h = NULL;
-#endif
-  int world_rankd;
-  void *recvbuf_ref = NULL, *sendbuf_org = NULL, *recvbuf_org = NULL;
-#endif
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Comm_rank(comm_row, &comm_rank_row);
   MPI_Type_size(datatype, &type_size);
-#ifdef DEBUG
-  if ((op != MPI_SUM) || (datatype != MPI_LONG)) {
-    if (EXT_MPI_Reduce_init_general(
-            sendbuf, recvbuf, (count * type_size) / (int)sizeof(long int), MPI_LONG,
-            MPI_SUM, root, comm_row, my_cores_per_node_row, comm_column,
-            my_cores_per_node_column, handle) < 0)
-      goto error;
-    if (EXT_MPI_Done_native(*handle) < 0)
-      goto error;
-  }
-#endif
   if (sendbuf == MPI_IN_PLACE) {
     sendbuf = recvbuf;
   }
@@ -1305,7 +1286,28 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
     goto error;
   free(groups);
   free(num_ports);
+  return 0;
+error:
+  free(groups);
+  free(num_ports);
+  return ERROR_MALLOC;
+}
+
+int EXT_MPI_Reduce_init_general(const void *sendbuf, void *recvbuf, int count,
+                                MPI_Datatype datatype, MPI_Op op, int root,
+                                MPI_Comm comm_row, int my_cores_per_node_row,
+                                MPI_Comm comm_column,
+                                int my_cores_per_node_column, int *handle) {
 #ifdef DEBUG
+  int comm_size_row, comm_rank_row, type_size, i, j;
+#ifdef GPU_ENABLED
+  void *sendbuf_h = NULL, *recvbuf_h = NULL, *recvbuf_ref_h = NULL;
+#endif
+  int world_rankd;
+  void *recvbuf_ref = NULL, *sendbuf_h = NULL;
+  MPI_Comm_size(comm_row, &comm_size_row);
+  MPI_Comm_rank(comm_row, &comm_rank_row);
+  MPI_Type_size(datatype, &type_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rankd);
   if ((op == MPI_SUM) && (datatype == MPI_LONG)) {
 #ifdef GPU_ENABLED
@@ -1359,22 +1361,21 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
       recvbuf_ref = (long int *)malloc(count * type_size);
       if (!recvbuf_ref)
         goto error;
-      sendbuf_org = (long int *)malloc(count * type_size);
-      if (!sendbuf_org)
+      sendbuf_h = (long int *)malloc(count * type_size);
+      if (!sendbuf_h)
         goto error;
-      recvbuf_org = (long int *)malloc(count * type_size);
-      if (!recvbuf_org)
-        goto error;
-      memcpy(sendbuf_org, sendbuf, count * type_size);
-      memcpy(recvbuf_org, recvbuf, count * type_size);
       for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
-        ((long int *)sendbuf)[i] = world_rankd * count + i;
+        ((long int *)sendbuf_h)[i] = world_rankd * count + i;
       }
-      MPI_Reduce(sendbuf, recvbuf_ref, count, MPI_LONG, MPI_SUM, root,
+      MPI_Reduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, MPI_SUM, root,
                  comm_row);
+      if (reduce_init_general(sendbuf_h, recvbuf, count, datatype, op, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
+        goto error;
       if (EXT_MPI_Start_native(*handle) < 0)
         goto error;
       if (EXT_MPI_Wait_native(*handle) < 0)
+        goto error;
+      if (EXT_MPI_Done_native(*handle) < 0)
         goto error;
       j = 0;
       if (root == comm_rank_row) {
@@ -1384,10 +1385,7 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
           }
         }
       }
-      memcpy(recvbuf, recvbuf_org, count * type_size);
-      memcpy(sendbuf, sendbuf_org, count * type_size);
-      free(recvbuf_org);
-      free(sendbuf_org);
+      free(sendbuf_h);
       free(recvbuf_ref);
 #ifdef GPU_ENABLED
     }
@@ -1398,21 +1396,22 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
     }
   }
 #endif
-  return 0;
-error:
+  if (sendbuf == MPI_IN_PLACE) {
+    return reduce_init_general(recvbuf, recvbuf, count, datatype, op, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle);
+  }else{
+    return reduce_init_general(sendbuf, recvbuf, count, datatype, op, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle);
+  }
 #ifdef DEBUG
+error:
 #ifdef GPU_ENABLED
   free(recvbuf_ref_h);
   free(recvbuf_h);
   free(sendbuf_h);
 #endif
-  free(recvbuf_org);
-  free(sendbuf_org);
+  free(sendbuf_h);
   free(recvbuf_ref);
-#endif
-  free(groups);
-  free(num_ports);
   return ERROR_MALLOC;
+#endif
 }
 
 int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
@@ -1809,7 +1808,7 @@ int EXT_MPI_Bcast_init(void *sendbuf, int count, MPI_Datatype datatype,
   }
 }
 
-int EXT_MPI_Reduce_init(void *sendbuf, void *recvbuf, int count,
+int EXT_MPI_Reduce_init(const void *sendbuf, void *recvbuf, int count,
                         MPI_Datatype datatype, MPI_Op op, int root,
                         MPI_Comm comm, int *handle) {
   int num_core_per_node = get_num_cores_per_node(comm);
