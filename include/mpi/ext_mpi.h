@@ -27,7 +27,7 @@ int EXT_MPI_Allgather_init_general(void *sendbuf, int sendcount,
                                    MPI_Comm comm_column,
                                    int my_cores_per_node_column, int *handle);
 int EXT_MPI_Reduce_scatter_init_general(
-    void *sendbuf, void *recvbuf, int *recvcounts, MPI_Datatype datatype,
+    const void *sendbuf, void *recvbuf, const int *recvcounts, MPI_Datatype datatype,
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *handle);
 int EXT_MPI_Reduce_scatter_block_init_general(
@@ -68,7 +68,7 @@ int EXT_MPI_Allgatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sen
 int EXT_MPI_Allgather_init(void *sendbuf, int sendcount, MPI_Datatype sendtype,
                            void *recvbuf, int recvcount, MPI_Datatype recvtype,
                            MPI_Comm comm, int *handle);
-int EXT_MPI_Reduce_scatter_init(void *sendbuf, void *recvbuf, int *recvcounts,
+int EXT_MPI_Reduce_scatter_init(const void *sendbuf, void *recvbuf, const int *recvcounts,
                                 MPI_Datatype datatype, MPI_Op op, MPI_Comm comm,
                                 int *handle);
 int EXT_MPI_Reduce_scatter_block_init(void *sendbuf, void *recvbuf,

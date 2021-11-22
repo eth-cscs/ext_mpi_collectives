@@ -41,7 +41,7 @@ int EXT_MPI_Gatherv_init_native(
     int my_cores_per_node_column, int *num_ports, int *num_parallel,
     int num_active_ports, int alt);
 int EXT_MPI_Reduce_scatter_init_native(
-    void *sendbuf, void *recvbuf, int *recvcounts, MPI_Datatype datatype,
+    const void *sendbuf, void *recvbuf, const int *recvcounts, MPI_Datatype datatype,
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *num_ports,
     int *num_parallel, int num_active_ports, int copyin, int alt);
