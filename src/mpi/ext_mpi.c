@@ -33,7 +33,7 @@ static int read_env() {
     var = ((c = getenv("EXT_MPI_VERBOSE")) != NULL);
     if (var) {
       verbose = 1;
-      printf("verbose\n");
+      printf("# verbose\n");
     }
   }
   MPI_Bcast(&verbose, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -42,7 +42,7 @@ static int read_env() {
     if (var) {
       copyin_method = c[0]-'0';
       if (verbose) {
-        printf("copy in method %d\n", copyin_method);
+        printf("# copy in method %d\n", copyin_method);
       }
     }
   }
@@ -53,13 +53,13 @@ static int read_env() {
       if (c[0] == '1') {
         alternating = 1;
         if (verbose) {
-          printf("not alternating\n");
+          printf("# not alternating\n");
         }
       }
       if (c[0] == '2') {
         alternating = 2;
         if (verbose) {
-          printf("alternating\n");
+          printf("# alternating\n");
         }
       }
     }
@@ -105,9 +105,10 @@ error:
 }
 
 static int get_num_cores_per_node(MPI_Comm comm) {
-  int my_mpi_rank, num_cores, num_cores_min, num_cores_max;
+  int my_mpi_size, my_mpi_rank, num_cores, *all_num_cores, i, j;
   MPI_Comm comm_node;
   MPI_Info info;
+  MPI_Comm_size(comm, &my_mpi_size);
   MPI_Comm_rank(comm, &my_mpi_rank);
   MPI_Info_create(&info);
   MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, my_mpi_rank, info,
@@ -115,13 +116,24 @@ static int get_num_cores_per_node(MPI_Comm comm) {
   MPI_Info_free(&info);
   MPI_Comm_size(comm_node, &num_cores);
   MPI_Comm_free(&comm_node);
-  MPI_Allreduce(&num_cores, &num_cores_min, 1, MPI_INT, MPI_MIN, comm);
-  MPI_Allreduce(&num_cores, &num_cores_max, 1, MPI_INT, MPI_MAX, comm);
-  if (num_cores_min == num_cores_max) {
-    return (num_cores);
-  } else {
-    return (-1);
+  all_num_cores = (int*)malloc((my_mpi_size+1)*sizeof(int));
+  if (!all_num_cores) goto error;
+  MPI_Allgather(&num_cores, 1, MPI_INT, all_num_cores, 1, MPI_INT, comm);
+  for (j=all_num_cores[0]; j>=1; j--){
+    for (i=0; (!(all_num_cores[i]%j))&&(i<my_mpi_size); i++);
+    if (i==my_mpi_size){
+      free(all_num_cores);
+      if (verbose&&(my_mpi_rank==0)){
+        printf("# MPI tasks per node: %d\n", j);
+      }
+      return j;
+    }
   }
+  free(all_num_cores);
+  return -1;
+error:
+  free(all_num_cores);
+  return ERROR_MALLOC;
 }
 
 int EXT_MPI_Init() {
