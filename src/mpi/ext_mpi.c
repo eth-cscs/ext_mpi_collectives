@@ -1745,7 +1745,7 @@ int EXT_MPI_Allgatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sen
         comm, num_core_per_node, MPI_COMM_NULL, 1, handle));
   } else {
     *handle = -1;
-    return (0);
+    return -1;
   }
 }
 
@@ -1759,7 +1759,7 @@ int EXT_MPI_Allgather_init(void *sendbuf, int sendcount, MPI_Datatype sendtype,
         num_core_per_node, MPI_COMM_NULL, 1, handle));
   } else {
     *handle = -1;
-    return (0);
+    return -1;
   }
 }
 
@@ -1773,7 +1773,7 @@ int EXT_MPI_Reduce_scatter_init(const void *sendbuf, void *recvbuf, const int *r
         MPI_COMM_NULL, 1, handle));
   } else {
     *handle = -1;
-    return (0);
+    return -1;
   }
 }
 
@@ -1801,7 +1801,7 @@ int EXT_MPI_Allreduce_init(const void *sendbuf, void *recvbuf, int count,
                                            MPI_COMM_NULL, 1, handle));
   } else {
     *handle = -1;
-    return (0);
+    return -1;
   }
 }
 
@@ -1814,7 +1814,7 @@ int EXT_MPI_Bcast_init(void *sendbuf, int count, MPI_Datatype datatype,
                                        handle));
   } else {
     *handle = -1;
-    return (0);
+    return -1;
   }
 }
 
@@ -1828,7 +1828,36 @@ int EXT_MPI_Reduce_init(const void *sendbuf, void *recvbuf, int count,
                                         MPI_COMM_NULL, 1, handle));
   } else {
     *handle = -1;
-    return (0);
+    return -1;
+  }
+}
+
+int EXT_MPI_Gatherv_init(const void *sendbuf, int sendcount,
+                         MPI_Datatype sendtype, void *recvbuf,
+                         const int *recvcounts, const int *displs,
+                         MPI_Datatype recvtype, int root,
+                         MPI_Comm comm, int *handle){
+  int num_core_per_node = get_num_cores_per_node(comm);
+  if (num_core_per_node > 0) {
+    return (EXT_MPI_Gatherv_init_general(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
+                                         root, comm, num_core_per_node, MPI_COMM_NULL, 1, handle));
+  } else {
+    *handle = -1;
+    return -1;
+  }
+}
+
+int EXT_MPI_Scatterv_init(const void *sendbuf, const int *sendcounts, const int *displs,
+                          MPI_Datatype sendtype, void *recvbuf,
+                          int recvcount, MPI_Datatype recvtype,
+                          int root, MPI_Comm comm, int *handle){
+  int num_core_per_node = get_num_cores_per_node(comm);
+  if (num_core_per_node > 0) {
+    return (EXT_MPI_Scatterv_init_general(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
+                                          root, comm, num_core_per_node, MPI_COMM_NULL, 1, handle));
+  } else {
+    *handle = -1;
+    return -1;
   }
 }
 
@@ -1836,7 +1865,7 @@ int EXT_MPI_Start(int handle) {
   if (handle >= 0) {
     return (EXT_MPI_Start_native(handle));
   } else {
-    return (0);
+    return -1;
   }
 }
 
@@ -1844,7 +1873,7 @@ int EXT_MPI_Test(int handle) {
   if (handle >= 0) {
     return (EXT_MPI_Test_native(handle));
   } else {
-    return (0);
+    return -1;
   }
 }
 
@@ -1854,7 +1883,7 @@ int EXT_MPI_Wait(int handle) {
   if (handle >= 0) {
     return (EXT_MPI_Wait_native(handle));
   } else {
-    return (0);
+    return -1;
   }
 }
 
@@ -1862,6 +1891,6 @@ int EXT_MPI_Done(int handle) {
   if (handle >= 0) {
     return (EXT_MPI_Done_native(handle));
   } else {
-    return (0);
+    return -1;
   }
 }
