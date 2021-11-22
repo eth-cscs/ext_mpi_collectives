@@ -1320,7 +1320,7 @@ int EXT_MPI_Allgatherv_init_native(
       num_ports, num_parallel, num_active_ports, alt));
 }
 
-int EXT_MPI_Scatterv_init_native(void *sendbuf, int *sendcounts, int *displs,
+int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts, const int *displs,
                                  MPI_Datatype sendtype, void *recvbuf,
                                  int recvcount, MPI_Datatype recvtype, int root,
                                  MPI_Comm comm_row, int my_cores_per_node_row,

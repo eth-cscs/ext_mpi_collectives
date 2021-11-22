@@ -48,14 +48,14 @@ int EXT_MPI_Reduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                 MPI_Comm comm_row, int my_cores_per_node_row,
                                 MPI_Comm comm_column,
                                 int my_cores_per_node_column, int *handle);
-int EXT_MPI_Gatherv_init_general(void *sendbuf, int sendcount,
+int EXT_MPI_Gatherv_init_general(const void *sendbuf, int sendcount,
                                  MPI_Datatype sendtype, void *recvbuf,
-                                 int *recvcounts, int *displs,
+                                 const int *recvcounts, const int *displs,
                                  MPI_Datatype recvtype, int root,
                                  MPI_Comm comm_row, int my_cores_per_node_row,
                                  MPI_Comm comm_column,
                                  int my_cores_per_node_column, int *handle);
-int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
+int EXT_MPI_Scatterv_init_general(const void *sendbuf, const int *sendcounts, const int *displs,
                                   MPI_Datatype sendtype, void *recvbuf,
                                   int recvcount, MPI_Datatype recvtype,
                                   int root, MPI_Comm comm_row,
@@ -82,6 +82,15 @@ int EXT_MPI_Bcast_init(void *sendbuf, int count, MPI_Datatype datatype,
 int EXT_MPI_Reduce_init(const void *sendbuf, void *recvbuf, int count,
                         MPI_Datatype datatype, MPI_Op op, int root,
                         MPI_Comm comm, int *handle);
+int EXT_MPI_Gatherv_init(const void *sendbuf, int sendcount,
+                         MPI_Datatype sendtype, void *recvbuf,
+                         const int *recvcounts, const int *displs,
+                         MPI_Datatype recvtype, int root,
+                         MPI_Comm comm, int *handle);
+int EXT_MPI_Scatterv_init(const void *sendbuf, const int *sendcounts, const int *displs,
+                          MPI_Datatype sendtype, void *recvbuf,
+                          int recvcount, MPI_Datatype recvtype,
+                          int root, MPI_Comm comm, int *handle);
 int EXT_MPI_Start(int handle);
 int EXT_MPI_Test(int handle);
 int EXT_MPI_Progress();
