@@ -33,7 +33,7 @@ static int read_env() {
     var = ((c = getenv("EXT_MPI_VERBOSE")) != NULL);
     if (var) {
       verbose = 1;
-      printf("# verbose\n");
+      printf("# EXT_MPI verbose\n");
     }
   }
   MPI_Bcast(&verbose, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -42,7 +42,7 @@ static int read_env() {
     if (var) {
       copyin_method = c[0]-'0';
       if (verbose) {
-        printf("# copy in method %d\n", copyin_method);
+        printf("# EXT_MPI copy in method %d\n", copyin_method);
       }
     }
   }
@@ -53,13 +53,13 @@ static int read_env() {
       if (c[0] == '1') {
         alternating = 1;
         if (verbose) {
-          printf("# not alternating\n");
+          printf("# EXT_MPI not alternating\n");
         }
       }
       if (c[0] == '2') {
         alternating = 2;
         if (verbose) {
-          printf("# alternating\n");
+          printf("# EXT_MPI alternating\n");
         }
       }
     }
@@ -124,7 +124,7 @@ static int get_num_cores_per_node(MPI_Comm comm) {
     if (i==my_mpi_size){
       free(all_num_cores);
       if (verbose&&(my_mpi_rank==0)){
-        printf("# MPI tasks per node: %d\n", j);
+        printf("# EXT_MPI MPI tasks per node: %d\n", j);
       }
       return j;
     }
@@ -215,7 +215,7 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     if (verbose){
       if (is_rank_zero(comm_row, comm_column)){
         str = ext_mpi_print_ports_groups(num_ports, groups);
-        printf("# allgatherv parameters %d %d %d %d ports %s\n",
+        printf("# EXT_MPI allgatherv parameters %d %d %d %d ports %s\n",
                comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
                my_cores_per_node_row * my_cores_per_node_column, str);
         free(str);
@@ -373,7 +373,7 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
     if (verbose) {
       if (is_rank_zero(comm_row, comm_column)){
         str = ext_mpi_print_ports_groups(num_ports, groups);
-        printf("# gatherv parameters %d %d %d %d ports %s\n",
+        printf("# EXT_MPI gatherv parameters %d %d %d %d ports %s\n",
                comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
                my_cores_per_node_row * my_cores_per_node_column, str);
         free(str);
@@ -562,7 +562,7 @@ static int reduce_scatter_init_general(
       if (is_rank_zero(comm_row, comm_column)){
         str = ext_mpi_print_ports_groups(num_ports, groups);
         i = recvcounts[0];
-        printf("# reduce_scatter parameters %d %d %d %d ports %s\n",
+        printf("# EXT_MPI reduce_scatter parameters %d %d %d %d ports %s\n",
                comm_size_row / my_cores_per_node_row, i * type_size, 1,
                my_cores_per_node_row * my_cores_per_node_column, str);
         free(str);
@@ -730,7 +730,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     if (verbose) {
       if (is_rank_zero(comm_row, comm_column)){
         str = ext_mpi_print_ports_groups(num_ports, groups);
-        printf("# scatterv parameters %d %d %d %d ports %s\n",
+        printf("# EXT_MPI scatterv parameters %d %d %d %d ports %s\n",
                comm_size_row / my_cores_per_node_row, recvcount * type_size, 1,
                my_cores_per_node_row * my_cores_per_node_column, str);
         free(str);
@@ -1010,7 +1010,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   if (verbose) {
     if (is_rank_zero(comm_row, comm_column)) {
       str = ext_mpi_print_ports_groups(num_ports, groups);
-      printf("# allreduce parameters %d %d %d %d ports %s\n",
+      printf("# EXT_MPI allreduce parameters %d %d %d %d ports %s\n",
              comm_size_row / my_cores_per_node_row, count * message_size, 1,
              my_cores_per_node_row * my_cores_per_node_column, str);
       free(str);
@@ -1275,7 +1275,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   if (verbose) {
     if (is_rank_zero(comm_row, comm_column)){
       str = ext_mpi_print_ports_groups(num_ports, groups);
-      printf("# reduce parameters %d %d %d %d ports %s\n",
+      printf("# EXT_MPI reduce parameters %d %d %d %d ports %s\n",
              comm_size_row / my_cores_per_node_row, count * message_size, 1,
              my_cores_per_node_row * my_cores_per_node_column, str);
       free(str);
@@ -1580,7 +1580,7 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   if (verbose) {
     if (is_rank_zero(comm_row, comm_column)){
       str = ext_mpi_print_ports_groups(num_ports, groups);
-      printf("# bcast parameters %d %d %d %d ports %s\n",
+      printf("# EXT_MPI bcast parameters %d %d %d %d ports %s\n",
              comm_size_row / my_cores_per_node_row, message_size, 1,
              my_cores_per_node_row * my_cores_per_node_column, str);
       free(str);
