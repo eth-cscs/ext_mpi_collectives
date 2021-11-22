@@ -13,9 +13,9 @@ extern int ext_mpi_bit_identical;
 int EXT_MPI_Init();
 int EXT_MPI_Initialized(int *flag);
 int EXT_MPI_Finalize();
-int EXT_MPI_Allgatherv_init_general(void *sendbuf, int sendcount,
+int EXT_MPI_Allgatherv_init_general(const void *sendbuf, int sendcount,
                                     MPI_Datatype sendtype, void *recvbuf,
-                                    int *recvcounts, int *displs,
+                                    const int *recvcounts, const int *displs,
                                     MPI_Datatype recvtype, MPI_Comm comm_row,
                                     int my_cores_per_node_row,
                                     MPI_Comm comm_column,
@@ -62,8 +62,8 @@ int EXT_MPI_Scatterv_init_general(void *sendbuf, int *sendcounts, int *displs,
                                   int my_cores_per_node_row,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *handle);
-int EXT_MPI_Allgatherv_init(void *sendbuf, int sendcount, MPI_Datatype sendtype,
-                            void *recvbuf, int *recvcounts, int *displs,
+int EXT_MPI_Allgatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                            void *recvbuf, const int *recvcounts, const int *displs,
                             MPI_Datatype recvtype, MPI_Comm comm, int *handle);
 int EXT_MPI_Allgather_init(void *sendbuf, int sendcount, MPI_Datatype sendtype,
                            void *recvbuf, int recvcount, MPI_Datatype recvtype,

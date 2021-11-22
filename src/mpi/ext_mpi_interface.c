@@ -25,6 +25,15 @@ int MPI_Allreduce_init(const void *sendbuf, void *recvbuf, int count, MPI_Dataty
   return ret;
 }
 
+int MPI_Allgatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, const int *recvcounts, const int *displs, MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request){
+  int handle, ret;
+  MPI_Recv_init(NULL, 0, recvtype, 0, 0, comm, request);
+  if (!(ret=EXT_MPI_Allgatherv_init(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm, &handle))){
+    ext_mpi_hash_insert(request, handle);
+  }
+  return ret;
+}
+
 int MPI_Request_free(MPI_Request *request){
   int handle=ext_mpi_hash_search(request);
   if (handle >= 0){

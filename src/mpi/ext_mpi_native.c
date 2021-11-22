@@ -1114,8 +1114,8 @@ int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
 }
 
 int EXT_MPI_Gatherv_init_native(
-    void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf,
-    int *recvcounts, int *displs, MPI_Datatype recvtype, int root,
+    const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf,
+    const int *recvcounts, const int *displs, MPI_Datatype recvtype, int root,
     MPI_Comm comm_row, int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *num_parallel,
     int num_active_ports, int alt) {
@@ -1309,8 +1309,8 @@ error:
 }
 
 int EXT_MPI_Allgatherv_init_native(
-    void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf,
-    int *recvcounts, int *displs, MPI_Datatype recvtype, MPI_Comm comm_row,
+    const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf,
+    const int *recvcounts, const int *displs, MPI_Datatype recvtype, MPI_Comm comm_row,
     int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *num_parallel,
     int num_active_ports, int alt) {
