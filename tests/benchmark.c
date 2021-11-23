@@ -4,11 +4,12 @@
 #include <stdlib.h>
 
 #define MAX_MESSAGE_SIZE 10000000
-#define MPI_DATA_TYPE MPI_DOUBLE
+#define MPI_DATA_TYPE MPI_LONG
 #define NUM_CORES 12
+#define COLLECTIVE_TYPE 6
 
 int main(int argc, char *argv[]) {
-  int i, numprocs, rank, size, flag, type_size, bufsize, iterations;
+  int i, numprocs, rank, size, flag, type_size, bufsize, iterations, num_tasks, *counts, *displs;
   double latency_ref = 0.0;
   double latency = 0.0, t_start = 0.0, t_stop = 0.0;
   double timer_ref = 0.0;
@@ -16,7 +17,6 @@ int main(int argc, char *argv[]) {
   double avg_time = 0.0, max_time = 0.0, min_time = 0.0;
   void *sendbuf, *recvbuf;
   MPI_Comm new_comm;
-  int num_tasks;
   MPI_Request request;
 
   MPI_Init(&argc, &argv);
@@ -27,15 +27,47 @@ int main(int argc, char *argv[]) {
   bufsize = type_size * MAX_MESSAGE_SIZE;
 
   sendbuf = malloc(bufsize);
-
   recvbuf = malloc(bufsize);
+  counts = (int*)malloc(numprocs*sizeof(int));
+  displs = (int*)malloc(numprocs*sizeof(int));
 
   for (num_tasks = numprocs; num_tasks > 0; num_tasks -= NUM_CORES) {
     if (rank < num_tasks) {
       MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &new_comm);
       for (size = 1; size <= MAX_MESSAGE_SIZE; size *= 2) {
-        MPI_Allreduce_init(sendbuf, recvbuf, size, MPI_DOUBLE, MPI_SUM,
-                           new_comm, MPI_INFO_NULL, &request);
+        for (i = 0; i < numprocs; i++) {
+          counts[i] = size;
+        }
+        displs[0] = 0;
+        for (i = 0; i < numprocs-1; i++) {
+          displs[i+1] = displs[i] + counts[i];
+        }
+        switch (COLLECTIVE_TYPE){
+          case 0:
+          MPI_Allreduce_init(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
+                             new_comm, MPI_INFO_NULL, &request);
+          break;
+          case 1:
+          MPI_Reduce_init(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, 0,
+                          new_comm, MPI_INFO_NULL, &request);
+          break;
+          case 2:
+          MPI_Reduce_scatter_init(sendbuf, recvbuf, counts, MPI_DATA_TYPE, MPI_SUM,
+                                  new_comm, MPI_INFO_NULL, &request);
+          break;
+          case 3:
+          MPI_Allgatherv_init(sendbuf, size, MPI_DATA_TYPE, recvbuf, counts, displs, MPI_DATA_TYPE, new_comm, MPI_INFO_NULL, &request);
+          break;
+          case 4:
+          MPI_Bcast_init(sendbuf, size, MPI_DATA_TYPE, 0, new_comm, MPI_INFO_NULL, &request);
+          break;
+          case 5:
+          MPI_Gatherv_init(sendbuf, size, MPI_DATA_TYPE, recvbuf, counts, displs, MPI_DATA_TYPE, 0, new_comm, MPI_INFO_NULL, &request);
+          break;
+          case 6:
+          MPI_Scatterv_init(sendbuf, counts, displs, MPI_DATA_TYPE, recvbuf, size, MPI_DATA_TYPE, 0, new_comm, MPI_INFO_NULL, &request);
+          break;
+        }
         MPI_Barrier(new_comm);
         iterations = 1;
         flag = 1;
@@ -44,8 +76,32 @@ int main(int argc, char *argv[]) {
           timer = 0.0;
           for (i = 0; i < iterations; i++) {
             t_start = MPI_Wtime();
-            MPI_Allreduce(sendbuf, recvbuf, size, MPI_DOUBLE, MPI_SUM,
-                          new_comm);
+            switch (COLLECTIVE_TYPE){
+              case 0:
+              MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
+                            new_comm);
+              break;
+              case 1:
+              MPI_Reduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, 0,
+                         new_comm);
+              break;
+              case 2:
+              MPI_Reduce_scatter(sendbuf, recvbuf, counts, MPI_DATA_TYPE, MPI_SUM,
+                                 new_comm);
+              break;
+              case 3:
+              MPI_Allgatherv(sendbuf, size, MPI_DATA_TYPE, recvbuf, counts, displs, MPI_DATA_TYPE, new_comm);
+              break;
+              case 4:
+              MPI_Bcast(sendbuf, size, MPI_DATA_TYPE, 0, new_comm);
+              break;
+              case 5:
+              MPI_Gatherv(sendbuf, size, MPI_DATA_TYPE, recvbuf, counts, displs, MPI_DATA_TYPE, 0, new_comm);
+              break;
+              case 6:
+              MPI_Scatterv(sendbuf, counts, displs, MPI_DATA_TYPE, recvbuf, size, MPI_DATA_TYPE, 0, new_comm);
+              break;
+            }
             t_stop = MPI_Wtime();
             timer_ref += t_stop - t_start;
 
@@ -102,6 +158,8 @@ int main(int argc, char *argv[]) {
     MPI_Comm_free(&new_comm);
   }
 
+  free(displs);
+  free(counts);
   free(sendbuf);
   free(recvbuf);
 
