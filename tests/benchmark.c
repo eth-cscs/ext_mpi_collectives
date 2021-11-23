@@ -6,7 +6,7 @@
 #define MAX_MESSAGE_SIZE 10000000
 #define MPI_DATA_TYPE MPI_LONG
 #define NUM_CORES 12
-#define COLLECTIVE_TYPE 6
+#define COLLECTIVE_TYPE 0
 
 int main(int argc, char *argv[]) {
   int i, numprocs, rank, size, flag, type_size, bufsize, iterations, num_tasks, *counts, *displs;

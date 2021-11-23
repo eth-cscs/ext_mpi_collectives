@@ -447,7 +447,7 @@ int EXT_MPI_Gatherv_init_general(const void *sendbuf, int sendcount,
   }
   MPI_Gatherv(sendbuf_h, sendcount, sendtype, recvbuf_ref, recvcounts, displs,
               recvtype, root, comm_row);
-  if (gatherv_init_general(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
+  if (gatherv_init_general(sendbuf_h, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
     goto error;
   if (EXT_MPI_Start_native(*handle) < 0)
     goto error;
@@ -835,7 +835,7 @@ int EXT_MPI_Scatterv_init_general(const void *sendbuf, const int *sendcounts, co
   }
   MPI_Scatterv(sendbuf_h, sendcounts, displs, MPI_LONG, recvbuf_ref, recvcount,
                MPI_LONG, root, comm_row);
-  if (scatterv_init_general(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
+  if (scatterv_init_general(sendbuf_h, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
     goto error;
   if (EXT_MPI_Start_native(*handle) < 0)
     goto error;
