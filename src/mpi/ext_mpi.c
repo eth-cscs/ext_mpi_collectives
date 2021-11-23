@@ -626,7 +626,7 @@ int EXT_MPI_Reduce_scatter_init_general(
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *handle) {
 #ifdef DEBUG
-  int comm_size_row, type_size, i, j, k;
+  int comm_size_row, type_size, i, j;
   void *recvbuf_ref = NULL, *sendbuf_h = NULL;
   int world_rank, comm_rank_row, tsize;
   MPI_Comm_size(comm_row, &comm_size_row);
@@ -639,29 +639,41 @@ int EXT_MPI_Reduce_scatter_init_general(
       tsize += recvcounts[i];
     }
     recvbuf_ref =
-        (long int *)malloc(recvcounts[comm_rank_row] * (int)sizeof(long int));
+        (long int *)malloc(recvcounts[comm_rank_row] * type_size);
     if (!recvbuf_ref)
       goto error;
-    sendbuf_h = malloc(tsize * (int)sizeof(long int));
+    sendbuf_h = malloc(tsize * type_size);
     if (!sendbuf_h)
       goto error;
-    for (i = 0; i < tsize; i++) {
+    for (i = 0; i < (tsize * type_size) / (int)sizeof(long int); i++) {
       ((long int *)sendbuf_h)[i] = world_rank * tsize + i;
     }
-    MPI_Reduce_scatter(sendbuf_h, recvbuf_ref, recvcounts, MPI_LONG, MPI_SUM,
-                       comm_row);
-    if (reduce_scatter_init_general(sendbuf, recvbuf, recvcounts, datatype, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
-      goto error;
+    if ((tsize * type_size) % (int)sizeof(long int)){
+      ((int *)sendbuf_h)[tsize-1] = world_rank * tsize + tsize - 1;
+    }
+    if (type_size == sizeof(long int)){
+      MPI_Reduce_scatter(sendbuf_h, recvbuf_ref, recvcounts, MPI_LONG, op, comm_row);
+      if (reduce_scatter_init_general(sendbuf_h, recvbuf, recvcounts, MPI_LONG, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
+        goto error;
+    }else{
+      MPI_Reduce_scatter(sendbuf_h, recvbuf_ref, recvcounts, MPI_INT, op, comm_row);
+      if (reduce_scatter_init_general(sendbuf_h, recvbuf, recvcounts, MPI_INT, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
+        goto error;
+    }
     if (EXT_MPI_Start_native(*handle) < 0)
       goto error;
     if (EXT_MPI_Wait_native(*handle) < 0)
       goto error;
     if (EXT_MPI_Done_native(*handle) < 0)
       goto error;
-    k = recvcounts[comm_rank_row];
     j = 0;
-    for (i = 0; i < k; i++) {
+    for (i = 0; i < (recvcounts[comm_rank_row] * type_size) / (int)sizeof(long int); i++) {
       if (((long int *)recvbuf)[i] != ((long int *)recvbuf_ref)[i]) {
+        j = 1;
+      }
+    }
+    if ((recvcounts[comm_rank_row] * type_size) % (int)sizeof(long int)){
+      if (((int *)recvbuf)[recvcounts[comm_rank_row]-1] != ((int *)recvbuf_ref)[recvcounts[comm_rank_row]-1]) {
         j = 1;
       }
     }
@@ -1121,11 +1133,18 @@ int EXT_MPI_Allreduce_init_general(const void *sendbuf, void *recvbuf, int count
     for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
       ((long int *)sendbuf_h)[i] = world_rankd * count + i;
     }
-    MPI_Allreduce(sendbuf_h, recvbuf_ref,
-                  (count * type_size) / (int)sizeof(long int), MPI_LONG, MPI_SUM,
-                  comm_row);
-    if (allreduce_init_general(sendbuf_h, recvbuf, (count * type_size) / (int)sizeof(long int), MPI_LONG, MPI_SUM, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle)<0)
-      goto error;
+    if ((count * type_size) % (int)sizeof(long int)){
+      ((int *)sendbuf_h)[count-1] = world_rankd * count + count - 1;
+    }
+    if (type_size == sizeof(long int)){
+      MPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, comm_row);
+      if (allreduce_init_general(sendbuf_h, recvbuf, count, MPI_LONG, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle)<0)
+        goto error;
+    }else{
+      MPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_INT, op, comm_row);
+      if (allreduce_init_general(sendbuf_h, recvbuf, count, MPI_INT, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle)<0)
+        goto error;
+    }
     if (EXT_MPI_Start_native(*handle) < 0)
       goto error;
     if (EXT_MPI_Wait_native(*handle) < 0)
@@ -1135,6 +1154,11 @@ int EXT_MPI_Allreduce_init_general(const void *sendbuf, void *recvbuf, int count
     j = 0;
     for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
       if (((long int *)recvbuf)[i] != ((long int *)recvbuf_ref)[i]) {
+        j = 1;
+      }
+    }
+    if ((count * type_size) % (int)sizeof(long int)){
+      if (((int *)recvbuf)[count-1] != ((int *)recvbuf_ref)[count-1]){
         j = 1;
       }
     }
@@ -1389,10 +1413,18 @@ int EXT_MPI_Reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
         ((long int *)sendbuf_h)[i] = world_rankd * count + i;
       }
-      MPI_Reduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, MPI_SUM, root,
-                 comm_row);
-      if (reduce_init_general(sendbuf_h, recvbuf, count, datatype, op, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
-        goto error;
+      if ((count * type_size) % (int)sizeof(long int)){
+        ((int *)sendbuf_h)[count-1] = world_rankd * count + count - 1;
+      }
+      if (type_size == sizeof(long int)){
+        MPI_Reduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, root, comm_row);
+        if (reduce_init_general(sendbuf_h, recvbuf, count, MPI_LONG, op, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
+          goto error;
+      }else{
+        MPI_Reduce(sendbuf_h, recvbuf_ref, count, MPI_INT, op, root, comm_row);
+        if (reduce_init_general(sendbuf_h, recvbuf, count, MPI_INT, op, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
+          goto error;
+      }
       if (EXT_MPI_Start_native(*handle) < 0)
         goto error;
       if (EXT_MPI_Wait_native(*handle) < 0)
@@ -1403,6 +1435,11 @@ int EXT_MPI_Reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       if (root == comm_rank_row) {
         for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
           if (((long int *)recvbuf)[i] != ((long int *)recvbuf_ref)[i]) {
+            j = 1;
+          }
+        }
+        if ((count * type_size) % (int)sizeof(long int)){
+          if (((int *)recvbuf)[count-1] != ((int *)recvbuf_ref)[count-1]) {
             j = 1;
           }
         }
@@ -1436,10 +1473,10 @@ error:
 #endif
 }
 
-int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
-                               int root, MPI_Comm comm_row,
-                               int my_cores_per_node_row, MPI_Comm comm_column,
-                               int my_cores_per_node_column, int *handle) {
+static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
+                              int root, MPI_Comm comm_row,
+                              int my_cores_per_node_row, MPI_Comm comm_column,
+                              int my_cores_per_node_column, int *handle) {
   int comm_size_row, comm_rank_row, i, cin_method, alt, comm_size_column;
   int message_size, type_size;
   int *num_ports = NULL, *groups = NULL;
@@ -1450,14 +1487,6 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     double value;
     int rank;
   } composition;
-#ifdef DEBUG
-  int j;
-#ifdef GPU_ENABLED
-  void *sendbuf_h = NULL, *recvbuf_h = NULL, *recvbuf_ref_h = NULL;
-#endif
-  int world_rankd;
-  void *buffer_ref = NULL, *buffer_org = NULL;
-#endif
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Comm_rank(comm_row, &comm_rank_row);
   MPI_Type_size(datatype, &type_size);
@@ -1612,7 +1641,27 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     goto error;
   free(groups);
   free(num_ports);
+  return 0;
+error:
+  free(groups);
+  free(num_ports);
+  return ERROR_MALLOC;
+}
+
+int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
+                               int root, MPI_Comm comm_row,
+                               int my_cores_per_node_row, MPI_Comm comm_column,
+                               int my_cores_per_node_column, int *handle) {
 #ifdef DEBUG
+  int comm_size_row, comm_rank_row, type_size, i, j;
+#ifdef GPU_ENABLED
+  void *sendbuf_h = NULL, *recvbuf_h = NULL, *recvbuf_ref_h = NULL;
+#endif
+  int world_rankd;
+  void *buffer_ref = NULL, *buffer_org = NULL;
+  MPI_Comm_size(comm_row, &comm_size_row);
+  MPI_Comm_rank(comm_row, &comm_rank_row);
+  MPI_Type_size(datatype, &type_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rankd);
 #ifdef GPU_ENABLED
   if (gpu_is_device_pointer(sendbuf)) {
@@ -1673,9 +1722,13 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
           world_rankd * count + i + 1000;
     }
     MPI_Bcast(buffer_ref, count, datatype, root, comm_row);
+    if (bcast_init_general(buffer, count, datatype, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
+      goto error;
     if (EXT_MPI_Start_native(*handle) < 0)
       goto error;
     if (EXT_MPI_Wait_native(*handle) < 0)
+      goto error;
+    if (EXT_MPI_Done_native(*handle) < 0)
       goto error;
     j = 0;
     for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
@@ -1694,9 +1747,9 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     exit(1);
   }
 #endif
-  return 0;
-error:
+  return bcast_init_general(buffer, count, datatype, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle);
 #ifdef DEBUG
+error:
 #ifdef GPU_ENABLED
   free(sendbuf_org);
   free(recvbuf_org);
@@ -1706,10 +1759,8 @@ error:
 #endif
   free(buffer_org);
   free(buffer_ref);
-#endif
-  free(groups);
-  free(num_ports);
   return ERROR_MALLOC;
+#endif
 }
 
 /*int EXT_MPI_Bcast_init_general (void *sendbuf, int count, MPI_Datatype
