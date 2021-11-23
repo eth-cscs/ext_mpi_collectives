@@ -2,6 +2,8 @@
 
 #define EXT_MPI_INTERFACE_H_
 
+#include <mpi.h>
+
 #ifdef __cplusplus
 extern "C"
 {

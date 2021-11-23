@@ -4,6 +4,8 @@
 
 #define EXT_MPI_HASH_TABLE_H_
 
+#include <mpi.h>
+
 #ifdef __cplusplus
 extern "C"
 {
