@@ -31,6 +31,10 @@ int main(int argc, char *argv[]) {
   counts = (int*)malloc(numprocs*sizeof(int));
   displs = (int*)malloc(numprocs*sizeof(int));
 
+  if (rank == 0) {
+    printf("# num_tasks message_size avg_time_ref min_time_ref max_time_ref avg_time min_time max_time\n");
+  }
+
   for (num_tasks = numprocs; num_tasks > 0; num_tasks -= NUM_CORES) {
     if (rank < num_tasks) {
       MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &new_comm);
