@@ -88,7 +88,7 @@ static int reduce(struct parameters_block *parameters, struct data_line **data, 
   return nbuffer_out;
 }
 
-int generate_reduce_copyin(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   int num_nodes = 1, size, add, add2, node_rank, node_row_size = 1,
       node_column_size = 1, node_size, *counts = NULL, counts_max = 0,
       *displs = NULL, *iocounts = NULL, iocounts_max = 0, *iodispls = NULL,

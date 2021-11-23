@@ -954,7 +954,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                            comm_size_row, comm_rank_row, 0) < 0)
           goto error;
       }
-      p1 = cost_list_start;
+      p1 = ext_mpi_cost_list_start;
       if (p1) {
         d1 = p1->T_simulated;
         for (i = 0; p1->rarray[i]; i++) {
@@ -980,9 +980,9 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
         free(p2->rarray);
         free(p2);
       }
-      cost_list_start = NULL;
-      cost_list_length = 0;
-      cost_list_counter = 0;
+      ext_mpi_cost_list_start = NULL;
+      ext_mpi_cost_list_length = 0;
+      ext_mpi_cost_list_counter = 0;
       composition.value = d1;
       composition.rank = comm_rank_row;
       MPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC,
@@ -1219,7 +1219,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                     comm_size_row, comm_rank_row, 0) < 0)
           goto error;
       }
-      p1 = cost_list_start;
+      p1 = ext_mpi_cost_list_start;
       if (p1) {
         d1 = p1->T_simulated;
         for (i = 0; p1->rarray[i]; i++) {
@@ -1245,9 +1245,9 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
         free(p2->rarray);
         free(p2);
       }
-      cost_list_start = NULL;
-      cost_list_length = 0;
-      cost_list_counter = 0;
+      ext_mpi_cost_list_start = NULL;
+      ext_mpi_cost_list_length = 0;
+      ext_mpi_cost_list_counter = 0;
       composition.value = d1;
       composition.rank = comm_rank_row;
       MPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC,
@@ -1524,7 +1524,7 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
                                     comm_size_row, comm_rank_row, 0) < 0)
           goto error;
       }
-      p1 = cost_list_start;
+      p1 = ext_mpi_cost_list_start;
       if (p1) {
         d1 = p1->T_simulated;
         for (i = 0; p1->rarray[i]; i++) {
@@ -1550,9 +1550,9 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
         free(p2->rarray);
         free(p2);
       }
-      cost_list_start = NULL;
-      cost_list_length = 0;
-      cost_list_counter = 0;
+      ext_mpi_cost_list_start = NULL;
+      ext_mpi_cost_list_length = 0;
+      ext_mpi_cost_list_counter = 0;
       composition.value = d1;
       composition.rank = comm_rank_row;
       MPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC,

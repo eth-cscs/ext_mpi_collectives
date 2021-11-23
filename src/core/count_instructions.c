@@ -184,33 +184,33 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   free(msizes);
   msizes = NULL;
   if (!allreduce_short) {
-    if (generate_allreduce_groups(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_allreduce_groups(buffer1, buffer2) < 0)
       goto error;
   } else {
-    if (generate_allreduce(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_allreduce(buffer1, buffer2) < 0)
       goto error;
   }
-  if (generate_raw_code_tasks_node(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
     goto error;
-  if (generate_reduce_copyin(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
     goto error;
-  if (generate_raw_code(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
     goto error;
-  if (generate_reduce_copyout(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  if (generate_buffer_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
     goto error;
-  if (generate_no_offset(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
-  if (generate_optimise_buffers(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
     goto error;
-  if (generate_optimise_buffers2(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
     goto error;
-  if (generate_parallel_memcpy(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_parallel_memcpy(buffer2, buffer1) < 0)
     goto error;
-  if (generate_raw_code_merge(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_raw_code_merge(buffer1, buffer2) < 0)
     goto error;
-  if (generate_no_first_barrier(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_no_first_barrier(buffer2, buffer1) < 0)
     goto error;
   global_ranks =
       (int *)malloc(sizeof(int) * my_mpi_size_row * my_cores_per_node_column);

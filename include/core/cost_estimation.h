@@ -20,9 +20,9 @@ struct cost_list {
   double nvolume;
 };
 
-extern struct cost_list *cost_list_start;
-extern int cost_list_length;
-extern int cost_list_counter;
+extern struct cost_list *ext_mpi_cost_list_start;
+extern int ext_mpi_cost_list_length;
+extern int ext_mpi_cost_list_counter;
 
 int ext_mpi_cost_estimation(int count, int type_size, int comm_size_row,
                             int my_cores_per_node_row, int comm_size_column,

@@ -7,9 +7,9 @@ extern "C"
 {
 #endif
 
-void rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_perm);
-int generate_rank_permutation_forward(char *buffer_in, char *buffer_out);
-int generate_rank_permutation_backward(char *buffer_in, char *buffer_out);
+void ext_mpi_rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_perm);
+int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out);
+int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out);
 
 #ifdef __cplusplus
 }

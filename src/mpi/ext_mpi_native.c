@@ -929,7 +929,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
         (int *)malloc(my_mpi_size_row / my_cores_per_node_row * sizeof(int));
     if (!rank_perm)
       goto error;
-    rank_perm_heuristic(my_mpi_size_row / my_cores_per_node_row, msizes2,
+    ext_mpi_rank_perm_heuristic(my_mpi_size_row / my_cores_per_node_row, msizes2,
                         rank_perm);
     msizes =
         (int *)malloc(sizeof(int) * my_mpi_size_row / my_cores_per_node_row);
@@ -1010,18 +1010,18 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   free(msizes);
   msizes = NULL;
   if (!allreduce_short) {
-    if (generate_allreduce_groups(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_allreduce_groups(buffer1, buffer2) < 0)
       goto error;
   } else {
-    if (generate_allreduce(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_allreduce(buffer1, buffer2) < 0)
       goto error;
   }
   if ((root >= 0) || (root <= -10)) {
     if (root >= 0) {
-      if (generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)
+      if (ext_mpi_generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)
         goto error;
     } else {
-      if (generate_forward_interpreter(buffer2, buffer1, comm_row) < 0)
+      if (ext_mpi_generate_forward_interpreter(buffer2, buffer1, comm_row) < 0)
         goto error;
     }
     buffer_temp = buffer1;
@@ -1031,46 +1031,46 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(sendbuf)) {
 #endif
-    if (generate_raw_code_tasks_node(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
       goto error;
 #ifdef GPU_ENABLED
   } else {
-    if (generate_raw_code_tasks_node_master(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_raw_code_tasks_node_master(buffer2, buffer1) < 0)
       goto error;
   }
 #endif
-  if (generate_reduce_copyin(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
     goto error;
-  if (generate_raw_code(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
     goto error;
-  if (generate_reduce_copyout(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  if (generate_buffer_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
     goto error;
-  if (generate_no_offset(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
-  if (generate_optimise_buffers(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
     goto error;
-  if (generate_optimise_buffers2(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
     goto error;
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(sendbuf)) {
 #endif
-    if (generate_parallel_memcpy(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_parallel_memcpy(buffer2, buffer1) < 0)
       goto error;
-    if (generate_raw_code_merge(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_raw_code_merge(buffer1, buffer2) < 0)
       goto error;
 #ifdef GPU_ENABLED
   }
 #endif
   if (alt) {
-    if (generate_no_first_barrier(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_no_first_barrier(buffer2, buffer1) < 0)
       goto error;
   } else {
-    if (generate_dummy(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_dummy(buffer2, buffer1) < 0)
       goto error;
   }
-  if (clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
+  if (ext_mpi_clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
     goto error;
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
@@ -1251,47 +1251,47 @@ int EXT_MPI_Gatherv_init_native(
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER DATA_TYPE FLOAT\n");
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
-  if (generate_rank_permutation_forward(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (generate_allreduce(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
     goto error;
-  if (generate_rank_permutation_backward(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
     goto error;
   if (root >= 0) {
-    if (generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)
+    if (ext_mpi_generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)
       goto error;
     buffer_temp = buffer1;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (generate_raw_code_tasks_node(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
     goto error;
-  if (generate_reduce_copyin(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
     goto error;
-  if (generate_raw_code(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
     goto error;
-  if (generate_reduce_copyout(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  if (generate_buffer_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
     goto error;
-  if (generate_no_offset(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
-  if (generate_optimise_buffers(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
     goto error;
-  if (generate_optimise_buffers2(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
     goto error;
-  if (generate_parallel_memcpy(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_parallel_memcpy(buffer2, buffer1) < 0)
     goto error;
-  if (generate_raw_code_merge(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_raw_code_merge(buffer1, buffer2) < 0)
     goto error;
   if (alt) {
-    if (generate_no_first_barrier(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_no_first_barrier(buffer2, buffer1) < 0)
       goto error;
   } else {
-    if (generate_dummy(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_dummy(buffer2, buffer1) < 0)
       goto error;
   }
-  if (clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
+  if (ext_mpi_clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
     goto error;
   iret = init_epilogue(buffer2, sendbuf, recvbuf, -1, comm_row,
                        my_cores_per_node_row, comm_column,
@@ -1458,42 +1458,42 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts, con
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER DATA_TYPE FLOAT\n");
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
-  if (generate_rank_permutation_forward(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (generate_allreduce(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
     goto error;
-  if (generate_rank_permutation_backward(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
     goto error;
-  if (generate_forward_interpreter(buffer2, buffer1, comm_row) < 0)
+  if (ext_mpi_generate_forward_interpreter(buffer2, buffer1, comm_row) < 0)
     goto error;
-  if (generate_raw_code_tasks_node(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_raw_code_tasks_node(buffer1, buffer2) < 0)
     goto error;
-  if (generate_reduce_copyin(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_reduce_copyin(buffer2, buffer1) < 0)
     goto error;
-  if (generate_raw_code(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_raw_code(buffer1, buffer2) < 0)
     goto error;
-  if (generate_reduce_copyout(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_reduce_copyout(buffer2, buffer1) < 0)
     goto error;
-  if (generate_buffer_offset(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer1, buffer2) < 0)
     goto error;
-  if (generate_no_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_no_offset(buffer2, buffer1) < 0)
     goto error;
-  if (generate_optimise_buffers(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_optimise_buffers(buffer1, buffer2) < 0)
     goto error;
-  if (generate_optimise_buffers2(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_optimise_buffers2(buffer2, buffer1) < 0)
     goto error;
-  if (generate_parallel_memcpy(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_parallel_memcpy(buffer1, buffer2) < 0)
     goto error;
-  if (generate_raw_code_merge(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_raw_code_merge(buffer2, buffer1) < 0)
     goto error;
   if (alt) {
-    if (generate_no_first_barrier(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_no_first_barrier(buffer1, buffer2) < 0)
       goto error;
   } else {
-    if (generate_dummy(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_dummy(buffer1, buffer2) < 0)
       goto error;
   }
-  if (clean_barriers(buffer2, buffer1, comm_row, comm_column) < 0)
+  if (ext_mpi_clean_barriers(buffer2, buffer1, comm_row, comm_column) < 0)
     goto error;
   iret = init_epilogue(buffer1, sendbuf, recvbuf, -1, comm_row,
                        my_cores_per_node_row, comm_column,
@@ -1657,40 +1657,40 @@ int EXT_MPI_Reduce_scatter_init_native(
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER DATA_TYPE FLOAT\n");
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
-  if (generate_rank_permutation_forward(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (generate_allreduce(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
     goto error;
-  if (generate_rank_permutation_backward(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
     goto error;
-  if (generate_raw_code_tasks_node(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
     goto error;
-  if (generate_reduce_copyin(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
     goto error;
-  if (generate_raw_code(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
     goto error;
-  if (generate_reduce_copyout(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  if (generate_buffer_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
     goto error;
-  if (generate_no_offset(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
-  if (generate_optimise_buffers(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
     goto error;
-  if (generate_optimise_buffers2(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
     goto error;
-  if (generate_parallel_memcpy(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_parallel_memcpy(buffer2, buffer1) < 0)
     goto error;
-  if (generate_raw_code_merge(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_raw_code_merge(buffer1, buffer2) < 0)
     goto error;
   if (alt) {
-    if (generate_no_first_barrier(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_no_first_barrier(buffer2, buffer1) < 0)
       goto error;
   } else {
-    if (generate_dummy(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_dummy(buffer2, buffer1) < 0)
       goto error;
   }
-  if (clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
+  if (ext_mpi_clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
     goto error;
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,

@@ -31,7 +31,7 @@ int ext_mpi_cost_simulation(int count, int type_size, int comm_size_row,
   recvbuf = (void *)malloc(count * type_size);
   if (!recvbuf)
     goto error;
-  p1 = cost_list_start;
+  p1 = ext_mpi_cost_list_start;
   while (p1) {
     num_ports = (int *)malloc((p1->depth + 1) * sizeof(int));
     if (!num_ports)
@@ -147,7 +147,7 @@ int ext_mpi_allreduce_simulate(int count, int type_size,
                                   comm_size_row, comm_rank_row, 1) < 0)
         goto error;
     }
-    p1 = cost_list_start;
+    p1 = ext_mpi_cost_list_start;
     while (p1) {
       for (i = 0; p1->rarray[i]; i++) {
         num_ports[i] = p1->rarray[i];
@@ -163,9 +163,9 @@ int ext_mpi_allreduce_simulate(int count, int type_size,
       free(p2->rarray);
       free(p2);
     }
-    cost_list_start = NULL;
-    cost_list_length = 0;
-    cost_list_counter = 0;
+    ext_mpi_cost_list_start = NULL;
+    ext_mpi_cost_list_length = 0;
+    ext_mpi_cost_list_counter = 0;
     for (i = 0; num_ports[i]; i++)
       ;
     groups[i] = num_ports[i] = 0;

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void rank_perm_heuristic__(int num_nodes, int *node_recvcounts,
+/*static void rank_perm_heuristic__(int num_nodes, int *node_recvcounts,
                            int *rank_perm) {
   int i, i1, i2, iii;
   for (i = 0; i < num_nodes; i++) {
@@ -19,13 +19,13 @@ void rank_perm_heuristic__(int num_nodes, int *node_recvcounts,
     rank_perm[i1] = rank_perm[i2];
     rank_perm[i2] = iii;
   }
-}
+}*/
 
 static int rank_perm_heuristic_compare(const void *a, const void *b) {
   return (*(int *)a - *(int *)b);
 }
 
-void rank_perm_heuristic_bug(int num_nodes, int *node_recvcounts,
+/*static void rank_perm_heuristic_bug(int num_nodes, int *node_recvcounts,
                              int *rank_perm) {
   typedef struct node {
     int value, key;
@@ -44,7 +44,7 @@ void rank_perm_heuristic_bug(int num_nodes, int *node_recvcounts,
       lnode_recvcounts[i] =
           array[i].value + array[(num_nodes / 2) * 2 - 1 - i].value;
     }
-    rank_perm_heuristic(num_nodes / 2, lnode_recvcounts, lrank_perm);
+    ext_mpi_rank_perm_heuristic(num_nodes / 2, lnode_recvcounts, lrank_perm);
     for (i = 0; i < num_nodes / 2; i++) {
       perm_array[i * 2] = lrank_perm[i];
       perm_array[i * 2 + 1] = (num_nodes / 2) * 2 - 1 - lrank_perm[i];
@@ -58,9 +58,9 @@ void rank_perm_heuristic_bug(int num_nodes, int *node_recvcounts,
   for (i = 0; i < num_nodes; i++) {
     rank_perm[array[i].key] = perm_array[i];
   }
-}
+}*/
 
-void rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_perm) {
+void ext_mpi_rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_perm) {
   typedef struct node_sort {
     int value, key, color;
   } node_t_s;
@@ -138,7 +138,7 @@ void rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_perm) {
   }
 }
 
-int generate_rank_permutation_forward(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out) {
   int num_nodes, flag, msizes_max = 0, *msizes = NULL, *rank_perm = NULL,
                        *rank_back_perm = NULL;
   int nbuffer_out = 0, nbuffer_in = 0, i;
@@ -164,7 +164,7 @@ int generate_rank_permutation_forward(char *buffer_in, char *buffer_out) {
     }
   }
   if (flag) {
-    rank_perm_heuristic(num_nodes, msizes, rank_perm);
+    ext_mpi_rank_perm_heuristic(num_nodes, msizes, rank_perm);
   } else {
     for (i = 0; i < msizes_max; i++) {
       rank_perm[i] = i;
@@ -206,7 +206,7 @@ error:
   return ERROR_MALLOC;
 }
 
-int generate_rank_permutation_backward(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out) {
   int num_nodes, flag, msizes_max = 0, *msizes = NULL, *rank_perm = NULL;
   int nbuffer_out = 0, nbuffer_in = 0, i, j, k, size_level0 = 0,
       *size_level1 = NULL;

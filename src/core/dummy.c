@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int generate_dummy(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_dummy(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, flag;
   char line[1000];
   enum eassembler_type estring1;

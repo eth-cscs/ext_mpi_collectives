@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int generate_no_offset(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_no_offset(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, bo1, bo2, o1, o2, *buffer_offset,
       buffer_offset_max, flag, i, j, k;
   char line[1000];

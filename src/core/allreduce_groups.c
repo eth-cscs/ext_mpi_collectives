@@ -278,7 +278,7 @@ static int print_algorithm(char *buffer, int node, int num_nodes_l,
   return nbuffer;
 }
 
-int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   int node, num_nodes, flag, flag2, node_rank,
       node_row_size = 1, node_column_size = 1, stage_offset, copy_method = 0;
   int nbuffer_out = 0, nbuffer_in = 0, *msizes = NULL, msizes_max = 0,
@@ -397,7 +397,7 @@ int generate_allreduce_groups(char *buffer_in, char *buffer_out) {
         num_nodes_start *= igroup;
       }
     }
-    generate_allreduce(buffer_in_temp[group], buffer_out_temp[group]);
+    ext_mpi_generate_allreduce(buffer_in_temp[group], buffer_out_temp[group]);
     i = read_parameters(buffer_out_temp[group], &parameters2);
     if (i < 0)
       goto error;

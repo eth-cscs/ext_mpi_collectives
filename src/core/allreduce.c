@@ -531,7 +531,7 @@ error:
   return ERROR_MALLOC;
 }
 
-int generate_allreduce(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
   struct allreduce_data_element *stages = NULL, *stages_in = NULL;
   struct data_line **data = NULL;
   struct parameters_block *parameters;
@@ -542,7 +542,7 @@ int generate_allreduce(char *buffer_in, char *buffer_out) {
   if (i < 0)
     goto error;
   if (parameters->bit_identical) {
-    i = generate_allreduce_bit(buffer_in, buffer_out);
+    i = ext_mpi_generate_allreduce_bit(buffer_in, buffer_out);
     delete_parameters(parameters);
     return i;
   }

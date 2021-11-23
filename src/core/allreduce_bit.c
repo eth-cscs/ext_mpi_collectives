@@ -444,7 +444,7 @@ error:
   return ERROR_MALLOC;
 }
 
-int generate_allreduce_bit(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_allreduce_bit(char *buffer_in, char *buffer_out) {
   struct allreduce_data_element *stages = NULL, *stages_in = NULL;
   struct data_line **data = NULL;
   struct parameters_block *parameters;

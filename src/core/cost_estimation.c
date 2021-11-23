@@ -7,9 +7,9 @@
 #include "prime_factors.h"
 #include "cost_estimation.h"
 
-struct cost_list *cost_list_start = NULL;
-int cost_list_length = 0;
-int cost_list_counter = 0;
+struct cost_list *ext_mpi_cost_list_start = NULL;
+int ext_mpi_cost_list_length = 0;
+int ext_mpi_cost_list_counter = 0;
 
 /*static void print_cost_list(){
   struct cost_list *p1;
@@ -33,7 +33,7 @@ static int cost_put_in_pool(int depth, int *rarray, int *garray, double T,
                             int comm_size_row, int comm_rank_row) {
   struct cost_list *p1 = NULL, *p2 = NULL;
   int flag, i;
-  if (cost_list_counter == comm_rank_row) {
+  if (ext_mpi_cost_list_counter == comm_rank_row) {
     p1 = (struct cost_list *)malloc(sizeof(struct cost_list));
     if (!p1)
       goto error;
@@ -52,11 +52,11 @@ static int cost_put_in_pool(int depth, int *rarray, int *garray, double T,
       p1->garray[i] = garray[i];
     }
     p1->garray[depth] = p1->rarray[depth] = 0;
-    if (cost_list_start == NULL) {
+    if (ext_mpi_cost_list_start == NULL) {
       p1->next = NULL;
-      cost_list_start = p1;
+      ext_mpi_cost_list_start = p1;
     } else {
-      p2 = cost_list_start;
+      p2 = ext_mpi_cost_list_start;
       flag = 1;
       while ((p2->next != NULL) && flag) {
         if (T < p2->next->T) {
@@ -65,25 +65,25 @@ static int cost_put_in_pool(int depth, int *rarray, int *garray, double T,
           flag = 0;
         }
       }
-      if (p2 == cost_list_start) {
-        p1->next = cost_list_start;
-        cost_list_start = p1;
+      if (p2 == ext_mpi_cost_list_start) {
+        p1->next = ext_mpi_cost_list_start;
+        ext_mpi_cost_list_start = p1;
       } else {
         p1->next = p2->next;
         p2->next = p1;
       }
     }
-    cost_list_length++;
-    while (cost_list_length > COST_LIST_LENGTH_MAX) {
-      p1 = cost_list_start;
-      cost_list_start = p1->next;
+    ext_mpi_cost_list_length++;
+    while (ext_mpi_cost_list_length > COST_LIST_LENGTH_MAX) {
+      p1 = ext_mpi_cost_list_start;
+      ext_mpi_cost_list_start = p1->next;
       free(p1->garray);
       free(p1->rarray);
       free(p1);
-      cost_list_length--;
+      ext_mpi_cost_list_length--;
     }
   }
-  cost_list_counter = (cost_list_counter + 1) % comm_size_row;
+  ext_mpi_cost_list_counter = (ext_mpi_cost_list_counter + 1) % comm_size_row;
   return 0;
 error:
   if (p1) {
