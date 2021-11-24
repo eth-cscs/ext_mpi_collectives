@@ -95,3 +95,9 @@ int ext_mpi_read_bench() {
 error:
   return ERROR_MALLOC;
 }
+
+int ext_mpi_delete_bench() {
+  free(ext_mpi_file_input);
+  free(ext_mpi_node_size_threshold);
+  return 0;
+}

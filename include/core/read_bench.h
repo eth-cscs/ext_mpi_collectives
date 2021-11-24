@@ -21,6 +21,7 @@ extern int ext_mpi_node_size_threshold_max;
 extern int *ext_mpi_node_size_threshold;
 
 int ext_mpi_read_bench();
+int ext_mpi_delete_bench();
 
 #ifdef __cplusplus
 }

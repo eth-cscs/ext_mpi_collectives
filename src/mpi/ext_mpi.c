@@ -104,6 +104,12 @@ error:
   return ERROR_MALLOC;
 }
 
+static int delete_env() {
+  free(fixed_factors_groups);
+  free(fixed_factors_ports);
+  return 0;
+}
+
 static int get_num_cores_per_node(MPI_Comm comm) {
   int my_mpi_size, my_mpi_rank, num_cores, *all_num_cores, i, j;
   MPI_Comm comm_node;
@@ -151,6 +157,8 @@ int EXT_MPI_Initialized(int *flag) {
 
 int EXT_MPI_Finalize() {
   EXT_MPI_Finalize_native();
+  delete_env();
+  ext_mpi_delete_bench();
   return 0;
 }
 
