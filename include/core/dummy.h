@@ -7,7 +7,7 @@ extern "C"
 {
 #endif
 
-int generate_dummy(char *buffer_in, char *buffer_out);
+int ext_mpi_generate_dummy(char *buffer_in, char *buffer_out);
 
 #ifdef __cplusplus
 }

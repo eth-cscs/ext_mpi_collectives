@@ -7,7 +7,7 @@ extern "C"
 {
 #endif
 
-int generate_allreduce_groups(char *buffer_in, char *buffer_out);
+int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out);
 
 #ifdef __cplusplus
 }

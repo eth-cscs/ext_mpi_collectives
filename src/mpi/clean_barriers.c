@@ -14,7 +14,7 @@ static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
   return (i);
 }
 
-int clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
+int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
                    MPI_Comm comm_column) {
   int nbuffer_out = 0, nbuffer_in = 0, i, flag, flag2 = 0, integer1, rank;
   char line[1000];

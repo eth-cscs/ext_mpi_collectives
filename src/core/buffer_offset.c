@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int generate_buffer_offset(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, nbuffer_in2 = 0, bo1, bo2, o1, o2, size,
       *buffer_offset = NULL, *buffer_offset2 = NULL, buffer_offset_max = 0,
       locmem_max = 0, flag, i, shmem_max = 0;

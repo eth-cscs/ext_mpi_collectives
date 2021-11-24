@@ -7,7 +7,7 @@ INCLUDE = -I. -Iinclude/core -Iinclude/mpi
 DEPDIR := .deps
 directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(BIN); mkdir -p lib))
 
-CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DV_ERBOSE -DM_MAP
+CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DM_MAP
 
 SOURCES = $(wildcard src/core/*.c src/mpi/*.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))
@@ -35,7 +35,7 @@ node_size_threshold.tmp: latency_bandwidth/ext_mpi_nst.txt
 	$(COMPILE.c) $< -E > /dev/null
 
 bin/%.x: tests/%.c
-	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) tests/$*.c -Llib -l$(LIBNAME)
+	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) tests/$*.c -Llib -l$(LIBNAME) -lrt -lm
 
 DEPFILES := $(patsubst %.c,%.d,$(subst src,$(DEPDIR),$(SOURCES)))
 $(DEPFILES):

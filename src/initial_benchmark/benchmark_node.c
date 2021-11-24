@@ -22,8 +22,8 @@ int main(int argc, char *argv[]) {
   num_ports_limit[1] = 0;
   num_active_ports = 1;
   if (mpi_rank == 0) {
-    printf("node_size_threshold_max=%d;\n", mpi_size);
-    printf("node_size_threshold=(int *)malloc(%d*sizeof(int));\n", mpi_size);
+    printf("ext_mpi_node_size_threshold_max=%d;\n", mpi_size);
+    printf("ext_mpi_node_size_threshold=(int *)malloc(%d*sizeof(int));\n", mpi_size);
   }
   for (num_tasks = mpi_size; num_tasks > 0; num_tasks--) {
     if (mpi_rank < num_tasks) {
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(new_comm);
         t_start = MPI_Wtime();
         for (i = 0; i < 100000; i++) {
-          EXT_MPI_Exec_native(handle);
+          EXT_MPI_Start_native(handle);
           MPI_Barrier(new_comm);
         }
         t_end = MPI_Wtime();
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(new_comm);
         t_start = MPI_Wtime();
         for (i = 0; i < 100000; i++) {
-          EXT_MPI_Exec_native(handle);
+          EXT_MPI_Start_native(handle);
           MPI_Barrier(new_comm);
         }
         t_end = MPI_Wtime();
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
           flag = (t_my < t_mpi);
           if (!flag) {
             //            printf("%d %e %e\n", size, t_mpi, t_my);
-            printf("node_size_threshold[%d]=%d;\n", num_tasks - 1,
+            printf("ext_mpi_node_size_threshold[%d]=%d;\n", num_tasks - 1,
                    (size + size / 2) / 2);
           }
         }

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int generate_backward_interpreter(char *buffer_in, char *buffer_out,
+int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
                                   MPI_Comm comm_row) {
   int **values = NULL, **recv_values = NULL, max_lines;
   int nbuffer_out = 0, nbuffer_in = 0, i, j, k, l, size_level0 = 0,

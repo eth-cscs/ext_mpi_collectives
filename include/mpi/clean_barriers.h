@@ -8,8 +8,8 @@
 extern "C" {
 #endif
 
-int clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
-                   MPI_Comm comm_column);
+int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
+                           MPI_Comm comm_column);
 
 #ifdef __cplusplus
 }

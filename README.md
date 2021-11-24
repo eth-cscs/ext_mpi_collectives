@@ -13,3 +13,13 @@ A. Jocksch, M. Kraushaar, D. Daverio: Optimised all-to-all communication on mult
 TODO:
 
  -More datatypes and reduction operations, currenty only float, double, int and long int with MPI_SUM
+
+tests:
+
+./bin/get_input_allreduce.x | ./bin/test_allreduce.x | ./bin/test_raw_code_tasks_node.x | ./bin/test_reduce_copyin.x | ./bin/test_raw_code.x | ./bin/test_reduce_copyout.x | ./bin/test_buffer_offset.x | ./bin/test_no_offset.x | ./bin/test_optimise_buffers.x | ./bin/test_optimise_buffers2.x | ./bin/test_parallel_memcpy.x | ./bin/test_raw_code_merge.x
+
+./bin/simulate.x
+
+benchmark:
+
+mpirun -n 36 ./bin/benchmark.x

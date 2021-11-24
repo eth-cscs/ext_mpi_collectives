@@ -23,7 +23,7 @@ static int mmsizes(int *msizes, int num_nodes, int msizes_max, int data0,
   }
 }
 
-int generate_raw_code(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   int node, num_nodes, size, add, add2, flag, node_rank,
       node_row_size = 1, node_column_size = 1, node_size, buffer_counter,
       size_s, adds;

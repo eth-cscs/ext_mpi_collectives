@@ -7,13 +7,94 @@
 
 #define RADIX 7
 
-int generate_reduce_copyin(char *buffer_in, char *buffer_out) {
+static int copyin(struct parameters_block *parameters, struct data_line **data, int size_level0, int *size_level1, int type_size, int num_tasks, int my_task, int block_offset, char *buffer_out){
+  int nbuffer_out=0, remote_offsets[size_level1[0]+1], total_message_size=0, my_message_size, my_message_offset, i, j, k, start_copy, stop_copy, add, add2, size;
+  enum eassembler_type op_type;
+  for (i = 0; i < size_level1[0]; i++) {
+    total_message_size+=parameters->message_sizes[i];
+  }
+  remote_offsets[0]=0;
+  for (i=0; i<size_level1[0]; i++){
+    remote_offsets[i+1]=remote_offsets[i]+parameters->message_sizes[data[0][i].frac];
+  }
+  for (i=0; i<num_tasks; i++){
+    my_message_size = (total_message_size/type_size)/num_tasks;
+    my_message_offset = my_message_size*((my_task+i)%num_tasks);
+    if ((my_task+i)%num_tasks<(total_message_size/type_size)%num_tasks){
+      my_message_size++;
+      my_message_offset+=(my_task+i)%num_tasks;
+    }else{
+      my_message_offset+=(total_message_size/type_size)%num_tasks;
+    }
+    my_message_size*=type_size;
+    my_message_offset*=type_size;
+    for (j=0; j<size_level1[0]; j++){
+      for (k=0; data[0][k].frac!=j; k++);
+      if ((remote_offsets[j+1]>=my_message_offset)&&(remote_offsets[j]<my_message_offset+my_message_size)){
+        if (remote_offsets[j]<my_message_offset){
+          start_copy=my_message_offset;
+        }else{
+          start_copy=remote_offsets[j];
+        }
+        if (remote_offsets[j+1]<my_message_offset+my_message_size){
+          stop_copy=remote_offsets[j+1];
+        }else{
+          stop_copy=my_message_offset+my_message_size;
+        }
+//nbuffer_out += sprintf(buffer_out + nbuffer_out, "aaa %d %d %d %d\n", my_message_offset, my_message_offset+my_message_size, remote_offsets[j], remote_offsets[j+1]);
+        size=stop_copy-start_copy;
+        if (size>0){
+          add=start_copy+block_offset*total_message_size;
+          add2=(start_copy-remote_offsets[k]+total_message_size)%total_message_size;
+          if (i==0){
+            op_type=ememcpy;
+          }else{
+            op_type=ereduce;
+          }
+          nbuffer_out += write_assembler_line_ssdsdd(buffer_out + nbuffer_out, op_type, eshmemp, add, esendbufp, add2, size, parameters->ascii_out);
+        }
+      }
+    }
+    nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+  }
+  return nbuffer_out;
+}
+
+static int reduce(struct parameters_block *parameters, struct data_line **data, int size_level0, int *size_level1, int type_size, int num_tasks, int my_task, int num_blocks, int *block_offsets, char *buffer_out){
+  int nbuffer_out=0, total_message_size=0, my_message_size, my_message_offset, i, j, add, add2, size;
+  for (i = 0; i < size_level1[0]; i++) {
+    total_message_size+=parameters->message_sizes[i];
+  }
+  for (i=0; i<num_tasks; i++){
+    my_message_size = (total_message_size/type_size)/num_tasks;
+    my_message_offset = my_message_size*my_task;
+    if (my_task<(total_message_size/type_size)%num_tasks){
+      my_message_size++;
+      my_message_offset+=my_task;
+    }else{
+      my_message_offset+=(total_message_size/type_size)%num_tasks;
+    }
+    my_message_size*=type_size;
+    my_message_offset*=type_size;
+  }
+  size=my_message_size;
+  if (size>0){
+    add=my_message_offset+block_offsets[0]*total_message_size;
+    for (j=1; j<num_blocks; j++){
+      add2=my_message_offset+block_offsets[j]*total_message_size;
+      nbuffer_out += write_assembler_line_ssdsdd(buffer_out + nbuffer_out, esreduce, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
+    }
+  }
+  return nbuffer_out;
+}
+
+int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   int num_nodes = 1, size, add, add2, node_rank, node_row_size = 1,
       node_column_size = 1, node_size, *counts = NULL, counts_max = 0,
       *displs = NULL, *iocounts = NULL, iocounts_max = 0, *iodispls = NULL,
       *lcounts = NULL, *ldispls = NULL, lrank_row, lrank_column;
   int nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i, j,
-      k, m, copy_method = 0;
+      k, m, copy_method = 0, *block_offsets, total_message_size=0;
   int size_level0 = 0, *size_level1 = NULL, collective_type = 1;
   int barriers_size, step, substep, add_local, size_local, type_size = 1;
   struct data_line **data = NULL;
@@ -324,6 +405,25 @@ int generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
       case 2:
+        nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, parameters->node_row_size, lrank_row, 0, buffer_out+nbuffer_out);
+/*        nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, 2, lrank_row%2, lrank_row/2, buffer_out+nbuffer_out);
+        block_offsets=(int*)malloc(2*sizeof(int));
+        for (i=2; i<parameters->node_row_size; i*=2){
+          block_offsets[0]=(lrank_row/2/i)*i;
+          block_offsets[1]=(lrank_row/2/i)*i+i/2;
+          nbuffer_out += reduce(parameters, data, size_level0, size_level1, type_size, i*2, lrank_row%(i*2), 2, block_offsets, buffer_out+nbuffer_out);
+          nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+        }
+        free(block_offsets);*/
+        for (i = 0; i < size_level1[0]; i++) {
+          total_message_size+=parameters->message_sizes[i];
+        }
+        add=add2=total_message_size*(parameters->node_row_size/2-1);
+        size=total_message_size;
+        nbuffer_out += write_assembler_line_ssdsdd(buffer_out + nbuffer_out, ememcp_, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
+        nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+        break;
+      case 3:
         if (collective_type == 2) {
           printf("copyin not implemented\n");
           exit(2);
@@ -401,7 +501,7 @@ int generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               -CACHE_LINE_SIZE * (1 + node_rank + barriers_size * node_size));
         }
         break;
-      case 3:
+      case 4:
         if (collective_type == 2) {
           printf("copyin not implemented\n");
           exit(2);
@@ -480,7 +580,7 @@ int generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               -CACHE_LINE_SIZE * (1 + node_rank + barriers_size * node_size));
         }
         break;
-      case 4:
+      case 5:
         if (collective_type == 2) {
           printf("copyin not implemented\n");
           exit(2);
@@ -514,7 +614,7 @@ int generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         }
         nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER\n");
         break;
-      case 5:
+      case 6:
         if (moffsets[num_nodes] < CACHE_LINE_SIZE) {
           add = CACHE_LINE_SIZE * lrank_row + ldispls[lrank_column];
           if (moffsets[num_nodes] < CACHE_LINE_SIZE - 2 * type_size) {

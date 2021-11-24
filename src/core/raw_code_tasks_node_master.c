@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_out) {
   int *nodes_recv = NULL, *nodes_send = NULL, node_rank, node_row_size = 1,
       node_column_size = 1, node_size;
   int node, num_nodes;

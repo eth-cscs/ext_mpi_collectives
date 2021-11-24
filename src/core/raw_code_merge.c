@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int generate_raw_code_merge(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_raw_code_merge(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, i, nin_new, flag, flag3, flag4, flag5,
       bo1, bo2, o1, o2, size, bo1_, bo2_, o1_, o2_, size_, o1__, o2__;
   char line[1000], line2[1000];

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
   int size, add, flag, flag3, node_rank, node_row_size = 1,
                                          node_column_size = 1, node_size;
   int nbuffer_out = 0, nbuffer_in = 0, i, os1 = -1, os2 = -1, reset = 1,
