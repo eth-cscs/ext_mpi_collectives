@@ -14,6 +14,8 @@
 #define COST_LIST_LENGTH_MAX 100
 
 int ext_mpi_bit_identical = 0;
+int use_rule_groups_ports=0;
+int waitany=0;
 
 typedef struct _FileData {
   int nnodes;
@@ -1636,7 +1638,7 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
   for (i = 0; i < comm_size_row; i++) {
     num_ports[i] = groups[i] = 0;
   }
-  if (fixed_factors_ports == NULL) {
+  if (fixed_factors_ports == NULL && !use_rule_groups_ports) {
     /*    d1 = cost_recursive(comm_size_row/my_cores_per_node_row, message_size,
        1, my_cores_per_node_row*my_cores_per_node_column, num_ports); i =
        message_size/(comm_size_row/my_cores_per_node_row); if (i<type_size){
@@ -1727,6 +1729,30 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
       groups[1] = num_ports[1] = 0;
     }
     // FIXME comm_column
+  }else if (fixed_factors_ports == NULL && use_rule_groups_ports){
+    int group_size = ceil(log(comm_size_row)/log(2));
+    for(int i=0;i<2*group_size;i++){
+      if(i<group_size){
+        num_ports[i]=1;
+        if(i==group_size-1){
+          groups[i]=-comm_size_row;
+        }
+        else{
+          groups[i]=comm_size_row;
+        }
+      }
+      else{
+        num_ports[i]=-1;
+        if(i==2*group_size-1){
+          groups[i]=-comm_size_row;
+        }
+        else{
+          groups[i]=comm_size_row;
+        }
+      }
+    }
+    groups[2*group_size]=0;
+    num_ports[2*group_size]=0;
   } else {
     i = -1;
     do {
@@ -1777,7 +1803,7 @@ int EXT_MPI_Allreduce_init_general(void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
       my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      ext_mpi_bit_identical);
+      ext_mpi_bit_identical,waitany);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -2057,7 +2083,7 @@ int EXT_MPI_Reduce_init_general(void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
       groups, my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      0);
+      0,waitany);
   if (*handle < 0)
     goto error;
   free(groups);

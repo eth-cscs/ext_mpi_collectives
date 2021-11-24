@@ -9,6 +9,8 @@ extern "C" {
 #endif
 
 extern int ext_mpi_bit_identical;
+extern int use_rule_groups_ports;
+extern int waitany;
 
 int EXT_MPI_Init();
 int EXT_MPI_Initialized(int *flag);

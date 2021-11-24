@@ -1,4 +1,4 @@
-CC = mpicc
+CC = cc
 OBJ = obj
 BIN = bin
 LIBNAME = ext_mpi_collectives
