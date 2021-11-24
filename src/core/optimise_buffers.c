@@ -77,5 +77,5 @@ int ext_mpi_generate_optimise_buffers(char *buffer_in, char *buffer_out) {
     }
   } while (flag3);
   nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  return (nbuffer_out);
+  return nbuffer_out;
 }

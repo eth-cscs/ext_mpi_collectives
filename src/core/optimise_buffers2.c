@@ -101,6 +101,7 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
         nbuffer_out+=write_line(buffer_out_loop + nbuffer_out, line, parameters->ascii_out);
       }
     } while (flag);
+    nbuffer_out += write_eof(buffer_out_loop + nbuffer_out, parameters->ascii_out);
   }
   free(buffer_temp);
   return nbuffer_out + nbuffer_out_start;
