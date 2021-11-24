@@ -17,6 +17,9 @@
 #include "gpu_core.h"
 #endif
 
+//int ext_mpi_bit_reproducible = 1;
+int ext_mpi_minimum_computation = 0;
+
 static int is_initialised = 0;
 static int copyin_method = 0;
 static int alternating = 0;
@@ -200,7 +203,7 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     MPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (scount * type_size <= 25000000) {
-    if (fixed_factors_ports == NULL) {
+    if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size,
@@ -212,6 +215,30 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
                            scount * type_size, 12, num_ports, groups) < 0)
           goto error;
       }
+    } else if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+     int group_size = ceil(log(comm_size_row)/log(2));
+     for(int i=0;i<2*group_size;i++){
+       if(i<group_size){
+         num_ports[i]=1;
+         if(i==group_size-1){
+           groups[i]=-comm_size_row;
+         }
+         else{
+           groups[i]=comm_size_row;
+         }
+       }
+       else{
+         num_ports[i]=-1;
+         if(i==2*group_size-1){
+           groups[i]=-comm_size_row;
+         }
+         else{
+           groups[i]=comm_size_row;
+         }
+       }
+     }
+     groups[2*group_size]=0;
+     num_ports[2*group_size]=0;
     } else {
       i = -1;
       do {
