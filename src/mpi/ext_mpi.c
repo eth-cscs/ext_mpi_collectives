@@ -203,7 +203,7 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     MPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (scount * type_size <= 25000000) {
-    if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation) {
+    if (fixed_factors_ports == NULL) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size,
@@ -215,30 +215,6 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
                            scount * type_size, 12, num_ports, groups) < 0)
           goto error;
       }
-    } else if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
-     int group_size = ceil(log(comm_size_row)/log(2));
-     for(int i=0;i<2*group_size;i++){
-       if(i<group_size){
-         num_ports[i]=1;
-         if(i==group_size-1){
-           groups[i]=-comm_size_row;
-         }
-         else{
-           groups[i]=comm_size_row;
-         }
-       }
-       else{
-         num_ports[i]=-1;
-         if(i==2*group_size-1){
-           groups[i]=-comm_size_row;
-         }
-         else{
-           groups[i]=comm_size_row;
-         }
-       }
-     }
-     groups[2*group_size]=0;
-     num_ports[2*group_size]=0;
     } else {
       i = -1;
       do {
@@ -246,6 +222,11 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
         num_ports[i] = fixed_factors_ports[i];
         groups[i] = fixed_factors_groups[i];
       } while (fixed_factors_ports[i] > 0);
+    }
+    for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
+      num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
+                        (abs(num_ports[i]) + 1);
+      num_ports[i] *= -1;
     }
     if (verbose){
       if (is_rank_zero(comm_row, comm_column)){
@@ -255,11 +236,6 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
                my_cores_per_node_row * my_cores_per_node_column, str);
         free(str);
       }
-    }
-    for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
-      num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
-                        (abs(num_ports[i]) + 1);
-      num_ports[i] = -num_ports[i];
     }
     rcount = 0;
     for (i = 0; i < comm_size_row; i++) {
@@ -334,12 +310,12 @@ int EXT_MPI_Allgatherv_init_general(const void *sendbuf, int sendcount,
     goto error;
   k = 0;
   for (j = 0; j < comm_size_row; j++) {
-    for (i = 0; i < (int)((recvcounts[j] * type_size) / (int)sizeof(long int));
+    for (i = 0; i < (int)((recvcounts[j] * type_size) / sizeof(long int));
          i++) {
       if (((long int *)
-               recvbuf)[(displs[j] * type_size) / (int)sizeof(long int) + i] !=
+               recvbuf)[(displs[j] * type_size) / sizeof(long int) + i] !=
           ((long int *)
-               recvbuf_ref)[(displs[j] * type_size) / (int)sizeof(long int) + i]) {
+               recvbuf_ref)[(displs[j] * type_size) / sizeof(long int) + i]) {
         k = 1;
       }
     }
@@ -955,7 +931,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   for (i = 0; i < comm_size_row; i++) {
     num_ports[i] = groups[i] = 0;
   }
-  if (fixed_factors_ports == NULL) {
+  if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation) {
     /*    d1 = ext_mpi_cost_simple_recursive(comm_size_row/my_cores_per_node_row, message_size,
        1, my_cores_per_node_row*my_cores_per_node_column, num_ports); i =
        message_size/(comm_size_row/my_cores_per_node_row); if (i<type_size){
@@ -1046,6 +1022,30 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       groups[1] = num_ports[1] = 0;
     }
     // FIXME comm_column
+  } else if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+    int group_size = ceil(log(comm_size_row)/log(2));
+    for(int i=0;i<2*group_size;i++){
+      if(i<group_size){
+        num_ports[i]=1;
+        if(i==group_size-1){
+          groups[i]=-comm_size_row;
+        }
+        else{
+          groups[i]=comm_size_row;
+        }
+      }
+      else{
+        num_ports[i]=-1;
+        if(i==2*group_size-1){
+          groups[i]=-comm_size_row;
+        }
+        else{
+          groups[i]=comm_size_row;
+        }
+      }
+    }
+    groups[2*group_size]=0;
+    num_ports[2*group_size]=0;
   } else {
     i = -1;
     do {
