@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     printf(" %d", iocounts[i]);
   }
   printf("\n");
-  printf("%s\n", " PARAMETER NUM_PORTS -1 -1 -1");
+  printf("%s\n", " PARAMETER NUM_PORTS 8(1 1 1)");
   printf("%s", " PARAMETER MESSAGE_SIZE");
   for (i = 0; i < 8; i++) {
     printf(" %d", msizes[i]);

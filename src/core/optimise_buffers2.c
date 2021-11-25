@@ -114,6 +114,9 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
             nbuffer_out += write_line(buffer_out_loop + nbuffer_out, line,
                                       parameters->ascii_out);
           }
+          if (nbuffer_in == nline2){
+            nline2 = -1;
+          }
         }
       }
     } while (flag3);
