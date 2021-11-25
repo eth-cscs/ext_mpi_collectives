@@ -68,6 +68,9 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
                         (estring1__ == ereturn)) {
                       flag2 = 0;
                       nline2 = -1;
+                    } else if ((read_assembler_line_ssdsdd(line2, &estring1, &estring2, &o1, &estring3, &o2, &size, 0) >= 0) && (estring2==erecvbufp)){
+                      flag2 = 0;
+                      nline2 = -1;
                     } else {
                       if (((estring1__ == ememcpy) ||
                            (estring1__ == ememcp_)) &&
@@ -78,7 +81,7 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
                                   &o1, &estring4, &bo2, &estring5, &o2, &size,
                                   0) >= 0) {
                             if ((bo2 == bo1_) && (o2 == o1_) &&
-                                (size == size_)) {
+                                (size == size_) && (estring2 == eshmemp)) {
                               nbuffer_out += write_assembler_line_ssdsdddd(
                                   buffer_out_loop + nbuffer_out, estring1_,
                                   estring2_, bo1, estring3_, o1, size_, partner,
@@ -92,7 +95,8 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
                           if (read_assembler_line_ssdsdd(
                                   line2, &estring1, &estring2, &o1, &estring3,
                                   &o2, &size, 0) >= 0) {
-                            if ((o2 == o1_) && (size == size_)) {
+                            if ((o2 == o1_) && (size == size_) &&
+                                (estring2 == eshmemp)) {
                               nbuffer_out += write_assembler_line_ssdddd(
                                   buffer_out_loop + nbuffer_out, estring1_,
                                   estring2_, o1, size_, partner, num_comm,
