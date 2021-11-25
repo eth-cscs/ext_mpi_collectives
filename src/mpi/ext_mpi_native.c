@@ -1212,6 +1212,7 @@ int EXT_MPI_Gatherv_init_native(
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(global_counts);
+  global_counts = NULL;
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER IOCOUNTS");
   for (j = 0; j < my_cores_per_node_row; j++) {
     for (i = 0; i < my_cores_per_node_column; i++) {
@@ -1221,8 +1222,9 @@ int EXT_MPI_Gatherv_init_native(
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
+  local_counts = NULL;
   for (i=0; num_ports[i]; i++);
-  groups = (int*) malloc(i*sizeof(int));
+  groups = (int*) malloc((i+1)*sizeof(int));
   for (j=0; j<i; j++){
     groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
@@ -1238,6 +1240,7 @@ int EXT_MPI_Gatherv_init_native(
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(coarse_counts);
+  coarse_counts = NULL;
   if (sendtype == MPI_LONG) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER DATA_TYPE LONG_INT\n");
   }
@@ -1428,7 +1431,8 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts, con
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
   local_counts = NULL;
-  groups = (int*) malloc(i*sizeof(int));
+  for (i=0; num_ports[i]; i++);
+  groups = (int*) malloc((i+1)*sizeof(int));
   for (j=0; j<i; j++){
     groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
@@ -1627,7 +1631,8 @@ int EXT_MPI_Reduce_scatter_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
   local_counts = NULL;
-  groups = (int*) malloc(i*sizeof(int));
+  for (i=0; num_ports[i]; i++);
+  groups = (int*) malloc((i+1)*sizeof(int));
   for (j=0; j<i; j++){
     groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
