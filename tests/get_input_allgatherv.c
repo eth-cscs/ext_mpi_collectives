@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
   iocounts[2] = 40;
   iocounts[3] = 48;
   msize = 0;
-  for (i = 0; i < 4; i++) {
+  for (i = 0; i < 1; i++) {
     msize += counts[i];
   }
   msizes = (int *)malloc(sizeof(int) * 8);
