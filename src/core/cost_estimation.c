@@ -139,7 +139,7 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
                  ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize);
       }
     }
-    rarray[depth] = r - 1;
+    rarray[depth] = -(r - 1);
     for (j = 0; garray[j]; j++)
       ;
     tgarray = (int *)malloc((j + depth + 2) * 2 * sizeof(int));

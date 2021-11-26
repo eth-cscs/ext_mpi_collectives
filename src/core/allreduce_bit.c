@@ -466,7 +466,13 @@ int ext_mpi_generate_allreduce_bit(char *buffer_in, char *buffer_out) {
   }
   task = parameters->node;
   num_nodes = parameters->num_nodes;
-  num_ports = parameters->num_ports;
+  for (i=0; parameters->num_ports[i]; i++);
+  num_ports = (int*)malloc((i+1)*sizeof(int));
+  if (!num_ports) goto error;
+  for (i=0; parameters->num_ports[i]; i++){
+    num_ports[i] = -parameters->num_ports[i];
+  }
+  num_ports[i] = 0;
   i = read_algorithm(buffer_in + nbuffer_in, &size_level0, &size_level1, &data,
                      parameters->ascii_in);
   if (i < 0)
@@ -600,11 +606,13 @@ int ext_mpi_generate_allreduce_bit(char *buffer_in, char *buffer_out) {
   delete_algorithm(size_level0, size_level1, data);
   nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   allreduce_done(stages, num_ports);
+  free(num_ports);
   delete_parameters(parameters);
   return nbuffer_out;
 error:
   delete_algorithm(size_level0, size_level1, data);
   allreduce_done(stages, num_ports);
+  free(num_ports);
   delete_parameters(parameters);
   return ERROR_MALLOC;
 }

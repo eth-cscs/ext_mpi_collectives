@@ -843,7 +843,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   int coarse_count, *counts = NULL, iret;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   int nbuffer1 = 0, msize, *msizes = NULL, *msizes2 = NULL, *rank_perm = NULL,
-      i, allreduce_short = (num_ports[0] < 0);
+      i, allreduce_short = (num_ports[0] > 0);
   int reduction_op;
   if (allreduce_short) {
     for (i = 0; groups[i]; i++) {

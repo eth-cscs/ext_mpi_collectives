@@ -40,7 +40,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   int coarse_count, *counts = NULL;
   char *buffer1 = NULL, *buffer2 = NULL;
   int nbuffer1 = 0, msize, *msizes = NULL, *msizes2 = NULL, i,
-      allreduce_short = (num_ports[0] < 0);
+      allreduce_short = (num_ports[0] > 0);
   int reduction_op=-1;
   char *ip, *str;
   int *global_ranks = NULL, code_size;
@@ -180,7 +180,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   if (bit) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER BIT_IDENTICAL\n");
   }
-  //  nbuffer1+=sprintf(buffer1+nbuffer1, " PARAMETER ASCII\n");
+  //nbuffer1+=sprintf(buffer1+nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
   if (!allreduce_short) {

@@ -7,7 +7,7 @@
 int main(){
   int size, num_nodes;
   ext_mpi_read_bench();
-  for (num_nodes=160; num_nodes>1; num_nodes--){
+  for (num_nodes=160; num_nodes>0; num_nodes--){
     for (size=10000; size<=10000; size*=2){
       ext_mpi_allreduce_simulate(size, 8, num_nodes, 1, 1, 1);
     }

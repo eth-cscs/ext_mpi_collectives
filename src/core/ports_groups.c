@@ -11,9 +11,9 @@ char* ext_mpi_print_ports_groups(int *ports, int *groups){
     for (j=i; groups[j]>0; j++);
     nrvalue+=sprintf(rvalue+nrvalue, "%d(", abs(groups[i]));
     for (k=i; k<j; k++){
-      nrvalue+=sprintf(rvalue+nrvalue, "%d ", -ports[k]);
+      nrvalue+=sprintf(rvalue+nrvalue, "%d ", ports[k]);
     }
-    nrvalue+=sprintf(rvalue+nrvalue, "%d) ", -ports[j]);
+    nrvalue+=sprintf(rvalue+nrvalue, "%d) ", ports[j]);
     i=j;
   }
   rvalue[nrvalue-1]=0;
@@ -56,7 +56,6 @@ int ext_mpi_scan_ports_groups(char *str, int **ports, int **groups){
       flag=(*c3!=')');
       *c3=0;
       sscanf(c2, "%d", &(*ports)[j]);
-      (*ports)[j]*=-1;
       (*groups)[j]=(*groups)[i];
       j++;
       c2=c3+1;

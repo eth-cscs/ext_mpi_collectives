@@ -390,7 +390,7 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
                     NULL, NULL, flag, parameters->ascii_out, parameters->root,
                     parameters->bit_identical);
     free(msizes_l);
-    if (num_ports_l[0] > 0) {
+    if (num_ports_l[0] < 0) {
       num_nodes_start /= igroup;
     } else {
       if (flag) {

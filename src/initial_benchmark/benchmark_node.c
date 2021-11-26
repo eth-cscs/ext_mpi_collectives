@@ -16,9 +16,9 @@ int main(int argc, char *argv[]) {
   MPI_Init(NULL, NULL);
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-  num_ports[0] = -1;
+  num_ports[0] = 1;
   num_ports[1] = 0;
-  num_ports_limit[0] = -1;
+  num_ports_limit[0] = 1;
   num_ports_limit[1] = 0;
   num_active_ports = 1;
   if (mpi_rank == 0) {

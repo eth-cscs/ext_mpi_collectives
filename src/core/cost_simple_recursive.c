@@ -4,7 +4,7 @@
 #include "read_bench.h"
 #include "cost_simple_recursive.h"
 
-static double ext_mpi_cost_simple_recursive_rec(int p, double n, int fac, int port_max, int *rarray) {
+static double cost_simple_recursive_rec(int p, double n, int fac, int port_max, int *rarray) {
   double T, T_min, ma, mb;
   int r, i, j, k, tarray[p + 1];
   T_min = 1e60;
@@ -48,7 +48,7 @@ static double ext_mpi_cost_simple_recursive_rec(int p, double n, int fac, int po
       }
     }
     if (fac * r < p) {
-      T += ext_mpi_cost_simple_recursive_rec(p, n, fac * r, port_max, tarray + 1);
+      T += cost_simple_recursive_rec(p, n, fac * r, port_max, tarray + 1);
     } else {
       tarray[1] = 0;
     }
@@ -69,8 +69,8 @@ static double ext_mpi_cost_simple_recursive_rec(int p, double n, int fac, int po
 double ext_mpi_cost_simple_recursive(int p, double n, int port_max, int *num_ports, int *groups) {
   double cost;
   int i = 0;
-  cost = ext_mpi_cost_simple_recursive_rec(p, n, 1, port_max, num_ports);
-  while (num_ports[i] != 0) {
+  cost = cost_simple_recursive_rec(p, n, 1, port_max, num_ports);
+  while (num_ports[i]) {
     num_ports[i]--;
     groups[i] = p;
     i++;

@@ -226,7 +226,6 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
       num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
                         (abs(num_ports[i]) + 1);
-      num_ports[i] *= -1;
     }
     if (verbose){
       if (is_rank_zero(comm_row, comm_column)){
@@ -562,12 +561,23 @@ static int reduce_scatter_init_general(
                            rcount * type_size, 12, num_ports, groups) < 0)
           goto error;
       }
+      for (i = 0; num_ports[i]; i++);
+      for (j = 0; j < i / 2; j++) {
+        k = num_ports[j];
+        num_ports[j] = -num_ports[i - 1 - j];
+        num_ports[i - 1 - j] = -k;
+      }
     } else {
       i = -1;
       do {
         i++;
         num_ports[i] = fixed_factors_ports[i];
       } while (fixed_factors_ports[i] > 0);
+    }
+    for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
+      num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
+                        (num_ports[i] + 1);
+      num_parallel[i] = 1;
     }
     if (verbose) {
       if (is_rank_zero(comm_row, comm_column)){
@@ -578,18 +588,6 @@ static int reduce_scatter_init_general(
                my_cores_per_node_row * my_cores_per_node_column, str);
         free(str);
       }
-    }
-    for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
-      num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
-                        (num_ports[i] + 1);
-      num_parallel[i] = 1;
-    }
-    for (i = 0; num_ports[i]; i++) {
-    }
-    for (j = 0; j < i / 2; j++) {
-      k = num_ports[j];
-      num_ports[j] = num_ports[i - 1 - j];
-      num_ports[i - 1 - j] = k;
     }
     cin_method = 0;
     if (copyin_method >= 1) {
@@ -1026,7 +1024,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
     int group_size = ceil(log(comm_size_row)/log(2));
     for(int i=0;i<2*group_size;i++){
       if(i<group_size){
-        num_ports[i]=1;
+        num_ports[i]=-1;
         if(i==group_size-1){
           groups[i]=-comm_size_row;
         }
@@ -1035,7 +1033,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
         }
       }
       else{
-        num_ports[i]=-1;
+        num_ports[i]=1;
         if(i==2*group_size-1){
           groups[i]=-comm_size_row;
         }
