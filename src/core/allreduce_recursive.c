@@ -79,14 +79,12 @@ static int allreduce_start(struct allreduce_data_element **stages,
           (int *)malloc(sizeof(int) * (*stages)[step].max_lines * max_port_to);
       if (!(*stages)[step].to_value)
         goto error;
+      for (i = 0; i < (*stages)[0].max_lines; i++) {
+        (*stages)[step].frac[i] = i;
+        (*stages)[step].source[i] = task;
+      }
     }
     for (i = 0; i < (*stages)[0].max_lines; i++) {
-      if (allreduce == 3) {
-        (*stages)[0].frac[i] = 0;
-      } else {
-        (*stages)[0].frac[i] = i;
-      }
-      (*stages)[0].source[i] = task;
       (*stages)[0].num_from[i] = 1;
       (*stages)[0].from_value[i] = -1;
       (*stages)[0].from_line[i] = i;
@@ -126,74 +124,50 @@ static void allreduce_done(struct allreduce_data_element *stages,
   free(stages);
 }
 
+static int communication_partner(int gbstep, int num_ports, int task, int port){
+  return ((task/gbstep+port+1)%(num_ports+1)+(task/gbstep/(num_ports+1))*(num_ports+1))*gbstep+task%gbstep;
+}
+
+static int start_block(int gbstep, int num_ports, int task, int port){
+  return (task/gbstep)*gbstep;
+}
+
+static int end_block(int gbstep, int num_ports, int task, int port){
+  return (task/gbstep)*gbstep+gbstep;
+}
+
 static int allreduce_init(struct allreduce_data_element **stages,
                           int num_processors, int *num_ports,
                           int task, int allreduce) {
-  int chunk, gbstep, port, i, j, k, l, m, step, task_dup, step_mid, flag, im,
-      *used = NULL, used_max;
-  i = allreduce_start(stages, num_processors, num_ports, task, allreduce);
-return 0;
-  if (i < 0)
+  int chunk, gbstep, port, i, j, k, l, m, step, task_dup, step_mid, flag, im, partner;
+  if (allreduce_start(stages, num_processors, num_ports, task, allreduce) < 0)
     goto error;
-/*  used_max = (*stages)[0].max_lines;
-  for (step = 0; num_ports[step]; step++) {
-    if ((*stages)[step + 1].max_lines > used_max) {
-      used_max = (*stages)[step + 1].max_lines;
-    }
-  }
-  used = (int *)malloc(used_max * sizeof(int));
-  if (!used)
-    goto error;
-  for (step = 0; num_ports[step] > 0; step++) {
-    for (i = 0, gbstep = num_processors; (num_ports[i] > 0) && (i <= step);
+  for (step = 0; num_ports[step] < 0; step++) {
+    for (i = 0, gbstep = num_processors; (num_ports[i] < 0) && (i <= step);
          i++) {
-      gbstep = (gbstep - 1) / (num_ports[i] + 1) + 1;
+      gbstep = (gbstep - 1) / (abs(num_ports[i]) + 1) + 1;
     }
-    for (i = 0; i < gbstep * (*stages)[0].max_lines / num_processors; i++) {
-      (*stages)[step + 1].frac[i] = (*stages)[step].frac[i];
+    for (i = 0; i < (*stages)[step+1].max_lines; i++) {
       (*stages)[step + 1].source[i] = (*stages)[step].source[i];
       (*stages)[step + 1].num_from[i] = 1;
       (*stages)[step + 1].from_value[i] = task;
-      (*stages)[step + 1].from_line[i] = -1;
+      (*stages)[step + 1].from_line[i] = i;
     }
-    for (port = 0; port < num_ports[step]; port++) {
-      for (i = 0;
-           (i < gbstep * (*stages)[0].max_lines / num_processors) &&
-           ((port + 1) * gbstep * (*stages)[0].max_lines / num_processors + i <
-            (*stages)[step].max_lines);
-           i++) {
-        (*stages)[step + 1].num_from[i] = 1;
-        (*stages)[step + 1].from_value[i] = task;
-        (*stages)[step + 1].from_line[i] = i;
-      }
-    }
-    for (port = 0; port < num_ports[step]; port++) {
-      task_dup = (num_processors + task - (port + 1) * gbstep) % num_processors;
-      for (i = 0;
-           (i < gbstep * (*stages)[0].max_lines / num_processors) &&
-           ((port + 1) * gbstep * (*stages)[0].max_lines / num_processors + i <
-            (*stages)[step].max_lines);
-           i++) {
-        (*stages)[step + 1].frac[i] =
-            ((*stages)[0].max_lines +
-             (*stages)[step].frac[gbstep * (port + 1) * (*stages)[0].max_lines /
-                                      num_processors +
-                                  i] +
-             (task_dup - task) * (*stages)[0].max_lines / num_processors) %
-            (*stages)[0].max_lines;
-        (*stages)[step + 1].source[i] = task;
-        (*stages)[step + 1].from_value[(*stages)[step + 1].max_lines *
-                                           (*stages)[step + 1].num_from[i] +
-                                       i] = task_dup;
-        (*stages)[step + 1].from_line[(*stages)[step + 1].max_lines *
-                                          (*stages)[step + 1].num_from[i] +
-                                      i] = (port + 1) * gbstep + i;
+    for (port = 0; port < abs(num_ports[step]); port++) {
+      partner = communication_partner(gbstep, abs(num_ports[step]), task, port);
+      for (i = start_block(gbstep, abs(num_ports[step]), task, port); i < end_block(gbstep, abs(num_ports[step]), task, port); i++){
+        (*stages)[step + 1].from_value[i+(*stages)[step + 1].num_from[i]*(*stages)[step + 1].max_lines] = partner;
+        (*stages)[step + 1].from_line[i+(*stages)[step + 1].num_from[i]*(*stages)[step + 1].max_lines] = i;
         (*stages)[step + 1].num_from[i]++;
+      }
+      for (i = start_block(gbstep, abs(num_ports[step]), partner, port); i < end_block(gbstep, abs(num_ports[step]), partner, port); i++){
+        (*stages)[step].to_value[i+(*stages)[step].num_to[i]*(*stages)[step].max_lines] = partner;
+        (*stages)[step].num_to[i]++;
       }
     }
   }
   step_mid = step;
-  for (step = step_mid; num_ports[step]; step++) {
+/*  for (step = step_mid; num_ports[step]; step++) {
     chunk = (*stages)[step].max_lines;
     for (i = 0; num_ports[i] > 0; i++) {
     }
@@ -304,10 +278,8 @@ return 0;
       }
     }
   }*/
-  free(used);
   return 0;
 error:
-  free(used);
   return ERROR_MALLOC;
 }
 
