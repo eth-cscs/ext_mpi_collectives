@@ -204,7 +204,11 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
   }
   if (scount * type_size <= 25000000) {
     if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
-      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      if (comm_size_row/my_cores_per_node_row==1){
+        group_size = 1;
+      }else{
+        group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      }
       for(int i=0;i<group_size;i++){
         num_ports[i]=1;
         if(i==group_size-1){
@@ -382,20 +386,11 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
   }
   if (scount * type_size <= 25000000) {
     if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
-      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
-      for(int i=0;i<group_size;i++){
-        num_ports[i]=1;
-        if(i==group_size-1){
-          groups[i]=-comm_size_row/my_cores_per_node_row;
-        }
-        else{
-          groups[i]=comm_size_row/my_cores_per_node_row;
-        }
+      if (comm_size_row/my_cores_per_node_row==1){
+        group_size = 1;
+      }else{
+        group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
       }
-      groups[group_size]=0;
-      num_ports[group_size]=0;
-    } else if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation){
-      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
       for(int i=0;i<group_size;i++){
         num_ports[i]=1;
         if(i==group_size-1){
@@ -603,7 +598,11 @@ static int reduce_scatter_init_general(
   }
   if (rcount * type_size <= 25000000) {
     if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
-      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      if (comm_size_row/my_cores_per_node_row==1){
+        group_size = 1;
+      }else{
+        group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      }
       for(int i=0;i<group_size;i++){
         num_ports[i]=-1;
         if(i==group_size-1){
@@ -627,11 +626,13 @@ static int reduce_scatter_init_general(
                            rcount * type_size, 12, num_ports, groups) < 0)
           goto error;
       }
-      for (i = 0; num_ports[i]; i++);
+      for (i = 0; num_ports[i]; i++){
+        num_ports[i] *= -1;
+      }
       for (j = 0; j < i / 2; j++) {
         k = num_ports[j];
-        num_ports[j] = -num_ports[i - 1 - j];
-        num_ports[i - 1 - j] = -k;
+        num_ports[j] = num_ports[i - 1 - j];
+        num_ports[i - 1 - j] = k;
       }
     } else {
       i = -1;
@@ -803,7 +804,11 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
   }
   if (rcount * type_size <= 25000000) {
     if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
-      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      if (comm_size_row/my_cores_per_node_row==1){
+        group_size = 1;
+      }else{
+        group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      }
       for(int i=0;i<group_size;i++){
         num_ports[i]=1;
         if(i==group_size-1){
@@ -1112,7 +1117,11 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
     }
     // FIXME comm_column
   } else if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
-    group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+    if (comm_size_row/my_cores_per_node_row==1){
+      group_size = 1;
+    }else{
+      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+    }
     for(int i=0;i<2*group_size;i++){
       if(i<group_size){
         num_ports[i]=-1;
@@ -1362,7 +1371,11 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
     num_ports[i] = groups[i] = 0;
   }
   if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
-    group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+    if (comm_size_row/my_cores_per_node_row==1){
+      group_size = 1;
+    }else{
+      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+    }
     for(int i=0;i<group_size;i++){
       num_ports[i]=-1;
       if(i==group_size-1){
@@ -1657,7 +1670,11 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     num_ports[i] = groups[i] = 0;
   }
   if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
-    group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+    if (comm_size_row/my_cores_per_node_row==1){
+      group_size = 1;
+    }else{
+      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+    }
     for(int i=0;i<group_size;i++){
       num_ports[i]=1;
       if(i==group_size-1){
