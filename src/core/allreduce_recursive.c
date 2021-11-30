@@ -2,6 +2,7 @@
 #include "allreduce_bit.h"
 #include "constants.h"
 #include "read.h"
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,14 +18,30 @@ struct allreduce_data_element {
   int *to_value;
 };
 
+static int communication_partner(int gbstep, int num_ports, int task,
+                                 int port) {
+  return ((task / gbstep + port + 1) % (num_ports + 1) +
+          (task / gbstep / (num_ports + 1)) * (num_ports + 1)) *
+             gbstep +
+         task % gbstep;
+}
+
+static int start_block(int gbstep, int num_ports, int task, int port) {
+  return (task / gbstep) * gbstep;
+}
+
+static int end_block(int gbstep, int num_ports, int task, int port) {
+  return (task / gbstep) * gbstep + gbstep;
+}
+
 static int allreduce_start(struct allreduce_data_element **stages,
                            int num_processors, int *num_ports, int task,
                            int allreduce) {
   int max_port_from, max_port_to;
   int nsteps, step, i;
   struct allreduce_data_element *stages_in = *stages;
-  for (nsteps = 0; num_ports[nsteps]; nsteps++) {
-  }
+  for (nsteps = 0; num_ports[nsteps]; nsteps++)
+    ;
   *stages = (struct allreduce_data_element *)malloc(
       (nsteps + 1) * sizeof(struct allreduce_data_element));
   if (!(*stages))
@@ -84,10 +101,21 @@ static int allreduce_start(struct allreduce_data_element **stages,
         (*stages)[step].source[i] = task;
       }
     }
-    for (i = 0; i < (*stages)[0].max_lines; i++) {
-      (*stages)[0].num_from[i] = 1;
-      (*stages)[0].from_value[i] = -1;
-      (*stages)[0].from_line[i] = i;
+    if (allreduce) {
+      for (i = 0; i < (*stages)[0].max_lines; i++) {
+        (*stages)[0].num_from[i] = 1;
+        (*stages)[0].from_value[i] = -1;
+        (*stages)[0].from_line[i] = i;
+      }
+    } else {
+      for (i = 0; i < (*stages)[0].max_lines; i++) {
+        (*stages)[0].num_from[i] = 1;
+        (*stages)[0].from_value[i] = task;
+        (*stages)[0].from_line[i] = i;
+      }
+      for (i = start_block(1, 0, task, 0); i < end_block(1, 0, task, 0); i++) {
+        (*stages)[0].from_value[i] = -1;
+      }
     }
   }
   return 0;
@@ -110,8 +138,8 @@ error:
 static void allreduce_done(struct allreduce_data_element *stages,
                            int *num_ports) {
   int nsteps, step;
-  for (nsteps = 0; num_ports[nsteps]; nsteps++) {
-  }
+  for (nsteps = 0; num_ports[nsteps]; nsteps++)
+    ;
   for (step = 0; step <= nsteps; step++) {
     free(stages[step].to_value);
     free(stages[step].num_to);
@@ -124,22 +152,10 @@ static void allreduce_done(struct allreduce_data_element *stages,
   free(stages);
 }
 
-static int communication_partner(int gbstep, int num_ports, int task, int port){
-  return ((task/gbstep+port+1)%(num_ports+1)+(task/gbstep/(num_ports+1))*(num_ports+1))*gbstep+task%gbstep;
-}
-
-static int start_block(int gbstep, int num_ports, int task, int port){
-  return (task/gbstep)*gbstep;
-}
-
-static int end_block(int gbstep, int num_ports, int task, int port){
-  return (task/gbstep)*gbstep+gbstep;
-}
-
 static int allreduce_init(struct allreduce_data_element **stages,
-                          int num_processors, int *num_ports,
-                          int task, int allreduce) {
-  int gbstep=0, port, i, j, k, step, gbstep_prim, partner;
+                          int num_processors, int *num_ports, int task,
+                          int allreduce) {
+  int gbstep = INT_MAX, port, i, j, k, step, gbstep_prim, partner;
   if (allreduce_start(stages, num_processors, num_ports, task, allreduce) < 0)
     goto error;
   for (step = 0; num_ports[step] < 0; step++) {
@@ -147,7 +163,7 @@ static int allreduce_init(struct allreduce_data_element **stages,
          i++) {
       gbstep = (gbstep - 1) / (abs(num_ports[i]) + 1) + 1;
     }
-    for (i = 0; i < (*stages)[step+1].max_lines; i++) {
+    for (i = 0; i < (*stages)[step + 1].max_lines; i++) {
       (*stages)[step + 1].source[i] = (*stages)[step].source[i];
       (*stages)[step + 1].num_from[i] = 1;
       (*stages)[step + 1].from_value[i] = task;
@@ -155,38 +171,56 @@ static int allreduce_init(struct allreduce_data_element **stages,
     }
     for (port = 0; port < abs(num_ports[step]); port++) {
       partner = communication_partner(gbstep, abs(num_ports[step]), task, port);
-      for (i = start_block(gbstep, abs(num_ports[step]), task, port); i < end_block(gbstep, abs(num_ports[step]), task, port); i++){
-        (*stages)[step + 1].from_value[i+(*stages)[step + 1].num_from[i]*(*stages)[step + 1].max_lines] = partner;
-        (*stages)[step + 1].from_line[i+(*stages)[step + 1].num_from[i]*(*stages)[step + 1].max_lines] = i;
+      for (i = start_block(gbstep, abs(num_ports[step]), task, port);
+           i < end_block(gbstep, abs(num_ports[step]), task, port); i++) {
+        (*stages)[step + 1].from_value[i + (*stages)[step + 1].num_from[i] *
+                                               (*stages)[step + 1].max_lines] =
+            partner;
+        (*stages)[step + 1].from_line[i + (*stages)[step + 1].num_from[i] *
+                                              (*stages)[step + 1].max_lines] =
+            i;
         (*stages)[step + 1].num_from[i]++;
       }
-      for (i = start_block(gbstep, abs(num_ports[step]), partner, port); i < end_block(gbstep, abs(num_ports[step]), partner, port); i++){
-        (*stages)[step].to_value[i+(*stages)[step].num_to[i]*(*stages)[step].max_lines] = partner;
+      for (i = start_block(gbstep, abs(num_ports[step]), partner, port);
+           i < end_block(gbstep, abs(num_ports[step]), partner, port); i++) {
+        (*stages)[step].to_value[i + (*stages)[step].num_to[i] *
+                                         (*stages)[step].max_lines] = partner;
         (*stages)[step].num_to[i]++;
       }
     }
   }
-  gbstep_prim = gbstep;
+  if (allreduce) {
+    gbstep_prim = gbstep;
+  } else {
+    gbstep_prim = 0;
+  }
   gbstep = 1;
-  for (; num_ports[step]&&(gbstep<gbstep_prim); step++) {
-    for (i = 0; i < (*stages)[step+1].max_lines; i++) {
+  for (; num_ports[step] && (gbstep < gbstep_prim); step++) {
+    for (i = 0; i < (*stages)[step + 1].max_lines; i++) {
       (*stages)[step + 1].source[i] = (*stages)[step].source[i];
       (*stages)[step + 1].num_from[i] = 1;
       (*stages)[step + 1].from_value[i] = task;
       (*stages)[step + 1].from_line[i] = i;
       k = 0;
-      for (j = 0; j<(*stages)[step].num_from[i]; j++) {
-        if ((*stages)[step].from_value[i+j*(*stages)[step].max_lines]!=task){
+      for (j = 0; j < (*stages)[step].num_from[i]; j++) {
+        if ((*stages)[step].from_value[i + j * (*stages)[step].max_lines] !=
+            task) {
           k = 1;
         }
       }
-      if (k){
+      if (k) {
         for (port = 0; port < abs(num_ports[step]); port++) {
-          partner = communication_partner(gbstep, abs(num_ports[step]), task, port);
-          (*stages)[step + 1].from_value[i+(*stages)[step + 1].num_from[i]*(*stages)[step + 1].max_lines] = partner;
-          (*stages)[step + 1].from_line[i+(*stages)[step + 1].num_from[i]*(*stages)[step + 1].max_lines] = i;
+          partner =
+              communication_partner(gbstep, abs(num_ports[step]), task, port);
+          (*stages)[step + 1]
+              .from_value[i + (*stages)[step + 1].num_from[i] *
+                                  (*stages)[step + 1].max_lines] = partner;
+          (*stages)[step + 1].from_line[i + (*stages)[step + 1].num_from[i] *
+                                                (*stages)[step + 1].max_lines] =
+              i;
           (*stages)[step + 1].num_from[i]++;
-          (*stages)[step].to_value[i+(*stages)[step].num_to[i]*(*stages)[step].max_lines] = partner;
+          (*stages)[step].to_value[i + (*stages)[step].num_to[i] *
+                                           (*stages)[step].max_lines] = partner;
           (*stages)[step].num_to[i]++;
         }
       }
@@ -194,7 +228,7 @@ static int allreduce_init(struct allreduce_data_element **stages,
     gbstep *= abs(num_ports[step]) + 1;
   }
   for (; num_ports[step]; step++) {
-    for (i = 0; i < (*stages)[step+1].max_lines; i++) {
+    for (i = 0; i < (*stages)[step + 1].max_lines; i++) {
       (*stages)[step + 1].source[i] = (*stages)[step].source[i];
       (*stages)[step + 1].num_from[i] = 1;
       (*stages)[step + 1].from_value[i] = task;
@@ -202,16 +236,25 @@ static int allreduce_init(struct allreduce_data_element **stages,
     }
     for (port = 0; port < abs(num_ports[step]); port++) {
       partner = communication_partner(gbstep, abs(num_ports[step]), task, port);
-      for (i = start_block(gbstep, abs(num_ports[step]), partner, port); i < end_block(gbstep, abs(num_ports[step]), partner, port); i++){
-        if ((*stages)[step + 1].from_value[i+((*stages)[step + 1].num_from[i]-1)*(*stages)[step + 1].max_lines]==task){
+      for (i = start_block(gbstep, abs(num_ports[step]), partner, port);
+           i < end_block(gbstep, abs(num_ports[step]), partner, port); i++) {
+        if ((*stages)[step + 1]
+                .from_value[i + ((*stages)[step + 1].num_from[i] - 1) *
+                                    (*stages)[step + 1].max_lines] == task) {
           (*stages)[step + 1].num_from[i]--;
         }
-        (*stages)[step + 1].from_value[i+(*stages)[step + 1].num_from[i]*(*stages)[step + 1].max_lines] = partner;
-        (*stages)[step + 1].from_line[i+(*stages)[step + 1].num_from[i]*(*stages)[step + 1].max_lines] = i;
+        (*stages)[step + 1].from_value[i + (*stages)[step + 1].num_from[i] *
+                                               (*stages)[step + 1].max_lines] =
+            partner;
+        (*stages)[step + 1].from_line[i + (*stages)[step + 1].num_from[i] *
+                                              (*stages)[step + 1].max_lines] =
+            i;
         (*stages)[step + 1].num_from[i]++;
       }
-      for (i = start_block(gbstep, abs(num_ports[step]), task, port); i < end_block(gbstep, abs(num_ports[step]), task, port); i++){
-        (*stages)[step].to_value[i+(*stages)[step].num_to[i]*(*stages)[step].max_lines] = partner;
+      for (i = start_block(gbstep, abs(num_ports[step]), task, port);
+           i < end_block(gbstep, abs(num_ports[step]), task, port); i++) {
+        (*stages)[step].to_value[i + (*stages)[step].num_to[i] *
+                                         (*stages)[step].max_lines] = partner;
         (*stages)[step].num_to[i]++;
       }
     }
@@ -219,16 +262,35 @@ static int allreduce_init(struct allreduce_data_element **stages,
   }
   for (step = 0; num_ports[step]; step++) {
     for (i = 0; i < (*stages)[step].max_lines; i++) {
-      if (!(*stages)[step].num_to[i]){
-        (*stages)[step].to_value[i+(*stages)[step].num_to[i]*(*stages)[step].max_lines] = task;
+      if (!(*stages)[step].num_to[i]) {
+        (*stages)[step].to_value[i + (*stages)[step].num_to[i] *
+                                         (*stages)[step].max_lines] = task;
         (*stages)[step].num_to[i]++;
       }
     }
   }
-  for (i = 0; i < (*stages)[step].max_lines; i++) {
-    if (!(*stages)[step].num_to[i]){
-      (*stages)[step].to_value[i+(*stages)[step].num_to[i]*(*stages)[step].max_lines] = -1;
-      (*stages)[step].num_to[i]++;
+  if (allreduce == 1) {
+    for (i = 0; i < (*stages)[step].max_lines; i++) {
+      k = 0;
+      for (j = 0; j < (*stages)[step].num_from[i]; j++) {
+        if ((*stages)[step].from_value[i + j * (*stages)[step].max_lines] !=
+            task) {
+          k = 1;
+        }
+      }
+      if (k) {
+        (*stages)[step].to_value[i + (*stages)[step].num_to[i] *
+                                         (*stages)[step].max_lines] = -1;
+        (*stages)[step].num_to[i]++;
+      }
+    }
+  } else {
+    for (i = 0; i < (*stages)[step].max_lines; i++) {
+      if (!(*stages)[step].num_to[i]) {
+        (*stages)[step].to_value[i + (*stages)[step].num_to[i] *
+                                         (*stages)[step].max_lines] = -1;
+        (*stages)[step].num_to[i]++;
+      }
     }
   }
   return 0;
@@ -240,9 +302,9 @@ int ext_mpi_generate_allreduce_recursive(char *buffer_in, char *buffer_out) {
   struct allreduce_data_element *stages = NULL;
   struct data_line **data = NULL;
   struct parameters_block *parameters;
-  int i, j, l, nstep=0;
-  int task, num_nodes, *num_ports = NULL, size_level0 = 0, *size_level1 = NULL;
-  int nbuffer_out = 0, nbuffer_in = 0, allreduce = 1;
+  int i, j, l, nstep = 0;
+  int task, num_nodes, size_level0 = 0, *size_level1 = NULL;
+  int nbuffer_out = 0, nbuffer_in = 0, allreduce = -1;
   nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
@@ -255,6 +317,9 @@ int ext_mpi_generate_allreduce_recursive(char *buffer_in, char *buffer_out) {
   if (parameters->collective_type == collective_type_allgatherv) {
     allreduce = 0;
   }
+  if (parameters->collective_type == collective_type_reduce_scatter) {
+    allreduce = 1;
+  }
   if (parameters->collective_type == collective_type_allreduce_group) {
     allreduce = 2;
   }
@@ -263,16 +328,13 @@ int ext_mpi_generate_allreduce_recursive(char *buffer_in, char *buffer_out) {
   }
   task = parameters->node;
   num_nodes = parameters->num_nodes;
-  for (i=0; parameters->num_ports[i]; i++);
-  num_ports = (int*)malloc((i+1)*sizeof(int));
-  if (!num_ports) goto error;
-  for (i=0; parameters->num_ports[i]; i++){
-    num_ports[i] = +parameters->num_ports[i];
+  for (i = 0; parameters->num_ports[i]; i++) {
     nstep++;
   }
-  num_ports[i] = 0;
-  i = allreduce_init(&stages, num_nodes, num_ports, task, allreduce);
-  if (i < 0) goto error;
+  i = allreduce_init(&stages, num_nodes, parameters->num_ports, task,
+                     allreduce);
+  if (i < 0)
+    goto error;
   size_level0 = nstep + 1;
   size_level1 = (int *)malloc(sizeof(int) * size_level0);
   if (!size_level1)
@@ -327,14 +389,12 @@ int ext_mpi_generate_allreduce_recursive(char *buffer_in, char *buffer_out) {
                       parameters->ascii_out);
   delete_algorithm(size_level0, size_level1, data);
   nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  allreduce_done(stages, num_ports);
-  free(num_ports);
+  allreduce_done(stages, parameters->num_ports);
   delete_parameters(parameters);
   return nbuffer_out;
 error:
   delete_algorithm(size_level0, size_level1, data);
-  allreduce_done(stages, num_ports);
-  free(num_ports);
+  allreduce_done(stages, parameters->num_ports);
   delete_parameters(parameters);
   return ERROR_MALLOC;
 }
