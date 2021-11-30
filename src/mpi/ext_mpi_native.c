@@ -11,6 +11,7 @@
 #endif
 #include "allreduce.h"
 #include "allreduce_groups.h"
+#include "allreduce_recursive.h"
 #include "alltoall.h"
 #include "backward_interpreter.h"
 #include "buffer_offset.h"
@@ -1256,8 +1257,13 @@ int EXT_MPI_Gatherv_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
-    goto error;
+  if (recursive&&0){
+    if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
+      goto error;
+  }else{
+    if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+      goto error;
+  }
   if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
     goto error;
   if (root >= 0) {

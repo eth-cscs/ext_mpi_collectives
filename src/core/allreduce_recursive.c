@@ -99,6 +99,8 @@ static int allreduce_start(struct allreduce_data_element **stages,
       for (i = 0; i < (*stages)[0].max_lines; i++) {
         (*stages)[step].frac[i] = i;
         (*stages)[step].source[i] = task;
+        (*stages)[step].num_from[i] = 0;
+        (*stages)[step].num_to[i] = 0;
       }
     }
     if (allreduce) {
