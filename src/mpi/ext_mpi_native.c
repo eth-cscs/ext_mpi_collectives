@@ -1010,7 +1010,10 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   //  nbuffer1+=sprintf(buffer1+nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
-  if (!allreduce_short) {
+  if (recursive){
+    if (ext_mpi_generate_allreduce_recursive(buffer1, buffer2) < 0)
+      goto error;
+  }else if (!allreduce_short) {
     if (ext_mpi_generate_allreduce_groups(buffer1, buffer2) < 0)
       goto error;
   } else {
@@ -1257,7 +1260,7 @@ int EXT_MPI_Gatherv_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (recursive&&0){
+  if (recursive){
     if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
   }else{
@@ -1470,8 +1473,13 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts, con
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
-    goto error;
+  if (recursive){
+    if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
+      goto error;
+  }else{
+    if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+      goto error;
+  }
   if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
     goto error;
   if (ext_mpi_generate_forward_interpreter(buffer2, buffer1, comm_row) < 0)

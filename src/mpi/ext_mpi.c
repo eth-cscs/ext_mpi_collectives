@@ -240,15 +240,6 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
       num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
                         (abs(num_ports[i]) + 1);
     }
-    if (verbose){
-      if (is_rank_zero(comm_row, comm_column)){
-        str = ext_mpi_print_ports_groups(num_ports, groups);
-        printf("# EXT_MPI allgatherv parameters %d %d %d %d ports %s\n",
-               comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
-               my_cores_per_node_row * my_cores_per_node_column, str);
-        free(str);
-      }
-    }
     rcount = 0;
     for (i = 0; i < comm_size_row; i++) {
       rcount += recvcounts[i];
@@ -262,6 +253,18 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     group_size=1;
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
+    }
+    if (verbose) {
+      if (is_rank_zero(comm_row, comm_column)){
+        if (group_size==comm_size_row/my_cores_per_node_row){
+          printf("# recursive\n");
+        }
+        str = ext_mpi_print_ports_groups(num_ports, groups);
+        printf("# EXT_MPI allgatherv parameters %d %d %d %d ports %s\n",
+               comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
+               my_cores_per_node_row * my_cores_per_node_column, str);
+        free(str);
+      }
     }
     *handle = EXT_MPI_Allgatherv_init_native(
         sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
@@ -423,15 +426,6 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
         num_ports[i] = fixed_factors_ports[i];
       } while (fixed_factors_ports[i] > 0);
     }
-    if (verbose) {
-      if (is_rank_zero(comm_row, comm_column)){
-        str = ext_mpi_print_ports_groups(num_ports, groups);
-        printf("# EXT_MPI gatherv parameters %d %d %d %d ports %s\n",
-               comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
-               my_cores_per_node_row * my_cores_per_node_column, str);
-        free(str);
-      }
-    }
     for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
       num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
                         (abs(num_ports[i]) + 1);
@@ -450,6 +444,18 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
     group_size=1;
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
+    }
+    if (verbose) {
+      if (is_rank_zero(comm_row, comm_column)){
+        if (group_size==comm_size_row/my_cores_per_node_row){
+          printf("# recursive\n");
+        }
+        str = ext_mpi_print_ports_groups(num_ports, groups);
+        printf("# EXT_MPI gatherv parameters %d %d %d %d ports %s\n",
+               comm_size_row / my_cores_per_node_row, sendcount * type_size, 1,
+               my_cores_per_node_row * my_cores_per_node_column, str);
+        free(str);
+      }
     }
     *handle = EXT_MPI_Gatherv_init_native(
         sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
@@ -639,16 +645,6 @@ static int reduce_scatter_init_general(
                         (num_ports[i] + 1);
       num_parallel[i] = 1;
     }
-    if (verbose) {
-      if (is_rank_zero(comm_row, comm_column)){
-        str = ext_mpi_print_ports_groups(num_ports, groups);
-        i = recvcounts[0];
-        printf("# EXT_MPI reduce_scatter parameters %d %d %d %d ports %s\n",
-               comm_size_row / my_cores_per_node_row, i * type_size, 1,
-               my_cores_per_node_row * my_cores_per_node_column, str);
-        free(str);
-      }
-    }
     cin_method = 0;
     if (copyin_method >= 1) {
       cin_method = copyin_method - 1;
@@ -674,6 +670,19 @@ static int reduce_scatter_init_general(
     group_size=1;
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
+    }
+    if (verbose) {
+      if (is_rank_zero(comm_row, comm_column)){
+        if (group_size==comm_size_row/my_cores_per_node_row){
+          printf("# recursive\n");
+        }
+        str = ext_mpi_print_ports_groups(num_ports, groups);
+        i = recvcounts[0];
+        printf("# EXT_MPI reduce_scatter parameters %d %d %d %d ports %s\n",
+               comm_size_row / my_cores_per_node_row, i * type_size, 1,
+               my_cores_per_node_row * my_cores_per_node_column, str);
+        free(str);
+      }
     }
     *handle = EXT_MPI_Reduce_scatter_init_native(
         sendbuf, recvbuf, recvcounts, datatype, op, comm_row,
@@ -825,15 +834,6 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
         num_ports[i] = fixed_factors_ports[i];
       } while (fixed_factors_ports[i] > 0);
     }
-    if (verbose) {
-      if (is_rank_zero(comm_row, comm_column)){
-        str = ext_mpi_print_ports_groups(num_ports, groups);
-        printf("# EXT_MPI scatterv parameters %d %d %d %d ports %s\n",
-               comm_size_row / my_cores_per_node_row, recvcount * type_size, 1,
-               my_cores_per_node_row * my_cores_per_node_column, str);
-        free(str);
-      }
-    }
     for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
       num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
                         (num_ports[i] + 1);
@@ -871,6 +871,18 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     group_size=1;
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
+    }
+    if (verbose) {
+      if (is_rank_zero(comm_row, comm_column)){
+        if (group_size==comm_size_row/my_cores_per_node_row){
+          printf("# recursive\n");
+        }
+        str = ext_mpi_print_ports_groups(num_ports, groups);
+        printf("# EXT_MPI scatterv parameters %d %d %d %d ports %s\n",
+               comm_size_row / my_cores_per_node_row, recvcount * type_size, 1,
+               my_cores_per_node_row * my_cores_per_node_column, str);
+        free(str);
+      }
     }
     *handle = EXT_MPI_Scatterv_init_native(
         sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
@@ -1131,15 +1143,6 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       groups[i] = fixed_factors_groups[i];
     } while (fixed_factors_ports[i]);
   }
-  if (verbose) {
-    if (is_rank_zero(comm_row, comm_column)) {
-      str = ext_mpi_print_ports_groups(num_ports, groups);
-      printf("# EXT_MPI allreduce parameters %d %d %d %d ports %s\n",
-             comm_size_row / my_cores_per_node_row, count * message_size, 1,
-             my_cores_per_node_row * my_cores_per_node_column, str);
-      free(str);
-    }
-  }
   cin_method = 0;
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
@@ -1158,11 +1161,29 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   } else {
     alt = (count * type_size < 10000000);
   }
+  group_size=1;
+  for (i=0; num_ports[i]; i++){
+    if (num_ports[i]>0){
+      group_size*=abs(num_ports[i])+1;
+    }
+  }
+  if (verbose) {
+    if (is_rank_zero(comm_row, comm_column)) {
+      if (group_size==comm_size_row/my_cores_per_node_row){
+        printf("# recursive\n");
+      }
+      str = ext_mpi_print_ports_groups(num_ports, groups);
+      printf("# EXT_MPI allreduce parameters %d %d %d %d ports %s\n",
+             comm_size_row / my_cores_per_node_row, count * message_size, 1,
+             my_cores_per_node_row * my_cores_per_node_column, str);
+      free(str);
+    }
+  }
   *handle = EXT_MPI_Allreduce_init_native(
       sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
       my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      ext_mpi_bit_identical, 0);
+      ext_mpi_bit_identical, group_size==comm_size_row/my_cores_per_node_row);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -1419,15 +1440,6 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       groups[i] = fixed_factors_groups[i];
     } while (fixed_factors_ports[i]);
   }
-  if (verbose) {
-    if (is_rank_zero(comm_row, comm_column)){
-      str = ext_mpi_print_ports_groups(num_ports, groups);
-      printf("# EXT_MPI reduce parameters %d %d %d %d ports %s\n",
-             comm_size_row / my_cores_per_node_row, count * message_size, 1,
-             my_cores_per_node_row * my_cores_per_node_column, str);
-      free(str);
-    }
-  }
   cin_method = 0;
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
@@ -1449,6 +1461,18 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   group_size=1;
   for (i=0; num_ports[i]; i++){
     group_size*=abs(num_ports[i])+1;
+  }
+  if (verbose) {
+    if (is_rank_zero(comm_row, comm_column)){
+      if (group_size==comm_size_row/my_cores_per_node_row){
+        printf("# recursive\n");
+      }
+      str = ext_mpi_print_ports_groups(num_ports, groups);
+      printf("# EXT_MPI reduce parameters %d %d %d %d ports %s\n",
+             comm_size_row / my_cores_per_node_row, count * message_size, 1,
+             my_cores_per_node_row * my_cores_per_node_column, str);
+      free(str);
+    }
   }
   *handle = EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, root, comm_row,
@@ -1744,15 +1768,6 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
       groups[i] = fixed_factors_groups[i];
     } while (fixed_factors_ports[i]);
   }
-  if (verbose) {
-    if (is_rank_zero(comm_row, comm_column)){
-      str = ext_mpi_print_ports_groups(num_ports, groups);
-      printf("# EXT_MPI bcast parameters %d %d %d %d ports %s\n",
-             comm_size_row / my_cores_per_node_row, message_size, 1,
-             my_cores_per_node_row * my_cores_per_node_column, str);
-      free(str);
-    }
-  }
   cin_method = 0;
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
@@ -1774,6 +1789,18 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   group_size=1;
   for (i=0; num_ports[i]; i++){
     group_size*=abs(num_ports[i])+1;
+  }
+  if (verbose) {
+    if (is_rank_zero(comm_row, comm_column)){
+      if (group_size==comm_size_row/my_cores_per_node_row){
+        printf("# recursive\n");
+      }
+      str = ext_mpi_print_ports_groups(num_ports, groups);
+      printf("# EXT_MPI bcast parameters %d %d %d %d ports %s\n",
+             comm_size_row / my_cores_per_node_row, message_size, 1,
+             my_cores_per_node_row * my_cores_per_node_column, str);
+      free(str);
+    }
   }
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm_row, my_cores_per_node_row,
