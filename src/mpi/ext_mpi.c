@@ -185,7 +185,7 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
                                    MPI_Comm comm_column,
                                    int my_cores_per_node_column, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, scount,
-                     i, alt, rcount;
+                     i, alt, rcount, group_size;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(sendtype, &type_size);
@@ -203,7 +203,20 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     MPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (scount * type_size <= 25000000) {
-    if (fixed_factors_ports == NULL) {
+    if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      for(int i=0;i<group_size;i++){
+        num_ports[i]=1;
+        if(i==group_size-1){
+          groups[i]=-comm_size_row/my_cores_per_node_row;
+        }
+        else{
+          groups[i]=comm_size_row/my_cores_per_node_row;
+        }
+      }
+      groups[group_size]=0;
+      num_ports[group_size]=0;
+    } else if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation){
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size,
@@ -246,11 +259,15 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     } else {
       alt = (rcount < 10000000);
     }
+    group_size=1;
+    for (i=0; num_ports[i]; i++){
+      group_size*=abs(num_ports[i])+1;
+    }
     *handle = EXT_MPI_Allgatherv_init_native(
         sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
         comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column,
         num_ports, num_parallel,
-        my_cores_per_node_row * my_cores_per_node_column, alt);
+        my_cores_per_node_row * my_cores_per_node_column, alt, group_size==comm_size_row/my_cores_per_node_row);
     if (*handle < 0)
       goto error;
   }
@@ -343,7 +360,7 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
                                 MPI_Comm comm_column,
                                 int my_cores_per_node_column, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, scount,
-                     i, alt, rcount;
+                     i, alt, rcount, group_size;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(sendtype, &type_size);
@@ -361,7 +378,33 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
     MPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (scount * type_size <= 25000000) {
-    if (fixed_factors_ports == NULL) {
+    if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      for(int i=0;i<group_size;i++){
+        num_ports[i]=1;
+        if(i==group_size-1){
+          groups[i]=-comm_size_row/my_cores_per_node_row;
+        }
+        else{
+          groups[i]=comm_size_row/my_cores_per_node_row;
+        }
+      }
+      groups[group_size]=0;
+      num_ports[group_size]=0;
+    } else if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation){
+      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      for(int i=0;i<group_size;i++){
+        num_ports[i]=1;
+        if(i==group_size-1){
+          groups[i]=-comm_size_row/my_cores_per_node_row;
+        }
+        else{
+          groups[i]=comm_size_row/my_cores_per_node_row;
+        }
+      }
+      groups[group_size]=0;
+      num_ports[group_size]=0;
+    } else if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size,
@@ -404,11 +447,15 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
     } else {
       alt = (rcount < 10000000);
     }
+    group_size=1;
+    for (i=0; num_ports[i]; i++){
+      group_size*=abs(num_ports[i])+1;
+    }
     *handle = EXT_MPI_Gatherv_init_native(
         sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
         root, comm_row, my_cores_per_node_row, comm_column,
         my_cores_per_node_column, num_ports, num_parallel,
-        my_cores_per_node_row * my_cores_per_node_column, alt);
+        my_cores_per_node_row * my_cores_per_node_column, alt, group_size==comm_size_row/my_cores_per_node_row);
     if (*handle < 0)
       goto error;
   }
@@ -526,7 +573,7 @@ static int reduce_scatter_init_general(
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, rcount,
-                     i, j, k, cin_method, alt;
+                     i, j, k, cin_method, alt, group_size;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(datatype, &type_size);
@@ -549,7 +596,20 @@ static int reduce_scatter_init_general(
     MPI_Allreduce(MPI_IN_PLACE, &rcount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (rcount * type_size <= 25000000) {
-    if (fixed_factors_ports == NULL) {
+    if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      for(int i=0;i<group_size;i++){
+        num_ports[i]=-1;
+        if(i==group_size-1){
+          groups[i]=-comm_size_row/my_cores_per_node_row;
+        }
+        else{
+          groups[i]=comm_size_row/my_cores_per_node_row;
+        }
+      }
+      groups[group_size]=0;
+      num_ports[group_size]=0;
+    } else if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation){
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            rcount * type_size,
@@ -611,11 +671,15 @@ static int reduce_scatter_init_general(
     } else {
       alt = (rcount < 10000000);
     }
+    group_size=1;
+    for (i=0; num_ports[i]; i++){
+      group_size*=abs(num_ports[i])+1;
+    }
     *handle = EXT_MPI_Reduce_scatter_init_native(
         sendbuf, recvbuf, recvcounts, datatype, op, comm_row,
         my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
         num_parallel, my_cores_per_node_row * my_cores_per_node_column,
-        cin_method, alt);
+        cin_method, alt, group_size==comm_size_row/my_cores_per_node_row);
     if (*handle < 0)
       goto error;
   }
@@ -711,7 +775,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
                                  MPI_Comm comm_column,
                                  int my_cores_per_node_column, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, rcount,
-                     i, j, k, cin_method, alt;
+                     i, j, k, cin_method, alt, group_size;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(sendtype, &type_size);
@@ -729,7 +793,20 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     MPI_Allreduce(MPI_IN_PLACE, &rcount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (rcount * type_size <= 25000000) {
-    if (fixed_factors_ports == NULL) {
+    if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+      group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+      for(int i=0;i<group_size;i++){
+        num_ports[i]=1;
+        if(i==group_size-1){
+          groups[i]=-comm_size_row/my_cores_per_node_row;
+        }
+        else{
+          groups[i]=comm_size_row/my_cores_per_node_row;
+        }
+      }
+      groups[group_size]=0;
+      num_ports[group_size]=0;
+    } else if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation) {
       if (my_cores_per_node_row * my_cores_per_node_column > 1) {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            rcount * type_size,
@@ -791,11 +868,15 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     } else {
       alt = (rcount < 10000000);
     }
+    group_size=1;
+    for (i=0; num_ports[i]; i++){
+      group_size*=abs(num_ports[i])+1;
+    }
     *handle = EXT_MPI_Scatterv_init_native(
         sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
         root, comm_row, my_cores_per_node_row, comm_column,
         my_cores_per_node_column, num_ports, num_parallel,
-        my_cores_per_node_row * my_cores_per_node_column, cin_method, alt);
+        my_cores_per_node_row * my_cores_per_node_column, cin_method, alt, group_size==comm_size_row/my_cores_per_node_row);
     if (*handle < 0)
       goto error;
   }
@@ -896,9 +977,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_row, int my_cores_per_node_row,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, cin_method, alt, comm_size_column;
-  int message_size, type_size;
-  int *num_ports = NULL, *groups = NULL;
+  int comm_size_row, comm_rank_row, i, cin_method, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size;
   double d1;
   struct cost_list *p1, *p2;
   struct {
@@ -1021,24 +1100,24 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
     }
     // FIXME comm_column
   } else if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
-    int group_size = ceil(log(comm_size_row)/log(2));
+    group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
     for(int i=0;i<2*group_size;i++){
       if(i<group_size){
         num_ports[i]=-1;
         if(i==group_size-1){
-          groups[i]=-comm_size_row;
+          groups[i]=-comm_size_row/my_cores_per_node_row;
         }
         else{
-          groups[i]=comm_size_row;
+          groups[i]=comm_size_row/my_cores_per_node_row;
         }
       }
       else{
         num_ports[i]=1;
         if(i==2*group_size-1){
-          groups[i]=-comm_size_row;
+          groups[i]=-comm_size_row/my_cores_per_node_row;
         }
         else{
-          groups[i]=comm_size_row;
+          groups[i]=comm_size_row/my_cores_per_node_row;
         }
       }
     }
@@ -1083,7 +1162,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
       my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      ext_mpi_bit_identical);
+      ext_mpi_bit_identical, 0);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -1230,9 +1309,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_row, int my_cores_per_node_row,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, cin_method, alt, comm_size_column;
-  int message_size, type_size;
-  int *num_ports = NULL, *groups = NULL;
+  int comm_size_row, comm_rank_row, i, cin_method, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size;
   double d1;
   char *str;
   struct cost_list *p1, *p2;
@@ -1263,7 +1340,20 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   for (i = 0; i < comm_size_row; i++) {
     num_ports[i] = groups[i] = 0;
   }
-  if (fixed_factors_ports == NULL) {
+  if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+    group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+    for(int i=0;i<group_size;i++){
+      num_ports[i]=-1;
+      if(i==group_size-1){
+        groups[i]=-comm_size_row/my_cores_per_node_row;
+      }
+      else{
+        groups[i]=comm_size_row/my_cores_per_node_row;
+      }
+    }
+    groups[group_size]=0;
+    num_ports[group_size]=0;
+  } else if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation){
     if (comm_size_row / my_cores_per_node_row > 1) {
       if (my_cores_per_node_row == 1) {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
@@ -1356,11 +1446,15 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   } else {
     alt = (count * type_size < 10000000);
   }
+  group_size=1;
+  for (i=0; num_ports[i]; i++){
+    group_size*=abs(num_ports[i])+1;
+  }
   *handle = EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
       groups, my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      0);
+      0, group_size==comm_size_row/my_cores_per_node_row);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -1510,9 +1604,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
                               int root, MPI_Comm comm_row,
                               int my_cores_per_node_row, MPI_Comm comm_column,
                               int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, cin_method, alt, comm_size_column;
-  int message_size, type_size;
-  int *num_ports = NULL, *groups = NULL;
+  int comm_size_row, comm_rank_row, i, cin_method, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size;
   double d1;
   char *str;
   struct cost_list *p1, *p2;
@@ -1540,7 +1632,20 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   for (i = 0; i < comm_size_row; i++) {
     num_ports[i] = groups[i] = 0;
   }
-  if (fixed_factors_ports == NULL) {
+  if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+    group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
+    for(int i=0;i<group_size;i++){
+      num_ports[i]=1;
+      if(i==group_size-1){
+        groups[i]=-comm_size_row/my_cores_per_node_row;
+      }
+      else{
+        groups[i]=comm_size_row/my_cores_per_node_row;
+      }
+    }
+    groups[group_size]=0;
+    num_ports[group_size]=0;
+  } else if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation){
     /*    d1 = ext_mpi_cost_simple_recursive(comm_size_row/my_cores_per_node_row, message_size,
        1, my_cores_per_node_row*my_cores_per_node_column, num_ports); i =
        message_size/(comm_size_row/my_cores_per_node_row); if (i<type_size){
@@ -1666,10 +1771,14 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   } else {
     alt = (count * type_size < 10000000);
   }
+  group_size=1;
+  for (i=0; num_ports[i]; i++){
+    group_size*=abs(num_ports[i])+1;
+  }
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, cin_method, alt);
+      my_cores_per_node_row * my_cores_per_node_column, cin_method, alt, group_size==comm_size_row/my_cores_per_node_row);
   if (*handle < 0)
     goto error;
   free(groups);
