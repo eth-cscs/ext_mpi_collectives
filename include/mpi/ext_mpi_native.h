@@ -14,14 +14,14 @@ int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *num_ports,
                                   int *groups, int num_active_ports, int copyin,
-                                  int alt, int bit, int recursive);
+                                  int alt, int bit, int waitany, int recursive);
 int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                MPI_Datatype datatype, MPI_Op op, int root,
                                MPI_Comm comm_row, int my_cores_per_node_row,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *num_ports,
                                int *groups, int num_active_ports, int copyin,
-                               int alt, int bit, int recursive);
+                               int alt, int bit, int waitany, int recursive);
 int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
                               int root, MPI_Comm comm_row,
                               int my_cores_per_node_row, MPI_Comm comm_column,
