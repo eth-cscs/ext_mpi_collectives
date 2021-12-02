@@ -38,6 +38,8 @@ enum eassembler_type {
   eisend,
   eisen_,
   ewaitall,
+  ewaitany,
+  eattached,
   eshmemp,
   esendbufp,
   erecvbufp,
@@ -117,6 +119,10 @@ int write_assembler_line_ssdddd(char *buffer_out, enum eassembler_type string1,
                                 enum eassembler_type string2, int integer1,
                                 int integer2, int integer3, int integer4,
                                 int ascii);
+int write_assembler_line_ssddd(char *buffer_out, enum eassembler_type string1,
+                                enum eassembler_type string2, int integer1,
+                                int integer2, int integer3,
+                                int ascii);
 int write_assembler_line_ssdsdddd(char *buffer_out,
                                   enum eassembler_type string1,
                                   enum eassembler_type string2, int integer1,
@@ -145,6 +151,11 @@ int read_assembler_line_ssdddd(char *buffer_in, enum eassembler_type *string1,
                                enum eassembler_type *string2, int *integer1,
                                int *integer2, int *integer3, int *integer4,
                                int ascii);
+int read_assembler_line_ssddd(char *buffer_in, enum eassembler_type *string1,
+                               enum eassembler_type *string2, int *integer1,
+                               int *integer2, int *integer3,
+                               int ascii);
+
 int read_assembler_line_ssdsdddd(char *buffer_in, enum eassembler_type *string1,
                                  enum eassembler_type *string2, int *integer1,
                                  enum eassembler_type *string3, int *integer2,
