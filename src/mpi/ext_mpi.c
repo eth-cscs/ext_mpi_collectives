@@ -254,7 +254,11 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     } else {
       alt = (rcount < 10000000);
     }
-    group_size=1;
+    if (comm_size_row/my_cores_per_node_row>1){
+      group_size=1;
+    }else{
+      group_size=0;
+    }
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
     }
@@ -436,7 +440,11 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
     } else {
       alt = (rcount < 10000000);
     }
-    group_size=1;
+    if (comm_size_row/my_cores_per_node_row>1){
+      group_size=1;
+    }else{
+      group_size=0;
+    }
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
     }
@@ -668,7 +676,11 @@ static int reduce_scatter_init_general(
     } else {
       alt = (rcount < 10000000);
     }
-    group_size=1;
+    if (comm_size_row/my_cores_per_node_row>1){
+      group_size=1;
+    }else{
+      group_size=0;
+    }
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
     }
@@ -873,7 +885,11 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     } else {
       alt = (rcount < 10000000);
     }
-    group_size=1;
+    if (comm_size_row/my_cores_per_node_row>1){
+      group_size=1;
+    }else{
+      group_size=0;
+    }
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
     }
@@ -1170,7 +1186,11 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   } else {
     alt = (count * type_size < 10000000);
   }
-  group_size=1;
+  if (comm_size_row/my_cores_per_node_row>1){
+    group_size=1;
+  }else{
+    group_size=0;
+  }
   for (i=0; num_ports[i]; i++){
     if (num_ports[i]>0){
       group_size*=abs(num_ports[i])+1;
@@ -1471,7 +1491,11 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   } else {
     alt = (count * type_size < 10000000);
   }
-  group_size=1;
+  if (comm_size_row/my_cores_per_node_row>1){
+    group_size=1;
+  }else{
+    group_size=0;
+  }
   for (i=0; num_ports[i]; i++){
     group_size*=abs(num_ports[i])+1;
   }
@@ -1803,7 +1827,11 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   } else {
     alt = (count * type_size < 10000000);
   }
-  group_size=1;
+  if (comm_size_row/my_cores_per_node_row>1){
+    group_size=1;
+  }else{
+    group_size=0;
+  }
   for (i=0; num_ports[i]; i++){
     group_size*=abs(num_ports[i])+1;
   }
