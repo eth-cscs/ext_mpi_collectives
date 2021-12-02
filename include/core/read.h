@@ -82,6 +82,7 @@ struct parameters_block {
   int *shmem_buffer_offset;
   int shmem_buffer_offset_max;
   int root;
+  int in_place;
 };
 
 struct data_line {

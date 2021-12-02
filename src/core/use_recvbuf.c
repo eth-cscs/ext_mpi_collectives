@@ -36,7 +36,7 @@ int ext_mpi_generate_use_recvbuf(char *buffer_in, char *buffer_out) {
       if (read_assembler_line_s(line, &estring1, 0) >= 0) {
         if ((estring1 == ememcpy) || (estring1 == ememcp_) || (estring1 == ereduce) || (estring1 == ereduc_)) {
           if (read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1, &estring3, &o2, &size, 0) >= 0) {
-            if ((estring3==esendbufp)||(estring2==erecvbufp)){
+            if (((estring3==esendbufp)&&parameters->in_place)||(estring2==erecvbufp)){
               flag = 0;
             }else{
               if ((estring2==eshmemp)&&(o1+size<=buffer_out_size)){
@@ -56,7 +56,7 @@ int ext_mpi_generate_use_recvbuf(char *buffer_in, char *buffer_out) {
         }else if ((estring1 == eirecv) || (estring1 == eirec_) || (estring1 == eisend) || (estring1 == eisen_)){
           if (read_assembler_line_ssdddd(line, &estring1, &estring2, &o1, &size, &partner, &tag, 0) >= 0) {
             if ((estring2==eshmemp)&&(o1+size<=buffer_out_size)){
-              nbuffer_out += write_assembler_line_ssdsdd(buffer_out + nbuffer_out, estring1, erecvbufp, o1, size, partner, tag, parameters->ascii_out);
+              nbuffer_out += write_assembler_line_ssdddd(buffer_out + nbuffer_out, estring1, erecvbufp, o1, size, partner, tag, parameters->ascii_out);
               flag = 0;
             }
           }

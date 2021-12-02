@@ -35,6 +35,7 @@
 #include "read.h"
 #include "reduce_copyin.h"
 #include "reduce_copyout.h"
+#include "use_recvbuf.h"
 #include "waitany.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
@@ -1093,6 +1094,9 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   if (bit) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER BIT_IDENTICAL\n");
   }
+  if (sendbuf==recvbuf){
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER IN_PLACE\n");
+  }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
@@ -1140,7 +1144,6 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   if (waitany) {
     if (ext_mpi_generate_waitany(buffer1, buffer2) < 0)
       goto error;
-  } else {
     buffer_temp = buffer2;
     buffer2 = buffer1;
     buffer1 = buffer_temp;
@@ -1153,32 +1156,39 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
    }
    exit(9);
    */
-  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_no_offset(buffer2, buffer1) < 0)
     goto error;
-  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_optimise_buffers(buffer1, buffer2) < 0)
     goto error;
+  if (recursive&&(my_cores_per_node_row*my_cores_per_node_column==1)){
+    if (ext_mpi_generate_use_recvbuf(buffer2, buffer1) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(sendbuf)) {
 #endif
-    if (ext_mpi_generate_parallel_memcpy(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_parallel_memcpy(buffer2, buffer1) < 0)
       goto error;
-    if (ext_mpi_generate_raw_code_merge(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_raw_code_merge(buffer1, buffer2) < 0)
       goto error;
 #ifdef GPU_ENABLED
   }
 #endif
   if (alt) {
-    if (ext_mpi_generate_no_first_barrier(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_no_first_barrier(buffer2, buffer1) < 0)
       goto error;
   } else {
-    if (ext_mpi_generate_dummy(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_dummy(buffer2, buffer1) < 0)
       goto error;
   }
-  if (ext_mpi_clean_barriers(buffer2, buffer1, comm_row, comm_column) < 0)
+  if (ext_mpi_clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
     goto error;
-  iret = init_epilogue(buffer1, sendbuf, recvbuf, reduction_op, comm_row,
+  iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt);
 

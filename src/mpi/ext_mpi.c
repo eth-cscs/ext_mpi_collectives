@@ -1289,14 +1289,25 @@ int EXT_MPI_Allreduce_init_general(const void *sendbuf, void *recvbuf, int count
     recvbuf_ref = (long int *)malloc(count * type_size);
     if (!recvbuf_ref)
       goto error;
-    sendbuf_h = (long int *)malloc(count * type_size);
-    if (!sendbuf_h)
-      goto error;
-    for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
-      ((long int *)sendbuf_h)[i] = world_rankd * count + i;
-    }
-    if ((count * type_size) % (int)sizeof(long int)){
-      ((int *)sendbuf_h)[count-1] = world_rankd * count + count - 1;
+    if (sendbuf != MPI_IN_PLACE){
+      sendbuf_h = (long int *)malloc(count * type_size);
+      if (!sendbuf_h)
+        goto error;
+      for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
+        ((long int *)sendbuf_h)[i] = world_rankd * count + i;
+        ((long int *)recvbuf)[i] = -1;
+      }
+      if ((count * type_size) % (int)sizeof(long int)){
+        ((int *)sendbuf_h)[count-1] = world_rankd * count + count - 1;
+      }
+    }else{
+      sendbuf_h = MPI_IN_PLACE;
+      for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
+        ((long int *)recvbuf)[i] = ((long int *)recvbuf_ref)[i] = world_rankd * count + i;
+      }
+      if ((count * type_size) % (int)sizeof(long int)){
+        ((int *)recvbuf)[count-1] = ((int *)recvbuf_ref)[count-1] = world_rankd * count + count - 1;
+      }
     }
     if (type_size == sizeof(long int)){
       MPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, comm_row);
@@ -1324,7 +1335,9 @@ int EXT_MPI_Allreduce_init_general(const void *sendbuf, void *recvbuf, int count
         j = 1;
       }
     }
-    free(sendbuf_h);
+    if (sendbuf != MPI_IN_PLACE){
+      free(sendbuf_h);
+    }
     free(recvbuf_ref);
 #ifdef GPU_ENABLED
   }
@@ -1348,7 +1361,9 @@ error:
   free(recvbuf_h);
   free(sendbuf_h);
 #endif
-  free(sendbuf_h);
+  if (sendbuf != MPI_IN_PLACE){
+    free(sendbuf_h);
+  }
   free(recvbuf_ref);
   return ERROR_MALLOC;
 #endif

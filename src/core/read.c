@@ -82,6 +82,7 @@ int read_parameters(char *buffer_in, struct parameters_block **parameters) {
     nbuffer_in++;
     memcpy(*parameters, buffer_in + nbuffer_in, sizeof(**parameters));
     nbuffer_in += sizeof(**parameters);
+    (*parameters)->in_place = 0;
     (*parameters)->ascii_in = 0;
     (*parameters)->counts = NULL;
     (*parameters)->num_ports = NULL;
@@ -195,6 +196,7 @@ int read_parameters(char *buffer_in, struct parameters_block **parameters) {
   (*parameters)->shmem_buffer_offset = NULL;
   (*parameters)->shmem_buffer_offset_max = 0;
   (*parameters)->root = -1;
+  (*parameters)->in_place = 0;
   do {
     if (sscanf(buffer_in_copy, "%99s %99s %d", string1, string2, &integer1) >
         0) {
@@ -206,6 +208,9 @@ int read_parameters(char *buffer_in, struct parameters_block **parameters) {
       if (strcmp(string1, "PARAMETER") == 0) {
         if (strcmp(string2, "VERBOSE") == 0) {
           (*parameters)->verbose = 1;
+        }
+        if (strcmp(string2, "IN_PLACE") == 0) {
+          (*parameters)->in_place = 1;
         }
         if (strcmp(string2, "ASCII") == 0) {
           (*parameters)->ascii_out = 1;
@@ -532,6 +537,10 @@ int write_parameters(struct parameters_block *parameters, char *buffer_out) {
   if (parameters->bit_identical) {
     nbuffer_out +=
         sprintf(buffer_out + nbuffer_out, " PARAMETER BIT_IDENTICAL\n");
+  }
+  if (parameters->in_place) {
+    nbuffer_out +=
+        sprintf(buffer_out + nbuffer_out, " PARAMETER IN_PLACE\n");
   }
   if (parameters->verbose) {
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER VERBOSE\n");
