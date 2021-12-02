@@ -17,7 +17,7 @@
 #include "gpu_core.h"
 #endif
 
-//int ext_mpi_bit_reproducible = 1;
+int ext_mpi_bit_reproducible = 1;
 int ext_mpi_minimum_computation = 0;
 
 static int is_initialised = 0;
@@ -1192,7 +1192,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
       my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      ext_mpi_bit_identical, group_size==comm_size_row/my_cores_per_node_row);
+      ext_mpi_bit_identical, ext_mpi_bit_reproducible, group_size==comm_size_row/my_cores_per_node_row);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -1491,7 +1491,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
       groups, my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      0, group_size==comm_size_row/my_cores_per_node_row);
+      0, ext_mpi_bit_reproducible, group_size==comm_size_row/my_cores_per_node_row);
   if (*handle < 0)
     goto error;
   free(groups);
