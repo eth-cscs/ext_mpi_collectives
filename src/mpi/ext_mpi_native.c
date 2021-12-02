@@ -450,30 +450,6 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         // MPI requests
         p3 = code_get_pointer(&ip);
         void volatile *add[i5 / 2][i4][2];
-        /*
-        switch (instruction2) {
-        case OPCODE_REDUCE_SUM_DOUBLE:
-        {
-          double *add[i3][i4][2];
-          break;
-        }
-        case OPCODE_REDUCE_SUM_LONG_INT:
-        {
-          long int *add[i3][i4][2];
-          break;
-        }
-        case OPCODE_REDUCE_SUM_FLOAT:
-        {
-          float *add[i3][i4][2];
-          break;
-        }
-        case OPCODE_REDUCE_SUM_INT:
-        {
-          int *add[i3][i4][2];
-          break;
-        }
-        }
-        */
         int sizes[i5 / 2][i4];
         int done = 0;
         int num_red = 0;

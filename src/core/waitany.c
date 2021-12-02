@@ -13,16 +13,6 @@ int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
    int size_level0 = 0, *size_level1 = NULL;
   struct data_line **data = NULL;
   nbuffer_in += read_parameters(buffer_in + nbuffer_in, &parameters);
-      nbuffer_in += i = read_algorithm(buffer_in + nbuffer_in, &size_level0,
-                                   &size_level1, &data, parameters->ascii_in);
-  /*
-  if (i == ERROR_MALLOC)
-    goto error;
-  */
-  if (i <= 0) {
-    printf("error reading algorithm ext_mpi_generate_waitany\n");
-    exit(2);
-  }
   nline2 = -1;
   int *nlines;
   int irecvs=(parameters->num_nodes)-1;
