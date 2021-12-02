@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int generate_waitany(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, flag, flag2, flag3, o1, o2,bo1,bo2 ,size, o1_,o2_,
       size_, partner, num_comm, nline2, i,waitanyline,num_handles;
   char line[1000], line2[1000];

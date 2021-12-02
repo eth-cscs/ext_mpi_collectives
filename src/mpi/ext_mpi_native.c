@@ -15,6 +15,7 @@
 #include "alltoall.h"
 #include "backward_interpreter.h"
 #include "buffer_offset.h"
+#include "byte_code.h"
 #include "clean_barriers.h"
 #include "constants.h"
 #include "dummy.h"
@@ -24,18 +25,17 @@
 #include "no_offset.h"
 #include "optimise_buffers.h"
 #include "optimise_buffers2.h"
-#include "waitany.h"
 #include "parallel_memcpy.h"
+#include "ports_groups.h"
 #include "rank_permutation.h"
 #include "raw_code.h"
 #include "raw_code_merge.h"
 #include "raw_code_tasks_node.h"
 #include "raw_code_tasks_node_master.h"
-#include "byte_code.h"
 #include "read.h"
 #include "reduce_copyin.h"
 #include "reduce_copyout.h"
-#include "ports_groups.h"
+#include "waitany.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
@@ -367,7 +367,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
   char instruction, instruction2; //, *r_start, *r_temp, *ipl;
   void volatile *p1, *p2, *p3;
   //  char *rlocmem=NULL;
-  int i1, i2, i3,i4,i5; //, n_r, s_r, i;
+  int i1, i2, i3, i4, i5; //, n_r, s_r, i;
   struct header_byte_code *header;
   header = (struct header_byte_code *)ip;
   ip = *ip_exec;
@@ -438,120 +438,117 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         }
       }
       break;
-    case OPCODE_MPIWAITANY:
-    {
+    case OPCODE_MPIWAITANY: {
       if (active_wait) {
-      instruction2=code_get_char(&ip);
-      //num cores
-      i3=code_get_int(&ip);
-      //how many to wait for
-      i5= code_get_int(&ip);
-      //max reduction size
-      i4=code_get_int(&ip);
-      //MPI requests
-      p3 = code_get_pointer(&ip);
-      void volatile *add[i5/2][i4][2];
-      /*
-      switch (instruction2) {
-      case OPCODE_REDUCE_SUM_DOUBLE:
-      {
-        double *add[i3][i4][2];
-        break;
-      }
-      case OPCODE_REDUCE_SUM_LONG_INT:
-      {
-        long int *add[i3][i4][2];
-        break;
-      }
-      case OPCODE_REDUCE_SUM_FLOAT:
-      {
-        float *add[i3][i4][2];
-        break;
-      }
-      case OPCODE_REDUCE_SUM_INT:
-      {
-        int *add[i3][i4][2];
-        break;
-      }
-      }
-      */
-        int sizes[i5/2][i4];
-        int done =0;
-        int num_red=0;
+        instruction2 = code_get_char(&ip);
+        // num cores
+        i3 = code_get_int(&ip);
+        // how many to wait for
+        i5 = code_get_int(&ip);
+        // max reduction size
+        i4 = code_get_int(&ip);
+        // MPI requests
+        p3 = code_get_pointer(&ip);
+        void volatile *add[i5 / 2][i4][2];
+        /*
+        switch (instruction2) {
+        case OPCODE_REDUCE_SUM_DOUBLE:
+        {
+          double *add[i3][i4][2];
+          break;
+        }
+        case OPCODE_REDUCE_SUM_LONG_INT:
+        {
+          long int *add[i3][i4][2];
+          break;
+        }
+        case OPCODE_REDUCE_SUM_FLOAT:
+        {
+          float *add[i3][i4][2];
+          break;
+        }
+        case OPCODE_REDUCE_SUM_INT:
+        {
+          int *add[i3][i4][2];
+          break;
+        }
+        }
+        */
+        int sizes[i5 / 2][i4];
+        int done = 0;
+        int num_red = 0;
         char op;
-        while (done<(i5/2)+1){
-        op=code_get_char(&ip);
-        switch(op){
-        case OPCODE_REDUCE_WAIT:
-        {
-        add[done-1][num_red][0]=code_get_pointer(&ip);
-        add[done-1][num_red][1]=code_get_pointer(&ip);
-        sizes[done-1][num_red]=code_get_int(&ip);
-        num_red+=1; 
-        break;
+        while (done < (i5 / 2) + 1) {
+          op = code_get_char(&ip);
+          switch (op) {
+          case OPCODE_REDUCE_WAIT: {
+            add[done - 1][num_red][0] = code_get_pointer(&ip);
+            add[done - 1][num_red][1] = code_get_pointer(&ip);
+            sizes[done - 1][num_red] = code_get_int(&ip);
+            num_red += 1;
+            break;
+          }
+          case OPCODE_ATTACHED: {
+            done += 1;
+            num_red = 0;
+            break;
+          }
+          }
         }
-	case OPCODE_ATTACHED:
-        {
-        done+=1;
-        num_red=0;
-        break;
+        int count = i5 / 2;
+        int index;
+        while (count > 0) {
+
+          int mpi_rank;
+          MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+          if (mpi_rank == 0) {
+            printf("repetition of while loop,count:%d\n", count);
+          }
+          if (count == 3) {
+            exit(9);
+          }
+          MPI_Waitany(i5, (MPI_Request *)p3, &index, MPI_STATUSES_IGNORE);
+          if (index < (i5 / 2)) {
+            int red_it = 0;
+            while (red_it < i4 && sizes[index][red_it] > 0) {
+
+              int mpi_rank;
+              MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+              if (mpi_rank == 0) {
+                printf("reduction,count:%d\n", count);
+              }
+
+              p1 = add[index][red_it][0];
+              p2 = add[index][red_it][1];
+              i1 = sizes[index][red_it];
+              switch (instruction2) {
+              case OPCODE_REDUCE_SUM_DOUBLE:
+                for (i2 = 0; i2 < i1; i2++) {
+                  ((double *)p1)[i2] += ((double *)p2)[i2];
+                }
+                break;
+              case OPCODE_REDUCE_SUM_LONG_INT:
+                for (i2 = 0; i2 < i1; i2++) {
+                  ((long int *)p1)[i2] += ((long int *)p2)[i2];
+                }
+                break;
+              case OPCODE_REDUCE_SUM_FLOAT:
+                for (i2 = 0; i2 < i1; i2++) {
+                  ((float *)p1)[i2] += ((float *)p2)[i2];
+                }
+                break;
+              case OPCODE_REDUCE_SUM_INT:
+                for (i2 = 0; i2 < i1; i2++) {
+                  ((int *)p1)[i2] += ((int *)p2)[i2];
+                }
+                break;
+              }
+              red_it += 1;
+            }
+            count = count - 1;
+          }
         }
-        }
-        }
-      int count = i5/2;
-      int index;
-      while(count>0){
-     
-           int mpi_rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
-  if (mpi_rank ==0){
-      printf("repetition of while loop,count:%d\n",count);
-      }
-      if(count==3){
-exit(9);
-}
-      MPI_Waitany(i5, (MPI_Request *)p3,&index,MPI_STATUSES_IGNORE);
-      if(index<(i5/2)){
-      int red_it=0;
-      while(red_it<i4 && sizes[index][red_it]>0){
-     
-                 int mpi_rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
-  if (mpi_rank ==0){
-      printf("reduction,count:%d\n",count);
-      }
-      
-      p1=add[index][red_it][0];
-      p2=add[index][red_it][1];
-      i1=sizes[index][red_it];
-      switch (instruction2) {
-      case OPCODE_REDUCE_SUM_DOUBLE:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((double *)p1)[i2] += ((double *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_LONG_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((long int *)p1)[i2] += ((long int *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_FLOAT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((float *)p1)[i2] += ((float *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((int *)p1)[i2] += ((int *)p2)[i2];
-        }
-        break;
-      }
-      red_it+=1;
-      }
-      count=count-1;
-      }
-      }
-	} else {
+      } else {
         *ip_exec = ip - 1;
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
@@ -562,7 +559,7 @@ exit(9);
           MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
         }
       }
-    break;
+      break;
     }
     case OPCODE_NODEBARRIER:
       if (active_wait) {
@@ -874,12 +871,12 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     buffer_temp_org = buffer_temp;
   }
 #endif
-  if (ext_mpi_generate_byte_code(shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
-                                 (char *)recvbuf, my_shared_buf, (char *)locmem,
-                                 reduction_op, global_ranks, ip, shmem_comm_node_row,
-                                 my_cores_per_node_row, shmem_comm_node_column,
-                                 my_cores_per_node_column, &gpu_byte_code_counter,
-                                 tag) < 0)
+  if (ext_mpi_generate_byte_code(
+          shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
+          (char *)recvbuf, my_shared_buf, (char *)locmem, reduction_op,
+          global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
+          shmem_comm_node_column, my_cores_per_node_column,
+          &gpu_byte_code_counter, tag) < 0)
     goto error;
   if (alt) {
     ip = comm_code[handle + 1] = (char *)malloc(code_size);
@@ -914,12 +911,12 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       buffer_temp_org = buffer_temp;
     }
 #endif
-    if (ext_mpi_generate_byte_code(shmem, shmem_size, shmemid, buffer_in,
-                                   (char *)sendbuf, (char *)recvbuf, my_shared_buf,
-                                   (char *)locmem, reduction_op, global_ranks, ip,
-                                   shmem_comm_node_row, my_cores_per_node_row,
-                                   shmem_comm_node_column, my_cores_per_node_column,
-                                   &gpu_byte_code_counter, tag) < 0)
+    if (ext_mpi_generate_byte_code(
+            shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
+            (char *)recvbuf, my_shared_buf, (char *)locmem, reduction_op,
+            global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
+            shmem_comm_node_column, my_cores_per_node_column,
+            &gpu_byte_code_counter, tag) < 0)
       goto error;
   } else {
     comm_code[handle + 1] = NULL;
@@ -1043,8 +1040,8 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
         (int *)malloc(my_mpi_size_row / my_cores_per_node_row * sizeof(int));
     if (!rank_perm)
       goto error;
-    ext_mpi_rank_perm_heuristic(my_mpi_size_row / my_cores_per_node_row, msizes2,
-                        rank_perm);
+    ext_mpi_rank_perm_heuristic(my_mpi_size_row / my_cores_per_node_row,
+                                msizes2, rank_perm);
     msizes =
         (int *)malloc(sizeof(int) * my_mpi_size_row / my_cores_per_node_row);
     if (!msizes)
@@ -1120,13 +1117,13 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   if (bit) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER BIT_IDENTICAL\n");
   }
-  nbuffer1+=sprintf(buffer1+nbuffer1, " PARAMETER ASCII\n");
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
-  if (recursive){
+  if (recursive) {
     if (ext_mpi_generate_allreduce_recursive(buffer1, buffer2) < 0)
       goto error;
-  }else if (!allreduce_short) {
+  } else if (!allreduce_short) {
     if (ext_mpi_generate_allreduce_groups(buffer1, buffer2) < 0)
       goto error;
   } else {
@@ -1162,48 +1159,48 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     goto error;
   if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
+  if (ext_mpi_generate_optimise_buffers2(buffer2, buffer1) < 0)
+    goto error;
   if (waitany) {
-    if (generate_waitany(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_waitany(buffer1, buffer2) < 0)
       goto error;
   } else {
-	buffer_temp = buffer1;
-    buffer1 = buffer2;
-    buffer2 = buffer_temp;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
   }
- /* 
-    int mpi_rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
-  if (mpi_rank ==0){
-  printf("%s",buffer1);
-  }
-  exit(9);
-  */
+  /*
+     int mpi_rank;
+   MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
+   if (mpi_rank ==0){
+   printf("%s",buffer1);
+   }
+   exit(9);
+   */
   if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
   if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
     goto error;
-  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
-    goto error;
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(sendbuf)) {
 #endif
-    if (ext_mpi_generate_parallel_memcpy(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_parallel_memcpy(buffer1, buffer2) < 0)
       goto error;
-    if (ext_mpi_generate_raw_code_merge(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_raw_code_merge(buffer2, buffer1) < 0)
       goto error;
 #ifdef GPU_ENABLED
   }
 #endif
   if (alt) {
-    if (ext_mpi_generate_no_first_barrier(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_no_first_barrier(buffer1, buffer2) < 0)
       goto error;
   } else {
-    if (ext_mpi_generate_dummy(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_dummy(buffer1, buffer2) < 0)
       goto error;
   }
-  if (ext_mpi_clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
+  if (ext_mpi_clean_barriers(buffer2, buffer1, comm_row, comm_column) < 0)
     goto error;
   iret = init_epilogue(buffer1, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
@@ -1228,7 +1225,8 @@ int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *num_ports,
                                   int *groups, int num_active_ports, int copyin,
-                                  int alt, int bit, int waitany, int recursive) {
+                                  int alt, int bit, int waitany,
+                                  int recursive) {
   return (EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, -1, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
@@ -1357,12 +1355,13 @@ int EXT_MPI_Gatherv_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
   local_counts = NULL;
-  for (i=0; num_ports[i]; i++);
-  groups = (int*) malloc((i+1)*sizeof(int));
-  for (j=0; j<i; j++){
+  for (i = 0; num_ports[i]; i++)
+    ;
+  groups = (int *)malloc((i + 1) * sizeof(int));
+  for (j = 0; j < i; j++) {
     groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
-  groups[i-1]*=-1;
+  groups[i - 1] *= -1;
   groups[i] = 0;
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
@@ -1390,10 +1389,10 @@ int EXT_MPI_Gatherv_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (recursive){
+  if (recursive) {
     if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
-  }else{
+  } else {
     if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
       goto error;
   }
@@ -1452,8 +1451,8 @@ error:
 
 int EXT_MPI_Allgatherv_init_native(
     const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf,
-    const int *recvcounts, const int *displs, MPI_Datatype recvtype, MPI_Comm comm_row,
-    int my_cores_per_node_row, MPI_Comm comm_column,
+    const int *recvcounts, const int *displs, MPI_Datatype recvtype,
+    MPI_Comm comm_row, int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *num_parallel,
     int num_active_ports, int alt, int recursive) {
   return (EXT_MPI_Gatherv_init_native(
@@ -1462,9 +1461,10 @@ int EXT_MPI_Allgatherv_init_native(
       num_ports, num_parallel, num_active_ports, alt, recursive));
 }
 
-int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts, const int *displs,
-                                 MPI_Datatype sendtype, void *recvbuf,
-                                 int recvcount, MPI_Datatype recvtype, int root,
+int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
+                                 const int *displs, MPI_Datatype sendtype,
+                                 void *recvbuf, int recvcount,
+                                 MPI_Datatype recvtype, int root,
                                  MPI_Comm comm_row, int my_cores_per_node_row,
                                  MPI_Comm comm_column,
                                  int my_cores_per_node_column, int *num_ports,
@@ -1570,12 +1570,13 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts, con
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
   local_counts = NULL;
-  for (i=0; num_ports[i]; i++);
-  groups = (int*) malloc((i+1)*sizeof(int));
-  for (j=0; j<i; j++){
+  for (i = 0; num_ports[i]; i++)
+    ;
+  groups = (int *)malloc((i + 1) * sizeof(int));
+  for (j = 0; j < i; j++) {
     groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
-  groups[i-1]*=-1;
+  groups[i - 1] *= -1;
   groups[i] = 0;
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
@@ -1603,10 +1604,10 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts, con
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (recursive){
+  if (recursive) {
     if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
-  }else{
+  } else {
     if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
       goto error;
   }
@@ -1659,10 +1660,11 @@ error:
 }
 
 int EXT_MPI_Reduce_scatter_init_native(
-    const void *sendbuf, void *recvbuf, const int *recvcounts, MPI_Datatype datatype,
-    MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
-    MPI_Comm comm_column, int my_cores_per_node_column, int *num_ports,
-    int *num_parallel, int num_active_ports, int copyin, int alt, int recursive) {
+    const void *sendbuf, void *recvbuf, const int *recvcounts,
+    MPI_Datatype datatype, MPI_Op op, MPI_Comm comm_row,
+    int my_cores_per_node_row, MPI_Comm comm_column,
+    int my_cores_per_node_column, int *num_ports, int *num_parallel,
+    int num_active_ports, int copyin, int alt, int recursive) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
@@ -1775,12 +1777,13 @@ int EXT_MPI_Reduce_scatter_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
   local_counts = NULL;
-  for (i=0; num_ports[i]; i++);
-  groups = (int*) malloc((i+1)*sizeof(int));
-  for (j=0; j<i; j++){
+  for (i = 0; num_ports[i]; i++)
+    ;
+  groups = (int *)malloc((i + 1) * sizeof(int));
+  for (j = 0; j < i; j++) {
     groups[j] = my_mpi_size_row / my_cores_per_node_row;
   }
-  groups[i-1]*=-1;
+  groups[i - 1] *= -1;
   groups[i] = 0;
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);

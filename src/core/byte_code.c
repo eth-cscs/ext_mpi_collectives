@@ -1,9 +1,9 @@
+#include "byte_code.h"
+#include "constants.h"
+#include "read.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "constants.h"
-#include "read.h"
-#include "byte_code.h"
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #include "gpu_shmem.h"
@@ -305,7 +305,7 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-                                              ascii;
+                                              ascii, intwaitany;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
@@ -402,6 +402,76 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
         code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
       }
 #endif
+    }
+    if (estring1 == ewaitany) {
+      // printf("ewaitany case,buffer_in:%d\n",buffer_in);
+      code_put_char(&ip, OPCODE_MPIWAITANY, isdryrun);
+      code_put_char(&ip, reduction_op, isdryrun);
+      read_assembler_line_ssddd(line, &estring1, &estring2, &integer1,
+                                &integer2, &integer3, 0);
+      code_put_int(&ip, header->num_cores, isdryrun);
+      code_put_int(&ip, integer2, isdryrun);
+      code_put_int(&ip, integer3, isdryrun);
+      code_put_pointer(&ip, header->locmem, isdryrun);
+      int found_attached = 0;
+      // buffer_waitany=buffer_in;
+      while ((integer1 = read_line(buffer_in, line, ascii)) > 0) {
+        intwaitany = integer1;
+        buffer_in += integer1;
+        read_assembler_line_sd(line, &estring1, &integer1, 0);
+        if (estring1 == eattached) {
+          // printf("attached\n");
+          found_attached = 1;
+          code_put_char(&ip, OPCODE_ATTACHED, isdryrun);
+        }
+        if ((estring1 == ereduce) || (estring1 == ereduc_)) {
+          read_assembler_line_ssdsdd(line, &estring1, &estring1a, &integer1,
+                                     &estring2, &integer2, &integer3, 0);
+          // printf("reduce case,integer1:%d,integer2:%d,
+          // integer3:%d\n",integer1,integer2,integer3);
+          code_put_char(&ip, OPCODE_REDUCE_WAIT, isdryrun);
+          switch (reduction_op) {
+          case OPCODE_REDUCE_SUM_DOUBLE:
+            integer3 /= sizeof(double);
+            break;
+          case OPCODE_REDUCE_SUM_LONG_INT:
+            integer3 /= sizeof(long int);
+            break;
+          case OPCODE_REDUCE_SUM_FLOAT:
+            integer3 /= sizeof(float);
+            break;
+          case OPCODE_REDUCE_SUM_INT:
+            integer3 /= sizeof(int);
+            break;
+          }
+
+          if (estring1a == esendbufp) {
+            code_put_pointer(&ip, sendbuf + integer1, isdryrun);
+          } else {
+            if (estring1a == erecvbufp) {
+              code_put_pointer(&ip, recvbuf + integer1, isdryrun);
+            } else {
+              code_put_pointer(&ip, ((char *)shmem) + integer1, isdryrun);
+            }
+          }
+          if (estring2 == esendbufp) {
+            code_put_pointer(&ip, sendbuf + integer2, isdryrun);
+          } else {
+            if (estring2 == erecvbufp) {
+              code_put_pointer(&ip, recvbuf + integer2, isdryrun);
+            } else {
+              code_put_pointer(&ip, ((char *)shmem) + integer2, isdryrun);
+            }
+          }
+          code_put_int(&ip, integer3, isdryrun);
+        }
+        if ((estring1 != ereduce) && (estring1 != ereduc_) &&
+            (estring1 != eattached) && (found_attached == 1)) {
+          // buffer_in -=intwaitany;
+          // printf("else case \n");
+          break;
+        }
+      }
     }
     if ((estring1 == eisend) || (estring1 == eirecv)) {
 #ifdef GPU_ENABLED
