@@ -614,37 +614,30 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       }
       */
         int sizes[i5/2][i4];
-        printf("sizes:%d",sizes[0][0]);
         int done =0;
         int num_red=0;
         char op;
-        printf("i5/2:%d,i5/2 *2+1:%d\n",i5/2,(i5/2)*2+1);
-        while (done<(i5/2)){
+        while (done<(i5/2)+1){
         op=code_get_char(&ip);
-        printf("operation:%d\n",op);
         switch(op){
         case OPCODE_REDUCE_WAIT:
         {
-        printf("done in reduce:%d\n",done);
-        printf("first index:%d,second index:%d\n",done-1,num_red);
         add[done-1][num_red][0]=code_get_pointer(&ip);
         add[done-1][num_red][1]=code_get_pointer(&ip);
         sizes[done-1][num_red]=code_get_int(&ip);
         num_red+=1; 
+        break;
         }
 	case OPCODE_ATTACHED:
         {
-        printf("done in attached:%d\n",done);
         done+=1;
         num_red=0;
+        break;
         }
         }
         }
       int count = i5/2;
       int index;
-      for (int size_int = 0;size_int<(i5/2);size_int++){
-      printf("size values: %d\n",sizes[size_int][0]);
-      }
       while(count>0){
      
            int mpi_rank;
@@ -652,8 +645,10 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
   if (mpi_rank ==0){
       printf("repetition of while loop,count:%d\n",count);
       }
+      if(count==3){
+exit(9);
+}
       MPI_Waitany(i5, (MPI_Request *)p3,&index,MPI_STATUSES_IGNORE);
-      exit(9);
       if(index<(i5/2)){
       int red_it=0;
       while(red_it<i4 && sizes[index][red_it]>0){
@@ -1922,14 +1917,14 @@ int EXT_MPI_Reduce_init_native(void *sendbuf, void *recvbuf, int count,
     goto error;
   if (generate_optimise_buffers2(buffer1, buffer2) < 0)
     goto error;
- /* 
+  /*
   int mpi_rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
   if (mpi_rank ==0){
   printf("%s",buffer2);
   }
   exit(9);
- */
+*/ 
   if (waitany) {
     if (generate_waitany(buffer2, buffer1) < 0)
       goto error;
