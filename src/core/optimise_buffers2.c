@@ -81,7 +81,7 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
                                   &o1, &estring4, &bo2, &estring5, &o2, &size,
                                   0) >= 0) {
                             if ((bo2 == bo1_) && (o2 == o1_) &&
-                                (size == size_) && (estring2 == eshmemp)) {
+                                (size == size_) && (estring2 == eshmempbuffer_offseto)) {
                               nbuffer_out += write_assembler_line_ssdsdddd(
                                   buffer_out_loop + nbuffer_out, estring1_,
                                   estring2_, bo1, estring3_, o1, size_, partner,
@@ -143,8 +143,10 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
         write_eof(buffer_out_loop + nbuffer_out, parameters->ascii_out);
   }
   free(buffer_temp);
+  delete_parameters(parameters);
   return nbuffer_out + nbuffer_out_start;
 error:
   free(buffer_temp);
+  delete_parameters(parameters);
   return ERROR_MALLOC;
 }
