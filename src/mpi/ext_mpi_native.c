@@ -23,6 +23,7 @@
 #include "no_offset.h"
 #include "optimise_buffers.h"
 #include "optimise_buffers2.h"
+#include "waitany.h"
 #include "parallel_memcpy.h"
 #include "rank_permutation.h"
 #include "raw_code.h"
@@ -502,9 +503,9 @@ static int node_btest(char volatile *shmem, int *barrier_count, int node_rank,
 
 static int exec_native(char *ip, char **ip_exec, int active_wait) {
   char instruction, instruction2; //, *r_start, *r_temp, *ipl;
-  void volatile *p1, *p2;
+  void volatile *p1, *p2, *p3;
   //  char *rlocmem=NULL;
-  int i1, i2, i3; //, n_r, s_r, i;
+  int i1, i2, i3,i4,i5; //, n_r, s_r, i;
   struct header_byte_code *header;
   header = (struct header_byte_code *)ip;
   ip = *ip_exec;
@@ -575,6 +576,137 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         }
       }
       break;
+    case OPCODE_MPIWAITANY:
+    {
+      if (active_wait) {
+      instruction2=code_get_char(&ip);
+      //num cores
+      i3=code_get_int(&ip);
+      //how many to wait for
+      i5= code_get_int(&ip);
+      //max reduction size
+      i4=code_get_int(&ip);
+      //MPI requests
+      p3 = code_get_pointer(&ip);
+      void volatile *add[i5/2][i4][2];
+      /*
+      switch (instruction2) {
+      case OPCODE_REDUCE_SUM_DOUBLE:
+      {
+        double *add[i3][i4][2];
+        break;
+      }
+      case OPCODE_REDUCE_SUM_LONG_INT:
+      {
+        long int *add[i3][i4][2];
+        break;
+      }
+      case OPCODE_REDUCE_SUM_FLOAT:
+      {
+        float *add[i3][i4][2];
+        break;
+      }
+      case OPCODE_REDUCE_SUM_INT:
+      {
+        int *add[i3][i4][2];
+        break;
+      }
+      }
+      */
+        int sizes[i5/2][i4];
+        printf("sizes:%d",sizes[0][0]);
+        int done =0;
+        int num_red=0;
+        char op;
+        printf("i5/2:%d,i5/2 *2+1:%d\n",i5/2,(i5/2)*2+1);
+        while (done<(i5/2)){
+        op=code_get_char(&ip);
+        printf("operation:%d\n",op);
+        switch(op){
+        case OPCODE_REDUCE_WAIT:
+        {
+        printf("done in reduce:%d\n",done);
+        printf("first index:%d,second index:%d\n",done-1,num_red);
+        add[done-1][num_red][0]=code_get_pointer(&ip);
+        add[done-1][num_red][1]=code_get_pointer(&ip);
+        sizes[done-1][num_red]=code_get_int(&ip);
+        num_red+=1; 
+        }
+	case OPCODE_ATTACHED:
+        {
+        printf("done in attached:%d\n",done);
+        done+=1;
+        num_red=0;
+        }
+        }
+        }
+      int count = i5/2;
+      int index;
+      for (int size_int = 0;size_int<(i5/2);size_int++){
+      printf("size values: %d\n",sizes[size_int][0]);
+      }
+      while(count>0){
+     
+           int mpi_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
+  if (mpi_rank ==0){
+      printf("repetition of while loop,count:%d\n",count);
+      }
+      MPI_Waitany(i5, (MPI_Request *)p3,&index,MPI_STATUSES_IGNORE);
+      exit(9);
+      if(index<(i5/2)){
+      int red_it=0;
+      while(red_it<i4 && sizes[index][red_it]>0){
+     
+                 int mpi_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
+  if (mpi_rank ==0){
+      printf("reduction,count:%d\n",count);
+      }
+      
+      p1=add[index][red_it][0];
+      p2=add[index][red_it][1];
+      i1=sizes[index][red_it];
+      switch (instruction2) {
+      case OPCODE_REDUCE_SUM_DOUBLE:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((double *)p1)[i2] += ((double *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_LONG_INT:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((long int *)p1)[i2] += ((long int *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_FLOAT:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((float *)p1)[i2] += ((float *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_INT:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((int *)p1)[i2] += ((int *)p2)[i2];
+        }
+        break;
+      }
+      red_it+=1;
+      }
+      count=count-1;
+      }
+      }
+	} else {
+        *ip_exec = ip - 1;
+        i1 = code_get_int(&ip);
+        p1 = code_get_pointer(&ip);
+        MPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
+        if (!i2) {
+          return (0);
+        } else {
+          MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+        }
+      }
+    break;
+    }
     case OPCODE_NODEBARRIER:
       if (active_wait) {
         node_barrier(header->barrier_shmem, &header->barrier_counter,
@@ -626,20 +758,6 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       break;
     case OPCODE_MPISENDRECV:
       p1 = code_get_pointer(&ip);
-      i1 = code_get_int(&ip);
-      i2 = code_get_int(&ip);
-      p2 = code_get_pointer(&ip);
-      i3 = code_get_int(&ip);
-      MPI_Sendrecv((void *)p1, i1, MPI_CHAR, i2, 0, (void *)p2, i3, MPI_CHAR,
-                   code_get_int(&ip), 0, EXT_MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      break;
-    case OPCODE_MPISEND:
-      p1 = code_get_pointer(&ip);
-      i1 = code_get_int(&ip);
-      MPI_Send((void *)p1, i1, MPI_CHAR, code_get_int(&ip), 0,
-               EXT_MPI_COMM_WORLD);
-      break;
-    case OPCODE_MPIRECV:
       p1 = code_get_pointer(&ip);
       i1 = code_get_int(&ip);
       MPI_Recv((void *)p1, i1, MPI_CHAR, code_get_int(&ip), 0,
@@ -1081,9 +1199,9 @@ static int generate_byte_code(char volatile *barrier_shmem_org,
                               int node_num_cores_row, MPI_Comm comm_column,
                               int node_num_cores_column,
                               int *gpu_byte_code_counter, int tag) {
-  char line[1000], *ip = code_out;
+  char line[1000], *ip = code_out, *buffer_waitany;
   enum eassembler_type estring1a, estring1, estring2;
-  int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
+  int integer1, integer2, integer3, integer4, intwaitany, isdryrun = (code_out == NULL),
                                               ascii;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
@@ -1189,6 +1307,73 @@ static int generate_byte_code(char volatile *barrier_shmem_org,
       }
 #endif
     }
+    if (estring1 == ewaitany){
+    //printf("ewaitany case,buffer_in:%d\n",buffer_in);
+    code_put_char(&ip,OPCODE_MPIWAITANY,isdryrun);
+    code_put_char(&ip, reduction_op, isdryrun);
+    read_assembler_line_ssddd(line,&estring1,&estring2,&integer1,&integer2,&integer3,0);
+    code_put_int(&ip,header->num_cores,isdryrun);
+    code_put_int(&ip,integer2,isdryrun);
+    code_put_int(&ip,integer3,isdryrun);
+    code_put_pointer(&ip, header->locmem, isdryrun);
+    int found_attached=0;
+    //buffer_waitany=buffer_in;
+    while ((integer1 = read_line(buffer_in, line, ascii)) > 0) {
+    intwaitany=integer1;
+    buffer_in += integer1;
+    read_assembler_line_sd(line, &estring1, &integer1, 0);
+    if (estring1 == eattached){
+    //printf("attached\n");
+    found_attached=1;
+    code_put_char(&ip,OPCODE_ATTACHED,isdryrun);
+    }
+    if ((estring1==ereduce) || (estring1==ereduc_)){
+             read_assembler_line_ssdsdd(line, &estring1, &estring1a, &integer1,
+                                 &estring2, &integer2, &integer3, 0);
+          //printf("reduce case,integer1:%d,integer2:%d, integer3:%d\n",integer1,integer2,integer3);
+          code_put_char(&ip, OPCODE_REDUCE_WAIT, isdryrun);
+          switch (reduction_op) {
+          case OPCODE_REDUCE_SUM_DOUBLE:
+            integer3 /= sizeof(double);
+            break;
+          case OPCODE_REDUCE_SUM_LONG_INT:
+            integer3 /= sizeof(long int);
+            break;
+          case OPCODE_REDUCE_SUM_FLOAT:
+            integer3 /= sizeof(float);
+            break;
+          case OPCODE_REDUCE_SUM_INT:
+            integer3 /= sizeof(int);
+            break;
+          }
+        
+        if (estring1a == esendbufp) {
+          code_put_pointer(&ip, sendbuf + integer1, isdryrun);
+        } else {
+          if (estring1a == erecvbufp) {
+            code_put_pointer(&ip, recvbuf + integer1, isdryrun);
+          } else {
+            code_put_pointer(&ip, ((char *)shmem) + integer1, isdryrun);
+          }
+        }
+        if (estring2 == esendbufp) {
+          code_put_pointer(&ip, sendbuf + integer2, isdryrun);
+        } else {
+          if (estring2 == erecvbufp) {
+            code_put_pointer(&ip, recvbuf + integer2, isdryrun);
+          } else {
+            code_put_pointer(&ip, ((char *)shmem) + integer2, isdryrun);
+          }
+        }
+        code_put_int(&ip, integer3, isdryrun);
+    }
+    if ((estring1!=ereduce) && (estring1!=ereduc_) && (estring1!=eattached) && (found_attached==1)){
+    //buffer_in -=intwaitany;
+    //printf("else case \n");
+    break; 
+    }
+    }
+    }
     if ((estring1 == eisend) || (estring1 == eirecv)) {
 #ifdef GPU_ENABLED
       if (on_gpu) {
@@ -1240,7 +1425,7 @@ static int generate_byte_code(char volatile *barrier_shmem_org,
         code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
       }
     }
-    if ((estring1 == ememcpy) || (estring1 == ereduce) ||
+      if ((estring1 == ememcpy) || (estring1 == ereduce) ||
         (estring1 == esreduce)) {
       read_assembler_line_ssdsdd(line, &estring1, &estring1a, &integer1,
                                  &estring2, &integer2, &integer3, 0);
@@ -1520,7 +1705,7 @@ int EXT_MPI_Reduce_init_native(void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *num_ports,
                                int *groups, int num_active_ports, int copyin,
-                               int alt, int bit) {
+                               int alt, int bit, int waitany) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int coarse_count, *counts = NULL, iret;
@@ -1698,7 +1883,7 @@ int EXT_MPI_Reduce_init_native(void *sendbuf, void *recvbuf, int count,
   if (bit) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER BIT_IDENTICAL\n");
   }
-  //  nbuffer1+=sprintf(buffer1+nbuffer1, " PARAMETER ASCII\n");
+  nbuffer1+=sprintf(buffer1+nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
   if (!allreduce_short) {
@@ -1735,6 +1920,32 @@ int EXT_MPI_Reduce_init_native(void *sendbuf, void *recvbuf, int count,
     goto error;
   if (generate_raw_code(buffer2, buffer1) < 0)
     goto error;
+  if (generate_optimise_buffers2(buffer1, buffer2) < 0)
+    goto error;
+ /* 
+  int mpi_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
+  if (mpi_rank ==0){
+  printf("%s",buffer2);
+  }
+  exit(9);
+ */
+  if (waitany) {
+    if (generate_waitany(buffer2, buffer1) < 0)
+      goto error;
+  } else {
+	buffer_temp = buffer1;
+    buffer1 = buffer2;
+    buffer2 = buffer_temp;
+  }
+ /* 
+    int mpi_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
+  if (mpi_rank ==0){
+  printf("%s",buffer1);
+  }
+  exit(9);
+  */
   if (generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
   if (generate_buffer_offset(buffer2, buffer1) < 0)
@@ -1742,31 +1953,30 @@ int EXT_MPI_Reduce_init_native(void *sendbuf, void *recvbuf, int count,
   if (generate_no_offset(buffer1, buffer2) < 0)
     goto error;
   if (generate_optimise_buffers(buffer2, buffer1) < 0)
-    goto error;
-  if (generate_optimise_buffers2(buffer1, buffer2) < 0)
-    goto error;
+    goto error; 
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(sendbuf)) {
 #endif
-    if (generate_parallel_memcpy(buffer2, buffer1) < 0)
+    if (generate_parallel_memcpy(buffer1, buffer2) < 0)
       goto error;
-    if (generate_raw_code_merge(buffer1, buffer2) < 0)
+    if (generate_raw_code_merge(buffer2, buffer1) < 0)
       goto error;
 #ifdef GPU_ENABLED
   }
 #endif
   if (alt) {
-    if (generate_no_first_barrier(buffer2, buffer1) < 0)
+    if (generate_no_first_barrier(buffer1, buffer2) < 0)
       goto error;
   } else {
-    if (generate_dummy(buffer2, buffer1) < 0)
+    if (generate_dummy(buffer1, buffer2) < 0)
       goto error;
   }
-  if (clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
+  if (clean_barriers(buffer2, buffer1, comm_row, comm_column) < 0)
     goto error;
-  iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
+  iret = init_epilogue(buffer1, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt);
+
   free(buffer2);
   free(buffer1);
   return iret;
@@ -1786,11 +1996,11 @@ int EXT_MPI_Allreduce_init_native(void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *num_ports,
                                   int *groups, int num_active_ports, int copyin,
-                                  int alt, int bit) {
+                                  int alt, int bit, int waitany) {
   return (EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, -1, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, alt, bit));
+      groups, num_active_ports, copyin, alt, bit,waitany));
 }
 
 int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
@@ -1802,7 +2012,7 @@ int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
   return (EXT_MPI_Reduce_init_native(
       buffer, buffer, count, datatype, MPI_OP_NULL, -10 - root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, alt, 0));
+      groups, num_active_ports, copyin, alt, 0,0));
 }
 
 int EXT_MPI_Gatherv_init_native(
