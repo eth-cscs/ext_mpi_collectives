@@ -20,7 +20,7 @@ int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
     goto error;
   */
   if (i <= 0) {
-    printf("error reading algorithm reduce_copyin\n");
+    printf("error reading algorithm ext_mpi_generate_waitany\n");
     exit(2);
   }
   nline2 = -1;
