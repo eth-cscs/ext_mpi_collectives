@@ -99,7 +99,7 @@ static void node_barrier_mpi(int handle, MPI_Comm shmem_comm_node_row,
 }
 
 static int destroy_shared_memory(int handle, int *size_shared, int *shmemid,
-                                 char volatile **shmem) {
+                                 volatile char **shmem) {
   if (*shmem != NULL) {
 #ifndef MMAP
     node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL);
@@ -125,7 +125,7 @@ static int setup_shared_memory(MPI_Comm *shmem_comm_node_row,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int size_shared,
                                int *size_shared_old, int *shmemid,
-                               char volatile **shmem, char fill, int numfill) {
+                               volatile char **shmem, char fill, int numfill) {
   int my_mpi_rank_row, my_mpi_size_row, my_mpi_rank_column, my_mpi_size_column;
 #ifdef MMAP
   static int shmem_fd = -1;
@@ -325,7 +325,7 @@ error:
   return ERROR_MALLOC;
 }
 
-static void node_barrier(char volatile *shmem, int *barrier_count,
+static void node_barrier(volatile char *shmem, int *barrier_count,
                          int node_rank, int num_cores) {
   int barriers_size, step, barriers_size_max, i;
   for (barriers_size = 0, step = 1; step <= num_cores;
@@ -338,10 +338,11 @@ static void node_barrier(char volatile *shmem, int *barrier_count,
       ;
   }
   barriers_size_max = barriers_size;
-  i = (barriers_size_max * num_cores * (NUM_BARRIERS - 1) + *barrier_count) %
+  i = (barriers_size_max * num_cores * (NUM_BARRIERS - 2) + *barrier_count) %
       (barriers_size_max * num_cores * NUM_BARRIERS);
   for (barriers_size = 0; barriers_size < barriers_size_max; barriers_size++) {
-    shmem[(i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE] = 0;
+//    shmem[(i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE] = 0;
+    *((int*)(shmem+((i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE))) = 0;
   }
   *barrier_count += barriers_size * num_cores;
   if (*barrier_count >= barriers_size * num_cores * NUM_BARRIERS) {
@@ -349,7 +350,7 @@ static void node_barrier(char volatile *shmem, int *barrier_count,
   }
 }
 
-static int node_btest(char volatile *shmem, int *barrier_count, int node_rank,
+static int node_btest(volatile char *shmem, int *barrier_count, int node_rank,
                       int num_cores) {
   int barriers_size, step;
   for (barriers_size = 0, step = 1; step <= num_cores;
@@ -365,23 +366,28 @@ static int node_btest(char volatile *shmem, int *barrier_count, int node_rank,
   return 0;
 }
 
-static void node_cycl_barrier(char volatile *shmem, int *barrier_count,
+static void node_cycl_barrier(volatile char *shmem, int *barrier_count,
                               int node_rank, int num_cores) {
-  int barriers_size, step, i;
+  int barriers_size, step, barriers_size_max, i;
   if (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) < 10000) {
-    i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) =
-          (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) + 1) % num_cores;
+    i = ++(*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))));
   } else {
     i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) =
           *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) - 10000;
   }
-printf("aaaa %d %d\n", ((*((int*)(shmem+((*barrier_count + (i + node_rank) % num_cores) * CACHE_LINE_SIZE)))) % 10000), i);
-  while (((*((int*)(shmem+((*barrier_count + (i + node_rank) % num_cores) *
-                CACHE_LINE_SIZE)))) % 10000) != i)
-    ;
-  if (i == 0) {
+  if (i < num_cores) {
+    while (((*((int*)(shmem+((*barrier_count + (1 + node_rank) % num_cores) *
+                  CACHE_LINE_SIZE)))) % 10000) < i)
+      ;
+  } else {
     for (barriers_size = 0, step = 1; step <= num_cores;
          barriers_size++, step <<= 1) ;
+    barriers_size_max = barriers_size;
+    i = (barriers_size_max * num_cores * (NUM_BARRIERS - 2) + *barrier_count) %
+        (barriers_size_max * num_cores * NUM_BARRIERS);
+    for (barriers_size = 0; barriers_size < barriers_size_max; barriers_size++) {
+      *((int*)(shmem+((i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE))) = 0;
+    }
     *barrier_count += barriers_size * num_cores;
     if (*barrier_count >= barriers_size * num_cores * NUM_BARRIERS) {
       *barrier_count = 0;
@@ -389,23 +395,21 @@ printf("aaaa %d %d\n", ((*((int*)(shmem+((*barrier_count + (i + node_rank) % num
   }
 }
 
-static int node_cycl_btest(char volatile *shmem, int *barrier_count,
+static int node_cycl_btest(volatile char *shmem, int *barrier_count,
                            int node_rank, int num_cores) {
   int i;
-exit(8);
   if (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) < 10000) {
-    i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) =
-          ((shmem[(*barrier_count + node_rank) * CACHE_LINE_SIZE] + 1) % num_cores) + 10000;
+    i = (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) += 1 + 10000) - 10000;
   } else {
     i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) - 10000;
   }
-  return (*((int*)(shmem+((*barrier_count + (i + node_rank) % num_cores) *
-             CACHE_LINE_SIZE)))) % 10000 == i;
+  return (*((int*)(shmem+((*barrier_count + (1 + node_rank) % num_cores) *
+             CACHE_LINE_SIZE)))) % 10000 >= i;
 }
 
 static int exec_native(char *ip, char **ip_exec, int active_wait) {
   char instruction, instruction2; //, *r_start, *r_temp, *ipl;
-  void volatile *p1, *p2, *p3;
+  volatile void *p1, *p2, *p3;
   //  char *rlocmem=NULL;
   int i1, i2, i3, i4, i5; //, n_r, s_r, i;
   struct header_byte_code *header;
@@ -489,7 +493,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         i4 = code_get_int(&ip);
         // MPI requests
         p3 = code_get_pointer(&ip);
-        void volatile *add[i5 / 2][i4][2];
+        volatile void *add[i5 / 2][i4][2];
         int sizes[i5 / 2][i4];
         int done = 0;
         int num_red = 0;
@@ -712,7 +716,7 @@ int EXT_MPI_Wait_native(int handle) {
 }
 
 int EXT_MPI_Done_native(int handle) {
-  char volatile *shmem;
+  volatile char *shmem;
   char *ip, *locmem;
   int shmem_size, shmemid, i;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column, shmem_comm_node_row2,
@@ -802,8 +806,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   char *ip;
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
   int locmem_size, *locmem = NULL, shmem_size, shmemid;
-  char volatile *shmem = NULL;
-  char volatile *my_shared_buf;
+  volatile char *shmem = NULL;
+  volatile char *my_shared_buf;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column;
   int gpu_byte_code_counter = 0;
 #ifdef GPU_ENABLED
