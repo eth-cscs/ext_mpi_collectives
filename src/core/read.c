@@ -900,6 +900,9 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case enode_barrier:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER");
       break;
+    case enode_cycl_barrier:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_CYCL_BARRIER");
+      break;
     case ememcpy:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMCPY");
       break;
@@ -1246,6 +1249,9 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   }
   if (strcmp(cstring1, "NODE_BARRIER") == 0) {
     return enode_barrier;
+  }
+  if (strcmp(cstring1, "NODE_CYCL_BARRIER") == 0) {
+    return enode_cycl_barrier;
   }
   if (strcmp(cstring1, "MEMCPY") == 0) {
     return ememcpy;

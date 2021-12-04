@@ -346,6 +346,10 @@ int ext_mpi_simulate_native(char *ip) {
 #ifdef VERBOSE_PRINT
       printf("node_barrier\n");
 #endif
+    case OPCODE_CYCL_NODEBARRIER:
+#ifdef VERBOSE_PRINT
+      printf("node_cycl_barrier\n");
+#endif
       break;
     case OPCODE_SETNUMCORES:
       i1 = code_get_int(&ip);
@@ -492,6 +496,8 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
       }
       break;
     case OPCODE_NODEBARRIER:
+      break;
+    case OPCODE_CYCL_NODEBARRIER:
       break;
     case OPCODE_SETNUMCORES:
       i1 = code_get_int(&ip);
