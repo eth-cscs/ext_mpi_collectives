@@ -376,8 +376,9 @@ static void node_cycl_barrier(volatile char *shmem, int *barrier_count,
           *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) - 10000;
   }
   if (i < num_cores) {
-    while (((*((int*)(shmem+((*barrier_count + (1 + node_rank) % num_cores) *
+    while (((*((volatile int*)(shmem+((*barrier_count + (1 + node_rank) % num_cores) *
                   CACHE_LINE_SIZE)))) % 10000) < i)
+//printf("aaaa %d %d %d %d\n", ((*((int*)(shmem+((*barrier_count + (1 + node_rank) % num_cores) * CACHE_LINE_SIZE)))) % 10000), i, node_rank, *barrier_count)
       ;
   } else {
     for (barriers_size = 0, step = 1; step <= num_cores;
