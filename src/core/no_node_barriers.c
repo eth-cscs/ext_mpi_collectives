@@ -23,7 +23,7 @@ int ext_mpi_generate_no_node_barriers(char *buffer_in, char *buffer_out) {
     nbuffer_in += flag =
         read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag) {
-      if (read_assembler_line_s(line, &estring1, 0) != -1) {
+      if (read_assembler_line_s(line, &estring1, 0) >= 0) {
         if (estring1 != enode_barrier) {
           nbuffer_out += write_line(buffer_out + nbuffer_out, line,
                                     parameters->ascii_out);
