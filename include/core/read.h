@@ -29,6 +29,7 @@ enum eassembler_type {
   eset_num_cores,
   eset_node_rank,
   enode_barrier,
+  enode_cycl_barrier,
   ememcpy,
   ememcp_,
   ereduce,

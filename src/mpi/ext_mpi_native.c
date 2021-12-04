@@ -359,10 +359,46 @@ static int node_btest(char volatile *shmem, int *barrier_count, int node_rank,
           CACHE_LINE_SIZE] = 1;
     if (!shmem[(*barrier_count + barriers_size * num_cores + node_rank) *
                CACHE_LINE_SIZE]) {
-      return (1);
+      return 1;
     }
   }
-  return (0);
+  return 0;
+}
+
+static void node_cycl_barrier(char volatile *shmem, int *barrier_count,
+                              int node_rank, int num_cores) {
+  int barriers_size, step, i;
+  if (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) < 10000) {
+    i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) =
+          (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) + 1) % num_cores;
+  } else {
+    i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) =
+          *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) - 10000;
+  }
+  while (((*((int*)shmem+((*barrier_count + (i + node_rank) % num_cores) *
+                CACHE_LINE_SIZE))) % 10000) != i)
+    ;
+  if (i == 0) {
+    for (barriers_size = 0, step = 1; step <= num_cores;
+         barriers_size++, step <<= 1) ;
+    *barrier_count += barriers_size * num_cores;
+    if (*barrier_count >= barriers_size * num_cores * NUM_BARRIERS) {
+      *barrier_count = 0;
+    }
+  }
+}
+
+static int node_cycl_btest(char volatile *shmem, int *barrier_count,
+                           int node_rank, int num_cores) {
+  int i;
+  if (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) < 10000) {
+    i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) =
+          ((shmem[(*barrier_count + node_rank) * CACHE_LINE_SIZE] + 1) % num_cores) + 10000;
+  } else {
+    i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) - 10000;
+  }
+  return (*((int*)(shmem+((*barrier_count + (i + node_rank) % num_cores) *
+             CACHE_LINE_SIZE)))) % 10000 == i;
 }
 
 static int exec_native(char *ip, char **ip_exec, int active_wait) {
@@ -532,7 +568,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         p1 = code_get_pointer(&ip);
         MPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
         if (!i2) {
-          return (0);
+          return 0;
         } else {
           MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
         }
@@ -547,10 +583,25 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         *ip_exec = ip - 1;
         if (!node_btest(header->barrier_shmem, &header->barrier_counter,
                         header->node_rank, header->num_cores)) {
-          return (0);
+          return 0;
         } else {
           node_barrier(header->barrier_shmem, &header->barrier_counter,
                        header->node_rank, header->num_cores);
+        }
+      }
+      break;
+    case OPCODE_CYCL_NODEBARRIER:
+      if (active_wait) {
+        node_cycl_barrier(header->barrier_shmem, &header->barrier_counter,
+                          header->node_rank, header->num_cores);
+      } else {
+        *ip_exec = ip - 1;
+        if (!node_cycl_btest(header->barrier_shmem, &header->barrier_counter,
+                             header->node_rank, header->num_cores)) {
+          return 0;
+        } else {
+          node_cycl_barrier(header->barrier_shmem, &header->barrier_counter,
+                            header->node_rank, header->num_cores);
         }
       }
       break;
@@ -611,7 +662,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
     }
   } while (instruction != OPCODE_RETURN);
   *ip_exec = NULL;
-  return (0);
+  return 0;
 }
 
 int EXT_MPI_Start_native(int handle) {

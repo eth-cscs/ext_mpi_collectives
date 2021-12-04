@@ -55,8 +55,9 @@ static int copyin(struct parameters_block *parameters, struct data_line **data, 
         }
       }
     }
-    nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+    nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_cycl_barrier, parameters->ascii_out);
   }
+  nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
   return nbuffer_out;
 }
 
