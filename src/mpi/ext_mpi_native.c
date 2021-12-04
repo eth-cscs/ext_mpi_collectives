@@ -36,6 +36,7 @@
 #include "reduce_copyin.h"
 #include "reduce_copyout.h"
 #include "use_recvbuf.h"
+#include "no_node_barriers.h"
 #include "waitany.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
@@ -1188,6 +1189,13 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   }
   if (ext_mpi_clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
     goto error;
+  if (my_cores_per_node_row*my_cores_per_node_column == 1){
+    if (ext_mpi_generate_no_node_barriers(buffer2, buffer1) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt);
@@ -1420,6 +1428,13 @@ int EXT_MPI_Gatherv_init_native(
   }
   if (ext_mpi_clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
     goto error;
+  if (my_cores_per_node_row*my_cores_per_node_column == 1){
+    if (ext_mpi_generate_no_node_barriers(buffer2, buffer1) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
   iret = init_epilogue(buffer2, sendbuf, recvbuf, -1, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt);
@@ -1459,7 +1474,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
-  char *buffer1 = NULL, *buffer2 = NULL, *str;
+  char *buffer1 = NULL, *buffer2 = NULL, *str, *buffer_temp;
   int nbuffer1 = 0, i, j, *groups;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer1)
@@ -1630,6 +1645,13 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   }
   if (ext_mpi_clean_barriers(buffer2, buffer1, comm_row, comm_column) < 0)
     goto error;
+  if (my_cores_per_node_row*my_cores_per_node_column == 1){
+    if (ext_mpi_generate_no_node_barriers(buffer1, buffer2) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
   iret = init_epilogue(buffer1, sendbuf, recvbuf, -1, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt);
@@ -1654,7 +1676,7 @@ int EXT_MPI_Reduce_scatter_init_native(
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
-  char *buffer1 = NULL, *buffer2 = NULL, *str;
+  char *buffer1 = NULL, *buffer2 = NULL, *str, *buffer_temp;
   int nbuffer1 = 0, i, j, *groups;
   int reduction_op;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
@@ -1830,6 +1852,13 @@ int EXT_MPI_Reduce_scatter_init_native(
   }
   if (ext_mpi_clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
     goto error;
+  if (my_cores_per_node_row*my_cores_per_node_column == 1){
+    if (ext_mpi_generate_no_node_barriers(buffer2, buffer1) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt);
