@@ -366,6 +366,35 @@ static int node_btest(volatile char *shmem, int *barrier_count, int node_rank,
   return 0;
 }
 
+static void node_barrier_set(volatile char *shmem, int *barrier_count,
+                             int entry) {
+  shmem[(*barrier_count + entry) * CACHE_LINE_SIZE] = 1;
+}
+
+static void node_barrier_wait(volatile char *shmem, int *barrier_count,
+                              int entry) {
+  while (!shmem[(*barrier_count + entry) * CACHE_LINE_SIZE])
+    ;
+}
+
+static void node_barrier_next(volatile char *shmem, int *barrier_count,
+                              int node_rank, int num_cores) {
+  int barriers_size, step, barriers_size_max, i;
+  for (barriers_size = 0, step = 1; step <= num_cores;
+       barriers_size++, step <<= 1) ;
+  barriers_size_max = barriers_size;
+  i = (barriers_size_max * num_cores * (NUM_BARRIERS - 2) + *barrier_count) %
+      (barriers_size_max * num_cores * NUM_BARRIERS);
+  for (barriers_size = 0; barriers_size < barriers_size_max; barriers_size++) {
+//    shmem[(i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE] = 0;
+    *((int*)(shmem+((i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE))) = 0;
+  }
+  *barrier_count += barriers_size * num_cores;
+  if (*barrier_count >= barriers_size * num_cores * NUM_BARRIERS) {
+    *barrier_count = 0;
+  }
+}
+
 static void node_cycl_barrier(volatile char *shmem, int *barrier_count,
                               int node_rank, int num_cores) {
   int barriers_size, step, barriers_size_max, i;
@@ -611,6 +640,18 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
                             header->node_rank, header->num_cores);
         }
       }
+      break;
+    case OPCODE_SET_NODEBARRIER:
+      i1 = code_get_int(&ip);
+      node_barrier_set(header->shmem, &header->barrier_counter, i1);
+      break;
+    case OPCODE_WAIT_NODEBARRIER:
+      i1 = code_get_int(&ip);
+      node_barrier_wait(header->shmem, &header->barrier_counter, i1);
+      break;
+    case OPCODE_NEXT_NODEBARRIER:
+      node_barrier_next(header->barrier_shmem, &header->barrier_counter,
+                        header->node_rank, header->num_cores);
       break;
     case OPCODE_SETNUMCORES:
       header->num_cores = code_get_int(&ip);
@@ -1158,6 +1199,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
+printf("aaa\n%s\n", buffer1);
   msizes = NULL;
   if (recursive) {
     if (ext_mpi_generate_allreduce_recursive(buffer1, buffer2) < 0)
@@ -1254,6 +1296,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
+printf("aaa\n%s\n", buffer2);
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt);

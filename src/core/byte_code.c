@@ -383,6 +383,18 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
       code_put_char(&ip, OPCODE_SETNODERANK, isdryrun);
       code_put_int(&ip, integer1, isdryrun);
     }
+    if (estring1 == eset_node_barrier) {
+      if (header->num_cores != 1) {
+        code_put_char(&ip, OPCODE_SET_NODEBARRIER, isdryrun);
+        code_put_int(&ip, integer1, isdryrun);
+      }
+    }
+    if (estring1 == ewait_node_barrier) {
+      if (header->num_cores != 1) {
+        code_put_char(&ip, OPCODE_WAIT_NODEBARRIER, isdryrun);
+        code_put_int(&ip, integer1, isdryrun);
+      }
+    }
     if (estring1 == ewaitall) {
 #ifdef GPU_ENABLED
       if (on_gpu) {
@@ -527,6 +539,11 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
     if (estring1 == enode_cycl_barrier) {
       if (header->num_cores != 1) {
         code_put_char(&ip, OPCODE_CYCL_NODEBARRIER, isdryrun);
+      }
+    }
+    if (estring1 == enext_node_barrier) {
+      if (header->num_cores != 1) {
+        code_put_char(&ip, OPCODE_NEXT_NODEBARRIER, isdryrun);
       }
     }
     if ((estring1 == ememcpy) || (estring1 == ereduce) ||
