@@ -209,6 +209,7 @@ static int print_algorithm(char *buffer, int node, int num_nodes_l,
     parameters.shmem_buffer_offset_max = 0;
     parameters.shmem_buffer_offset = NULL;
     parameters.root = root;
+    parameters.in_place = 0;
     if (ascii_out) {
       nbuffer += write_parameters(&parameters, buffer + nbuffer);
     } else {

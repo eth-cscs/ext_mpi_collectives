@@ -338,7 +338,7 @@ static void node_barrier(volatile char *shmem, int *barrier_count,
       ;
   }
   barriers_size_max = barriers_size;
-  i = (barriers_size_max * num_cores * (NUM_BARRIERS - 2) + *barrier_count) %
+  i = (barriers_size_max * num_cores * (NUM_BARRIERS - 1) + *barrier_count) %
       (barriers_size_max * num_cores * NUM_BARRIERS);
   for (barriers_size = 0; barriers_size < barriers_size_max; barriers_size++) {
 //    shmem[(i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE] = 0;
@@ -383,7 +383,7 @@ static void node_barrier_next(volatile char *shmem, int *barrier_count,
   for (barriers_size = 0, step = 1; step <= num_cores;
        barriers_size++, step <<= 1) ;
   barriers_size_max = barriers_size;
-  i = (barriers_size_max * num_cores * (NUM_BARRIERS - 2) + *barrier_count) %
+  i = (barriers_size_max * num_cores * (NUM_BARRIERS - 1) + *barrier_count) %
       (barriers_size_max * num_cores * NUM_BARRIERS);
   for (barriers_size = 0; barriers_size < barriers_size_max; barriers_size++) {
 //    shmem[(i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE] = 0;
@@ -413,7 +413,7 @@ static void node_cycl_barrier(volatile char *shmem, int *barrier_count,
     for (barriers_size = 0, step = 1; step <= num_cores;
          barriers_size++, step <<= 1) ;
     barriers_size_max = barriers_size;
-    i = (barriers_size_max * num_cores * (NUM_BARRIERS - 2) + *barrier_count) %
+    i = (barriers_size_max * num_cores * (NUM_BARRIERS - 1) + *barrier_count) %
         (barriers_size_max * num_cores * NUM_BARRIERS);
     for (barriers_size = 0; barriers_size < barriers_size_max; barriers_size++) {
       *((int*)(shmem+((i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE))) = 0;
@@ -1199,7 +1199,6 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
-printf("aaa\n%s\n", buffer1);
   msizes = NULL;
   if (recursive) {
     if (ext_mpi_generate_allreduce_recursive(buffer1, buffer2) < 0)
@@ -1296,7 +1295,6 @@ printf("aaa\n%s\n", buffer1);
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-printf("aaa\n%s\n", buffer2);
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt);

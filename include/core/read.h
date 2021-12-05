@@ -79,6 +79,7 @@ struct parameters_block {
   int copy_method;
   enum edata_type data_type;
   int verbose;
+  int in_place;
   int ascii_in, ascii_out;
   int bit_identical;
   int locmem_max;
@@ -86,7 +87,6 @@ struct parameters_block {
   int *shmem_buffer_offset;
   int shmem_buffer_offset_max;
   int root;
-  int in_place;
 };
 
 struct data_line {
