@@ -406,11 +406,11 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
       case 2:
-        if (lrank_row < node_row_size / 2){
+        if (lrank_row >= node_row_size / 2){
           if (moffsets[num_nodes] < CACHE_LINE_SIZE) {
-            add = CACHE_LINE_SIZE * lrank_row + ldispls[lrank_column];
+            add = CACHE_LINE_SIZE * (lrank_row - node_row_size / 2) + ldispls[lrank_column];
           } else {
-            add = moffsets[num_nodes] * lrank_row + ldispls[lrank_column];
+            add = moffsets[num_nodes] * (lrank_row - node_row_size / 2) + ldispls[lrank_column];
           }
           for (i = 0; i < size_level1[0]; i++) {
             size = mcounts[data[0][i].frac];
@@ -422,14 +422,15 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
             add += size;
           }
-nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row, parameters->ascii_out);
+          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row - node_row_size / 2, parameters->ascii_out);
         } else {
-nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
-//          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row % (node_row_size / 2), parameters->ascii_out);
+          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row, parameters->ascii_out);
+          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row + node_row_size / 2, parameters->ascii_out);
           if (moffsets[num_nodes] < CACHE_LINE_SIZE) {
-            add = CACHE_LINE_SIZE * (lrank_row - node_row_size / 2) + ldispls[lrank_column];
+            add = CACHE_LINE_SIZE * lrank_row + ldispls[lrank_column];
           } else {
-            add = moffsets[num_nodes] * (lrank_row - node_row_size / 2) + ldispls[lrank_column];
+            add = moffsets[num_nodes] * lrank_row + ldispls[lrank_column];
           }
           for (i = 0; i < size_level1[0]; i++) {
             size = mcounts[data[0][i].frac];
@@ -442,30 +443,37 @@ nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, p
             add += size;
           }
         }
-//        nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row, parameters->ascii_out);
+        nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enext_node_barrier, parameters->ascii_out);
+        nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row, parameters->ascii_out);
+        if (lrank_row < node_row_size / 2){
+          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row + node_row_size / 2, parameters->ascii_out);
+        } else {
+          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row - node_row_size / 2, parameters->ascii_out);
+        }
         size = moffsets[num_nodes];
-        for (step = node_row_size / 4, i = 1; step>=1; step /= 2, i++){
-nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
-          if ((lrank_row >= step) && (lrank_row < step * 2)){
+        for (step = node_row_size / 4, i = 1; step >= 1; step /= 2, i++) {
+          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row + i * node_row_size, parameters->ascii_out);
+          if (lrank_row % (step * 2) < step) {
+            nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row + step + i * node_row_size, parameters->ascii_out);
+          } else {
+            nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row - step + i * node_row_size, parameters->ascii_out);
+          }
+          if (lrank_row < step) {
             if (size <= CACHE_LINE_SIZE) {
-              add = CACHE_LINE_SIZE * (lrank_row - step);
+              add = CACHE_LINE_SIZE * lrank_row;
               add2 = add + CACHE_LINE_SIZE * step;
             } else {
-              add = size * (lrank_row - step);
+              add = size * lrank_row;
               add2 = add + size * step;
             }
-//            nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row + step * 2 + (i - 1) * node_row_size, parameters->ascii_out);
             if (size) {
               nbuffer_out += write_assembler_line_ssdsdd(
                   buffer_out + nbuffer_out, esreduce, eshmemp, add, eshmemp,
                   add2, size, parameters->ascii_out);
             }
-//            nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row + i * node_row_size, parameters->ascii_out);
           }
         }
-//        nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, 1 + (i - 1) * node_row_size, parameters->ascii_out);
-//        nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enext_node_barrier, parameters->ascii_out);
-nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+        nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enext_node_barrier, parameters->ascii_out);
         add=add2=0;
         size=moffsets[num_nodes];
         if (size <= CACHE_LINE_SIZE) size = CACHE_LINE_SIZE;

@@ -328,7 +328,7 @@ error:
 static void node_barrier(volatile char *shmem, int *barrier_count,
                          int node_rank, int num_cores) {
   int barriers_size, step, barriers_size_max, i;
-  for (barriers_size = 0, step = 1; step <= num_cores;
+  for (barriers_size = 0, step = 1; step < num_cores;
        barriers_size++, step <<= 1) {
     shmem[(*barrier_count + barriers_size * num_cores +
            (node_rank + step) % num_cores) *
@@ -353,7 +353,7 @@ static void node_barrier(volatile char *shmem, int *barrier_count,
 static int node_btest(volatile char *shmem, int *barrier_count, int node_rank,
                       int num_cores) {
   int barriers_size, step;
-  for (barriers_size = 0, step = 1; step <= num_cores;
+  for (barriers_size = 0, step = 1; step < num_cores;
        barriers_size++, step <<= 1) {
     shmem[(*barrier_count + barriers_size * num_cores +
            (node_rank + step) % num_cores) *
@@ -366,21 +366,21 @@ static int node_btest(volatile char *shmem, int *barrier_count, int node_rank,
   return 0;
 }
 
-static void node_barrier_set(volatile char *shmem, int *barrier_count,
+static void node_barrier_set(volatile char *shmem, int barrier_count,
                              int entry) {
-  shmem[(*barrier_count + entry) * CACHE_LINE_SIZE] = 1;
+  shmem[(barrier_count + entry) * CACHE_LINE_SIZE] = 1;
 }
 
-static void node_barrier_wait(volatile char *shmem, int *barrier_count,
+static void node_barrier_wait(volatile char *shmem, int barrier_count,
                               int entry) {
-  while (!shmem[(*barrier_count + entry) * CACHE_LINE_SIZE])
+  while (!shmem[(barrier_count + entry) * CACHE_LINE_SIZE])
     ;
 }
 
 static void node_barrier_next(volatile char *shmem, int *barrier_count,
                               int node_rank, int num_cores) {
   int barriers_size, step, barriers_size_max, i;
-  for (barriers_size = 0, step = 1; step <= num_cores;
+  for (barriers_size = 0, step = 1; step < num_cores;
        barriers_size++, step <<= 1) ;
   barriers_size_max = barriers_size;
   i = (barriers_size_max * num_cores * (NUM_BARRIERS - 1) + *barrier_count) %
@@ -643,11 +643,11 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       break;
     case OPCODE_SET_NODEBARRIER:
       i1 = code_get_int(&ip);
-      node_barrier_set(header->shmem, &header->barrier_counter, i1);
+      node_barrier_set(header->barrier_shmem, header->barrier_counter, i1);
       break;
     case OPCODE_WAIT_NODEBARRIER:
       i1 = code_get_int(&ip);
-      node_barrier_wait(header->shmem, &header->barrier_counter, i1);
+      node_barrier_wait(header->barrier_shmem, header->barrier_counter, i1);
       break;
     case OPCODE_NEXT_NODEBARRIER:
       node_barrier_next(header->barrier_shmem, &header->barrier_counter,
