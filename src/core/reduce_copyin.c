@@ -467,6 +467,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
         }
         nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enext_node_barrier, parameters->ascii_out);
+        nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
         add=add2=0;
         size=moffsets[num_nodes];
         if (size <= CACHE_LINE_SIZE) size = CACHE_LINE_SIZE;
