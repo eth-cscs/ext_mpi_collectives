@@ -443,13 +443,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             add += size;
           }
         }
-        nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enext_node_barrier, parameters->ascii_out);
-        nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row, parameters->ascii_out);
-        if (lrank_row < node_row_size / 2){
-          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row + node_row_size / 2, parameters->ascii_out);
-        } else {
-          nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row - node_row_size / 2, parameters->ascii_out);
-        }
         size = moffsets[num_nodes];
         for (step = node_row_size / 4, i = 1; step >= 1; step /= 2, i++) {
           nbuffer_out += write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row + i * node_row_size, parameters->ascii_out);
