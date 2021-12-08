@@ -1054,6 +1054,36 @@ int write_assembler_line_sdsd(char *buffer_out, enum eassembler_type string1,
   return nbuffer_out;
 }
 
+int write_assembler_line_sddsd(char *buffer_out, enum eassembler_type string1,
+                              int integer1, int integer2, enum eassembler_type string2,
+                              int integer3, int ascii) {
+  int nbuffer_out = 0;
+  if (!ascii)
+    nbuffer_out += sizeof(int);
+  if (!ascii)
+    buffer_out[nbuffer_out++] = 0;
+  nbuffer_out +=
+      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
+  if (!ascii)
+    buffer_out[nbuffer_out++] = 1;
+  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
+  if (!ascii)
+    buffer_out[nbuffer_out++] = 1;
+  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
+  if (!ascii)
+    buffer_out[nbuffer_out++] = 0;
+  nbuffer_out +=
+      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
+  if (!ascii)
+    buffer_out[nbuffer_out++] = 1;
+  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer3, ascii);
+  if (!ascii)
+    memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
+  if (ascii)
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
+  return nbuffer_out;
+}
+
 int write_assembler_line_ssdsdd(char *buffer_out, enum eassembler_type string1,
                                 enum eassembler_type string2, int integer1,
                                 enum eassembler_type string3, int integer2,
@@ -1472,6 +1502,72 @@ int read_assembler_line_sdsd(char *buffer_in, enum eassembler_type *string1,
       return -11;
     }
     if (n == 5) {
+      return 0;
+    }
+    for (i = 0; (buffer_in[i] != '\0') && (buffer_in[i] != '\n'); i++)
+      ;
+    return i + 1;
+  }
+}
+
+int read_assembler_line_sddsd(char *buffer_in, enum eassembler_type *string1,
+                              int *integer1, int *integer2, enum eassembler_type *string2,
+                              int *integer3, int ascii) {
+  char cstring1[100], cstring2[100], cstring3[100];
+  int n, i;
+  if (!ascii) {
+    i = 0;
+    memcpy(&n, buffer_in, sizeof(n));
+    i += sizeof(n);
+    if (buffer_in[i++] != 0)
+      return -11;
+    if (i < n)
+      memcpy(string1, buffer_in + i, sizeof(*string1));
+    i += sizeof(*string1);
+    if (buffer_in[i++] != 1)
+      return -11;
+    if (i < n)
+      memcpy(integer1, buffer_in + i, sizeof(*integer1));
+    i += sizeof(*integer1);
+    if (buffer_in[i++] != 1)
+      return -11;
+    if (i < n)
+      memcpy(integer2, buffer_in + i, sizeof(*integer2));
+    i += sizeof(*integer2);
+    if (buffer_in[i++] != 0)
+      return -11;
+    if (i < n)
+      memcpy(string2, buffer_in + i, sizeof(*string2));
+    i += sizeof(*string2);
+    if (buffer_in[i++] != 1)
+      return -11;
+    if (i < n)
+      memcpy(integer3, buffer_in + i, sizeof(*integer3));
+    i += sizeof(*integer3);
+    if (i == n) {
+      return n;
+    } else {
+      if (i < n) {
+        return 0;
+      } else {
+        return -11;
+      }
+    }
+  } else {
+    n = sscanf(buffer_in, "%99s %d %d %99s %d %99s", cstring1, integer1, integer2, cstring2,
+               integer3, cstring3);
+    if (n < 1) {
+      return -11;
+    }
+    *string1 = read_assembler_type(cstring1);
+    if (n < 4) {
+      return -11;
+    }
+    *string2 = read_assembler_type(cstring2);
+    if (n < 5) {
+      return -11;
+    }
+    if (n == 6) {
       return 0;
     }
     for (i = 0; (buffer_in[i] != '\0') && (buffer_in[i] != '\n'); i++)

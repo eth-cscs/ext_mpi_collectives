@@ -437,11 +437,83 @@ static int node_cycl_btest(volatile char *shmem, int *barrier_count,
              CACHE_LINE_SIZE)))) % 10000 >= i;
 }
 
+void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
+  void *add[num_wait][num_red_max][2], *p1, *p2;
+  int sizes[num_wait][num_red_max], num_red[num_wait], done = 0, red_it = 0, i1, count, i;
+        char op;
+        for (i=0; i<num_wait; i++){
+          num_red[i]=0;
+        }
+        while (done < num_wait) {
+          op = code_get_char(ip);
+          switch (op) {
+          case OPCODE_REDUCE: {
+            op = code_get_char(ip);
+            add[done][num_red[done]][0] = code_get_pointer(ip);
+            add[done][num_red[done]][1] = code_get_pointer(ip);
+            sizes[done][num_red[done]] = code_get_int(ip);
+            num_red[done]++;
+            break;
+          }
+          case OPCODE_ATTACHED: {
+            done++;
+            break;
+          }
+          }
+        }
+        int index;
+        for (count=0; count<num_wait; count++) {
+
+          int mpi_rank;
+          MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+          if (mpi_rank == 0) {
+//            printf("repetition of while loop,count:%d\n", count);
+          }
+          if (count == 3) {
+//            exit(9);
+          }
+          MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUSES_IGNORE);
+            for (red_it = 0; num_red[index]; red_it++) {
+
+              if (mpi_rank == 0) {
+//                printf("reduction,count:%d\n", count);
+              }
+
+              p1 = add[index][red_it][0];
+              p2 = add[index][red_it][1];
+              i1 = sizes[index][red_it];
+              switch (op) {
+              case OPCODE_REDUCE_SUM_DOUBLE:
+                for (i = 0; i < i1; i++) {
+                  ((double *)p1)[i] += ((double *)p2)[i];
+                }
+                break;
+              case OPCODE_REDUCE_SUM_LONG_INT:
+                for (i = 0; i < i1; i++) {
+                  ((long int *)p1)[i] += ((long int *)p2)[i];
+                }
+                break;
+              case OPCODE_REDUCE_SUM_FLOAT:
+                for (i = 0; i < i1; i++) {
+                  ((float *)p1)[i] += ((float *)p2)[i];
+                }
+                break;
+              case OPCODE_REDUCE_SUM_INT:
+                for (i = 0; i < i1; i++) {
+                  ((int *)p1)[i] += ((int *)p2)[i];
+                }
+                break;
+              }
+            }
+        }
+}
+
 static int exec_native(char *ip, char **ip_exec, int active_wait) {
   char instruction, instruction2; //, *r_start, *r_temp, *ipl;
-  volatile void *p1, *p2, *p3;
+  volatile void *p1, *p2;
+  void *p3;
   //  char *rlocmem=NULL;
-  int i1, i2, i3, i4, i5; //, n_r, s_r, i;
+  int i1, i2; //, n_r, s_r, i;
   struct header_byte_code *header;
   header = (struct header_byte_code *)ip;
   ip = *ip_exec;
@@ -514,90 +586,13 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       break;
     case OPCODE_MPIWAITANY: {
       if (active_wait) {
-        instruction2 = code_get_char(&ip);
-        // num cores
-        i3 = code_get_int(&ip);
         // how many to wait for
-        i5 = code_get_int(&ip);
+        i1 = code_get_int(&ip);
         // max reduction size
-        i4 = code_get_int(&ip);
+        i2 = code_get_int(&ip);
         // MPI requests
         p3 = code_get_pointer(&ip);
-        volatile void *add[i5 / 2][i4][2];
-        int sizes[i5 / 2][i4];
-        int done = 0;
-        int num_red = 0;
-        char op;
-        while (done < (i5 / 2) + 1) {
-          op = code_get_char(&ip);
-          switch (op) {
-          case OPCODE_REDUCE_WAIT: {
-            add[done - 1][num_red][0] = code_get_pointer(&ip);
-            add[done - 1][num_red][1] = code_get_pointer(&ip);
-            sizes[done - 1][num_red] = code_get_int(&ip);
-            num_red += 1;
-            break;
-          }
-          case OPCODE_ATTACHED: {
-            done += 1;
-            num_red = 0;
-            break;
-          }
-          }
-        }
-        int count = i5 / 2;
-        int index;
-        while (count > 0) {
-
-          int mpi_rank;
-          MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-          if (mpi_rank == 0) {
-            printf("repetition of while loop,count:%d\n", count);
-          }
-          if (count == 3) {
-            exit(9);
-          }
-          MPI_Waitany(i5, (MPI_Request *)p3, &index, MPI_STATUSES_IGNORE);
-          if (index < (i5 / 2)) {
-            int red_it = 0;
-            while (red_it < i4 && sizes[index][red_it] > 0) {
-
-              int mpi_rank;
-              MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-              if (mpi_rank == 0) {
-                printf("reduction,count:%d\n", count);
-              }
-
-              p1 = add[index][red_it][0];
-              p2 = add[index][red_it][1];
-              i1 = sizes[index][red_it];
-              switch (instruction2) {
-              case OPCODE_REDUCE_SUM_DOUBLE:
-                for (i2 = 0; i2 < i1; i2++) {
-                  ((double *)p1)[i2] += ((double *)p2)[i2];
-                }
-                break;
-              case OPCODE_REDUCE_SUM_LONG_INT:
-                for (i2 = 0; i2 < i1; i2++) {
-                  ((long int *)p1)[i2] += ((long int *)p2)[i2];
-                }
-                break;
-              case OPCODE_REDUCE_SUM_FLOAT:
-                for (i2 = 0; i2 < i1; i2++) {
-                  ((float *)p1)[i2] += ((float *)p2)[i2];
-                }
-                break;
-              case OPCODE_REDUCE_SUM_INT:
-                for (i2 = 0; i2 < i1; i2++) {
-                  ((int *)p1)[i2] += ((int *)p2)[i2];
-                }
-                break;
-              }
-              red_it += 1;
-            }
-            count = count - 1;
-          }
-        }
+        exec_waitany(i1, i2, p3, &ip);
       } else {
         *ip_exec = ip - 1;
         i1 = code_get_int(&ip);
