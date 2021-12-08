@@ -417,7 +417,6 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
     }
     if (estring1 == ewaitany) {
       code_put_char(&ip, OPCODE_MPIWAITANY, isdryrun);
-      code_put_char(&ip, reduction_op, isdryrun);
       read_assembler_line_sddsd(line, &estring1, &integer1,
                                 &integer2, &estring2, &integer3, 0);
       code_put_int(&ip, integer1, isdryrun);

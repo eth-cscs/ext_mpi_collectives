@@ -439,8 +439,8 @@ static int node_cycl_btest(volatile char *shmem, int *barrier_count,
 
 void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
   void *add[num_wait][num_red_max][2], *p1, *p2;
-  int sizes[num_wait][num_red_max], num_red[num_wait], done = 0, red_it = 0, i1, count, i;
-        char op;
+  int sizes[num_wait][num_red_max], num_red[num_wait], done = 0, red_it = 0, i1, count, index, i;
+        char op, op_reduce=255;
         for (i=0; i<num_wait; i++){
           num_red[i]=0;
         }
@@ -448,7 +448,7 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           op = code_get_char(ip);
           switch (op) {
           case OPCODE_REDUCE: {
-            op = code_get_char(ip);
+            op_reduce = code_get_char(ip);
             add[done][num_red[done]][0] = code_get_pointer(ip);
             add[done][num_red[done]][1] = code_get_pointer(ip);
             sizes[done][num_red[done]] = code_get_int(ip);
@@ -461,7 +461,6 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           }
           }
         }
-        int index;
         for (count=0; count<num_wait; count++) {
 
           int mpi_rank;
@@ -469,20 +468,16 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           if (mpi_rank == 0) {
 //            printf("repetition of while loop,count:%d\n", count);
           }
-          if (count == 3) {
-//            exit(9);
-          }
           MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUSES_IGNORE);
-            for (red_it = 0; num_red[index]; red_it++) {
+            for (red_it = 0; red_it<num_red[index]; red_it++) {
 
               if (mpi_rank == 0) {
-//                printf("reduction,count:%d\n", count);
               }
 
               p1 = add[index][red_it][0];
               p2 = add[index][red_it][1];
               i1 = sizes[index][red_it];
-              switch (op) {
+              switch (op_reduce) {
               case OPCODE_REDUCE_SUM_DOUBLE:
                 for (i = 0; i < i1; i++) {
                   ((double *)p1)[i] += ((double *)p2)[i];
