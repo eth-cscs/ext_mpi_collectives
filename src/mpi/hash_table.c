@@ -12,7 +12,7 @@ struct DataItem {
    MPI_Request key;
 };
 
-static struct DataItem* hashArray[SIZE] = {NULL}; 
+static struct DataItem** hashArray;
 static struct DataItem* dummyItem;
 
 static int hashCode(MPI_Request *key) {
@@ -72,6 +72,11 @@ int ext_mpi_hash_delete(MPI_Request *key) {
 }
 
 int ext_mpi_hash_init(){
+  int i;
+  hashArray = (struct DataItem**) malloc(SIZE*sizeof(struct DataItem*));
+  for (i=0; i<SIZE; i++){
+    hashArray[i] = NULL;
+  }
   dummyItem = (struct DataItem*) malloc(sizeof(struct DataItem));
   if (dummyItem==NULL){
     return ERROR_MALLOC;

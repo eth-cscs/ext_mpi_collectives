@@ -462,9 +462,12 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           }
         }
         for (count=0; count<num_wait; count++) {
-//          MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
 index=count;
-   if (MPI_Wait( &(((MPI_Request *)p3)[index]), MPI_STATUS_IGNORE) != MPI_SUCCESS) exit(9);
+//   MPI_Wait( ((MPI_Request *)p3)+index, MPI_STATUS_IGNORE);
+//	MPI_Waitall(1, ((MPI_Request *)p3)+index, MPI_STATUSES_IGNORE);
+        }
+        for (count=0; count<num_wait; count++) {
+            MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
             for (red_it = 0; red_it<num_red[index]; red_it++) {
               p1 = pointers[index][red_it][0];
               p2 = pointers[index][red_it][1];
@@ -581,6 +584,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         p3 = code_get_pointer(&ip);
         exec_waitany(i1, i2, p3, &ip);
       } else {
+exit(11);
         *ip_exec = ip - 1;
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);

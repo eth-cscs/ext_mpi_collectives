@@ -342,6 +342,14 @@ int ext_mpi_simulate_native(char *ip) {
       printf("MPI_Waitall %d %p\n", i1, p1);
 #endif
       break;
+    case OPCODE_MPIWAITANY:
+      i1 = code_get_int(&ip);
+      i1 = code_get_int(&ip);
+      code_get_pointer(&ip);
+#ifdef VERBOSE_PRINT
+      printf("MPI_Waitany %d %p\n", i1, p1);
+#endif
+      break;
     case OPCODE_NODEBARRIER:
 #ifdef VERBOSE_PRINT
       printf("node_barrier\n");
@@ -502,6 +510,18 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
       }
       break;
     case OPCODE_MPIWAITALL:
+      i1 = code_get_int(&ip);
+      code_get_pointer(&ip);
+      if (i1 > 0) {
+        counts[step] = count;
+        num_steps[step] = substep;
+        step++;
+        substep = 0;
+        count = 0e0;
+      }
+      break;
+    case OPCODE_MPIWAITANY:
+      i1 = code_get_int(&ip);
       i1 = code_get_int(&ip);
       code_get_pointer(&ip);
       if (i1 > 0) {

@@ -50,7 +50,7 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
     if (flag) {
       if (read_assembler_line_sd(line, &estring1, &integer1, 0) != -1) {
         if (!((estring1 == enop) ||
-              ((estring1 == ewaitall) && (integer1 == 0)))) {
+              (((estring1 == ewaitall)||(estring1 == ewaitany)) && (integer1 == 0)))) {
           if (estring1 != enode_barrier) {
             nbuffer_out += write_line(buffer_out + nbuffer_out, line,
                                       parameters->ascii_out);

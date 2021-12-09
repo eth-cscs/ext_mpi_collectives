@@ -41,7 +41,7 @@ int ext_mpi_generate_move_first_memcpy(char *buffer_in, char *buffer_out) {
                 buffer_out + nbuffer_out, estring1_, esendbufp, o1_, size_,
                 partner, num_comm, parameters->ascii_out);
           } else {
-            if (estring1 == ewaitall) {
+            if ((estring1 == ewaitall)||(estring1 == ewaitany)) {
               nbuffer_out += write_assembler_line_ssdsdd(
                   buffer_out + nbuffer_out, ememcpy, estring2, o1, estring3, o2,
                   size, parameters->ascii_out);

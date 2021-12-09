@@ -75,7 +75,7 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
           }
         }
       }
-      if (estring1 == ewaitall) {
+      if ((estring1 == ewaitall)||(estring1 == ewaitany)) {
         read_assembler_line_sd(line, &estring1, &o1, 0);
         if (o1 > locmem_max) {
           locmem_max = o1;
