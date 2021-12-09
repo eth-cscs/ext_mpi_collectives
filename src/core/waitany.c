@@ -30,6 +30,15 @@ int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
                                   buffer_out + nbuffer_out, ewaitany, nwait, 1, estring2, o1,
                                   parameters->ascii_out);
           nattached=0;
+        }else if (estring1 == ememcpy) {
+          for (i=nattached; i<nwait; i++){
+            nbuffer_out += write_assembler_line_s(
+                                buffer_out + nbuffer_out, eattached,
+                                parameters->ascii_out);
+          }
+          nattached=nwait;
+          nbuffer_out += write_line(buffer_out + nbuffer_out, line,
+                                    parameters->ascii_out);
         }else if (estring1 != ereduce) {
           nbuffer_out += write_line(buffer_out + nbuffer_out, line,
                                     parameters->ascii_out);
@@ -46,6 +55,7 @@ int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
                                   buffer_out + nbuffer_out, eattached,
                                   parameters->ascii_out);
             }
+            nattached=nwait;
           }
         }
       }
