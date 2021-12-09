@@ -1227,7 +1227,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     goto error;
   if (ext_mpi_generate_optimise_buffers2(buffer2, buffer1) < 0)
     goto error;
-  if (waitany) {
+  if (waitany&&recursive) {
     if (ext_mpi_generate_waitany(buffer1, buffer2) < 0)
       goto error;
     buffer_temp = buffer2;
