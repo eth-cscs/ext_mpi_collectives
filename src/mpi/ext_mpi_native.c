@@ -438,7 +438,7 @@ static int node_cycl_btest(volatile char *shmem, int *barrier_count,
 }
 
 void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
-  void *add[num_wait][num_red_max][2], *p1, *p2;
+  void *pointers[num_wait][num_red_max][2], *p1, *p2;
   int sizes[num_wait][num_red_max], num_red[num_wait], done = 0, red_it = 0, i1, count, index, i;
         char op, op_reduce=255;
         for (i=0; i<num_wait; i++){
@@ -449,8 +449,8 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           switch (op) {
           case OPCODE_REDUCE: {
             op_reduce = code_get_char(ip);
-            add[done][num_red[done]][0] = code_get_pointer(ip);
-            add[done][num_red[done]][1] = code_get_pointer(ip);
+            pointers[done][num_red[done]][0] = code_get_pointer(ip);
+            pointers[done][num_red[done]][1] = code_get_pointer(ip);
             sizes[done][num_red[done]] = code_get_int(ip);
             num_red[done]++;
             break;
@@ -462,20 +462,12 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           }
         }
         for (count=0; count<num_wait; count++) {
-
-          int mpi_rank;
-          MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-          if (mpi_rank == 0) {
-//            printf("repetition of while loop,count:%d\n", count);
-          }
-          MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUSES_IGNORE);
+//          MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
+index=count;
+   if (MPI_Wait( &(((MPI_Request *)p3)[index]), MPI_STATUS_IGNORE) != MPI_SUCCESS) exit(9);
             for (red_it = 0; red_it<num_red[index]; red_it++) {
-
-              if (mpi_rank == 0) {
-              }
-
-              p1 = add[index][red_it][0];
-              p2 = add[index][red_it][1];
+              p1 = pointers[index][red_it][0];
+              p2 = pointers[index][red_it][1];
               i1 = sizes[index][red_it];
               switch (op_reduce) {
               case OPCODE_REDUCE_SUM_DOUBLE:
