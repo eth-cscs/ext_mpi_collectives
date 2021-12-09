@@ -83,6 +83,7 @@ int MPI_Request_free(MPI_Request *request){
   int handle=ext_mpi_hash_search(request);
   if (handle >= 0){
     EXT_MPI_Done(handle);
+    ext_mpi_hash_delete(request);
   }
   return PMPI_Request_free(request);
 }

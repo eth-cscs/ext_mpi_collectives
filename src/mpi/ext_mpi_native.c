@@ -567,10 +567,6 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       if (active_wait) {
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
-// FIXME
-//for (i2=0;i2<i1;i2++){
-//  MPI_Wait(((MPI_Request *)p1)+i2, MPI_STATUS_IGNORE);
-//}
         MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
       } else {
         *ip_exec = ip - 1;
@@ -594,8 +590,8 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         p3 = code_get_pointer(&ip);
         exec_waitany(i1, i2, p3, &ip);
       } else {
-printf("not implemented");
-exit(11);
+        printf("not implemented");
+        exit(2);
         *ip_exec = ip - 1;
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
