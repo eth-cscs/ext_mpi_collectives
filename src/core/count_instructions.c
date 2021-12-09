@@ -448,6 +448,11 @@ int ext_mpi_simulate_native(char *ip) {
       printf("MPI_Recv %p %d %d\n", (void *)p1, i1, i2);
 #endif
       break;
+    case OPCODE_ATTACHED:
+#ifdef VERBOSE_PRINT
+      printf("attached\n");
+#endif
+      break;
     case OPCODE_LOCALMEM:
       i1 = code_get_int(&ip);
       n_r = code_get_int(&ip);
@@ -609,6 +614,8 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
       for (i = 0; i < n_r; i++) {
         code_get_int(&ip);
       }
+      break;
+    case OPCODE_ATTACHED:
       break;
 #ifdef GPU_ENABLED
     case OPCODE_GPUSYNCHRONIZE:

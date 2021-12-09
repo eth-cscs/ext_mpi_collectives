@@ -7,7 +7,7 @@
 #include <string.h>
 
 int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
-  int nbuffer_out = 0, nbuffer_in = 0, i, flag, nwait, o1, nattached=0;
+  int nbuffer_out = 0, nbuffer_in = 0, i, flag, nwait, o1, nattached=0, flag2=0;
   char line[1000];
   enum eassembler_type estring1, estring2;
   struct parameters_block *parameters;
@@ -30,32 +30,29 @@ int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
                                   buffer_out + nbuffer_out, ewaitany, nwait, 1, estring2, o1,
                                   parameters->ascii_out);
           nattached=0;
-        }else if (estring1 == ememcpy) {
+	  flag2=1;
+        }else if (flag2 && ((estring1 == ememcpy)||(estring1 == ereturn)||(estring1 == eirecv))) {
           for (i=nattached; i<nwait; i++){
             nbuffer_out += write_assembler_line_s(
                                 buffer_out + nbuffer_out, eattached,
                                 parameters->ascii_out);
           }
           nattached=nwait;
+	    flag2=0;
           nbuffer_out += write_line(buffer_out + nbuffer_out, line,
                                     parameters->ascii_out);
-        }else if (estring1 != ereduce) {
+        }else if ((estring1 != ereduce) || (!flag2)) {
           nbuffer_out += write_line(buffer_out + nbuffer_out, line,
                                     parameters->ascii_out);
-        }else{
+        }else if (estring1 == ereduce){
           nbuffer_out += write_line(buffer_out + nbuffer_out, line,
                                     parameters->ascii_out);
           nbuffer_out += write_assembler_line_s(
                                   buffer_out + nbuffer_out, eattached,
                                   parameters->ascii_out);
           nattached++;
-          if (nattached == nwait/2){
-            for (i=nattached; i<nwait; i++){
-              nbuffer_out += write_assembler_line_s(
-                                  buffer_out + nbuffer_out, eattached,
-                                  parameters->ascii_out);
-            }
-            nattached=nwait;
+          if (nattached==nwait){
+	    flag2=0;
           }
         }
       }

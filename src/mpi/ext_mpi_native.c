@@ -459,12 +459,11 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
             done++;
             break;
           }
+	  default:{
+	    printf("illegal opcode in exec_waitany\n");
+	    exit(1);
           }
-        }
-        for (count=0; count<num_wait; count++) {
-index=count;
-//   MPI_Wait( ((MPI_Request *)p3)+index, MPI_STATUS_IGNORE);
-//	MPI_Waitall(1, ((MPI_Request *)p3)+index, MPI_STATUSES_IGNORE);
+          }
         }
         for (count=0; count<num_wait; count++) {
             MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
@@ -561,6 +560,10 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       if (active_wait) {
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
+// FIXME
+//for (i2=0;i2<i1;i2++){
+//  MPI_Wait(((MPI_Request *)p1)+i2, MPI_STATUS_IGNORE);
+//}
         MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
       } else {
         *ip_exec = ip - 1;
@@ -584,6 +587,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         p3 = code_get_pointer(&ip);
         exec_waitany(i1, i2, p3, &ip);
       } else {
+printf("not implemented");
 exit(11);
         *ip_exec = ip - 1;
         i1 = code_get_int(&ip);
@@ -679,6 +683,8 @@ exit(11);
       i1 = code_get_int(&ip);
       MPI_Recv((void *)p1, i1, MPI_CHAR, code_get_int(&ip), 0,
                EXT_MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      break;
+    case OPCODE_ATTACHED:
       break;
 #ifdef GPU_ENABLED
     case OPCODE_GPUSYNCHRONIZE:
