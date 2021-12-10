@@ -108,6 +108,26 @@ int MPI_Wait(MPI_Request *request, MPI_Status *status){
   }
 }
 
+int MPI_Waitall(int count, MPI_Request array_of_requests[], MPI_Status array_of_statuses[]){
+  int ret, i;
+  if (array_of_statuses == MPI_STATUSES_IGNORE){
+    for (i=0; i<count; i++){
+      ret = MPI_Wait(&array_of_requests[i], MPI_STATUS_IGNORE);
+      if (ret != MPI_SUCCESS){
+        return ret;
+      }
+    }
+  }else{
+    for (i=0; i<count; i++){
+      ret = MPI_Wait(&array_of_requests[i], &array_of_statuses[i]);
+      if (ret != MPI_SUCCESS){
+        return ret;
+      }
+    }
+  }
+  return MPI_SUCCESS;
+}
+
 int MPI_Test(MPI_Request *request, int *flag, MPI_Status *status){
   int handle=ext_mpi_hash_search(request);
   if (handle >= 0){
