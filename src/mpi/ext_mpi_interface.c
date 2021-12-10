@@ -92,7 +92,7 @@ int MPI_Start(MPI_Request *request){
   int handle=ext_mpi_hash_search(request);
   if (handle >= 0){
     EXT_MPI_Start(handle);
-    return 0;
+    return MPI_SUCCESS;
   }else{
     return PMPI_Start(request);
   }
@@ -102,7 +102,7 @@ int MPI_Wait(MPI_Request *request, MPI_Status *status){
   int handle=ext_mpi_hash_search(request);
   if (handle >= 0){
     EXT_MPI_Wait(handle);
-    return 0;
+    return MPI_SUCCESS;
   }else{
     return PMPI_Wait(request, status);
   }
@@ -112,7 +112,7 @@ int MPI_Test(MPI_Request *request, int *flag, MPI_Status *status){
   int handle=ext_mpi_hash_search(request);
   if (handle >= 0){
     *flag=EXT_MPI_Test(handle);
-    return 0;
+    return MPI_SUCCESS;
   }else{
     return PMPI_Test(request, flag, status);
   }
