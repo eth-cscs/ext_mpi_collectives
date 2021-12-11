@@ -437,10 +437,42 @@ static int node_cycl_btest(volatile char *shmem, int *barrier_count,
              CACHE_LINE_SIZE)))) % 10000 >= i;
 }
 
+static void reduce_waitany(void ***pointers, int *sizes, int num_red, int op_reduce){
+  void *p1, *p2;
+  int red_it, i1, i;
+            for (red_it = 0; red_it<num_red; red_it++) {
+              p1 = pointers[red_it][0];
+              p2 = pointers[red_it][1];
+              i1 = sizes[red_it];
+              switch (op_reduce) {
+              case OPCODE_REDUCE_SUM_DOUBLE:
+                for (i = 0; i < i1; i++) {
+                  ((double *)p1)[i] += ((double *)p2)[i];
+                }
+                break;
+              case OPCODE_REDUCE_SUM_LONG_INT:
+                for (i = 0; i < i1; i++) {
+                  ((long int *)p1)[i] += ((long int *)p2)[i];
+                }
+                break;
+              case OPCODE_REDUCE_SUM_FLOAT:
+                for (i = 0; i < i1; i++) {
+                  ((float *)p1)[i] += ((float *)p2)[i];
+                }
+                break;
+              case OPCODE_REDUCE_SUM_INT:
+                for (i = 0; i < i1; i++) {
+                  ((int *)p1)[i] += ((int *)p2)[i];
+                }
+                break;
+              }
+            }
+}
+
 void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
-  void *pointers[num_wait][num_red_max][2], *p1, *p2;
-  int sizes[num_wait][num_red_max], num_red[num_wait], done = 0, red_it = 0, i1, count, index, num_waitall, i;
-        char op, op_reduce=255;
+  void *pointers[num_wait][abs(num_red_max)][2], *pointers_temp[abs(num_red_max)];
+  int sizes[num_wait][abs(num_red_max)], num_red[num_wait], done = 0, red_it = 0, count, index, num_waitall, target_index, not_moved, i;
+        char op, op_reduce=-1;
         for (i=0; i<num_wait; i++){
           num_red[i]=0;
         }
@@ -465,42 +497,50 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           }
           }
         }
-	num_waitall=0;
+        if (num_red_max>=0){
         for (count=0; count<num_wait; count++) {
-	  if (!num_red[count]){
-	    MPI_Wait((MPI_Request *)p3+count, MPI_STATUS_IGNORE);
-	    num_waitall++;
-	  }
-        }
-        for (count=0; count<num_wait-num_waitall; count++) {
             MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
-            for (red_it = 0; red_it<num_red[index]; red_it++) {
-              p1 = pointers[index][red_it][0];
-              p2 = pointers[index][red_it][1];
-              i1 = sizes[index][red_it];
-              switch (op_reduce) {
-              case OPCODE_REDUCE_SUM_DOUBLE:
-                for (i = 0; i < i1; i++) {
-                  ((double *)p1)[i] += ((double *)p2)[i];
+            reduce_waitany((void ***)pointers[index], sizes[index], num_red[index], op_reduce);
+        }
+        }else{
+        num_waitall=0;
+        for (count=0; count<num_wait; count++) {
+          if (num_red[count]==0){
+            num_waitall++;
+          }
+        }
+        target_index = -1;
+        not_moved = 0;
+        for (count=0; count<num_wait; count++) {
+            MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
+            if (!num_red[index]){
+              num_waitall--;
+              if ((!num_waitall)&&not_moved){
+                num_red[index] = num_red[target_index];
+                for (red_it = 0; red_it<num_red[index]; red_it++) {
+                  pointers[index][red_it][0] = pointers_temp[red_it];
+                  pointers[index][red_it][1] = pointers[target_index][red_it][0];
                 }
-                break;
-              case OPCODE_REDUCE_SUM_LONG_INT:
-                for (i = 0; i < i1; i++) {
-                  ((long int *)p1)[i] += ((long int *)p2)[i];
+                reduce_waitany((void ***)pointers[index], sizes[index], num_red[index], op_reduce);
+                not_moved = 0;
+              }
+            }else{
+              if (num_waitall){
+                if (target_index < 0){
+                  target_index = index;
+                  not_moved = 1;
+                }else{
+                  for (red_it = 0; red_it<num_red[index]; red_it++) {
+                    pointers_temp[red_it] = pointers[index][red_it][0];
+                    pointers[index][red_it][0] = pointers[target_index][red_it][1];
+                  }
+                  reduce_waitany((void ***)pointers[index], sizes[index], num_red[index], op_reduce);
                 }
-                break;
-              case OPCODE_REDUCE_SUM_FLOAT:
-                for (i = 0; i < i1; i++) {
-                  ((float *)p1)[i] += ((float *)p2)[i];
-                }
-                break;
-              case OPCODE_REDUCE_SUM_INT:
-                for (i = 0; i < i1; i++) {
-                  ((int *)p1)[i] += ((int *)p2)[i];
-                }
-                break;
+              }else{
+                reduce_waitany((void ***)pointers[index], sizes[index], num_red[index], op_reduce);
               }
             }
+        }
         }
 }
 
