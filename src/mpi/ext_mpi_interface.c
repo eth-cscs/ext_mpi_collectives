@@ -108,8 +108,21 @@ int MPI_Wait(MPI_Request *request, MPI_Status *status){
   }
 }
 
+static int is_in_request_array(int count, MPI_Request array_of_requests[]){
+  int i;
+  for (i=0; i<count; i++){
+    if (ext_mpi_hash_search(&array_of_requests[i])>=0){
+      return 1;
+    }
+  }
+  return 0;
+}
+
 int MPI_Waitall(int count, MPI_Request array_of_requests[], MPI_Status array_of_statuses[]){
   int ret, i;
+  if (!is_in_request_array(count, array_of_requests)){
+    return PMPI_Waitall(count, array_of_requests, array_of_statuses);
+  }
   if (array_of_statuses == MPI_STATUSES_IGNORE){
     for (i=0; i<count; i++){
       ret = MPI_Wait(&array_of_requests[i], MPI_STATUS_IGNORE);
@@ -128,6 +141,38 @@ int MPI_Waitall(int count, MPI_Request array_of_requests[], MPI_Status array_of_
   return MPI_SUCCESS;
 }
 
+int MPI_Waitany(int count, MPI_Request array_of_requests[], int *indx, MPI_Status *status){
+  int ret, flag, i;
+  if (!is_in_request_array(count, array_of_requests)){
+    return PMPI_Waitany(count, array_of_requests, indx, status);
+  }
+  while (1){
+    for (i=0; i<count; i++){
+      ret = MPI_Test(&array_of_requests[i], &flag, status);
+      if (ret != MPI_SUCCESS){
+        return ret;
+      }
+      if (flag){
+        *indx = i;
+        return MPI_SUCCESS;
+      }
+    }
+  }
+  return MPI_SUCCESS;
+}
+
+int MPI_Waitsome(int incount, MPI_Request array_of_requests[], int *outcount, int array_of_indices[], MPI_Status array_of_statuses[]){
+  if (!is_in_request_array(incount, array_of_requests)){
+    return PMPI_Waitsome(incount, array_of_requests, outcount, array_of_indices, array_of_statuses);
+  }
+  *outcount = 1;
+  if (array_of_statuses == MPI_STATUSES_IGNORE){
+    return MPI_Waitany(incount, array_of_requests, &array_of_indices[0], MPI_STATUS_IGNORE);
+  }else{
+    return MPI_Waitany(incount, array_of_requests, &array_of_indices[0], &array_of_statuses[0]);
+  }
+}
+
 int MPI_Test(MPI_Request *request, int *flag, MPI_Status *status){
   int handle=ext_mpi_hash_search(request);
   if (handle >= 0){
@@ -135,6 +180,66 @@ int MPI_Test(MPI_Request *request, int *flag, MPI_Status *status){
     return MPI_SUCCESS;
   }else{
     return PMPI_Test(request, flag, status);
+  }
+}
+
+int MPI_Testall(int count, MPI_Request array_of_requests[], int *flag, MPI_Status array_of_statuses[]){
+  int ret, lflag, i;
+  if (!is_in_request_array(count, array_of_requests)){
+    return PMPI_Testall(count, array_of_requests, flag, array_of_statuses);
+  }
+  if (array_of_statuses == MPI_STATUSES_IGNORE){
+    *flag = 1;
+    for (i=0; i<count; i++){
+      ret = MPI_Test(&array_of_requests[i], &lflag, MPI_STATUS_IGNORE);
+      if (ret != MPI_SUCCESS){
+        return ret;
+      }
+      if (!lflag) flag=0;
+    }
+  }else{
+    *flag = 1;
+    for (i=0; i<count; i++){
+      ret = MPI_Test(&array_of_requests[i], &lflag, &array_of_statuses[i]);
+      if (ret != MPI_SUCCESS){
+        return ret;
+      }
+      if (!lflag) *flag=0;
+    }
+  }
+  return MPI_SUCCESS;
+}
+
+int MPI_Testany(int count, MPI_Request array_of_requests[], int *indx, int *flag, MPI_Status *status){
+  int ret, lflag, i;
+  if (!is_in_request_array(count, array_of_requests)){
+    return PMPI_Testany(count, array_of_requests, indx, flag, status);
+  }
+  *flag = 0;
+  for (i=0; i<count; i++){
+    ret = MPI_Test(&array_of_requests[i], &lflag, status);
+    if (ret != MPI_SUCCESS){
+      return ret;
+    }
+    if (lflag){
+      *flag = 1;
+      *indx = i;
+      return MPI_SUCCESS;
+    }
+  }
+  return MPI_SUCCESS;
+}
+
+int MPI_Testsome(int incount, MPI_Request array_of_requests[], int *outcount, int array_of_indices[], MPI_Status array_of_statuses[]){
+  int flag;
+  if (!is_in_request_array(incount, array_of_requests)){
+    return PMPI_Testsome(incount, array_of_requests, outcount, array_of_indices, array_of_statuses);
+  }
+  *outcount = 1;
+  if (array_of_statuses == MPI_STATUSES_IGNORE){
+    return MPI_Testany(incount, array_of_requests, &array_of_indices[0], &flag, MPI_STATUS_IGNORE);
+  }else{
+    return MPI_Testany(incount, array_of_requests, &array_of_indices[0], &flag, &array_of_statuses[0]);
   }
 }
 
