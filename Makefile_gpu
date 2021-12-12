@@ -17,9 +17,9 @@ TESTS = $(wildcard tests/*.c)
 TESTSBIN = $(subst tests,bin,$(TESTS:.c=.x))
 
 .PHONY: all clean
-all: lib/libext_mpi_collectives.a $(TESTSBIN) src/gpu/gpu_core.o
+all: lib/libext_mpi_collectives.a $(TESTSBIN) obj/gpu/gpu_core.o
 
-lib/libext_mpi_collectives.a: $(OBJECTS)
+lib/libext_mpi_collectives.a: $(OBJECTS) obj/gpu/gpu_core.o
 	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/gpu/*.o
 
 DEPFLAGS = -MMD -MT $(OBJ)/$*.o -MP -MF $(DEPDIR)/$*.d
@@ -44,7 +44,7 @@ $(DEPFILES):
 
 include $(DEPFILES)
 
-src/gpu/gpu_core.o: src/gpu/gpu_core.cu
+obj/gpu/gpu_core.o: src/gpu/gpu_core.cu
 	$(NVCC) -c $(NVCFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) src/gpu/gpu_core.cu
 
 obj/%.o: .deps/%.d

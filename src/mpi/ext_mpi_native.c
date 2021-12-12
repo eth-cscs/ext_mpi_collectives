@@ -1197,7 +1197,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
   if (gpu_is_device_pointer(recvbuf)) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " GPU_ENABLED 1\n");
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
   free(msizes);
@@ -1484,7 +1484,7 @@ int EXT_MPI_Gatherv_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
   if (gpu_is_device_pointer(recvbuf)) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " GPU_ENABLED 1\n");
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
@@ -1711,7 +1711,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
   if (gpu_is_device_pointer(recvbuf)) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " GPU_ENABLED 1\n");
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
@@ -1930,7 +1930,7 @@ int EXT_MPI_Reduce_scatter_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
   if (gpu_is_device_pointer(recvbuf)) {
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " GPU_ENABLED 1\n");
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)

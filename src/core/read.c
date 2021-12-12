@@ -83,6 +83,9 @@ int read_parameters(char *buffer_in, struct parameters_block **parameters) {
     memcpy(*parameters, buffer_in + nbuffer_in, sizeof(**parameters));
     nbuffer_in += sizeof(**parameters);
     (*parameters)->in_place = 0;
+#ifdef GPU_ENABLED
+    (*parameters)->on_gpu = 0;
+#endif
     (*parameters)->ascii_in = 0;
     (*parameters)->counts = NULL;
     (*parameters)->num_ports = NULL;
@@ -197,6 +200,9 @@ int read_parameters(char *buffer_in, struct parameters_block **parameters) {
   (*parameters)->shmem_buffer_offset_max = 0;
   (*parameters)->root = -1;
   (*parameters)->in_place = 0;
+#ifdef GPU_ENABLED
+  (*parameters)->on_gpu = 0;
+#endif
   do {
     if (sscanf(buffer_in_copy, "%99s %99s %d", string1, string2, &integer1) >
         0) {
@@ -212,6 +218,11 @@ int read_parameters(char *buffer_in, struct parameters_block **parameters) {
         if (strcmp(string2, "IN_PLACE") == 0) {
           (*parameters)->in_place = 1;
         }
+#ifdef GPU_ENABLED
+        if (strcmp(string2, "ON_GPU") == 0) {
+          (*parameters)->on_gpu = 1;
+        }
+#endif
         if (strcmp(string2, "ASCII") == 0) {
           (*parameters)->ascii_out = 1;
         }
@@ -542,6 +553,12 @@ int write_parameters(struct parameters_block *parameters, char *buffer_out) {
     nbuffer_out +=
         sprintf(buffer_out + nbuffer_out, " PARAMETER IN_PLACE\n");
   }
+#ifdef GPU_ENABLED
+  if (parameters->on_gpu) {
+    nbuffer_out +=
+        sprintf(buffer_out + nbuffer_out, " PARAMETER ON_GPU\n");
+  }
+#endif
   if (parameters->verbose) {
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER VERBOSE\n");
   }

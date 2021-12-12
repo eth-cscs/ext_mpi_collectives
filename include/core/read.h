@@ -26,9 +26,6 @@ enum edata_type {
   data_type_double
 };
 enum eassembler_type {
-#ifdef GPU_ENABLED
-  egpu_enabled,
-#endif
   eset_num_cores,
   eset_node_rank,
   enode_barrier,
@@ -90,6 +87,9 @@ struct parameters_block {
   int *shmem_buffer_offset;
   int shmem_buffer_offset_max;
   int root;
+#ifdef GPU_ENABLED
+  int on_gpu;
+#endif
 };
 
 struct data_line {

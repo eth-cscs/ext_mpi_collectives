@@ -310,13 +310,14 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
   char *gpu_byte_code = NULL;
-  int on_gpu = 0, reduce, isend = 1, added = 0;
+  int on_gpu, reduce, isend = 1, added = 0;
   struct gpu_stream *streams = NULL;
   void *p1, *p2;
 #endif
   struct parameters_block *parameters;
   buffer_in += read_parameters(buffer_in, &parameters);
   ascii = parameters->ascii_in;
+  on_gpu = parameters->on_gpu;
   delete_parameters(parameters);
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
@@ -342,25 +343,24 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
     header->gpu_byte_code = NULL;
 #endif
   }
+#ifdef GPU_ENABLED
+  if (on_gpu) {
+    if (!isdryrun) {
+      gpu_byte_code = (char *)malloc(*gpu_byte_code_counter);
+      if (!gpu_byte_code)
+        goto error;
+      memset(gpu_byte_code, 0, *gpu_byte_code_counter);
+      gpu_malloc((void **)&header->gpu_byte_code, *gpu_byte_code_counter);
+      *gpu_byte_code_counter = 0;
+    } else {
+      gpu_byte_code = NULL;
+    }
+  }
+#endif
   ip += sizeof(struct header_byte_code);
   while ((integer1 = read_line(buffer_in, line, ascii)) > 0) {
     buffer_in += integer1;
     read_assembler_line_sd(line, &estring1, &integer1, 0);
-#ifdef GPU_ENABLED
-    if (estring1 == egpu_enabled) {
-      on_gpu = 1;
-      if (!isdryrun) {
-        gpu_byte_code = (char *)malloc(*gpu_byte_code_counter);
-        if (!gpu_byte_code)
-          goto error;
-        memset(gpu_byte_code, 0, *gpu_byte_code_counter);
-        gpu_malloc((void **)&header->gpu_byte_code, *gpu_byte_code_counter);
-        *gpu_byte_code_counter = 0;
-      } else {
-        gpu_byte_code = NULL;
-      }
-    }
-#endif
     if (estring1 == ereturn) {
 #ifdef GPU_ENABLED
       if (on_gpu) {

@@ -9,7 +9,7 @@
 #include <cuda_runtime_api.h>
 #endif
 
-#define MAX_MESSAGE_SIZE 1000
+#define MAX_MESSAGE_SIZE 10000000
 #define MPI_DATA_TYPE MPI_LONG
 #define NUM_CORES 12
 #define COLLECTIVE_TYPE 0
