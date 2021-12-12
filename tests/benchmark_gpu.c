@@ -3,10 +3,12 @@
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef GPU_ENABLED
 #ifdef __cplusplus
 #include <cuda_runtime.h>
 #else
 #include <cuda_runtime_api.h>
+#endif
 #endif
 
 #define MAX_MESSAGE_SIZE 10000000
@@ -32,8 +34,13 @@ int main(int argc, char *argv[]) {
 
   bufsize = type_size * MAX_MESSAGE_SIZE;
 
+#ifdef GPU_ENABLED
   cudaMalloc(&sendbuf, bufsize);
   cudaMalloc(&recvbuf, bufsize);
+#else
+  sendbuf = malloc(bufsize);
+  recvbuf = malloc(bufsize);
+#endif
   counts = (int*)malloc(numprocs*sizeof(int));
   displs = (int*)malloc(numprocs*sizeof(int));
 
@@ -171,8 +178,13 @@ int main(int argc, char *argv[]) {
 
   free(displs);
   free(counts);
+#ifdef GPU_ENABLED
   cudaFree(sendbuf);
   cudaFree(recvbuf);
+#else
+  free(sendbuf);
+  free(recvbuf);
+#endif
 
   MPI_Finalize();
 

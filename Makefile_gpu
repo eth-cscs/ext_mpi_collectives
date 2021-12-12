@@ -8,8 +8,8 @@ INCLUDE = -I. -Iinclude/core -Iinclude/mpi -Iinclude/gpu
 DEPDIR := .deps
 directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(BIN); mkdir -p lib))
 
-CFLAGS = -g -O0 -Wall $(INCLUDE) -DDEBUG -DM_MAP -DGPU_ENABLED
-NVCFLAGS = -g -O0 $(INCLUDE) -DDEBUG -DM_MAP -DGPU_ENABLED
+CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DM_MAP -DGPU_ENABLED
+NVCFLAGS = -g -O2 $(INCLUDE) -DDEBUG -DM_MAP -DGPU_ENABLED
 
 SOURCES = $(wildcard src/core/*.c src/mpi/*.c src/gpu/*.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))

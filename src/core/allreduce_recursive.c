@@ -1,4 +1,4 @@
-#include "allreduce.h"
+#include "allreduce_recursive.h"
 #include "allreduce_bit.h"
 #include "constants.h"
 #include "read.h"

@@ -317,7 +317,9 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
   struct parameters_block *parameters;
   buffer_in += read_parameters(buffer_in, &parameters);
   ascii = parameters->ascii_in;
+#ifdef GPU_ENABLED
   on_gpu = parameters->on_gpu;
+#endif
   delete_parameters(parameters);
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
