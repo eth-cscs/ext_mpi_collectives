@@ -1231,7 +1231,7 @@ int EXT_MPI_Allreduce_init_general(const void *sendbuf, void *recvbuf, int count
   int comm_size_row, comm_rank_row;
   int type_size, i, j;
 #ifdef GPU_ENABLED
-  void *sendbuf_h = NULL, *recvbuf_h = NULL, *recvbuf_ref_h = NULL;
+  void *sendbuf_hh = NULL, *recvbuf_hh = NULL, *recvbuf_ref_hh = NULL;
 #endif
   int world_rankd;
   void *recvbuf_ref = NULL, *sendbuf_h = NULL;
@@ -1240,50 +1240,77 @@ int EXT_MPI_Allreduce_init_general(const void *sendbuf, void *recvbuf, int count
   MPI_Type_size(datatype, &type_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rankd);
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(sendbuf)) {
+  if (gpu_is_device_pointer(recvbuf)) {
+    sendbuf_hh = (long int *)malloc(count * type_size);
+    if (!sendbuf_hh)
+      goto error;
+    recvbuf_hh = (long int *)malloc(count * type_size);
+    if (!recvbuf_hh)
+      goto error;
+    recvbuf_ref_hh = (long int *)malloc(count * type_size);
+    if (!recvbuf_ref_hh)
+      goto error;
     gpu_malloc(&recvbuf_ref, count * type_size);
-    sendbuf_h = (long int *)malloc(count * type_size);
-    if (!sendbuf_h)
+    if (!recvbuf_ref)
       goto error;
-    recvbuf_h = (long int *)malloc(count * type_size);
-    if (!recvbuf_h)
-      goto error;
-    recvbuf_ref_h = (long int *)malloc(count * type_size);
-    if (!recvbuf_ref_h)
-      goto error;
-    sendbuf_org = (long int *)malloc(count * type_size);
-    if (!sendbuf_org)
-      goto error;
-    recvbuf_org = (long int *)malloc(count * type_size);
-    if (!recvbuf_org)
-      goto error;
-    gpu_memcpy_dh(sendbuf_org, sendbuf, count * type_size);
-    gpu_memcpy_dh(recvbuf_org, recvbuf, count * type_size);
-    for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
-      ((long int *)sendbuf_h)[i] = world_rankd * count + i;
+    if (sendbuf != MPI_IN_PLACE){
+      gpu_malloc(&sendbuf_h, count * type_size);
+      if (!sendbuf_h)
+        goto error;
+      for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
+        ((long int *)sendbuf_hh)[i] = world_rankd * count + i;
+        ((long int *)recvbuf_hh)[i] = -1;
+      }
+      if ((count * type_size) % (int)sizeof(long int)){
+        ((int *)sendbuf_hh)[count-1] = world_rankd * count + count - 1;
+      }
+      gpu_memcpy_hd(sendbuf_h, sendbuf_hh, count * type_size);
+      gpu_memcpy_hd(recvbuf, recvbuf_hh, count * type_size);
+    }else{
+      sendbuf_h = MPI_IN_PLACE;
+      for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
+        ((long int *)recvbuf_hh)[i] = world_rankd * count + i;
+      }
+      if ((count * type_size) % (int)sizeof(long int)){
+        ((int *)recvbuf_hh)[count-1] = world_rankd * count + count - 1;
+      }
+      gpu_memcpy_hd(recvbuf, recvbuf_hh, count * type_size);
+      gpu_memcpy_hd(recvbuf_ref, recvbuf_hh, count * type_size);
     }
-    gpu_memcpy_hd(sendbuf, sendbuf_h, count * type_size);
-    MPI_Allreduce(sendbuf, recvbuf_ref, count, MPI_LONG, MPI_SUM, comm_row);
+    if (type_size == sizeof(long int)){
+      MPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, comm_row);
+      if (allreduce_init_general(sendbuf_h, recvbuf, count, MPI_LONG, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle)<0)
+        goto error;
+    }else{
+      MPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_INT, op, comm_row);
+      if (allreduce_init_general(sendbuf_h, recvbuf, count, MPI_INT, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle)<0)
+        goto error;
+    }
     if (EXT_MPI_Start_native(*handle) < 0)
       goto error;
     if (EXT_MPI_Wait_native(*handle) < 0)
       goto error;
-    gpu_memcpy_dh(recvbuf_h, recvbuf, count * type_size);
-    gpu_memcpy_dh(recvbuf_ref_h, recvbuf_ref, count * type_size);
+    if (EXT_MPI_Done_native(*handle) < 0)
+      goto error;
+    gpu_memcpy_dh(recvbuf_hh, recvbuf, count * type_size);
+    gpu_memcpy_dh(recvbuf_ref_hh, recvbuf_ref, count * type_size);
     j = 0;
     for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
-      if (((long int *)recvbuf_h)[i] != ((long int *)recvbuf_ref_h)[i]) {
+      if (((long int *)recvbuf_hh)[i] != ((long int *)recvbuf_ref_hh)[i]) {
         j = 1;
       }
     }
-    gpu_memcpy_hd(recvbuf, recvbuf_org, count * type_size);
-    gpu_memcpy_hd(sendbuf, sendbuf_org, count * type_size);
-    free(sendbuf_org);
-    free(recvbuf_org);
-    free(recvbuf_ref_h);
-    free(recvbuf_h);
-    free(sendbuf_h);
-    gpu_free(recvbuf_ref);
+    if ((count * type_size) % (int)sizeof(long int)){
+      if (((int *)recvbuf_hh)[count-1] != ((int *)recvbuf_ref_hh)[count-1]){
+        j = 1;
+      }
+    }
+    if (sendbuf != MPI_IN_PLACE){
+      gpu_free(sendbuf_h);
+    }
+    free(recvbuf_ref_hh);
+    free(recvbuf_hh);
+    free(sendbuf_hh);
   } else {
 #endif
     recvbuf_ref = (long int *)malloc(count * type_size);
@@ -1355,11 +1382,19 @@ int EXT_MPI_Allreduce_init_general(const void *sendbuf, void *recvbuf, int count
 #ifdef DEBUG
 error:
 #ifdef GPU_ENABLED
-  free(sendbuf_org);
-  free(recvbuf_org);
-  free(recvbuf_ref_h);
-  free(recvbuf_h);
-  free(sendbuf_h);
+  free(recvbuf_ref_hh);
+  free(recvbuf_hh);
+  free(sendbuf_hh);
+  if (sendbuf != MPI_IN_PLACE){
+    if (gpu_is_device_pointer(recvbuf)) {
+      gpu_free(sendbuf_h);
+    }
+    sendbuf_h = NULL;
+  }
+  if (gpu_is_device_pointer(recvbuf)) {
+    gpu_free(recvbuf_ref);
+    recvbuf_ref = NULL;
+  }
 #endif
   if (sendbuf != MPI_IN_PLACE){
     free(sendbuf_h);
@@ -1550,7 +1585,7 @@ int EXT_MPI_Reduce_init_general(const void *sendbuf, void *recvbuf, int count,
 #ifdef DEBUG
   int comm_size_row, comm_rank_row, type_size, i, j;
 #ifdef GPU_ENABLED
-  void *sendbuf_h = NULL, *recvbuf_h = NULL, *recvbuf_ref_h = NULL;
+  void *recvbuf_hh = NULL, *recvbuf_ref_hh = NULL, *sendbuf_hh = NULL;
 #endif
   int world_rankd;
   void *recvbuf_ref = NULL, *sendbuf_h = NULL;
@@ -1561,50 +1596,45 @@ int EXT_MPI_Reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   if ((op == MPI_SUM) && (datatype == MPI_LONG)) {
 #ifdef GPU_ENABLED
     if (gpu_is_device_pointer(sendbuf)) {
-      gpu_malloc(&recvbuf_ref, count * type_size);
+      gpu_malloc(&sendbuf_h, count * type_size);
       sendbuf_h = (long int *)malloc(count * type_size);
       if (!sendbuf_h)
         goto error;
-      recvbuf_h = (long int *)malloc(count * type_size);
-      if (!recvbuf_h)
+      gpu_malloc(&recvbuf_ref, count * type_size);
+      if (!recvbuf_ref)
         goto error;
-      recvbuf_ref_h = (long int *)malloc(count * type_size);
-      if (!recvbuf_ref_h)
+      recvbuf_hh = (long int *)malloc(count * type_size);
+      if (!recvbuf_hh)
         goto error;
-      sendbuf_org = (long int *)malloc(count * type_size);
-      if (!sendbuf_org)
+      recvbuf_ref_hh = (long int *)malloc(count * type_size);
+      if (!recvbuf_ref_hh)
         goto error;
-      recvbuf_org = (long int *)malloc(count * type_size);
-      if (!recvbuf_org)
+      sendbuf_hh = (long int *)malloc(count * type_size);
+      if (!recvbuf_ref_hh)
         goto error;
-      gpu_memcpy_dh(sendbuf_org, sendbuf, count * type_size);
-      gpu_memcpy_dh(recvbuf_org, recvbuf, count * type_size);
       for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
-        ((long int *)sendbuf_h)[i] = world_rankd * count + i;
+        ((long int *)sendbuf_hh)[i] = world_rankd * count + i;
       }
-      gpu_memcpy_hd(sendbuf, sendbuf_h, count * type_size);
+      gpu_memcpy_hd(sendbuf_h, sendbuf_hh, count * type_size);
       MPI_Reduce(sendbuf, recvbuf_ref, count, MPI_LONG, MPI_SUM, root,
                  comm_row);
       EXT_MPI_Start_native(*handle);
       EXT_MPI_Wait_native(*handle);
-      gpu_memcpy_dh(recvbuf_h, recvbuf, count * type_size);
-      gpu_memcpy_dh(recvbuf_ref_h, recvbuf_ref, count * type_size);
+      gpu_memcpy_dh(recvbuf_hh, recvbuf, count * type_size);
+      gpu_memcpy_dh(recvbuf_ref_hh, recvbuf_ref, count * type_size);
       j = 0;
       if (root == comm_rank_row) {
         for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
-          if (((long int *)recvbuf_h)[i] != ((long int *)recvbuf_ref_h)[i]) {
+          if (((long int *)recvbuf_hh)[i] != ((long int *)recvbuf_ref_hh)[i]) {
             j = 1;
           }
         }
       }
-      gpu_memcpy_hd(recvbuf, recvbuf_org, count * type_size);
-      gpu_memcpy_hd(sendbuf, sendbuf_org, count * type_size);
-      free(sendbuf_org);
-      free(recvbuf_org);
-      free(recvbuf_ref_h);
-      free(recvbuf_h);
-      free(sendbuf_h);
+      free(recvbuf_ref_hh);
+      free(recvbuf_hh);
+      free(sendbuf_hh);
       gpu_free(recvbuf_ref);
+      gpu_free(sendbuf_h);
     } else {
 #endif
       recvbuf_ref = (long int *)malloc(count * type_size);
@@ -1666,9 +1696,15 @@ int EXT_MPI_Reduce_init_general(const void *sendbuf, void *recvbuf, int count,
 #ifdef DEBUG
 error:
 #ifdef GPU_ENABLED
-  free(recvbuf_ref_h);
-  free(recvbuf_h);
-  free(sendbuf_h);
+  free(recvbuf_ref_hh);
+  free(recvbuf_hh);
+  free(sendbuf_hh);
+  if (gpu_is_device_pointer(sendbuf)){
+    gpu_free(recvbuf_ref);
+    recvbuf_ref = NULL;
+    gpu_free(sendbuf_h);
+    sendbuf_h = NULL;
+  }
 #endif
   free(sendbuf_h);
   free(recvbuf_ref);
@@ -1884,7 +1920,7 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
 #ifdef DEBUG
   int comm_size_row, comm_rank_row, type_size, i, j;
 #ifdef GPU_ENABLED
-  void *sendbuf_h = NULL, *recvbuf_h = NULL, *recvbuf_ref_h = NULL;
+  void *buffer_hh = NULL, *buffer_ref_hh = NULL;
 #endif
   int world_rankd;
   void *buffer_ref = NULL, *buffer_org = NULL;
@@ -1893,8 +1929,10 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   MPI_Type_size(datatype, &type_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rankd);
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(sendbuf)) {
+  if (gpu_is_device_pointer(buffer)) {
     gpu_malloc(&recvbuf_ref, count * type_size);
+    if (!recvbuf_ref)
+      goto error;
     sendbuf_h = (long int *)malloc(count * type_size);
     if (!sendbuf_h)
       goto error;

@@ -26,6 +26,9 @@ enum edata_type {
   data_type_double
 };
 enum eassembler_type {
+#ifdef GPU_ENABLED
+  egpu_enabled,
+#endif
   eset_num_cores,
   eset_node_rank,
   enode_barrier,

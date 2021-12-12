@@ -57,12 +57,12 @@ static void gpu_delete_mem_addresses_range(struct mem_addresses **list) {
 static int gpu_is_in_mem_addresses_range(struct mem_addresses *list, void *dest,
                                          void *src, int size) {
   while (list) {
-    if ((((char *)dest + size) > (char *)list->src) &&
-            ((char *)dest < ((char *)list->src + list->size)) ||
-        (((char *)dest + size) > (char *)list->dest) &&
-            ((char *)dest < ((char *)list->dest + list->size)) ||
-        (((char *)src + size) > (char *)list->dest) &&
-            ((char *)src < ((char *)list->dest + list->size))) {
+    if (((((char *)dest + size) > (char *)list->src) &&
+            ((char *)dest < ((char *)list->src + list->size))) ||
+        ((((char *)dest + size) > (char *)list->dest) &&
+            ((char *)dest < ((char *)list->dest + list->size))) ||
+        ((((char *)src + size) > (char *)list->dest) &&
+            ((char *)src < ((char *)list->dest + list->size)))) {
       return 1;
     } else {
       list = list->next;
@@ -347,7 +347,7 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
     buffer_in += integer1;
     read_assembler_line_sd(line, &estring1, &integer1, 0);
 #ifdef GPU_ENABLED
-    if (strcmp(string1, "GPU_ENABLED") == 0) {
+    if (estring1 == egpu_enabled) {
       on_gpu = 1;
       if (!isdryrun) {
         gpu_byte_code = (char *)malloc(*gpu_byte_code_counter);
@@ -535,24 +535,24 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
         code_put_int(&ip, integer3, isdryrun);
 #ifdef GPU_ENABLED
       } else {
-        if (strcmp(string1, "MEMCPY") == 0) {
+        if (estring1 == ememcpy) {
           reduce = 0;
         } else {
           reduce = 1;
         }
-        if (strcmp(string1a, "SENDBUF+") == 0) {
+        if (estring1a == esendbufp) {
           p1 = sendbuf + integer1;
         } else {
-          if (strcmp(string1a, "RECVBUF+") == 0) {
+          if (estring1a == erecvbufp) {
             p1 = recvbuf + integer1;
           } else {
             p1 = ((char *)shmem) + integer1;
           }
         }
-        if (strcmp(string2, "SENDBUF+") == 0) {
+        if (estring2 == esendbufp) {
           p2 = sendbuf + integer2;
         } else {
-          if (strcmp(string2, "RECVBUF+") == 0) {
+          if (estring2 == erecvbufp) {
             p2 = recvbuf + integer2;
           } else {
             p2 = ((char *)shmem) + integer2;

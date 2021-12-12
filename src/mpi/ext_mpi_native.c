@@ -935,18 +935,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     goto error;
   setup_rank_translation(comm_row, my_cores_per_node_row, comm_column,
                          my_cores_per_node_column, global_ranks);
-#ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(sendbuf)) {
-    buffer_temp = (char *)malloc(strlen(buffer) + 100);
-    if (!buffer_temp)
-      goto error;
-    buffer_temp_org = buffer_temp;
-    sprintf(buffer_temp, " GPU_ENABLED 1\n%s", buffer);
-  } else {
-    buffer_temp = strdup(buffer);
-    buffer_temp_org = buffer_temp;
-  }
-#endif
   if (comm_row != MPI_COMM_NULL) {
     tag = tag_max;
     MPI_Allreduce(MPI_IN_PLACE, &tag, 1, MPI_INT, MPI_MAX, comm_row);
@@ -967,20 +955,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   ip = comm_code[handle] = (char *)malloc(code_size);
   if (!ip)
     goto error;
-#ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(sendbuf)) {
-    buffer_temp = (char *)malloc(strlen(buffer) + 100);
-    if (!buffer_temp)
-      goto error;
-    buffer_temp_org = buffer_temp;
-    sprintf(buffer_temp, " GPU_ENABLED 1\n%s", buffer);
-  } else {
-    buffer_temp = strdup(buffer);
-    if (!buffer_temp)
-      goto error;
-    buffer_temp_org = buffer_temp;
-  }
-#endif
   if (ext_mpi_generate_byte_code(
           shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
           (char *)recvbuf, my_shared_buf, locmem, reduction_op,
@@ -1009,16 +983,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                               shmem_comm_node_column, my_cores_per_node_column,
                               shmem_size - barriers_size, shmemid_gpu,
                               &my_shared_buf);
-      buffer_temp = (char *)malloc(strlen(buffer) + 100);
-      if (!buffer_temp)
-        goto error;
-      buffer_temp_org = buffer_temp;
-      sprintf(buffer_temp, " GPU_ENABLED 1\n%s", buffer);
-    } else {
-      buffer_temp = strdup(buffer);
-      if (!buffer_temp)
-        goto error;
-      buffer_temp_org = buffer_temp;
     }
 #endif
     if (ext_mpi_generate_byte_code(
@@ -1231,6 +1195,11 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER IN_PLACE\n");
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+#ifdef GPU_ENABLED
+  if (gpu_is_device_pointer(recvbuf)) {
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " GPU_ENABLED 1\n");
+  }
+#endif
   free(msizes);
   msizes = NULL;
   if (recursive) {
@@ -1513,6 +1482,11 @@ int EXT_MPI_Gatherv_init_native(
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER DATA_TYPE FLOAT\n");
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+#ifdef GPU_ENABLED
+  if (gpu_is_device_pointer(recvbuf)) {
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " GPU_ENABLED 1\n");
+  }
+#endif
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
   if (recursive) {
@@ -1735,6 +1709,11 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER DATA_TYPE FLOAT\n");
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+#ifdef GPU_ENABLED
+  if (gpu_is_device_pointer(recvbuf)) {
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " GPU_ENABLED 1\n");
+  }
+#endif
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
   if (recursive) {
@@ -1949,6 +1928,11 @@ int EXT_MPI_Reduce_scatter_init_native(
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER DATA_TYPE FLOAT\n");
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+#ifdef GPU_ENABLED
+  if (gpu_is_device_pointer(recvbuf)) {
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " GPU_ENABLED 1\n");
+  }
+#endif
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
   if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
