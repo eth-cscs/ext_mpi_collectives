@@ -437,12 +437,12 @@ static int node_cycl_btest(volatile char *shmem, int *barrier_count,
              CACHE_LINE_SIZE)))) % 10000 >= i;
 }
 
-static void reduce_waitany(void ***pointers, int *sizes, int num_red, int op_reduce){
+static void reduce_waitany(void **pointers_to, void **pointers_from, int *sizes, int num_red, int op_reduce){
   void *p1, *p2;
   int red_it, i1, i;
             for (red_it = 0; red_it<num_red; red_it++) {
-              p1 = pointers[red_it][0];
-              p2 = pointers[red_it][1];
+              p1 = pointers_to[red_it];
+              p2 = pointers_from[red_it];
               i1 = sizes[red_it];
               switch (op_reduce) {
               case OPCODE_REDUCE_SUM_DOUBLE:
@@ -470,7 +470,7 @@ static void reduce_waitany(void ***pointers, int *sizes, int num_red, int op_red
 }
 
 void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
-  void *pointers[num_wait][abs(num_red_max)][2], *pointers_temp[abs(num_red_max)];
+  void *pointers[num_wait][2][abs(num_red_max)], *pointers_temp[abs(num_red_max)];
   int sizes[num_wait][abs(num_red_max)], num_red[num_wait], done = 0, red_it = 0, count, index, num_waitall, target_index, not_moved, i;
         char op, op_reduce=-1;
         for (i=0; i<num_wait; i++){
@@ -481,8 +481,8 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           switch (op) {
           case OPCODE_REDUCE: {
             op_reduce = code_get_char(ip);
-            pointers[done][num_red[done]][0] = code_get_pointer(ip);
-            pointers[done][num_red[done]][1] = code_get_pointer(ip);
+            pointers[done][0][num_red[done]] = code_get_pointer(ip);
+            pointers[done][1][num_red[done]] = code_get_pointer(ip);
             sizes[done][num_red[done]] = code_get_int(ip);
             num_red[done]++;
             break;
@@ -500,12 +500,12 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
         if (num_red_max>=0){
         for (count=0; count<num_wait; count++) {
             MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
-            reduce_waitany((void ***)pointers[index], sizes[index], num_red[index], op_reduce);
+            reduce_waitany(pointers[index][0], pointers[index][1], sizes[index], num_red[index], op_reduce);
         }
         }else{
         num_waitall=0;
         for (count=0; count<num_wait; count++) {
-          if (num_red[count]==0){
+          if (!num_red[count]){
             num_waitall++;
           }
         }
@@ -516,28 +516,26 @@ void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
             if (!num_red[index]){
               num_waitall--;
               if ((!num_waitall)&&not_moved){
-                num_red[index] = num_red[target_index];
-                for (red_it = 0; red_it<num_red[index]; red_it++) {
-                  pointers[index][red_it][0] = pointers_temp[red_it];
-                  pointers[index][red_it][1] = pointers[target_index][red_it][0];
-                }
-                reduce_waitany((void ***)pointers[index], sizes[index], num_red[index], op_reduce);
+                reduce_waitany(pointers_temp, pointers[target_index][1], sizes[target_index], num_red[target_index], op_reduce);
                 not_moved = 0;
               }
             }else{
               if (num_waitall){
-                if (target_index < 0){
+                if (!not_moved){
                   target_index = index;
                   not_moved = 1;
-                }else{
                   for (red_it = 0; red_it<num_red[index]; red_it++) {
-                    pointers_temp[red_it] = pointers[index][red_it][0];
-                    pointers[index][red_it][0] = pointers[target_index][red_it][1];
+                    pointers_temp[red_it] = pointers[index][0][red_it];
                   }
-                  reduce_waitany((void ***)pointers[index], sizes[index], num_red[index], op_reduce);
+                }else{
+                  reduce_waitany(pointers[target_index][1], pointers[index][1], sizes[index], num_red[index], op_reduce);
                 }
               }else{
-                reduce_waitany((void ***)pointers[index], sizes[index], num_red[index], op_reduce);
+		if (!not_moved){
+                  reduce_waitany(pointers[index][0], pointers[index][1], sizes[index], num_red[index], op_reduce);
+                }else{
+                  reduce_waitany(pointers[target_index][1], pointers[index][1], sizes[index], num_red[index], op_reduce);
+		}
               }
             }
         }
@@ -1276,13 +1274,6 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     goto error;
   if (ext_mpi_generate_optimise_buffers2(buffer2, buffer1) < 0)
     goto error;
-  if (waitany&&recursive) {
-    if (ext_mpi_generate_waitany(buffer1, buffer2) < 0)
-      goto error;
-    buffer_temp = buffer2;
-    buffer2 = buffer1;
-    buffer1 = buffer_temp;
-  }
   /*
      int mpi_rank;
    MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
@@ -1297,6 +1288,13 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     goto error;
   if (ext_mpi_generate_optimise_buffers(buffer1, buffer2) < 0)
     goto error;
+  if (waitany&&recursive) {
+    if (ext_mpi_generate_waitany(buffer2, buffer1) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
   if (recursive&&(my_cores_per_node_row*my_cores_per_node_column==1)){
     if (ext_mpi_generate_use_recvbuf(buffer2, buffer1) < 0)
       goto error;
