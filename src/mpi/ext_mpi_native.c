@@ -1241,8 +1241,6 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     goto error;
   if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_optimise_buffers2(buffer2, buffer1) < 0)
-    goto error;
   /*
      int mpi_rank;
    MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
@@ -1251,11 +1249,13 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
    }
    exit(9);
    */
-  if (ext_mpi_generate_buffer_offset(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
     goto error;
-  if (ext_mpi_generate_no_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_optimise_buffers(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
+    goto error;
+  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
     goto error;
   if (waitany&&recursive) {
     if (ext_mpi_generate_waitany(buffer2, buffer1) < 0)

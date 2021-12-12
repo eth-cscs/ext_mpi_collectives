@@ -7,7 +7,7 @@
 #include <string.h>
 
 int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
-  int nbuffer_out = 0, nbuffer_in = 0, i, flag, nwait, o1, nattached=0, flag2=0, o1__=-1, size__, partner, num_comm, nreduce, flag3, o1_, o2_, size_;
+  int nbuffer_out = 0, nbuffer_in = 0, i, flag, nwait=0, o1, nattached=0, flag2=0, o1__=-1, size__, partner, num_comm, nreduce, flag3, o1_, o2_, size_;
   char line[1000];
   enum eassembler_type estring1, estring2, estring1_, estring2_, estring3_;
   struct parameters_block *parameters;
@@ -24,7 +24,7 @@ int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
         read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag) {
       if (read_assembler_line_s(line, &estring1, 0) >= 0) {
-        if (estring1 == ewaitall) {
+        if ((estring1 == ewaitall)&&(nattached == nwait)) {
           read_assembler_line_sdsd(line, &estring1, &nwait, &estring2, &o1, 0);
           nreduce = 1;
           flag3 = 0;
@@ -46,7 +46,7 @@ int ext_mpi_generate_waitany(char *buffer_in, char *buffer_out) {
                                   parameters->ascii_out);
           nattached=0;
 	  flag2=1;
-        }else if (flag2 && ((estring1 == ememcpy)||(estring1 == ereturn)||(estring1 == eirecv))) {
+        }else if (flag2 && ((estring1 == ememcpy)||(estring1 == ereturn)||(estring1 == eirecv)||(estring1 == eisend)||(estring1 == ewaitall))) {
           for (i=nattached; i<nwait; i++){
             nbuffer_out += write_assembler_line_s(
                                 buffer_out + nbuffer_out, eattached,
