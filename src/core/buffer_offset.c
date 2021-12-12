@@ -12,20 +12,20 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
   char line[1000];
   struct parameters_block *parameters;
   enum eassembler_type estring1, estring2, estring3, estring4, estring5;
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   buffer_in += nbuffer_in;
   do {
     nbuffer_in2 += flag =
-        read_line(buffer_in + nbuffer_in2, line, parameters->ascii_in);
-    if (read_assembler_line_s(line, &estring1, 0) >= 0) {
+        ext_mpi_read_line(buffer_in + nbuffer_in2, line, parameters->ascii_in);
+    if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
       if ((estring1 == ememcpy) || (estring1 == ereduce) ||
           (estring1 == ememcp_) || (estring1 == ereduc_) ||
           (estring1 == esreduce) || (estring1 == esreduc_)) {
-        if (read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
-                                           &estring3, &o1, &estring4, &bo2,
-                                           &estring5, &o2, &size, 0) >= 0) {
+        if (ext_mpi_read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
+                                                   &estring3, &o1, &estring4, &bo2,
+                                                   &estring5, &o2, &size, 0) >= 0) {
           if (bo1 > buffer_offset_max) {
             buffer_offset_max = bo1;
           }
@@ -49,14 +49,14 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
   nbuffer_in2 = 0;
   do {
     nbuffer_in2 += flag =
-        read_line(buffer_in + nbuffer_in2, line, parameters->ascii_in);
-    if (read_assembler_line_s(line, &estring1, 0) >= 0) {
+        ext_mpi_read_line(buffer_in + nbuffer_in2, line, parameters->ascii_in);
+    if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
       if ((estring1 == ememcpy) || (estring1 == ereduce) ||
           (estring1 == ememcp_) || (estring1 == ereduc_) ||
           (estring1 == esreduce) || (estring1 == esreduc_)) {
-        if (read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
-                                           &estring3, &o1, &estring4, &bo2,
-                                           &estring5, &o2, &size, 0) >= 0) {
+        if (ext_mpi_read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
+                                                   &estring3, &o1, &estring4, &bo2,
+                                                   &estring5, &o2, &size, 0) >= 0) {
           if (o1 + size > buffer_offset[bo1]) {
             buffer_offset[bo1] = o1 + size;
           }
@@ -64,8 +64,8 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
             buffer_offset[bo2] = o2 + size;
           }
         } else {
-          if (read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1,
-                                         &estring3, &o2, &size, 0) >= 0) {
+          if (ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1,
+                                                 &estring3, &o2, &size, 0) >= 0) {
             if (o1 + size > shmem_max) {
               shmem_max = o1 + size;
             }
@@ -76,7 +76,7 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
         }
       }
       if ((estring1 == ewaitall)||(estring1 == ewaitany)) {
-        read_assembler_line_sd(line, &estring1, &o1, 0);
+        ext_mpi_read_assembler_line_sd(line, &estring1, &o1, 0);
         if (o1 > locmem_max) {
           locmem_max = o1;
         }
@@ -99,21 +99,21 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
   parameters->shmem_buffer_offset_max = buffer_offset_max;
   free(parameters->shmem_buffer_offset);
   parameters->shmem_buffer_offset = buffer_offset2;
-  nbuffer_out += write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   do {
     nbuffer_in2 += flag =
-        read_line(buffer_in + nbuffer_in2, line, parameters->ascii_in);
+        ext_mpi_read_line(buffer_in + nbuffer_in2, line, parameters->ascii_in);
     if (flag) {
       nbuffer_out +=
-          write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
+          ext_mpi_write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
     }
   } while (flag > 0);
-  nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   free(buffer_offset);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
   free(buffer_offset);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }

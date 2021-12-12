@@ -890,13 +890,13 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
 #endif
   struct parameters_block *parameters;
   handle = get_handle();
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   MPI_Comm_size(comm_row, &my_mpi_size_row);
   num_comm_max = parameters->locmem_max;
   my_size_shared_buf = parameters->shmem_max;
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   locmem_size = num_comm_max * sizeof(MPI_Request);
   locmem = (char *)malloc(locmem_size);
   if (!locmem)

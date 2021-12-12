@@ -538,15 +538,15 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
   int i, j, k, l, *lines_used = NULL, nstep, max_lines;
   int task, num_nodes, *num_ports = NULL, size_level0 = 0, *size_level1 = NULL;
   int nbuffer_out = 0, nbuffer_in = 0, allreduce = 1;
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   if (parameters->bit_identical) {
     i = ext_mpi_generate_allreduce_bit(buffer_in, buffer_out);
-    delete_parameters(parameters);
+    ext_mpi_delete_parameters(parameters);
     return i;
   }
-  nbuffer_out += write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   if (parameters->collective_type == collective_type_allgatherv) {
     allreduce = 0;
   }
@@ -565,8 +565,8 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
     num_ports[i] = -parameters->num_ports[i];
   }
   num_ports[i] = 0;
-  i = read_algorithm(buffer_in + nbuffer_in, &size_level0, &size_level1, &data,
-                     parameters->ascii_in);
+  i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0, &size_level1, &data,
+                             parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
   for (nstep = 0; num_ports[nstep]; nstep++)
@@ -653,7 +653,7 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
     free(stages_in[0].frac);
     free(stages_in);
   }
-  delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
   size_level0 = nstep + 1;
   size_level1 = (int *)malloc(sizeof(int) * size_level0);
   if (!size_level1)
@@ -720,20 +720,20 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
     }
   }
   nbuffer_out +=
-      write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
-                      parameters->ascii_out);
-  delete_algorithm(size_level0, size_level1, data);
-  nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+      ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
+                              parameters->ascii_out);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   allreduce_done(stages, num_ports);
   free(num_ports);
   free(lines_used);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
   allreduce_done(stages, num_ports);
   free(num_ports);
   free(lines_used);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }

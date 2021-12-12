@@ -33,10 +33,10 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   struct data_line **data = NULL;
   struct parameters_block *parameters;
   char cline[1000];
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  nbuffer_out += write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   num_nodes = parameters->num_nodes;
   node_rank = parameters->node_rank;
   // FIXME
@@ -71,8 +71,8 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   if (!moffsets)
     goto error;
   node_size = node_row_size * node_column_size;
-  nbuffer_in += i = read_algorithm(buffer_in + nbuffer_in, &size_level0,
-                                   &size_level1, &data, parameters->ascii_in);
+  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0,
+                                           &size_level1, &data, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
   if (i <= 0) {
@@ -81,10 +81,10 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   }
   do {
     nbuffer_in += flag =
-        read_line(buffer_in + nbuffer_in, cline, parameters->ascii_in);
+        ext_mpi_read_line(buffer_in + nbuffer_in, cline, parameters->ascii_in);
     if (flag > 0) {
       nbuffer_out +=
-          write_line(buffer_out + nbuffer_out, cline, parameters->ascii_out);
+          ext_mpi_write_line(buffer_out + nbuffer_out, cline, parameters->ascii_out);
     }
   } while (flag);
   displs = (int *)malloc((counts_max + 1) * sizeof(int));
@@ -122,8 +122,8 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   for (i = 0; i < num_nodes; i++) {
     moffsets[i + 1] = moffsets[i] + mcounts[i];
   }
-  nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier,
-                                        parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier,
+                                                parameters->ascii_out);
   if (allreduce) {
     if ((parameters->root == -1) ||
         ((parameters->root < 0) &&
@@ -146,7 +146,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
                                moffsets[data[size_level0 - 1][i].frac],
                                moffsets[data[size_level0 - 1][i].frac + 1],
                                &add))) {
-            nbuffer_out += write_assembler_line_ssdsdd(
+            nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
                 buffer_out + nbuffer_out, ememcpy, erecvbufp, add, eshmemp,
                 add2, size, parameters->ascii_out);
           }
@@ -159,29 +159,29 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
     add2 = iodispls[node_rank];
     size = iocounts[node_rank];
     if (size) {
-      nbuffer_out += write_assembler_line_ssdsdd(
+      nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
           buffer_out + nbuffer_out, ememcpy, erecvbufp, add, eshmemp, add2,
           size, parameters->ascii_out);
     }
   }
-  nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, ereturn,
-                                        parameters->ascii_out);
-  nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  delete_algorithm(size_level0, size_level1, data);
+  nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, ereturn,
+                                                parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
   free(ldispls);
   free(lcounts);
   free(iodispls);
   free(displs);
   free(moffsets);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
   free(ldispls);
   free(lcounts);
   free(iodispls);
   free(displs);
   free(moffsets);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }

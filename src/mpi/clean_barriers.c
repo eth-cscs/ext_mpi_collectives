@@ -22,11 +22,11 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
   struct parameters_block *parameters;
   MPI_Comm comm_rowl = MPI_COMM_NULL, comm_columnl = MPI_COMM_NULL;
   MPI_Comm_rank(comm_row, &rank);
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   i = global_min(i, comm_row, comm_column);
   if (i < 0)
     goto error;
-  nbuffer_out += write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   i = 0;
   if (MPI_Comm_split(comm_row, rank / parameters->node_row_size,
                      rank % parameters->node_row_size,
@@ -46,14 +46,14 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
   }
   do {
     nbuffer_in += flag =
-        read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
+        ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag) {
-      if (read_assembler_line_sd(line, &estring1, &integer1, 0) != -1) {
+      if (ext_mpi_read_assembler_line_sd(line, &estring1, &integer1, 0) != -1) {
         if (!((estring1 == enop) ||
               (((estring1 == ewaitall)||(estring1 == ewaitany)) && (integer1 == 0)))) {
           if (estring1 != enode_barrier) {
-            nbuffer_out += write_line(buffer_out + nbuffer_out, line,
-                                      parameters->ascii_out);
+            nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
+                                              parameters->ascii_out);
             flag2 = 0;
           } else {
             MPI_Allreduce(MPI_IN_PLACE, &flag2, 1, MPI_INT, MPI_MIN, comm_rowl);
@@ -62,8 +62,8 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
                             comm_columnl);
             }
             if (!flag2) {
-              nbuffer_out += write_line(buffer_out + nbuffer_out, line,
-                                        parameters->ascii_out);
+              nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
+                                                parameters->ascii_out);
               flag2 = 1;
             }
           }
@@ -71,14 +71,14 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
       }
     }
   } while (flag);
-  write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   if (comm_columnl != MPI_COMM_NULL) {
     MPI_Comm_free(&comm_columnl);
   }
   if (comm_rowl != MPI_COMM_NULL) {
     MPI_Comm_free(&comm_rowl);
   }
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
   if (comm_columnl != MPI_COMM_NULL) {
@@ -87,6 +87,6 @@ error:
   if (comm_rowl != MPI_COMM_NULL) {
     MPI_Comm_free(&comm_rowl);
   }
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }

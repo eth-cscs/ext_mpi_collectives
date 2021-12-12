@@ -69,7 +69,7 @@ static int read_int_series(char *string_in, int **integers_out) {
   return (i_max);
 }
 
-int read_parameters(char *buffer_in, struct parameters_block **parameters) {
+int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameters) {
   char string1[100], string2[100], *buffer_in_new, *buffer_in_copy,
       *buffer_in_pcopy = NULL;
   int nbuffer_in = 0, integer1, flag;
@@ -379,12 +379,12 @@ int read_parameters(char *buffer_in, struct parameters_block **parameters) {
   return integer1;
 error:
   free(buffer_in_pcopy);
-  delete_parameters(*parameters);
+  ext_mpi_delete_parameters(*parameters);
   *parameters = NULL;
   return ERROR_MALLOC;
 }
 
-int write_parameters(struct parameters_block *parameters, char *buffer_out) {
+int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_out) {
   int nbuffer_out = 0, i;
   char *str;
   if (!parameters->ascii_out) {
@@ -568,7 +568,7 @@ int write_parameters(struct parameters_block *parameters, char *buffer_out) {
   return nbuffer_out;
 }
 
-int delete_parameters(struct parameters_block *parameters) {
+int ext_mpi_delete_parameters(struct parameters_block *parameters) {
   free(parameters->shmem_buffer_offset);
   free(parameters->iocounts);
   free(parameters->counts);
@@ -655,7 +655,7 @@ error:
   return ERROR_MALLOC;
 }
 
-int read_stage_line(char *string_in, struct data_line *data) {
+int ext_mpi_read_stage_line(char *string_in, struct data_line *data) {
   char string_stage[100], string_frac[100], string_source[100], string_to[100];
   int stage, frac, source;
   if (sscanf(string_in, "%99s %d %99s %d %99s %d %99s", string_stage, &stage,
@@ -691,14 +691,14 @@ int read_stage_line(char *string_in, struct data_line *data) {
   return 0;
 }
 
-void delete_stage_line(struct data_line data) {
+void ext_mpi_delete_stage_line(struct data_line data) {
   free(data.to);
   free(data.from_node);
   free(data.from_line);
 }
 
-int read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
-                   struct data_line ***data, int ascii_in) {
+int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
+                           struct data_line ***data, int ascii_in) {
   char *line = NULL;
   int nbuffer_in = 0, stage, flag, i, j, stage_old, err;
   enum eassembler_type estring1;
@@ -757,7 +757,7 @@ int read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
     *size_level0 = -1;
     do {
       nbuffer_in += flag = read_single_line(buffer_in + nbuffer_in, line);
-      if (flag && (read_assembler_line_sd(line, &estring1, &stage, 1) >= 0)) {
+      if (flag && (ext_mpi_read_assembler_line_sd(line, &estring1, &stage, 1) >= 0)) {
         if (estring1 == estage) {
           if (stage > *size_level0) {
             *size_level0 = stage;
@@ -786,7 +786,7 @@ int read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
     nbuffer_in = 0;
     do {
       nbuffer_in += flag = read_single_line(buffer_in + nbuffer_in, line);
-      if (flag && (read_assembler_line_sd(line, &estring1, &stage, 1) >= 0)) {
+      if (flag && (ext_mpi_read_assembler_line_sd(line, &estring1, &stage, 1) >= 0)) {
         if (estring1 == estage) {
           ((*size_level1)[stage])++;
         } else {
@@ -806,13 +806,13 @@ int read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
     stage_old = -1;
     do {
       nbuffer_in += flag = read_single_line(buffer_in + nbuffer_in, line);
-      if (flag && (read_assembler_line_sd(line, &estring1, &stage, 1) >= 0)) {
+      if (flag && (ext_mpi_read_assembler_line_sd(line, &estring1, &stage, 1) >= 0)) {
         if (estring1 == estage) {
           if (stage != stage_old) {
             i = 0;
             stage_old = stage;
           }
-          err = read_stage_line(line, &(*data)[stage][i]);
+          err = ext_mpi_read_stage_line(line, &(*data)[stage][i]);
           if (err < 0)
             return err;
           i++;
@@ -828,7 +828,7 @@ int read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
   free(line);
   return nbuffer_in;
 error:
-  delete_algorithm(*size_level0, *size_level1, *data);
+  ext_mpi_delete_algorithm(*size_level0, *size_level1, *data);
   *size_level0 = 0;
   *size_level1 = NULL;
   *data = NULL;
@@ -836,8 +836,8 @@ error:
   return ERROR_MALLOC;
 }
 
-int write_algorithm(int size_level0, int *size_level1, struct data_line **data,
-                    char *buffer_out, int ascii_out) {
+int ext_mpi_write_algorithm(int size_level0, int *size_level1, struct data_line **data,
+                            char *buffer_out, int ascii_out) {
   int nbuffer_out = 0, i, j, k;
   if (!ascii_out) {
     memcpy(buffer_out + nbuffer_out, &size_level0, sizeof(size_level0));
@@ -883,14 +883,14 @@ int write_algorithm(int size_level0, int *size_level1, struct data_line **data,
   return nbuffer_out;
 }
 
-void delete_algorithm(int size_level0, int *size_level1,
-                      struct data_line **data) {
+void ext_mpi_delete_algorithm(int size_level0, int *size_level1,
+                              struct data_line **data) {
   int i, j;
   for (i = 0; i < size_level0; i++) {
     if (data) {
       if (data[i]) {
         for (j = 0; j < size_level1[i]; j++) {
-          delete_stage_line(data[i][j]);
+          ext_mpi_delete_stage_line(data[i][j]);
         }
       }
       free(data[i]);
@@ -1009,8 +1009,8 @@ static int write_integer(char *buffer_out, int integer1, int ascii) {
   }
 }
 
-int write_assembler_line_s(char *buffer_out, enum eassembler_type string1,
-                           int ascii) {
+int ext_mpi_write_assembler_line_s(char *buffer_out, enum eassembler_type string1,
+                                   int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
@@ -1025,8 +1025,8 @@ int write_assembler_line_s(char *buffer_out, enum eassembler_type string1,
   return nbuffer_out;
 }
 
-int write_assembler_line_sd(char *buffer_out, enum eassembler_type string1,
-                            int integer1, int ascii) {
+int ext_mpi_write_assembler_line_sd(char *buffer_out, enum eassembler_type string1,
+                                    int integer1, int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
@@ -1044,9 +1044,9 @@ int write_assembler_line_sd(char *buffer_out, enum eassembler_type string1,
   return nbuffer_out;
 }
 
-int write_assembler_line_sdsd(char *buffer_out, enum eassembler_type string1,
-                              int integer1, enum eassembler_type string2,
-                              int integer2, int ascii) {
+int ext_mpi_write_assembler_line_sdsd(char *buffer_out, enum eassembler_type string1,
+                                      int integer1, enum eassembler_type string2,
+                                      int integer2, int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
@@ -1071,9 +1071,9 @@ int write_assembler_line_sdsd(char *buffer_out, enum eassembler_type string1,
   return nbuffer_out;
 }
 
-int write_assembler_line_sddsd(char *buffer_out, enum eassembler_type string1,
-                              int integer1, int integer2, enum eassembler_type string2,
-                              int integer3, int ascii) {
+int ext_mpi_write_assembler_line_sddsd(char *buffer_out, enum eassembler_type string1,
+                                       int integer1, int integer2, enum eassembler_type string2,
+                                       int integer3, int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
@@ -1101,10 +1101,10 @@ int write_assembler_line_sddsd(char *buffer_out, enum eassembler_type string1,
   return nbuffer_out;
 }
 
-int write_assembler_line_ssdsdd(char *buffer_out, enum eassembler_type string1,
-                                enum eassembler_type string2, int integer1,
-                                enum eassembler_type string3, int integer2,
-                                int integer3, int ascii) {
+int ext_mpi_write_assembler_line_ssdsdd(char *buffer_out, enum eassembler_type string1,
+                                        enum eassembler_type string2, int integer1,
+                                        enum eassembler_type string3, int integer2,
+                                        int integer3, int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
@@ -1136,10 +1136,10 @@ int write_assembler_line_ssdsdd(char *buffer_out, enum eassembler_type string1,
   return nbuffer_out;
 }
 
-int write_assembler_line_ssdddd(char *buffer_out, enum eassembler_type string1,
-                                enum eassembler_type string2, int integer1,
-                                int integer2, int integer3, int integer4,
-                                int ascii) {
+int ext_mpi_write_assembler_line_ssdddd(char *buffer_out, enum eassembler_type string1,
+                                        enum eassembler_type string2, int integer1,
+                                        int integer2, int integer3, int integer4,
+                                        int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
@@ -1170,10 +1170,10 @@ int write_assembler_line_ssdddd(char *buffer_out, enum eassembler_type string1,
   return nbuffer_out;
 }
 
-int write_assembler_line_ssddd(char *buffer_out, enum eassembler_type string1,
-                                enum eassembler_type string2, int integer1,
-                                int integer2, int integer3,
-                                int ascii) {
+int ext_mpi_write_assembler_line_ssddd(char *buffer_out, enum eassembler_type string1,
+                                       enum eassembler_type string2, int integer1,
+                                       int integer2, int integer3,
+                                       int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
@@ -1201,12 +1201,12 @@ int write_assembler_line_ssddd(char *buffer_out, enum eassembler_type string1,
   return nbuffer_out;
 }
 
-int write_assembler_line_ssdsdddd(char *buffer_out,
-                                  enum eassembler_type string1,
-                                  enum eassembler_type string2, int integer1,
-                                  enum eassembler_type string3, int integer2,
-                                  int integer3, int integer4, int integer5,
-                                  int ascii) {
+int ext_mpi_write_assembler_line_ssdsdddd(char *buffer_out,
+                                          enum eassembler_type string1,
+                                          enum eassembler_type string2, int integer1,
+                                          enum eassembler_type string3, int integer2,
+                                          int integer3, int integer4, int integer5,
+                                          int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
@@ -1244,13 +1244,13 @@ int write_assembler_line_ssdsdddd(char *buffer_out,
   return nbuffer_out;
 }
 
-int write_assembler_line_ssdsdsdsdd(char *buffer_out,
-                                    enum eassembler_type string1,
-                                    enum eassembler_type string2, int integer1,
-                                    enum eassembler_type string3, int integer2,
-                                    enum eassembler_type string4, int integer3,
-                                    enum eassembler_type string5, int integer4,
-                                    int integer5, int ascii) {
+int ext_mpi_write_assembler_line_ssdsdsdsdd(char *buffer_out,
+                                            enum eassembler_type string1,
+                                            enum eassembler_type string2, int integer1,
+                                            enum eassembler_type string3, int integer2,
+                                            enum eassembler_type string4, int integer3,
+                                            enum eassembler_type string5, int integer4,
+                                            int integer5, int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
@@ -1384,8 +1384,8 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   return (enop);
 }
 
-int read_assembler_line_s(char *buffer_in, enum eassembler_type *string1,
-                          int ascii) {
+int ext_mpi_read_assembler_line_s(char *buffer_in, enum eassembler_type *string1,
+                                  int ascii) {
   char cstring1[100], cstring2[100];
   int n, i;
   if (!ascii) {
@@ -1421,8 +1421,8 @@ int read_assembler_line_s(char *buffer_in, enum eassembler_type *string1,
   }
 }
 
-int read_assembler_line_sd(char *buffer_in, enum eassembler_type *string1,
-                           int *integer1, int ascii) {
+int ext_mpi_read_assembler_line_sd(char *buffer_in, enum eassembler_type *string1,
+                                   int *integer1, int ascii) {
   char cstring1[100], cstring2[100];
   int n, i;
   if (!ascii) {
@@ -1466,9 +1466,9 @@ int read_assembler_line_sd(char *buffer_in, enum eassembler_type *string1,
   }
 }
 
-int read_assembler_line_sdsd(char *buffer_in, enum eassembler_type *string1,
-                             int *integer1, enum eassembler_type *string2,
-                             int *integer2, int ascii) {
+int ext_mpi_read_assembler_line_sdsd(char *buffer_in, enum eassembler_type *string1,
+                                     int *integer1, enum eassembler_type *string2,
+                                     int *integer2, int ascii) {
   char cstring1[100], cstring2[100], cstring3[100];
   int n, i;
   if (!ascii) {
@@ -1527,9 +1527,9 @@ int read_assembler_line_sdsd(char *buffer_in, enum eassembler_type *string1,
   }
 }
 
-int read_assembler_line_sddsd(char *buffer_in, enum eassembler_type *string1,
-                              int *integer1, int *integer2, enum eassembler_type *string2,
-                              int *integer3, int ascii) {
+int ext_mpi_read_assembler_line_sddsd(char *buffer_in, enum eassembler_type *string1,
+                                      int *integer1, int *integer2, enum eassembler_type *string2,
+                                      int *integer3, int ascii) {
   char cstring1[100], cstring2[100], cstring3[100];
   int n, i;
   if (!ascii) {
@@ -1593,10 +1593,10 @@ int read_assembler_line_sddsd(char *buffer_in, enum eassembler_type *string1,
   }
 }
 
-int read_assembler_line_ssdsdd(char *buffer_in, enum eassembler_type *string1,
-                               enum eassembler_type *string2, int *integer1,
-                               enum eassembler_type *string3, int *integer2,
-                               int *integer3, int ascii) {
+int ext_mpi_read_assembler_line_ssdsdd(char *buffer_in, enum eassembler_type *string1,
+                                       enum eassembler_type *string2, int *integer1,
+                                       enum eassembler_type *string3, int *integer2,
+                                       int *integer3, int ascii) {
   char cstring1[100], cstring2[100], cstring3[100], cstring4[100];
   int n, i;
   if (!ascii) {
@@ -1669,10 +1669,10 @@ int read_assembler_line_ssdsdd(char *buffer_in, enum eassembler_type *string1,
   }
 }
 
-int read_assembler_line_ssdddd(char *buffer_in, enum eassembler_type *string1,
-                               enum eassembler_type *string2, int *integer1,
-                               int *integer2, int *integer3, int *integer4,
-                               int ascii) {
+int ext_mpi_read_assembler_line_ssdddd(char *buffer_in, enum eassembler_type *string1,
+                                       enum eassembler_type *string2, int *integer1,
+                                       int *integer2, int *integer3, int *integer4,
+                                       int ascii) {
   char cstring1[100], cstring2[100], cstring3[100];
   int n, i;
   if (!ascii) {
@@ -1741,11 +1741,11 @@ int read_assembler_line_ssdddd(char *buffer_in, enum eassembler_type *string1,
   }
 }
 
-int read_assembler_line_ssdsdddd(char *buffer_in, enum eassembler_type *string1,
-                                 enum eassembler_type *string2, int *integer1,
-                                 enum eassembler_type *string3, int *integer2,
-                                 int *integer3, int *integer4, int *integer5,
-                                 int ascii) {
+int ext_mpi_read_assembler_line_ssdsdddd(char *buffer_in, enum eassembler_type *string1,
+                                         enum eassembler_type *string2, int *integer1,
+                                         enum eassembler_type *string3, int *integer2,
+                                         int *integer3, int *integer4, int *integer5,
+                                         int ascii) {
   char cstring1[100], cstring2[100], cstring3[100], cstring4[100];
   int n, i;
   if (!ascii) {
@@ -1829,13 +1829,13 @@ int read_assembler_line_ssdsdddd(char *buffer_in, enum eassembler_type *string1,
   }
 }
 
-int read_assembler_line_ssdsdsdsdd(char *buffer_in,
-                                   enum eassembler_type *string1,
-                                   enum eassembler_type *string2, int *integer1,
-                                   enum eassembler_type *string3, int *integer2,
-                                   enum eassembler_type *string4, int *integer3,
-                                   enum eassembler_type *string5, int *integer4,
-                                   int *integer5, int ascii) {
+int ext_mpi_read_assembler_line_ssdsdsdsdd(char *buffer_in,
+                                           enum eassembler_type *string1,
+                                           enum eassembler_type *string2, int *integer1,
+                                           enum eassembler_type *string3, int *integer2,
+                                           enum eassembler_type *string4, int *integer3,
+                                           enum eassembler_type *string5, int *integer4,
+                                           int *integer5, int ascii) {
   char cstring1[100], cstring2[100], cstring3[100], cstring4[100],
       cstring5[100], cstring6[100];
   int n, i;
@@ -1938,7 +1938,7 @@ int read_assembler_line_ssdsdsdsdd(char *buffer_in,
   }
 }
 
-int switch_to_ascii(char *buffer) {
+int ext_mpi_switch_to_ascii(char *buffer) {
   struct parameters_block *parameters;
   if (buffer[0] != '\0') {
     return -1;
@@ -1958,7 +1958,7 @@ int switch_to_ascii(char *buffer) {
   return (1);
 }
 
-int read_line(char *buffer_in, char *line, int ascii) {
+int ext_mpi_read_line(char *buffer_in, char *line, int ascii) {
   enum eassembler_type estring1;
   char string1[100];
   int i, j, k, flag;
@@ -2004,7 +2004,7 @@ int read_line(char *buffer_in, char *line, int ascii) {
   }
 }
 
-int write_line(char *buffer_out, char *line, int ascii) {
+int ext_mpi_write_line(char *buffer_out, char *line, int ascii) {
   enum eassembler_type estring1;
   char string1[100];
   int i, j, k, l;
@@ -2036,7 +2036,7 @@ int write_line(char *buffer_out, char *line, int ascii) {
   }
 }
 
-int write_eof(char *buffer_out, int ascii) {
+int ext_mpi_write_eof(char *buffer_out, int ascii) {
   int i;
   if (!ascii) {
     i = 0;

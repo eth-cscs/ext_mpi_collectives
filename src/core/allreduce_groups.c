@@ -211,9 +211,9 @@ static int print_algorithm(char *buffer, int node, int num_nodes_l,
     parameters.root = root;
     parameters.in_place = 0;
     if (ascii_out) {
-      nbuffer += write_parameters(&parameters, buffer + nbuffer);
+      nbuffer += ext_mpi_write_parameters(&parameters, buffer + nbuffer);
     } else {
-      write_parameters(&parameters, buffer + nbuffer);
+      ext_mpi_write_parameters(&parameters, buffer + nbuffer);
       buffer_temp = strrchr(buffer + nbuffer, '\n');
       buffer_temp[0] = '\0';
       buffer_temp = strrchr(buffer + nbuffer, '\n');
@@ -294,7 +294,7 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   struct parameters_block *parameters = NULL, *parameters2 = NULL;
   struct data_line ***data_l = NULL;
   char **buffer_in_temp = NULL, **buffer_out_temp = NULL;
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   node = parameters->node;
@@ -399,19 +399,19 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
       }
     }
     ext_mpi_generate_allreduce(buffer_in_temp[group], buffer_out_temp[group]);
-    i = read_parameters(buffer_out_temp[group], &parameters2);
+    i = ext_mpi_read_parameters(buffer_out_temp[group], &parameters2);
     if (i < 0)
       goto error;
-    i = read_algorithm(buffer_out_temp[group] + i, &size_level0_l[group],
-                       &size_level1_l[group], &data_l[group],
-                       parameters2->ascii_in);
+    i = ext_mpi_read_algorithm(buffer_out_temp[group] + i, &size_level0_l[group],
+                               &size_level1_l[group], &data_l[group],
+                               parameters2->ascii_in);
     if (i == ERROR_MALLOC)
       goto error;
     if (i <= 0) {
       printf("error reading algorithm allreduce_groups b\n");
       exit(2);
     }
-    delete_parameters(parameters2);
+    ext_mpi_delete_parameters(parameters2);
     gbstep *= abs(groups[num_port]);
     num_port += ports_chunk;
     stage_offset += size_level0_l[group] - 1;
@@ -813,7 +813,7 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
     stage_offset += size_level0_l[group] - 1;
   }
   for (group = 0; group < ngroups; group++) {
-    delete_algorithm(size_level0_l[group], size_level1_l[group], data_l[group]);
+    ext_mpi_delete_algorithm(size_level0_l[group], size_level1_l[group], data_l[group]);
   }
   free(size_level0_l);
   free(size_level1_l);
@@ -832,11 +832,11 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   free(buffer_in_temp);
   free(groups_l);
   free(num_ports_l);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
   for (group = 0; group < ngroups; group++) {
-    delete_algorithm(size_level0_l[group], size_level1_l[group], data_l[group]);
+    ext_mpi_delete_algorithm(size_level0_l[group], size_level1_l[group], data_l[group]);
   }
   free(size_level0_l);
   free(size_level1_l);
@@ -853,6 +853,6 @@ error:
   free(buffer_in_temp);
   free(groups_l);
   free(num_ports_l);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }

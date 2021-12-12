@@ -14,10 +14,10 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
   struct data_line **data = NULL, **data_org = NULL;
   struct parameters_block *parameters;
   int *rank_perm = NULL, *rank_back_perm = NULL, msizes_max = -1;
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  nbuffer_out += write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   node = parameters->node;
   num_nodes = parameters->num_nodes;
   node_rank = parameters->node_rank;
@@ -47,7 +47,7 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
   nodes_send = (int *)malloc(sizeof(int) * num_nodes);
   if (!nodes_send)
     goto error;
-  i = read_algorithm(buffer_in + nbuffer_in, &size_level0_org, &size_level1_org,
+  i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0_org, &size_level1_org,
                      &data_org, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
@@ -55,8 +55,8 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
     printf("error reading algorithm raw_code_tasks_node\n");
     exit(2);
   }
-  i = read_algorithm(buffer_in + nbuffer_in, &size_level0, &size_level1, &data,
-                     parameters->ascii_in);
+  i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0, &size_level1, &data,
+                             parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
   if (i <= 0) {
@@ -226,29 +226,29 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
     }
   }
   nbuffer_out +=
-      write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
-                      parameters->ascii_out);
-  nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  delete_algorithm(size_level0, size_level1, data);
-  delete_algorithm(size_level0_org, size_level1_org, data_org);
+      ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
+                              parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(size_level0_org, size_level1_org, data_org);
   free(rank_back_perm);
   free(rank_perm);
   parameters->rank_perm = NULL;
   parameters->rank_perm_max = 0;
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   free(nodes_send);
   free(nodes_recv);
   return nbuffer_out;
 error:
-  delete_algorithm(size_level0, size_level1, data);
-  delete_algorithm(size_level0_org, size_level1_org, data_org);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(size_level0_org, size_level1_org, data_org);
   free(rank_back_perm);
   free(rank_perm);
   if (parameters) {
     parameters->rank_perm = NULL;
     parameters->rank_perm_max = 0;
   }
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   free(nodes_send);
   free(nodes_recv);
   return ERROR_MALLOC;

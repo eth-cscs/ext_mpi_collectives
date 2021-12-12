@@ -315,12 +315,12 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
   void *p1, *p2;
 #endif
   struct parameters_block *parameters;
-  buffer_in += read_parameters(buffer_in, &parameters);
+  buffer_in += ext_mpi_read_parameters(buffer_in, &parameters);
   ascii = parameters->ascii_in;
 #ifdef GPU_ENABLED
   on_gpu = parameters->on_gpu;
 #endif
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
     header = &header_temp;
@@ -360,9 +360,9 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
   }
 #endif
   ip += sizeof(struct header_byte_code);
-  while ((integer1 = read_line(buffer_in, line, ascii)) > 0) {
+  while ((integer1 = ext_mpi_read_line(buffer_in, line, ascii)) > 0) {
     buffer_in += integer1;
-    read_assembler_line_sd(line, &estring1, &integer1, 0);
+    ext_mpi_read_assembler_line_sd(line, &estring1, &integer1, 0);
     if (estring1 == ereturn) {
 #ifdef GPU_ENABLED
       if (on_gpu) {
@@ -419,8 +419,8 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
     }
     if (estring1 == ewaitany) {
       code_put_char(&ip, OPCODE_MPIWAITANY, isdryrun);
-      read_assembler_line_sddsd(line, &estring1, &integer1,
-                                &integer2, &estring2, &integer3, 0);
+      ext_mpi_read_assembler_line_sddsd(line, &estring1, &integer1,
+                                        &integer2, &estring2, &integer3, 0);
       code_put_int(&ip, integer1, isdryrun);
       code_put_int(&ip, integer2, isdryrun);
       code_put_pointer(&ip, header->locmem, isdryrun);
@@ -438,8 +438,8 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
         }
       }
 #endif
-      read_assembler_line_ssdddd(line, &estring1, &estring2, &integer1,
-                                 &integer2, &integer3, &integer4, 0);
+      ext_mpi_read_assembler_line_ssdddd(line, &estring1, &estring2, &integer1,
+                                         &integer2, &integer3, &integer4, 0);
       if (estring1 == eisend) {
 #ifdef GPU_ENABLED
         if (on_gpu && (header->num_cores == 1) && isend) {
@@ -491,8 +491,8 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
     }
     if ((estring1 == ememcpy) || (estring1 == ereduce) ||
         (estring1 == esreduce)) {
-      read_assembler_line_ssdsdd(line, &estring1, &estring1a, &integer1,
-                                 &estring2, &integer2, &integer3, 0);
+      ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring1a, &integer1,
+                                         &estring2, &integer2, &integer3, 0);
 #ifdef GPU_ENABLED
       if (!on_gpu) {
 #endif

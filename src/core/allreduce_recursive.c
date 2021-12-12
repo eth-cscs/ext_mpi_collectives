@@ -307,15 +307,15 @@ int ext_mpi_generate_allreduce_recursive(char *buffer_in, char *buffer_out) {
   int i, j, l, nstep = 0;
   int task, num_nodes, size_level0 = 0, *size_level1 = NULL;
   int nbuffer_out = 0, nbuffer_in = 0, allreduce = -1;
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   if (parameters->bit_identical) {
     i = ext_mpi_generate_allreduce_bit(buffer_in, buffer_out);
-    delete_parameters(parameters);
+    ext_mpi_delete_parameters(parameters);
     return i;
   }
-  nbuffer_out += write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   if (parameters->collective_type == collective_type_allgatherv) {
     allreduce = 0;
   }
@@ -387,16 +387,16 @@ int ext_mpi_generate_allreduce_recursive(char *buffer_in, char *buffer_out) {
     }
   }
   nbuffer_out +=
-      write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
-                      parameters->ascii_out);
-  delete_algorithm(size_level0, size_level1, data);
-  nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+      ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
+                              parameters->ascii_out);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   allreduce_done(stages, parameters->num_ports);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
   allreduce_done(stages, parameters->num_ports);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }

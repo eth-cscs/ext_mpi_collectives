@@ -9,22 +9,23 @@ int ext_mpi_generate_no_first_barrier(char *buffer_in, char *buffer_out) {
   char line[1000];
   enum eassembler_type estring1;
   struct parameters_block *parameters;
-  nbuffer_in += read_parameters(buffer_in + nbuffer_in, &parameters);
-  nbuffer_out += write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_in += ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   do {
     nbuffer_in += flag =
-        read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
+        ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag) {
-      if (read_assembler_line_s(line, &estring1, 0) >= 0) {
+      if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
         if (first && (estring1 == enode_barrier)) {
           first = 0;
         } else {
           nbuffer_out +=
-              write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
+              ext_mpi_write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
         }
       }
     }
   } while (flag);
-  write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 }

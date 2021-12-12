@@ -144,7 +144,7 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
   int nbuffer_out = 0, nbuffer_in = 0, i;
   struct parameters_block *parameters;
   char line[1000];
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   num_nodes = parameters->num_nodes;
@@ -187,22 +187,22 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
     parameters->message_sizes[i] = msizes[rank_back_perm[i]];
   }
   free(msizes);
-  nbuffer_out += write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   do {
     nbuffer_in += flag =
-        read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
+        ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag > 0) {
       nbuffer_out +=
-          write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
+          ext_mpi_write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
     }
   } while (flag);
-  nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   free(rank_back_perm);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
   free(rank_back_perm);
-  delete_parameters(parameters);
+  ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }
 
@@ -213,7 +213,7 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
   struct data_line **data = NULL;
   struct parameters_block *parameters;
   char line[1000];
-  nbuffer_in += i = read_parameters(buffer_in + nbuffer_in, &parameters);
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   num_nodes = parameters->num_nodes;
@@ -233,9 +233,9 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
     parameters->message_sizes[i] = msizes[rank_perm[i]];
   }
   free(msizes);
-  nbuffer_out += write_parameters(parameters, buffer_out + nbuffer_out);
-  nbuffer_in += i = read_algorithm(buffer_in + nbuffer_in, &size_level0,
-                                   &size_level1, &data, parameters->ascii_in);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0,
+                                           &size_level1, &data, parameters->ascii_in);
   if (i <= 0) {
     printf("error reading algorithm rank_permutation\n");
     exit(2);
@@ -257,22 +257,22 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
     }
   }
   nbuffer_out +=
-      write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
-                      parameters->ascii_out);
+      ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
+                              parameters->ascii_out);
   do {
     nbuffer_in += flag =
-        read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
+        ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag > 0) {
       nbuffer_out +=
-          write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
+          ext_mpi_write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
     }
   } while (flag);
-  nbuffer_out += write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  delete_algorithm(size_level0, size_level1, data);
-  delete_parameters(parameters);
+  nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  delete_algorithm(size_level0, size_level1, data);
-  delete_parameters(parameters);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }
