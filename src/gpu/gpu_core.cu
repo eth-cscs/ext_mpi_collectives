@@ -3,41 +3,41 @@
 #include <cuda.h>
 #include <stdio.h>
 
-void gpu_malloc(void **p, int size) {
+void ext_mpi_gpu_malloc(void **p, int size) {
   if (cudaMalloc(p, size) != cudaSuccess) {
     printf("error in gpu_malloc\n");
     exit(13);
   }
 }
 
-void gpu_free(void *p) {
+void ext_mpi_gpu_free(void *p) {
   if (cudaFree(p) != cudaSuccess) {
     printf("error in gpu_free\n");
     exit(13);
   }
 }
 
-void gpu_memcpy_hd(void *dest, void *src, int length) {
+void ext_mpi_gpu_memcpy_hd(void *dest, void *src, int length) {
   if (cudaMemcpy(dest, src, length, cudaMemcpyHostToDevice) != cudaSuccess) {
     printf("error in gpu_memcpy_hd\n");
     exit(13);
   }
 }
 
-void gpu_memcpy_dh(void *dest, void *src, int length) {
+void ext_mpi_gpu_memcpy_dh(void *dest, void *src, int length) {
   if (cudaMemcpy(dest, src, length, cudaMemcpyDeviceToHost) != cudaSuccess) {
     printf("error in gpu_memcpy_dh\n");
     exit(13);
   }
 }
 
-int gpu_is_device_pointer(const void *ptr) {
+int ext_mpi_gpu_is_device_pointer(const void *ptr) {
   struct cudaPointerAttributes attributes;
   cudaPointerGetAttributes(&attributes, ptr);
   return (attributes.devicePointer != NULL);
 }
 
-void gpu_synchronize() {
+void ext_mpi_gpu_synchronize() {
   if (cudaDeviceSynchronize() != cudaSuccess) {
     printf(" cudaError gpu_synchronize\n");
     exit(13);
@@ -81,7 +81,7 @@ template <typename vartype> __global__ void gpu_copy_reduce_kernel(char *data) {
   }
 }
 
-void gpu_copy_reduce(char instruction2, void *data, int count) {
+void ext_mpi_gpu_copy_reduce(char instruction2, void *data, int count) {
   switch (instruction2) {
   case OPCODE_REDUCE_SUM_DOUBLE:
     gpu_copy_reduce_kernel<double><<<(count + 127) / 128, 128>>>((char *)data);

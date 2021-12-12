@@ -7,7 +7,7 @@ extern "C"
 {
 #endif
 
-int alltoall_get_text(char *buffer_in, char *buffer_out);
+int ext_mpi_alltoall_get_text(char *buffer_in, char *buffer_out);
 
 #ifdef __cplusplus
 }

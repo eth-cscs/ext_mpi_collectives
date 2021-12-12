@@ -469,7 +469,7 @@ static void reduce_waitany(void **pointers_to, void **pointers_from, int *sizes,
             }
 }
 
-void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
+static void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
   void *pointers[num_wait][2][abs(num_red_max)], *pointers_temp[abs(num_red_max)];
   int sizes[num_wait][abs(num_red_max)], num_red[num_wait], done = 0, red_it = 0, count, index, num_waitall, target_index, not_moved, i;
         char op, op_reduce=-1;
@@ -729,12 +729,12 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       break;
 #ifdef GPU_ENABLED
     case OPCODE_GPUSYNCHRONIZE:
-      gpu_synchronize();
+      ext_mpi_gpu_synchronize();
       break;
     case OPCODE_GPUKERNEL:
       instruction2 = code_get_char(&ip);
       p1 = code_get_pointer(&ip);
-      gpu_copy_reduce(instruction2, (void *)p1, code_get_int(&ip));
+      ext_mpi_gpu_copy_reduce(instruction2, (void *)p1, code_get_int(&ip));
       break;
 #endif
     default:
@@ -808,12 +808,12 @@ int EXT_MPI_Done_native(int handle) {
   shmem_comm_node_column = header->comm_column;
   node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL);
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer((void *)header->shmem)) {
-    gpu_destroy_shared_memory(header->comm_row, header->node_num_cores_row,
-                              header->comm_column,
-                              header->node_num_cores_column, &header->shmem);
+  if (ext_mpi_gpu_is_device_pointer((void *)header->shmem)) {
+    ext_mpi_gpu_destroy_shared_memory(header->comm_row, header->node_num_cores_row,
+                                      header->comm_column,
+                                      header->node_num_cores_column, &header->shmem);
   }
-  gpu_free(header->gpu_byte_code);
+  ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
   destroy_shared_memory(handle, &shmem_size, &shmemid, &shmem);
   node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL);
@@ -831,12 +831,12 @@ int EXT_MPI_Done_native(int handle) {
     shmem_comm_node_column2 = header->comm_column;
     node_barrier_mpi(handle + 1, MPI_COMM_NULL, MPI_COMM_NULL);
 #ifdef GPU_ENABLED
-    if (gpu_is_device_pointer((void *)header->shmem)) {
-      gpu_destroy_shared_memory(header->comm_row, header->node_num_cores_row,
-                                header->comm_column,
-                                header->node_num_cores_column, &header->shmem);
+    if (ext_mpi_gpu_is_device_pointer((void *)header->shmem)) {
+      ext_mpi_gpu_destroy_shared_memory(header->comm_row, header->node_num_cores_row,
+                                        header->comm_column,
+                                        header->node_num_cores_column, &header->shmem);
     }
-    gpu_free(header->gpu_byte_code);
+    ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
     destroy_shared_memory(handle + 1, &shmem_size, &shmemid, &shmem);
     node_barrier_mpi(handle + 1, MPI_COMM_NULL, MPI_COMM_NULL);
@@ -918,15 +918,15 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     goto error_shared;
   my_shared_buf = shmem + barriers_size;
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(sendbuf)) {
+  if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
     my_shared_buf = NULL;
-    shmemid_gpu = (char *)malloc(gpu_sizeof_memhandle());
+    shmemid_gpu = (char *)malloc(ext_mpi_gpu_sizeof_memhandle());
     if (!shmemid_gpu)
       goto error;
-    gpu_setup_shared_memory(shmem_comm_node_row, my_cores_per_node_row,
-                            shmem_comm_node_column, my_cores_per_node_column,
-                            shmem_size - barriers_size, shmemid_gpu,
-                            &my_shared_buf);
+    ext_mpi_gpu_setup_shared_memory(shmem_comm_node_row, my_cores_per_node_row,
+                                    shmem_comm_node_column, my_cores_per_node_column,
+                                    shmem_size - barriers_size, shmemid_gpu,
+                                    &my_shared_buf);
   }
 #endif
   global_ranks =
@@ -977,12 +977,12 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     if (!locmem)
       goto error;
 #ifdef GPU_ENABLED
-    if (gpu_is_device_pointer(sendbuf)) {
+    if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
       my_shared_buf = NULL;
-      gpu_setup_shared_memory(shmem_comm_node_row, my_cores_per_node_row,
-                              shmem_comm_node_column, my_cores_per_node_column,
-                              shmem_size - barriers_size, shmemid_gpu,
-                              &my_shared_buf);
+      ext_mpi_gpu_setup_shared_memory(shmem_comm_node_row, my_cores_per_node_row,
+                                      shmem_comm_node_column, my_cores_per_node_column,
+                                      shmem_size - barriers_size, shmemid_gpu,
+                                      &my_shared_buf);
     }
 #endif
     if (ext_mpi_generate_byte_code(
@@ -1196,7 +1196,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(recvbuf)) {
+  if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
@@ -1225,7 +1225,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     buffer2 = buffer_temp;
   }
 #ifdef GPU_ENABLED
-  if (!gpu_is_device_pointer(sendbuf)) {
+  if (!ext_mpi_gpu_is_device_pointer(recvbuf)) {
 #endif
     if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
       goto error;
@@ -1272,7 +1272,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     buffer1 = buffer_temp;
   }
 #ifdef GPU_ENABLED
-  if (!gpu_is_device_pointer(sendbuf)) {
+  if (!ext_mpi_gpu_is_device_pointer(recvbuf)) {
 #endif
     if (ext_mpi_generate_parallel_memcpy(buffer2, buffer1) < 0)
       goto error;
@@ -1483,7 +1483,7 @@ int EXT_MPI_Gatherv_init_native(
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(recvbuf)) {
+  if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
@@ -1710,7 +1710,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(recvbuf)) {
+  if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
@@ -1929,7 +1929,7 @@ int EXT_MPI_Reduce_scatter_init_native(
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(recvbuf)) {
+  if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif

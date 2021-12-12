@@ -257,10 +257,10 @@ static int gpu_byte_code_add(struct gpu_stream **streams, void *dest, void *src,
   return 0;
 }
 
-void flush_complete(char **ip, struct gpu_stream **streams,
-                    char *header_gpu_byte_code, char *gpu_byte_code,
-                    int *gpu_byte_code_counter, int reduction_op,
-                    int isdryrun) {
+static void flush_complete(char **ip, struct gpu_stream **streams,
+                           char *header_gpu_byte_code, char *gpu_byte_code,
+                           int *gpu_byte_code_counter, int reduction_op,
+                           int isdryrun) {
   int type_size = 1;
   code_put_char(ip, OPCODE_GPUKERNEL, isdryrun);
   code_put_char(ip, reduction_op, isdryrun);
@@ -352,7 +352,7 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
       if (!gpu_byte_code)
         goto error;
       memset(gpu_byte_code, 0, *gpu_byte_code_counter);
-      gpu_malloc((void **)&header->gpu_byte_code, *gpu_byte_code_counter);
+      ext_mpi_gpu_malloc((void **)&header->gpu_byte_code, *gpu_byte_code_counter);
       *gpu_byte_code_counter = 0;
     } else {
       gpu_byte_code = NULL;
@@ -572,7 +572,7 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
   }
 #ifdef GPU_ENABLED
   if (!isdryrun && on_gpu) {
-    gpu_memcpy_hd(header->gpu_byte_code, gpu_byte_code, *gpu_byte_code_counter);
+    ext_mpi_gpu_memcpy_hd(header->gpu_byte_code, gpu_byte_code, *gpu_byte_code_counter);
   }
   free(gpu_byte_code);
 #endif

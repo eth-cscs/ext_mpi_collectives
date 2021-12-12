@@ -7,12 +7,12 @@
 #endif
 #include "gpu_shmem.h"
 
-int gpu_sizeof_memhandle() { return (sizeof(struct cudaIpcMemHandle_st)); }
+int ext_mpi_gpu_sizeof_memhandle() { return (sizeof(struct cudaIpcMemHandle_st)); }
 
-int gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
-                            MPI_Comm comm_column, int my_cores_per_node_column,
-                            int size_shared, void *shmemid_gpu,
-                            char volatile **shmem_gpu) {
+int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
+                                    MPI_Comm comm_column, int my_cores_per_node_column,
+                                    int size_shared, void *shmemid_gpu,
+                                    char volatile **shmem_gpu) {
   MPI_Comm my_comm_node_h, my_comm_node_v;
   int my_mpi_rank_row, my_mpi_size_row, my_mpi_rank_column, my_mpi_size_column;
   MPI_Comm_size(comm, &my_mpi_size_row);
@@ -76,10 +76,10 @@ int gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
   return 0;
 }
 
-int gpu_destroy_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
-                              MPI_Comm comm_column,
-                              int my_cores_per_node_column,
-                              char volatile **shmem_gpu) {
+int ext_mpi_gpu_destroy_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
+                                      MPI_Comm comm_column,
+                                      int my_cores_per_node_column,
+                                      char volatile **shmem_gpu) {
   MPI_Comm my_comm_node_h, my_comm_node_v;
   int my_mpi_rank_row, my_mpi_size_row, my_mpi_rank_column, my_mpi_size_column;
   MPI_Comm_size(comm, &my_mpi_size_row);

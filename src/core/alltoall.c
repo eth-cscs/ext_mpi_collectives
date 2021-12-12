@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int alltoall_get_text(char *buffer_in, char *buffer_out) {
+int ext_mpi_alltoall_get_text(char *buffer_in, char *buffer_out) {
   int task, num_nodes = -1, num_ports = -1;
   int i, gbstep, nstep, shift, nbuffer_out = 0, *source_array, from, to, flag,
                                integer1;

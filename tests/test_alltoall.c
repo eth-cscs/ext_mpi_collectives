@@ -13,6 +13,6 @@ int main(int argc, char *argv[]) {
       nbuffer_out += sprintf(buffer_in + nbuffer_out, "%s", line_return);
     }
   }
-  alltoall_get_text(buffer_in, buffer_out);
+  ext_mpi_alltoall_get_text(buffer_in, buffer_out);
   printf("%s", buffer_out);
 }
