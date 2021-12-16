@@ -438,12 +438,20 @@ static int node_cycl_btest(volatile char *shmem, int *barrier_count,
 }
 
 static void reduce_waitany(void **pointers_to, void **pointers_from, int *sizes, int num_red, int op_reduce){
+  /*
+  Function to perform the reduction operation using MPI_Waitany.
+  */
   void *p1, *p2;
   int red_it, i1, i;
+            //loop over reduction_iteration 
             for (red_it = 0; red_it<num_red; red_it++) {
+              //pointer to which to sum up
               p1 = pointers_to[red_it];
+              //pointer from which to sum up
               p2 = pointers_from[red_it];
+              //length over which to perform reduction
               i1 = sizes[red_it];
+              //switch to datatype that is reduced
               switch (op_reduce) {
               case OPCODE_REDUCE_SUM_DOUBLE:
                 for (i = 0; i < i1; i++) {
@@ -477,17 +485,24 @@ static void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           num_red[i]=0;
         }
         while (done < num_wait) {
+          //get values for reduction operation and put them in a datastructure
           op = code_get_char(ip);
+          //check whether an attached or a reduce is encountered
           switch (op) {
           case OPCODE_REDUCE: {
+            //get all parameters for all reductions
             op_reduce = code_get_char(ip);
+            //get pointer from which to perform reduction operation
             pointers[done][0][num_red[done]] = code_get_pointer(ip);
+            //get pointer to which to perform reduction operation
             pointers[done][1][num_red[done]] = code_get_pointer(ip);
+            //get for how many elements to perform reduction
             sizes[done][num_red[done]] = code_get_int(ip);
             num_red[done]++;
             break;
           }
           case OPCODE_ATTACHED: {
+            //increase done to indicate you are at the next set of reduction operations
             done++;
             break;
           }
@@ -498,6 +513,7 @@ static void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
           }
         }
         if (num_red_max>=0){
+        //if there is any reduction operation to perform, iterate over all waitany and perform the corresponding reduction operations based on the parameters that are just acquired
         for (count=0; count<num_wait; count++) {
             MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
             reduce_waitany(pointers[index][0], pointers[index][1], sizes[index], num_red[index], op_reduce);

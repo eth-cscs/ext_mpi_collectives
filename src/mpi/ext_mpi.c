@@ -18,6 +18,7 @@
 #endif
 
 int ext_mpi_bit_reproducible = 1;
+//parameter for minimum computation set
 int ext_mpi_minimum_computation = 0;
 
 static int is_initialised = 0;
@@ -207,17 +208,21 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
       if (comm_size_row/my_cores_per_node_row==1){
         group_size = 1;
       }else{
+        //set group size to 2^group_size <= num_ports
         group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
       }
       for(int i=0;i<group_size;i++){
+        //set num_ports and groups
         num_ports[i]=1;
         if(i==group_size-1){
+          //set to negative to indicate end of a group
           groups[i]=-comm_size_row/my_cores_per_node_row;
         }
         else{
           groups[i]=comm_size_row/my_cores_per_node_row;
         }
       }
+      //set final to zero to indicate the end
       groups[group_size]=0;
       num_ports[group_size]=0;
     } else if (fixed_factors_ports == NULL && !ext_mpi_minimum_computation){
@@ -1133,15 +1138,21 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
     }
     // FIXME comm_column
   } else if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+    //allreduce case for minimum computation
     if (comm_size_row/my_cores_per_node_row==1){
+      //if only one node
       group_size = 1;
     }else{
+      //set group_size to 2^group_size <= num_nodes
       group_size = ceil(log(comm_size_row/my_cores_per_node_row)/log(2));
     }
     for(int i=0;i<2*group_size;i++){
+      //iterate over the two groups
       if(i<group_size){
+        //set num_ports to -1 for the first group
         num_ports[i]=-1;
         if(i==group_size-1){
+          //set the final value of a group to a negative value to indicate the end of the group
           groups[i]=-comm_size_row/my_cores_per_node_row;
         }
         else{
@@ -1149,6 +1160,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
         }
       }
       else{
+        //set num_ports to 1 for the second group
         num_ports[i]=1;
         if(i==2*group_size-1){
           groups[i]=-comm_size_row/my_cores_per_node_row;
@@ -1158,6 +1170,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
         }
       }
     }
+    //set the final value of the array to 0 to indicate the end of it
     groups[2*group_size]=0;
     num_ports[2*group_size]=0;
   } else {
