@@ -478,6 +478,23 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
       case 3:
+        add = node_rank * CACHE_LINE_SIZE;
+        for (i = 0; i < size_level1[0]; i++) {
+          size = mcounts[data[0][i].frac];
+          add2 = moffsets[data[0][i].frac];
+          if (size) {
+//            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdd(
+//                buffer_out + nbuffer_out, ememcpy, eshmempbuffer_offseto, -1, eshmempbuffer_offsetcp, add, esendbufp,
+//                add2, size, parameters->ascii_out);
+          }
+          add += size;
+        }
+        for (barriers_size = 0, step = 1; step < node_size; barriers_size++, step <<= 1) {
+          nbuffer_out += ext_mpi_write_assembler_line_ssdsd(buffer_out + nbuffer_out, eset_mem, eshmempbuffer_offseto, -1, eshmempbuffer_offsetcp, (barriers_size * node_size + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1, parameters->ascii_out);
+          nbuffer_out += ext_mpi_write_assembler_line_ssdsd(buffer_out + nbuffer_out, eunset_mem, eshmempbuffer_offseto, -1, eshmempbuffer_offsetcp, (barriers_size * node_size + (node_rank + step) % node_size) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1, parameters->ascii_out);
+        }
+        break;
+      case 4:
         nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, parameters->node_row_size, lrank_row, 0, buffer_out+nbuffer_out);
 /*        nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, 2, lrank_row%2, lrank_row/2, buffer_out+nbuffer_out);
         block_offsets=(int*)malloc(2*sizeof(int));
@@ -496,7 +513,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, ememcp_, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
         nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
-      case 4:
+      case 5:
         if (collective_type == 2) {
           printf("copyin not implemented\n");
           exit(2);
@@ -574,7 +591,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               -CACHE_LINE_SIZE * (1 + node_rank + barriers_size * node_size));
         }
         break;
-      case 5:
+      case 6:
         if (collective_type == 2) {
           printf("copyin not implemented\n");
           exit(2);
@@ -653,7 +670,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               -CACHE_LINE_SIZE * (1 + node_rank + barriers_size * node_size));
         }
         break;
-      case 6:
+      case 7:
         if (collective_type == 2) {
           printf("copyin not implemented\n");
           exit(2);
@@ -687,7 +704,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         }
         nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER\n");
         break;
-      case 7:
+      case 8:
         if (moffsets[num_nodes] < CACHE_LINE_SIZE) {
           add = CACHE_LINE_SIZE * lrank_row + ldispls[lrank_column];
           if (moffsets[num_nodes] < CACHE_LINE_SIZE - 2 * type_size) {

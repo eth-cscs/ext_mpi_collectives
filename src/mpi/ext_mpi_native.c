@@ -325,7 +325,24 @@ error:
   return ERROR_MALLOC;
 }
 
-static void node_barrier(volatile char *shmem, int *barrier_count,
+static void set_mem(char *shmem){
+  while (!__sync_bool_compare_and_swap(shmem, 0, 1));
+}
+
+static void unset_mem(char *shmem){
+  while (!__sync_bool_compare_and_swap(shmem, 1, 0));
+}
+
+static void node_barrier(char *shmem, int *barrier_count,
+                         int node_rank, int num_cores) {
+  int barriers_size, step;
+  for (barriers_size = 0, step = 1; step < num_cores; barriers_size++, step <<= 1) {
+    while (!__sync_bool_compare_and_swap(&shmem[(barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1], 0, 1));
+    while (!__sync_bool_compare_and_swap(&shmem[(barriers_size * num_cores + (node_rank + step) % num_cores) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1], 1, 0));
+  }
+}
+
+static void node_barrier___(volatile char *shmem, int *barrier_count,
                          int node_rank, int num_cores) {
   int barriers_size, step, barriers_size_max, i;
   for (barriers_size = 0, step = 1; step < num_cores;
@@ -699,6 +716,12 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
     case OPCODE_NEXT_NODEBARRIER:
       node_barrier_next(header->barrier_shmem, &header->barrier_counter,
                         header->node_rank, header->num_cores);
+      break;
+    case OPCODE_SET_MEM:
+      set_mem(code_get_pointer(&ip));
+      break;
+    case OPCODE_UNSET_MEM:
+      unset_mem(code_get_pointer(&ip));
       break;
     case OPCODE_SETNUMCORES:
       header->num_cores = code_get_int(&ip);

@@ -376,6 +376,18 @@ int ext_mpi_simulate_native(char *ip) {
       printf("next_node_barrier\n");
 #endif
       break;
+    case OPCODE_SET_MEM:
+      code_get_pointer(&ip);
+#ifdef VERBOSE_PRINT
+      printf("set_mem\n");
+#endif
+      break;
+    case OPCODE_UNSET_MEM:
+      code_get_pointer(&ip);
+#ifdef VERBOSE_PRINT
+      printf("unset_mem\n");
+#endif
+      break;
     case OPCODE_SETNUMCORES:
       i1 = code_get_int(&ip);
 #ifdef VERBOSE_PRINT
@@ -548,6 +560,12 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
       i1 = code_get_int(&ip);
       break;
     case OPCODE_NEXT_NODEBARRIER:
+      break;
+    case OPCODE_SET_MEM:
+      code_get_pointer(&ip);
+      break;
+    case OPCODE_UNSET_MEM:
+      code_get_pointer(&ip);
       break;
     case OPCODE_SETNUMCORES:
       i1 = code_get_int(&ip);

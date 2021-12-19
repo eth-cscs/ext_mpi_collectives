@@ -57,11 +57,13 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
         if (ext_mpi_read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
                                                    &estring3, &o1, &estring4, &bo2,
                                                    &estring5, &o2, &size, 0) >= 0) {
-          if (o1 + size > buffer_offset[bo1]) {
-            buffer_offset[bo1] = o1 + size;
-          }
-          if (o2 + size > buffer_offset[bo2]) {
-            buffer_offset[bo2] = o2 + size;
+          if (bo1 >= 0) {
+            if (o1 + size > buffer_offset[bo1]) {
+              buffer_offset[bo1] = o1 + size;
+            }
+            if (o2 + size > buffer_offset[bo2]) {
+              buffer_offset[bo2] = o2 + size;
+            }
           }
         } else {
           if (ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1,

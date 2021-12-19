@@ -489,6 +489,23 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
         code_put_char(&ip, OPCODE_NEXT_NODEBARRIER, isdryrun);
       }
     }
+    if ((estring1 == eset_mem) || (estring1 == eunset_mem)){
+      ext_mpi_read_assembler_line_ssd(line, &estring1, &estring2, &integer1, 0);
+      if (estring1 == eset_mem){
+        code_put_char(&ip, OPCODE_SET_MEM, isdryrun);
+      }else{
+        code_put_char(&ip, OPCODE_UNSET_MEM, isdryrun);
+      }
+      if (estring2 == esendbufp) {
+        code_put_pointer(&ip, sendbuf + integer1, isdryrun);
+      } else {
+        if (estring2 == erecvbufp) {
+          code_put_pointer(&ip, recvbuf + integer1, isdryrun);
+        } else {
+          code_put_pointer(&ip, ((char *)shmem) + integer1, isdryrun);
+        }
+      }
+    }
     if ((estring1 == ememcpy) || (estring1 == ereduce) ||
         (estring1 == esreduce)) {
       ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring1a, &integer1,

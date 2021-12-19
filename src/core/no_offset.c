@@ -25,9 +25,15 @@ int ext_mpi_generate_no_offset(char *buffer_in, char *buffer_out) {
             (ext_mpi_read_assembler_line_ssdsdddd(line, &estring1, &estring2, &bo1,
                                                   &estring3, &o1, &i, &j, &k,
                                                   0) >= 0)) {
-          nbuffer_out += ext_mpi_write_assembler_line_ssdddd(
-              buffer_out + nbuffer_out, estring1, eshmemp,
-              buffer_offset[bo1] + o1, i, j, k, parameters->ascii_out);
+          if (bo1 >= 0) {
+            nbuffer_out += ext_mpi_write_assembler_line_ssdddd(
+                buffer_out + nbuffer_out, estring1, eshmemp,
+                buffer_offset[bo1] + o1, i, j, k, parameters->ascii_out);
+          } else {
+            nbuffer_out += ext_mpi_write_assembler_line_ssdddd(
+                buffer_out + nbuffer_out, estring1, eshmemp,
+                parameters->shmem_max + o1, i, j, k, parameters->ascii_out);
+          }
         } else {
           if (((estring1 == ememcpy) || (estring1 == ereduce) ||
                (estring1 == ememcp_) || (estring1 == ereduc_) ||
@@ -35,13 +41,37 @@ int ext_mpi_generate_no_offset(char *buffer_in, char *buffer_out) {
               (ext_mpi_read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
                                                       &estring3, &o1, &estring4, &bo2,
                                                       &estring5, &o2, &i, 0) >= 0)) {
+            if (bo1 >= 0) {
+              j = buffer_offset[bo1];
+            } else {
+              j = parameters->shmem_max;
+            }
+            if (bo2 >= 0) {
+              k = buffer_offset[bo2];
+            } else {
+              k = parameters->shmem_max;
+            }
             nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
                 buffer_out + nbuffer_out, estring1, eshmemp,
-                buffer_offset[bo1] + o1, eshmemp, buffer_offset[bo2] + o2, i,
+                j + o1, eshmemp, k + o2, i,
                 parameters->ascii_out);
           } else {
-            nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
-                                              parameters->ascii_out);
+            if (((estring1 == eset_mem) || (estring1 == eunset_mem)) &&
+              (ext_mpi_read_assembler_line_ssdsd(line, &estring1, &estring2, &bo1,
+                                                 &estring3, &o1, 0) >= 0)) {
+              if (bo1 >= 0) {
+                nbuffer_out += ext_mpi_write_assembler_line_ssd(
+                    buffer_out + nbuffer_out, estring1, estring2,
+                    buffer_offset[bo1] + o1, parameters->ascii_out);
+              } else {
+                nbuffer_out += ext_mpi_write_assembler_line_ssd(
+                    buffer_out + nbuffer_out, estring1, estring2,
+                    parameters->shmem_max + o1, parameters->ascii_out);
+              }
+            } else {
+              nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
+                                                parameters->ascii_out);
+            }
           }
         }
       }
