@@ -22,6 +22,7 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
     if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
       if ((estring1 == ememcpy) || (estring1 == ereduce) ||
           (estring1 == ememcp_) || (estring1 == ereduc_) ||
+          (estring1 == esmemcpy) || (estring1 == esmemcp_) ||
           (estring1 == esreduce) || (estring1 == esreduc_)) {
         if (ext_mpi_read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
                                                    &estring3, &o1, &estring4, &bo2,
@@ -53,6 +54,7 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
     if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
       if ((estring1 == ememcpy) || (estring1 == ereduce) ||
           (estring1 == ememcp_) || (estring1 == ereduc_) ||
+          (estring1 == esmemcpy) || (estring1 == esmemcp_) ||
           (estring1 == esreduce) || (estring1 == esreduc_)) {
         if (ext_mpi_read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
                                                    &estring3, &o1, &estring4, &bo2,

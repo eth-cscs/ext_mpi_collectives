@@ -507,13 +507,13 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
       }
     }
     if ((estring1 == ememcpy) || (estring1 == ereduce) ||
-        (estring1 == esreduce)) {
+        (estring1 == esreduce) || (estring1 == esmemcpy)) {
       ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring1a, &integer1,
                                          &estring2, &integer2, &integer3, 0);
 #ifdef GPU_ENABLED
       if (!on_gpu) {
 #endif
-        if (estring1 == ememcpy) {
+        if ((estring1 == ememcpy) || (estring1 == esmemcpy)) {
           code_put_char(&ip, OPCODE_MEMCPY, isdryrun);
         } else {
           code_put_char(&ip, OPCODE_REDUCE, isdryrun);

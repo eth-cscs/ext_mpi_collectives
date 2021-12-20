@@ -37,6 +37,8 @@ enum eassembler_type {
   eunset_mem,
   ememcpy,
   ememcp_,
+  esmemcpy,
+  esmemcp_,
   ereduce,
   ereduc_,
   esreduce,
@@ -169,6 +171,10 @@ int ext_mpi_write_assembler_line_ssdsdsdsdd(
     enum eassembler_type string2, int integer1, enum eassembler_type string3,
     int integer2, enum eassembler_type string4, int integer3,
     enum eassembler_type string5, int integer4, int integer5, int ascii);
+int ext_mpi_write_assembler_line_ssdsdsdd(
+    char *buffer_out, enum eassembler_type string1,
+    enum eassembler_type string2, int integer1, enum eassembler_type string3,
+    int integer2, enum eassembler_type string4, int integer3, int integer4, int ascii);
 int ext_mpi_read_assembler_line_s(char *buffer_in,
                                   enum eassembler_type *string1, int ascii);
 int ext_mpi_read_assembler_line_sd(char *buffer_in,
@@ -215,6 +221,10 @@ int ext_mpi_read_assembler_line_ssdsdddd(
     char *buffer_in, enum eassembler_type *string1,
     enum eassembler_type *string2, int *integer1, enum eassembler_type *string3,
     int *integer2, int *integer3, int *integer4, int *integer5, int ascii);
+int ext_mpi_read_assembler_line_ssdsdsdd(
+    char *buffer_in, enum eassembler_type *string1,
+    enum eassembler_type *string2, int *integer1, enum eassembler_type *string3,
+    int *integer2, enum eassembler_type *string4, int *integer3, int *integer4, int ascii);
 int ext_mpi_read_assembler_line_ssdsdsdsdd(
     char *buffer_in, enum eassembler_type *string1,
     enum eassembler_type *string2, int *integer1, enum eassembler_type *string3,
