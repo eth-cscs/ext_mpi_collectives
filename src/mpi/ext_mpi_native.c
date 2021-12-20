@@ -943,7 +943,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   shmem_size = -111;
   shmemid = -1;
   for (barriers_size = 0, step = 1;
-       step <= my_cores_per_node_row * my_cores_per_node_column;
+       step/2 <= my_cores_per_node_row * my_cores_per_node_column;
        barriers_size++, step *= 2)
     ;
   barriers_size *= my_cores_per_node_row * my_cores_per_node_column *
