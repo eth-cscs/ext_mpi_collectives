@@ -531,6 +531,13 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
         }
         nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+        size=moffsets[num_nodes];
+        if (size <= CACHE_LINE_SIZE) size = CACHE_LINE_SIZE;
+        size *= node_row_size;
+        add=add2=size;
+        size=0;
+        nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, ememcp_, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
+        nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
       case 4:
         nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, parameters->node_row_size, lrank_row, 0, buffer_out+nbuffer_out);

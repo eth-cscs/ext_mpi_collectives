@@ -921,7 +921,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
   int locmem_size, shmem_size, shmemid;
   volatile char *shmem = NULL;
-  volatile char *my_shared_buf;
+  volatile char *my_shared_4barrier;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column;
   int gpu_byte_code_counter = 0;
 #ifdef GPU_ENABLED
@@ -943,9 +943,10 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   shmem_size = -111;
   shmemid = -1;
   for (barriers_size = 0, step = 1;
-       step/2 <= my_cores_per_node_row * my_cores_per_node_column;
+       step <= my_cores_per_node_row * my_cores_per_node_column;
        barriers_size++, step *= 2)
     ;
+  barriers_size += 1;
   barriers_size *= my_cores_per_node_row * my_cores_per_node_column *
                    (NUM_BARRIERS + 1) * CACHE_LINE_SIZE;
   barriers_size += NUM_BARRIERS * CACHE_LINE_SIZE;
@@ -955,17 +956,17 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                           my_size_shared_buf + barriers_size, &shmem_size,
                           &shmemid, &shmem, 0, barriers_size) < 0)
     goto error_shared;
-  my_shared_buf = shmem + barriers_size;
+  my_shared_4barrier = shmem + my_size_shared_buf;
 #ifdef GPU_ENABLED
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
-    my_shared_buf = NULL;
+    shmem = NULL;
     shmemid_gpu = (char *)malloc(ext_mpi_gpu_sizeof_memhandle());
     if (!shmemid_gpu)
       goto error;
     ext_mpi_gpu_setup_shared_memory(shmem_comm_node_row, my_cores_per_node_row,
                                     shmem_comm_node_column, my_cores_per_node_column,
                                     shmem_size - barriers_size, shmemid_gpu,
-                                    &my_shared_buf);
+                                    &shmem);
   }
 #endif
   global_ranks =
@@ -985,8 +986,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     tag = 0;
   }
   code_size = ext_mpi_generate_byte_code(
-      shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
-      my_shared_buf, locmem, reduction_op, global_ranks, NULL,
+      my_shared_4barrier, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
+      shmem, locmem, reduction_op, global_ranks, NULL,
       shmem_comm_node_row, my_cores_per_node_row, shmem_comm_node_column,
       my_cores_per_node_column, &gpu_byte_code_counter, tag);
   if (code_size < 0)
@@ -995,8 +996,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (!ip)
     goto error;
   if (ext_mpi_generate_byte_code(
-          shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
-          (char *)recvbuf, my_shared_buf, locmem, reduction_op,
+          my_shared_4barrier, shmem_size, shmemid, buffer_in, (char *)sendbuf,
+          (char *)recvbuf, shmem, locmem, reduction_op,
           global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
           shmem_comm_node_column, my_cores_per_node_column,
           &gpu_byte_code_counter, tag) < 0)
@@ -1011,7 +1012,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                             my_size_shared_buf + barriers_size, &shmem_size,
                             &shmemid, &shmem, 0, barriers_size) < 0)
       goto error_shared;
-    my_shared_buf = shmem + barriers_size;
+    my_shared_4barrier = shmem + my_size_shared_buf;
     locmem = (char *)malloc(locmem_size);
     if (!locmem)
       goto error;
@@ -1025,8 +1026,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     }
 #endif
     if (ext_mpi_generate_byte_code(
-            shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
-            (char *)recvbuf, my_shared_buf, locmem, reduction_op,
+            my_shared_4barrier, shmem_size, shmemid, buffer_in, (char *)sendbuf,
+            (char *)recvbuf, shmem, locmem, reduction_op,
             global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
             shmem_comm_node_column, my_cores_per_node_column,
             &gpu_byte_code_counter, tag) < 0)
