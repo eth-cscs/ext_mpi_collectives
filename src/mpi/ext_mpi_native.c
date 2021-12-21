@@ -931,6 +931,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   char *shmem = NULL;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column;
   int gpu_byte_code_counter = 0;
+  char *shmem_gpu = NULL;
 #ifdef GPU_ENABLED
   char *shmemid_gpu = NULL;
 #endif
@@ -967,14 +968,14 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   shmem_size -= barriers_size;
 #ifdef GPU_ENABLED
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
-    shmem = NULL;
+    shmem_gpu = NULL;
     shmemid_gpu = (char *)malloc(ext_mpi_gpu_sizeof_memhandle());
     if (!shmemid_gpu)
       goto error;
     ext_mpi_gpu_setup_shared_memory(shmem_comm_node_row, my_cores_per_node_row,
                                     shmem_comm_node_column, my_cores_per_node_column,
                                     shmem_size - barriers_size, shmemid_gpu,
-                                    &shmem);
+                                    &shmem_gpu);
   }
 #endif
   global_ranks =
@@ -997,7 +998,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
       my_size_shared_buf, barriers_size, locmem, reduction_op, global_ranks, NULL,
       shmem_comm_node_row, my_cores_per_node_row, shmem_comm_node_column,
-      my_cores_per_node_column, &gpu_byte_code_counter, tag);
+      my_cores_per_node_column, shmem_gpu, &gpu_byte_code_counter, tag);
   if (code_size < 0)
     goto error;
   ip = comm_code[handle] = (char *)malloc(code_size);
@@ -1008,7 +1009,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
           (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
           global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
           shmem_comm_node_column, my_cores_per_node_column,
-          &gpu_byte_code_counter, tag) < 0)
+          shmem_gpu, &gpu_byte_code_counter, tag) < 0)
     goto error;
   if (alt) {
     ip = comm_code[handle + 1] = (char *)malloc(code_size);
@@ -1026,11 +1027,11 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       goto error;
 #ifdef GPU_ENABLED
     if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
-      my_shared_buf = NULL;
+      shmem_gpu = NULL;
       ext_mpi_gpu_setup_shared_memory(shmem_comm_node_row, my_cores_per_node_row,
                                       shmem_comm_node_column, my_cores_per_node_column,
                                       shmem_size - barriers_size, shmemid_gpu,
-                                      &my_shared_buf);
+                                      &shmem_gpu);
     }
 #endif
     if (ext_mpi_generate_byte_code(
@@ -1038,7 +1039,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
             (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
             global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
             shmem_comm_node_column, my_cores_per_node_column,
-            &gpu_byte_code_counter, tag) < 0)
+            shmem_gpu, &gpu_byte_code_counter, tag) < 0)
       goto error;
   } else {
     comm_code[handle + 1] = NULL;

@@ -667,7 +667,11 @@ static int reduce_scatter_init_general(
       for (i = 0; i < comm_size_row; i++) {
         rcount += recvcounts[i];
       }
+#ifdef GPU_ENABLED
+      if ((rcount * type_size < CACHE_LINE_SIZE) && !ext_mpi_gpu_is_device_pointer(recvbuf)) {
+#else
       if (rcount * type_size < CACHE_LINE_SIZE) {
+#endif
         cin_method = 3;
       } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
         cin_method = (rcount * type_size >
@@ -1187,7 +1191,11 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
   } else {
+#ifdef GPU_ENABLED
+    if ((count * type_size < CACHE_LINE_SIZE) && !ext_mpi_gpu_is_device_pointer(recvbuf)) {
+#else
     if (count * type_size < CACHE_LINE_SIZE) {
+#endif
       cin_method = 3;
     } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
       cin_method = (count * type_size >
@@ -1544,7 +1552,11 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
   } else {
+#ifdef GPU_ENABLED
+    if ((count * type_size < CACHE_LINE_SIZE) && !ext_mpi_gpu_is_device_pointer(recvbuf)) {
+#else
     if (count * type_size < CACHE_LINE_SIZE) {
+#endif
       cin_method = 3;
     } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
       cin_method = (count * type_size >

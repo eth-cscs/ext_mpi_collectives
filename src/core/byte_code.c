@@ -301,7 +301,7 @@ int ext_mpi_generate_byte_code(char *shmem,
                                char *code_out, MPI_Comm comm_row,
                                int node_num_cores_row, MPI_Comm comm_column,
                                int node_num_cores_column,
-                               int *gpu_byte_code_counter, int tag) {
+                               char *shmem_gpu, int *gpu_byte_code_counter, int tag) {
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
@@ -332,6 +332,9 @@ int ext_mpi_generate_byte_code(char *shmem,
     header->shmemid = shmemid;
     header->locmem = locmem;
     header->shmem = shmem;
+#ifdef GPU_ENABLED
+    shmem = header->shmem = header->shmem_gpu = shmem_gpu;
+#endif
     header->shmem_size = 0;
     header->buf_size = 0;
     header->comm_row = comm_row;

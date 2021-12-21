@@ -217,7 +217,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   code_size = ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, (char *)sendbuf,
                                          (char *)recvbuf, 0, 0, NULL, reduction_op,
                                          global_ranks, NULL, MPI_COMM_NULL, 1,
-                                         MPI_COMM_NULL, 1, &gpu_byte_code_counter, 0);
+                                         MPI_COMM_NULL, 1, NULL, &gpu_byte_code_counter, 0);
   if (code_size < 0)
     goto error;
   ip = *code_address = (char *)malloc(code_size);
@@ -226,7 +226,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   if (ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, (char *)sendbuf, (char *)recvbuf,
                                  0, 0, NULL, reduction_op, global_ranks, ip,
                                  MPI_COMM_NULL, 1, MPI_COMM_NULL, 1,
-                                 &gpu_byte_code_counter, 0) < 0)
+                                 NULL, &gpu_byte_code_counter, 0) < 0)
     goto error;
   free(global_ranks);
   free(buffer2);
