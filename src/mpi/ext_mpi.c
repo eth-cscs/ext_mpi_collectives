@@ -667,7 +667,9 @@ static int reduce_scatter_init_general(
       for (i = 0; i < comm_size_row; i++) {
         rcount += recvcounts[i];
       }
-      if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
+      if (rcount * type_size < CACHE_LINE_SIZE) {
+        cin_method = 3;
+      } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
         cin_method = (rcount * type_size >
                       ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
       } else {
@@ -1185,7 +1187,9 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
   } else {
-    if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
+    if (count * type_size < CACHE_LINE_SIZE) {
+      cin_method = 3;
+    } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
       cin_method = (count * type_size >
                     ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
     } else {
@@ -1540,7 +1544,9 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   if (copyin_method >= 1) {
     cin_method = copyin_method - 1;
   } else {
-    if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
+    if (count * type_size < CACHE_LINE_SIZE) {
+      cin_method = 3;
+    } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
       cin_method = (count * type_size >
                     ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
     } else {

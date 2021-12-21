@@ -293,10 +293,10 @@ static void flush_complete(char **ip, struct gpu_stream **streams,
 }
 #endif
 
-int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
-                               int barrier_shmem_size, int barrier_shmemid,
+int ext_mpi_generate_byte_code(char *shmem,
+                               int shmem_size, int shmemid,
                                char *buffer_in, char *sendbuf, char *recvbuf,
-                               char volatile *shmem, char *locmem,
+                               int my_size_shared_buf, int barriers_size, char *locmem,
                                int reduction_op, int *global_ranks,
                                char *code_out, MPI_Comm comm_row,
                                int node_num_cores_row, MPI_Comm comm_column,
@@ -327,9 +327,9 @@ int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
   } else {
     header = (struct header_byte_code *)ip;
     header->barrier_counter = 0;
-    header->barrier_shmem = barrier_shmem_org;
-    header->barrier_shmem_size = barrier_shmem_size;
-    header->barrier_shmemid = barrier_shmemid;
+    header->barrier_shmem = shmem + my_size_shared_buf;
+    header->barrier_shmem_size = barriers_size;
+    header->shmemid = shmemid;
     header->locmem = locmem;
     header->shmem = shmem;
     header->shmem_size = 0;

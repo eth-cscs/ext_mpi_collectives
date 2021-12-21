@@ -215,7 +215,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   global_ranks =
       (int *)malloc(sizeof(int) * my_mpi_size_row * my_cores_per_node_column);
   code_size = ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, (char *)sendbuf,
-                                         (char *)recvbuf, NULL, NULL, reduction_op,
+                                         (char *)recvbuf, 0, 0, NULL, reduction_op,
                                          global_ranks, NULL, MPI_COMM_NULL, 1,
                                          MPI_COMM_NULL, 1, &gpu_byte_code_counter, 0);
   if (code_size < 0)
@@ -224,7 +224,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   if (!ip)
     goto error;
   if (ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, (char *)sendbuf, (char *)recvbuf,
-                                 NULL, NULL, reduction_op, global_ranks, ip,
+                                 0, 0, NULL, reduction_op, global_ranks, ip,
                                  MPI_COMM_NULL, 1, MPI_COMM_NULL, 1,
                                  &gpu_byte_code_counter, 0) < 0)
     goto error;

@@ -10,11 +10,11 @@ extern "C" {
 
 struct header_byte_code {
   int barrier_counter;
-  char volatile *barrier_shmem;
+  char *barrier_shmem;
   int barrier_shmem_size;
-  int barrier_shmemid;
+  int shmemid;
   char *locmem;
-  char volatile *shmem;
+  char *shmem;
   int shmem_size;
   int buf_size;
   MPI_Comm comm_row;
@@ -29,10 +29,10 @@ struct header_byte_code {
 #endif
 };
 
-int ext_mpi_generate_byte_code(char volatile *barrier_shmem_org,
+int ext_mpi_generate_byte_code(char *shmem,
                                int barrier_shmem_size, int barrier_shmemid,
                                char *buffer_in, char *sendbuf, char *recvbuf,
-                               char volatile *shmem, char *locmem,
+                               int my_size_shared_buf, int barriers_size, char *locmem,
                                int reduction_op, int *global_ranks,
                                char *code_out, MPI_Comm comm_row,
                                int node_num_cores_row, MPI_Comm comm_column,

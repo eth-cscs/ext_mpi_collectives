@@ -99,7 +99,7 @@ static void node_barrier_mpi(int handle, MPI_Comm shmem_comm_node_row,
 }
 
 static int destroy_shared_memory(int handle, int *size_shared, int *shmemid,
-                                 volatile char **shmem) {
+                                 char **shmem) {
   if (*shmem != NULL) {
 #ifndef MMAP
     node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL);
@@ -125,7 +125,7 @@ static int setup_shared_memory(MPI_Comm *shmem_comm_node_row,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int size_shared,
                                int *size_shared_old, int *shmemid,
-                               volatile char **shmem, char fill, int numfill) {
+                               char **shmem, char fill, int numfill) {
   int my_mpi_rank_row, my_mpi_size_row, my_mpi_rank_column, my_mpi_size_column;
 #ifdef MMAP
   static int shmem_fd = -1;
@@ -342,8 +342,8 @@ static void node_barrier(char *shmem, int *barrier_count,
   }
 }
 
-static void node_barrier___(volatile char *shmem, int *barrier_count,
-                         int node_rank, int num_cores) {
+static void node_barrier_b(volatile char *shmem, int *barrier_count,
+                           int node_rank, int num_cores) {
   int barriers_size, step, barriers_size_max, i;
   for (barriers_size = 0, step = 1; step < num_cores;
        barriers_size++, step <<= 1) {
@@ -577,8 +577,7 @@ static void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
 
 static int exec_native(char *ip, char **ip_exec, int active_wait) {
   char instruction, instruction2; //, *r_start, *r_temp, *ipl;
-  volatile void *p1, *p2;
-  void *p3;
+  void *p1, *p2, *p3;
   //  char *rlocmem=NULL;
   int i1, i2; //, n_r, s_r, i;
   struct header_byte_code *header;
@@ -635,7 +634,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
                 (MPI_Request *)code_get_pointer(&ip));
       break;
     case OPCODE_MPIWAITALL:
-      if (active_wait) {
+      if (active_wait & 2) {
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
         MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
@@ -652,7 +651,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       }
       break;
     case OPCODE_MPIWAITANY: {
-      if (active_wait) {
+      if (active_wait & 2) {
         // how many to wait for
         i1 = code_get_int(&ip);
         // max reduction size
@@ -676,22 +675,25 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       break;
     }
     case OPCODE_NODEBARRIER:
-      if (active_wait) {
-        node_barrier(header->barrier_shmem, &header->barrier_counter,
+      if (active_wait == 3) {
+        node_barrier(header->barrier_shmem + header->barrier_shmem_size, &header->barrier_counter,
                      header->node_rank, header->num_cores);
+      } else if (active_wait == 2) {
+        node_barrier_b(header->barrier_shmem, &header->barrier_counter,
+                       header->node_rank, header->num_cores);
       } else {
         *ip_exec = ip - 1;
         if (!node_btest(header->barrier_shmem, &header->barrier_counter,
                         header->node_rank, header->num_cores)) {
           return 0;
         } else {
-          node_barrier(header->barrier_shmem, &header->barrier_counter,
-                       header->node_rank, header->num_cores);
+          node_barrier_b(header->barrier_shmem, &header->barrier_counter,
+                         header->node_rank, header->num_cores);
         }
       }
       break;
     case OPCODE_CYCL_NODEBARRIER:
-      if (active_wait) {
+      if (active_wait & 2) {
         node_cycl_barrier(header->barrier_shmem, &header->barrier_counter,
                           header->node_rank, header->num_cores);
       } else {
@@ -797,10 +799,12 @@ int EXT_MPI_Start_native(int handle) {
   }
   execution_pointer[handle] =
       comm_code[handle] + sizeof(struct header_byte_code);
+  active_wait[handle] = 0;
   return (0);
 }
 
 int EXT_MPI_Test_native(int handle) {
+  active_wait[handle] = 1;
   if (execution_pointer[handle]) {
     exec_native(comm_code[handle], &execution_pointer[handle],
                 active_wait[handle]);
@@ -820,7 +824,11 @@ int EXT_MPI_Progress_native() {
 }
 
 int EXT_MPI_Wait_native(int handle) {
-  active_wait[handle] = 1;
+  if (!active_wait[handle]) {
+    active_wait[handle] = 3;
+  } else {
+    active_wait[handle] = 2;
+  }
   if (execution_pointer[handle]) {
     exec_native(comm_code[handle], &execution_pointer[handle],
                 active_wait[handle]);
@@ -830,7 +838,7 @@ int EXT_MPI_Wait_native(int handle) {
 }
 
 int EXT_MPI_Done_native(int handle) {
-  volatile char *shmem;
+  char *shmem;
   char *ip, *locmem;
   int shmem_size, shmemid, i;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column, shmem_comm_node_row2,
@@ -841,7 +849,7 @@ int EXT_MPI_Done_native(int handle) {
   header = (struct header_byte_code *)ip;
   shmem = header->barrier_shmem;
   shmem_size = header->barrier_shmem_size;
-  shmemid = header->barrier_shmemid;
+  shmemid = header->shmemid;
   locmem = header->locmem;
   shmem_comm_node_row = header->comm_row;
   shmem_comm_node_column = header->comm_column;
@@ -864,7 +872,7 @@ int EXT_MPI_Done_native(int handle) {
     header = (struct header_byte_code *)ip;
     shmem = header->barrier_shmem;
     shmem_size = header->barrier_shmem_size;
-    shmemid = header->barrier_shmemid;
+    shmemid = header->shmemid;
     locmem = header->locmem;
     shmem_comm_node_row2 = header->comm_row;
     shmem_comm_node_column2 = header->comm_column;
@@ -907,7 +915,7 @@ int EXT_MPI_Done_native(int handle) {
   free(comm_code);
   comm_code = NULL;
   execution_pointer = NULL;
-  active_wait = 0;
+  active_wait = NULL;
   return 0;
 }
 
@@ -920,8 +928,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   char *ip, *locmem = NULL;
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
   int locmem_size, shmem_size, shmemid;
-  volatile char *shmem = NULL;
-  volatile char *my_shared_4barrier;
+  char *shmem = NULL;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column;
   int gpu_byte_code_counter = 0;
 #ifdef GPU_ENABLED
@@ -953,10 +960,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
                           comm_row, my_cores_per_node_row, comm_column,
                           my_cores_per_node_column,
-                          my_size_shared_buf + barriers_size, &shmem_size,
+                          my_size_shared_buf + barriers_size * 2, &shmem_size,
                           &shmemid, &shmem, 0, barriers_size) < 0)
     goto error_shared;
-  my_shared_4barrier = shmem + my_size_shared_buf;
 #ifdef GPU_ENABLED
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
     shmem = NULL;
@@ -986,8 +992,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     tag = 0;
   }
   code_size = ext_mpi_generate_byte_code(
-      my_shared_4barrier, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
-      shmem, locmem, reduction_op, global_ranks, NULL,
+      shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
+      my_size_shared_buf, barriers_size, locmem, reduction_op, global_ranks, NULL,
       shmem_comm_node_row, my_cores_per_node_row, shmem_comm_node_column,
       my_cores_per_node_column, &gpu_byte_code_counter, tag);
   if (code_size < 0)
@@ -996,8 +1002,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (!ip)
     goto error;
   if (ext_mpi_generate_byte_code(
-          my_shared_4barrier, shmem_size, shmemid, buffer_in, (char *)sendbuf,
-          (char *)recvbuf, shmem, locmem, reduction_op,
+          shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
+          (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
           global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
           shmem_comm_node_column, my_cores_per_node_column,
           &gpu_byte_code_counter, tag) < 0)
@@ -1012,7 +1018,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                             my_size_shared_buf + barriers_size, &shmem_size,
                             &shmemid, &shmem, 0, barriers_size) < 0)
       goto error_shared;
-    my_shared_4barrier = shmem + my_size_shared_buf;
     locmem = (char *)malloc(locmem_size);
     if (!locmem)
       goto error;
@@ -1026,8 +1031,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     }
 #endif
     if (ext_mpi_generate_byte_code(
-            my_shared_4barrier, shmem_size, shmemid, buffer_in, (char *)sendbuf,
-            (char *)recvbuf, shmem, locmem, reduction_op,
+            shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
+            (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
             global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
             shmem_comm_node_column, my_cores_per_node_column,
             &gpu_byte_code_counter, tag) < 0)
