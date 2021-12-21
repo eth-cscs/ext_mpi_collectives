@@ -100,15 +100,16 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
   } while (flag > 0);
   buffer_offset2[0] = 0;
   for (i = 1; i < buffer_offset_max; i++) {
-    if (buffer_offset[i - 1] >= 64) {
+    if (buffer_offset[i - 1] >= CACHE_LINE_SIZE) {
       buffer_offset2[i] = buffer_offset2[i - 1] + buffer_offset[i - 1];
     } else {
-      buffer_offset2[i] = buffer_offset2[i - 1] + 64;
+      buffer_offset2[i] = buffer_offset2[i - 1] + CACHE_LINE_SIZE;
     }
   }
   if (shmem_max > buffer_offset2[buffer_offset_max - 1]) {
     buffer_offset2[buffer_offset_max - 1] = shmem_max;
   }
+  buffer_offset2[buffer_offset_max - 1] = ((buffer_offset2[buffer_offset_max - 1] / CACHE_LINE_SIZE) + 1) * CACHE_LINE_SIZE;
   nbuffer_in2 = 0;
   parameters->locmem_max = locmem_max;
   parameters->shmem_buffer_offset_max = buffer_offset_max;
