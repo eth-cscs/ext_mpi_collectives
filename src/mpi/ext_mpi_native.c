@@ -1246,7 +1246,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   if (blocking){
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER BLOCKING\n");
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+//  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");

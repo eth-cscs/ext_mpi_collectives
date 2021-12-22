@@ -1515,6 +1515,24 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   return (enop);
 }
 
+static int read_assembler_string_bin(char *buffer_in, int n, enum eassembler_type *string1, int *i){
+  if (buffer_in[(*i)++] != 0)
+    return -11;
+  if (*i < n)
+    memcpy(string1, buffer_in + *i, sizeof(*string1));
+  *i += sizeof(*string1);
+  return 0;
+}
+
+static int read_assembler_integer_bin(char *buffer_in, int n, int *integer1, int *i){
+  if (buffer_in[(*i)++] != 1)
+    return -11;
+  if (*i < n)
+    memcpy(integer1, buffer_in + *i, sizeof(*integer1));
+  *i += sizeof(*integer1);
+  return 0;
+}
+
 int ext_mpi_read_assembler_line_s(char *buffer_in, enum eassembler_type *string1,
                                   int ascii) {
   char cstring1[100], cstring2[100];
@@ -1523,11 +1541,7 @@ int ext_mpi_read_assembler_line_s(char *buffer_in, enum eassembler_type *string1
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -1560,16 +1574,8 @@ int ext_mpi_read_assembler_line_sd(char *buffer_in, enum eassembler_type *string
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -1606,26 +1612,10 @@ int ext_mpi_read_assembler_line_sdsd(char *buffer_in, enum eassembler_type *stri
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string2, buffer_in + i, sizeof(*string2));
-    i += sizeof(*string2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer2, buffer_in + i, sizeof(*integer2));
-    i += sizeof(*integer2);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer2, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -1667,31 +1657,11 @@ int ext_mpi_read_assembler_line_sddsd(char *buffer_in, enum eassembler_type *str
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer2, buffer_in + i, sizeof(*integer2));
-    i += sizeof(*integer2);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string2, buffer_in + i, sizeof(*string2));
-    i += sizeof(*string2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer3, buffer_in + i, sizeof(*integer3));
-    i += sizeof(*integer3);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer2, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer3, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -1733,21 +1703,9 @@ int ext_mpi_read_assembler_line_ssd(char *buffer_in, enum eassembler_type *strin
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string2, buffer_in + i, sizeof(*string2));
-    i += sizeof(*string2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -1789,31 +1747,11 @@ int ext_mpi_read_assembler_line_ssdsd(char *buffer_in, enum eassembler_type *str
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string2, buffer_in + i, sizeof(*string2));
-    i += sizeof(*string2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string3, buffer_in + i, sizeof(*string3));
-    i += sizeof(*string3);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer2, buffer_in + i, sizeof(*integer2));
-    i += sizeof(*integer2);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string3, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer2, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -1857,36 +1795,12 @@ int ext_mpi_read_assembler_line_ssdsdd(char *buffer_in, enum eassembler_type *st
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string2, buffer_in + i, sizeof(*string2));
-    i += sizeof(*string2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string3, buffer_in + i, sizeof(*string3));
-    i += sizeof(*string3);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer2, buffer_in + i, sizeof(*integer2));
-    i += sizeof(*integer2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer3, buffer_in + i, sizeof(*integer3));
-    i += sizeof(*integer3);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string3, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer3, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -1933,36 +1847,12 @@ int ext_mpi_read_assembler_line_ssdddd(char *buffer_in, enum eassembler_type *st
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string2, buffer_in + i, sizeof(*string2));
-    i += sizeof(*string2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer2, buffer_in + i, sizeof(*integer2));
-    i += sizeof(*integer2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer3, buffer_in + i, sizeof(*integer3));
-    i += sizeof(*integer3);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer4, buffer_in + i, sizeof(*integer4));
-    i += sizeof(*integer4);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer3, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer4, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -2006,46 +1896,14 @@ int ext_mpi_read_assembler_line_ssdsdddd(char *buffer_in, enum eassembler_type *
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string2, buffer_in + i, sizeof(*string2));
-    i += sizeof(*string2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string3, buffer_in + i, sizeof(*string3));
-    i += sizeof(*string3);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer2, buffer_in + i, sizeof(*integer2));
-    i += sizeof(*integer2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer3, buffer_in + i, sizeof(*integer3));
-    i += sizeof(*integer3);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer4, buffer_in + i, sizeof(*integer4));
-    i += sizeof(*integer4);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer5, buffer_in + i, sizeof(*integer5));
-    i += sizeof(*integer5);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string3, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer3, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer4, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer5, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -2096,46 +1954,14 @@ int ext_mpi_read_assembler_line_ssdsdsdd(char *buffer_in,
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string2, buffer_in + i, sizeof(*string2));
-    i += sizeof(*string2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string3, buffer_in + i, sizeof(*string3));
-    i += sizeof(*string3);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer2, buffer_in + i, sizeof(*integer2));
-    i += sizeof(*integer2);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string4, buffer_in + i, sizeof(*string4));
-    i += sizeof(*string4);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer3, buffer_in + i, sizeof(*integer3));
-    i += sizeof(*integer3);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer4, buffer_in + i, sizeof(*integer4));
-    i += sizeof(*integer4);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string3, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer2, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string4, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer3, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer4, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {
@@ -2191,56 +2017,16 @@ int ext_mpi_read_assembler_line_ssdsdsdsdd(char *buffer_in,
     i = 0;
     memcpy(&n, buffer_in, sizeof(n));
     i += sizeof(n);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string1, buffer_in + i, sizeof(*string1));
-    i += sizeof(*string1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string2, buffer_in + i, sizeof(*string2));
-    i += sizeof(*string2);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer1, buffer_in + i, sizeof(*integer1));
-    i += sizeof(*integer1);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string3, buffer_in + i, sizeof(*string3));
-    i += sizeof(*string3);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer2, buffer_in + i, sizeof(*integer2));
-    i += sizeof(*integer2);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string4, buffer_in + i, sizeof(*string4));
-    i += sizeof(*string4);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer3, buffer_in + i, sizeof(*integer3));
-    i += sizeof(*integer3);
-    if (buffer_in[i++] != 0)
-      return -11;
-    if (i < n)
-      memcpy(string5, buffer_in + i, sizeof(*string5));
-    i += sizeof(*string5);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer4, buffer_in + i, sizeof(*integer4));
-    i += sizeof(*integer4);
-    if (buffer_in[i++] != 1)
-      return -11;
-    if (i < n)
-      memcpy(integer5, buffer_in + i, sizeof(*integer5));
-    i += sizeof(*integer5);
+    if (read_assembler_string_bin(buffer_in, n, string1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string2, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer1, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string3, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer2, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string4, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer3, &i)<0) return -11;
+    if (read_assembler_string_bin(buffer_in, n, string5, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer4, &i)<0) return -11;
+    if (read_assembler_integer_bin(buffer_in, n, integer5, &i)<0) return -11;
     if (i == n) {
       return n;
     } else {

@@ -24,9 +24,11 @@ int ext_mpi_generate_raw_code_merge(char *buffer_in, char *buffer_out) {
       flag = 1;
       if ((estring1 == ememcpy) || (estring1 == ereduce) ||
           (estring1 == ememcp_) || (estring1 == ereduc_)) {
-        if (ext_mpi_read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
-                                                   &estring3, &o1, &estring4, &bo2,
-                                                   &estring5, &o2, &size, 0) >= 0) {
+	ext_mpi_read_assembler_line_ssd(line, &estring1, &estring2, &bo1, 0);
+	if (estring2 == eshmempbuffer_offseto) {
+          ext_mpi_read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
+                                                 &estring3, &o1, &estring4, &bo2,
+                                                 &estring5, &o2, &size, 0);
           nin_new = nbuffer_in;
           flag5 =
               ext_mpi_read_line(buffer_in + nbuffer_in, line2, parameters->ascii_in);
@@ -88,7 +90,8 @@ int ext_mpi_generate_raw_code_merge(char *buffer_in, char *buffer_out) {
                                                  &estring3, &o2, &size, 0) >= 0) {
             nin_new = nbuffer_in;
             flag5 = ext_mpi_read_line(buffer_in + nin_new, line2, parameters->ascii_in);
-            if (ext_mpi_read_assembler_line_ssdsdd(line2, &estring1_, &estring2_, &o1_,
+	    ext_mpi_read_assembler_line_s(line2, &estring1_, 0);
+            if ((estring1 == estring1_) && ext_mpi_read_assembler_line_ssdsdd(line2, &estring1_, &estring2_, &o1_,
                                                    &estring3_, &o2_, &size_, 0) >= 0) {
               while ((flag5 > 0) && (estring1 == estring1_) &&
                      (o1 + size == o1_) && (o2 + size == o2_) && (o1 != o2_)) {
