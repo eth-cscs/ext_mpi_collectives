@@ -11,6 +11,8 @@ int ext_mpi_generate_optimise_buffers(char *buffer_in, char *buffer_out) {
   struct parameters_block *parameters;
   enum eassembler_type estring1, estring2, estring3, estring1_, estring2_,
       estring3_;
+  memset(line, 0, 1000);
+  memset(line2, 0, 1000);
   nbuffer_in += ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   do {
@@ -21,14 +23,15 @@ int ext_mpi_generate_optimise_buffers(char *buffer_in, char *buffer_out) {
       if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
         if ((estring1 == ememcpy) || (estring1 == ememcp_)) {
           if (ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1,
-                                                 &estring3, &o2, &size, 0) >= 0) {
+						 &estring3, &o2, &size, 0) >= 0) {
             line2_new = ((nline2 = ext_mpi_read_line(buffer_in + nbuffer_in, line2,
-                                                     parameters->ascii_in)) > 0);
+						     parameters->ascii_in)) > 0);
             flag2 = 1;
             while (line2_new && flag2) {
-              if (ext_mpi_read_assembler_line_ssdsdd(line2, &estring1_, &estring2_,
-                                                     &o1_, &estring3_, &o2_, &size_,
-                                                     0) >= 0) {
+              ext_mpi_read_assembler_line_ssd(line2, &estring1_, &estring2_, &o1_, 0);
+              if (((estring1_ == ememcpy) || (estring1_ == ememcp_)) && (estring2_ == eshmemp)) {
+                ext_mpi_read_assembler_line_ssdsdd(line2, &estring1_, &estring2_, &o1_,
+						   &estring3_, &o2_, &size_, 0);
                 if ((o1 + size == o1_) && (o2 + size == o2_) &&
                     (estring2_ == eshmemp) && (estring3_ == eshmemp)) {
                   size += size_;
@@ -47,9 +50,11 @@ int ext_mpi_generate_optimise_buffers(char *buffer_in, char *buffer_out) {
                     line2_new = (i > 0);
                     nline2 += i;
                     if (line2_new) {
-                      if (ext_mpi_read_assembler_line_ssdddd(
-                              line2, &estring1_, &estring2_, &o1_, &size_,
-                              &partner, &num_comm, 0) >= 0) {
+                      ext_mpi_read_assembler_line_ssd(line2, &estring1_, &estring2_, &o1_, 0);
+		      if (((estring1_ == eisend) || (estring1_ == eisen_)) && (estring2_ == eshmemp)){
+                      ext_mpi_read_assembler_line_ssdddd(
+                          line2, &estring1_, &estring2_, &o1_, &size_,
+                          &partner, &num_comm, 0);
                         if (((estring1_ == eisend) || (estring1_ == eisen_)) &&
                             ((o1 == o1_) && (size == size_) &&
                              (estring2_ == eshmemp))) {
