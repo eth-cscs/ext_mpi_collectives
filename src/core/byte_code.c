@@ -310,7 +310,7 @@ int ext_mpi_generate_byte_code(char *shmem,
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
   char *gpu_byte_code = NULL;
-  int on_gpu, reduce, isend = 1, added = 0;
+  int on_gpu, reduce, isend = 1, added = 0, blocking;
   struct gpu_stream *streams = NULL;
   void *p1, *p2;
 #endif
@@ -320,6 +320,7 @@ int ext_mpi_generate_byte_code(char *shmem,
 #ifdef GPU_ENABLED
   on_gpu = parameters->on_gpu;
 #endif
+  blocking = parameters->blocking;
   ext_mpi_delete_parameters(parameters);
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
@@ -479,7 +480,7 @@ int ext_mpi_generate_byte_code(char *shmem,
           code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
         }
 #endif
-        if (parameters->blocking){
+        if (blocking){
           code_put_char(&ip, OPCODE_BNODEBARRIER, isdryrun);
         } else {
           code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
