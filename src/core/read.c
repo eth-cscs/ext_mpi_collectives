@@ -234,41 +234,6 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
         if (strcmp(string2, "BIT_IDENTICAL") == 0) {
           (*parameters)->bit_identical = 1;
         }
-        if (strcmp(string2, "COLLECTIVE_TYPE") == 0) {
-          if (sscanf(buffer_in_copy, "%*s %*s %99s", string2) > 0) {
-            if (strcmp(string2, "ALLGATHERV") == 0) {
-              (*parameters)->collective_type = collective_type_allgatherv;
-            }
-            if (strcmp(string2, "REDUCE_SCATTER") == 0) {
-              (*parameters)->collective_type = collective_type_reduce_scatter;
-            }
-            if (strcmp(string2, "ALLREDUCE") == 0) {
-              (*parameters)->collective_type = collective_type_allreduce;
-            }
-            if (strcmp(string2, "ALLREDUCE_GROUP") == 0) {
-              (*parameters)->collective_type = collective_type_allreduce_group;
-            }
-            if (strcmp(string2, "ALLREDUCE_SHORT") == 0) {
-              (*parameters)->collective_type = collective_type_allreduce_short;
-            }
-          }
-        }
-        if (strcmp(string2, "DATA_TYPE") == 0) {
-          if (sscanf(buffer_in_copy, "%*s %*s %99s", string2) > 0) {
-            if (strcmp(string2, "INT") == 0) {
-              (*parameters)->data_type = data_type_int;
-            }
-            if (strcmp(string2, "LONG_INT") == 0) {
-              (*parameters)->data_type = data_type_long_int;
-            }
-            if (strcmp(string2, "FLOAT") == 0) {
-              (*parameters)->data_type = data_type_float;
-            }
-            if (strcmp(string2, "DOUBLE") == 0) {
-              (*parameters)->data_type = data_type_double;
-            }
-          }
-        }
         if (strcmp(string2, "ROOT") == 0) {
           (*parameters)->root = integer1;
         }
@@ -363,6 +328,41 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
               read_int_series(buffer_in_copy, &((*parameters)->iocounts));
           if ((*parameters)->iocounts_max < 0)
             goto error;
+        }
+        if (strcmp(string2, "COLLECTIVE_TYPE") == 0) {
+          if (sscanf(buffer_in_copy, "%*s %*s %99s", string2) > 0) {
+            if (strcmp(string2, "ALLGATHERV") == 0) {
+              (*parameters)->collective_type = collective_type_allgatherv;
+            }
+            if (strcmp(string2, "REDUCE_SCATTER") == 0) {
+              (*parameters)->collective_type = collective_type_reduce_scatter;
+            }
+            if (strcmp(string2, "ALLREDUCE") == 0) {
+              (*parameters)->collective_type = collective_type_allreduce;
+            }
+            if (strcmp(string2, "ALLREDUCE_GROUP") == 0) {
+              (*parameters)->collective_type = collective_type_allreduce_group;
+            }
+            if (strcmp(string2, "ALLREDUCE_SHORT") == 0) {
+              (*parameters)->collective_type = collective_type_allreduce_short;
+            }
+          }
+        }
+        if (strcmp(string2, "DATA_TYPE") == 0) {
+          if (sscanf(buffer_in_copy, "%*s %*s %99s", string2) > 0) {
+            if (strcmp(string2, "INT") == 0) {
+              (*parameters)->data_type = data_type_int;
+            }
+            if (strcmp(string2, "LONG_INT") == 0) {
+              (*parameters)->data_type = data_type_long_int;
+            }
+            if (strcmp(string2, "FLOAT") == 0) {
+              (*parameters)->data_type = data_type_float;
+            }
+            if (strcmp(string2, "DOUBLE") == 0) {
+              (*parameters)->data_type = data_type_double;
+            }
+          }
         }
       } else {
         if (string1[0] != '#') {

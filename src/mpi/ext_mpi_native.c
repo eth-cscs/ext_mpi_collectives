@@ -99,7 +99,7 @@ static void node_barrier_mpi(int handle, MPI_Comm shmem_comm_node_row,
 }
 
 static int destroy_shared_memory(int handle, int *size_shared, int *shmemid,
-                                 char **shmem) {
+                                 volatile char **shmem) {
   if (*shmem != NULL) {
 #ifndef MMAP
     node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL);
@@ -125,7 +125,7 @@ static int setup_shared_memory(MPI_Comm *shmem_comm_node_row,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int size_shared,
                                int *size_shared_old, int *shmemid,
-                               char **shmem, char fill, int numfill) {
+                               volatile char **shmem, char fill, int numfill) {
   int my_mpi_rank_row, my_mpi_size_row, my_mpi_rank_column, my_mpi_size_column;
 #ifdef MMAP
   static int shmem_fd = -1;
@@ -838,7 +838,7 @@ int EXT_MPI_Wait_native(int handle) {
 }
 
 int EXT_MPI_Done_native(int handle) {
-  char *shmem;
+  volatile char *shmem;
   char *ip, *locmem;
   int shmem_size, shmemid, i;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column, shmem_comm_node_row2,
@@ -928,10 +928,10 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   char *ip, *locmem = NULL;
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
   int locmem_size, shmem_size, shmemid;
-  char *shmem = NULL;
+  volatile char *shmem = NULL;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column;
   int gpu_byte_code_counter = 0;
-  char *shmem_gpu = NULL;
+  volatile char *shmem_gpu = NULL;
 #ifdef GPU_ENABLED
   char *shmemid_gpu = NULL;
 #endif
