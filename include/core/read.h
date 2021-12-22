@@ -92,6 +92,7 @@ struct parameters_block {
   int *shmem_buffer_offset;
   int shmem_buffer_offset_max;
   int root;
+  int blocking;
 #ifdef GPU_ENABLED
   int on_gpu;
 #endif

@@ -650,7 +650,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         }
       }
       break;
-    case OPCODE_MPIWAITANY: {
+    case OPCODE_MPIWAITANY:
       if (active_wait & 2) {
         // how many to wait for
         i1 = code_get_int(&ip);
@@ -673,12 +673,12 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         }
       }
       break;
-    }
+    case OPCODE_BNODEBARRIER:
+      node_barrier(header->barrier_shmem, &header->barrier_counter,
+                   header->node_rank, header->num_cores);
+      break;
     case OPCODE_NODEBARRIER:
-      if (active_wait == 3) {
-        node_barrier(header->barrier_shmem, &header->barrier_counter,
-                     header->node_rank, header->num_cores);
-      } else if (active_wait == 2) {
+      if (active_wait & 2) {
         node_barrier_b(header->barrier_shmem + header->barrier_shmem_size, &header->barrier_counter,
                        header->node_rank, header->num_cores);
       } else {
@@ -1071,7 +1071,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *num_ports,
                                int *groups, int num_active_ports, int copyin,
-                               int alt, int bit, int waitany, int recursive) {
+                               int alt, int bit, int waitany, int recursive, int blocking) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int coarse_count, *counts = NULL, iret;
@@ -1243,6 +1243,9 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   if (sendbuf==recvbuf){
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER IN_PLACE\n");
   }
+  if (blocking){
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER BLOCKING\n");
+  }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
@@ -1370,11 +1373,11 @@ int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   int my_cores_per_node_column, int *num_ports,
                                   int *groups, int num_active_ports, int copyin,
                                   int alt, int bit, int waitany,
-                                  int recursive) {
+                                  int recursive, int blocking) {
   return (EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, -1, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, alt, bit, waitany, recursive));
+      groups, num_active_ports, copyin, alt, bit, waitany, recursive, blocking));
 }
 
 int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
@@ -1386,7 +1389,7 @@ int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
   return (EXT_MPI_Reduce_init_native(
       buffer, buffer, count, datatype, MPI_OP_NULL, -10 - root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, alt, 0, 0, recursive));
+      groups, num_active_ports, copyin, alt, 0, 0, recursive, 0));
 }
 
 int EXT_MPI_Gatherv_init_native(
@@ -1832,7 +1835,7 @@ int EXT_MPI_Reduce_scatter_init_native(
     MPI_Datatype datatype, MPI_Op op, MPI_Comm comm_row,
     int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *num_parallel,
-    int num_active_ports, int copyin, int alt, int recursive) {
+    int num_active_ports, int copyin, int alt, int recursive, int blocking) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
@@ -1975,6 +1978,9 @@ int EXT_MPI_Reduce_scatter_init_native(
   }
   if (datatype == MPI_FLOAT) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER DATA_TYPE FLOAT\n");
+  }
+  if (blocking){
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER BLOCKING\n");
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED

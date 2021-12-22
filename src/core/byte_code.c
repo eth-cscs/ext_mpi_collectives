@@ -479,7 +479,11 @@ int ext_mpi_generate_byte_code(char *shmem,
           code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
         }
 #endif
-        code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
+        if (parameters->blocking){
+          code_put_char(&ip, OPCODE_BNODEBARRIER, isdryrun);
+        } else {
+          code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
+        }
       }
     }
     if (estring1 == enode_cycl_barrier) {
