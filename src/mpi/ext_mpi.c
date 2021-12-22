@@ -284,7 +284,7 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
         sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
         comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column,
         num_ports, num_parallel,
-        my_cores_per_node_row * my_cores_per_node_column, alt, group_size==comm_size_row/my_cores_per_node_row);
+        my_cores_per_node_row * my_cores_per_node_column, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
     if (*handle < 0)
       goto error;
   }
@@ -470,7 +470,7 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
         sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
         root, comm_row, my_cores_per_node_row, comm_column,
         my_cores_per_node_column, num_ports, num_parallel,
-        my_cores_per_node_row * my_cores_per_node_column, alt, group_size==comm_size_row/my_cores_per_node_row);
+        my_cores_per_node_row * my_cores_per_node_column, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
     if (*handle < 0)
       goto error;
   }
@@ -921,7 +921,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
         sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
         root, comm_row, my_cores_per_node_row, comm_column,
         my_cores_per_node_column, num_ports, num_parallel,
-        my_cores_per_node_row * my_cores_per_node_column, cin_method, alt, group_size==comm_size_row/my_cores_per_node_row);
+        my_cores_per_node_row * my_cores_per_node_column, cin_method, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
     if (*handle < 0)
       goto error;
   }
@@ -1933,7 +1933,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, cin_method, alt, group_size==comm_size_row/my_cores_per_node_row);
+      my_cores_per_node_row * my_cores_per_node_column, cin_method, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
   if (*handle < 0)
     goto error;
   free(groups);
