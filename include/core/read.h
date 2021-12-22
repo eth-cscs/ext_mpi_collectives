@@ -10,8 +10,6 @@
 extern "C" {
 #endif
 
-extern int ext_mpi_bit_identical;
-
 enum ecollective_type {
   collective_type_allgatherv,
   collective_type_reduce_scatter,

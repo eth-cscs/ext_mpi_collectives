@@ -19,6 +19,7 @@
 
 int ext_mpi_blocking = 0;
 int ext_mpi_bit_reproducible = 1;
+int ext_mpi_bit_identical = 0;
 //parameter for minimum computation set
 int ext_mpi_minimum_computation = 0;
 
@@ -1091,12 +1092,12 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       if (my_cores_per_node_row == 1) {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row, my_cores_per_node_row,
                                            comm_size_column, my_cores_per_node_column,
-                                           comm_size_row, comm_rank_row, 0) < 0)
+                                           comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical) < 0)
           goto error;
       }
       p1 = ext_mpi_cost_list_start;
@@ -1488,12 +1489,12 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       if (my_cores_per_node_row == 1) {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row, my_cores_per_node_row,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical) < 0)
           goto error;
       }
       p1 = ext_mpi_cost_list_start;
@@ -1831,12 +1832,12 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
       if (my_cores_per_node_row == 1) {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row, my_cores_per_node_row,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical) < 0)
           goto error;
       }
       p1 = ext_mpi_cost_list_start;

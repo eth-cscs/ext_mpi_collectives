@@ -5,8 +5,6 @@
 #include "ports_groups.h"
 #include "read.h"
 
-int ext_mpi_bit_identical = 0;
-
 static int read_single_line(char *buffer_in, char *line) {
   int i;
   for (i = 0; (buffer_in[i] != '\n') && (buffer_in[i] != '\0'); i++) {

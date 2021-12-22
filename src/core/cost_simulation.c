@@ -14,7 +14,7 @@
 int ext_mpi_cost_simulation(int count, int type_size, int comm_size_row,
                             int my_cores_per_node_row, int comm_size_column,
                             int my_cores_per_node_column, int comm_size_rowb,
-                            int comm_rank_row, int simulate) {
+                            int comm_rank_row, int simulate, int bit_identical) {
   struct cost_list *p1;
   int *num_ports = NULL, *groups = NULL, i,
       *num_steps = NULL, r, j, k;
@@ -55,7 +55,7 @@ int ext_mpi_cost_simulation(int count, int type_size, int comm_size_row,
         comm_size_row / my_cores_per_node_row, my_cores_per_node_row,
         comm_size_column / my_cores_per_node_column, my_cores_per_node_column,
         num_ports, groups, my_cores_per_node_row * my_cores_per_node_column, 0,
-        ext_mpi_bit_identical, &code_address) < 0)
+        bit_identical, &code_address) < 0)
       goto error;
     if (ext_mpi_count_native(code_address, counts, num_steps) < 0)
       goto error;
@@ -121,7 +121,7 @@ error:
 int ext_mpi_allreduce_simulate(int count, int type_size,
                                int comm_size_row, int my_cores_per_node_row,
                                int comm_size_column,
-                               int my_cores_per_node_column) {
+                               int my_cores_per_node_column, int bit_identical) {
   int comm_rank_row = 0, i;
   int *num_ports = NULL, *groups = NULL;
   struct cost_list *p1, *p2;
@@ -139,12 +139,12 @@ int ext_mpi_allreduce_simulate(int count, int type_size,
     if (my_cores_per_node_row == 1) {
       if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
                                   comm_size_column, my_cores_per_node_column,
-                                  comm_size_row, comm_rank_row, 1) < 0)
+                                  comm_size_row, comm_rank_row, 1, bit_identical) < 0)
         goto error;
     } else {
       if (ext_mpi_cost_simulation(count, type_size, comm_size_row, my_cores_per_node_row,
                                   comm_size_column, my_cores_per_node_column,
-                                  comm_size_row, comm_rank_row, 1) < 0)
+                                  comm_size_row, comm_rank_row, 1, bit_identical) < 0)
         goto error;
     }
     p1 = ext_mpi_cost_list_start;
