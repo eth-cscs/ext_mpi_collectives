@@ -204,6 +204,8 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->on_gpu = 0;
 #endif
   do {
+    memset(string1, 0, 100);
+    memset(string2, 0, 100);
     if (sscanf(buffer_in_copy, "%99s %99s %d", string1, string2, &integer1) >
         0) {
       buffer_in_new = strchr(buffer_in_copy, '\n');
