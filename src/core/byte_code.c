@@ -305,12 +305,12 @@ int ext_mpi_generate_byte_code(char *shmem,
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-                                              ascii;
+                                              ascii, blocking;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
   char *gpu_byte_code = NULL;
-  int on_gpu, reduce, isend = 1, added = 0, blocking;
+  int on_gpu, reduce, isend = 1, added = 0;
   struct gpu_stream *streams = NULL;
   void *p1, *p2;
 #endif
