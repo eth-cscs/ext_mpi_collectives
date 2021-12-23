@@ -16,13 +16,15 @@ int ext_mpi_generate_use_recvbuf(char *buffer_in, char *buffer_out) {
     nbuffer_in_first += flag3 =
         ext_mpi_read_line(buffer_in + nbuffer_in_first, line, parameters->ascii_in);
     if (flag3) {
-      if (ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1, &estring3, &o2, &size, 0) >= 0) {
+      if (ext_mpi_read_assembler_line_ssd(line, &estring1, &estring2, &o1, 0) >= 0) {
         if (estring1==ememcpy){
-          if ((estring3==esendbufp)&&(o2+size>buffer_in_size)){
-            buffer_in_size=o2+size;
-          }
-          if ((estring2==erecvbufp)&&(o1+size>buffer_out_size)){
-            buffer_out_size=o1+size;
+          if (ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1, &estring3, &o2, &size, 0) >= 0) {
+            if ((estring3==esendbufp)&&(o2+size>buffer_in_size)){
+              buffer_in_size=o2+size;
+            }
+            if ((estring2==erecvbufp)&&(o1+size>buffer_out_size)){
+              buffer_out_size=o1+size;
+	    }
           }
         }
       }
