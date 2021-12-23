@@ -855,10 +855,11 @@ int EXT_MPI_Done_native(int handle) {
   shmem_comm_node_column = header->comm_column;
   node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL);
 #ifdef GPU_ENABLED
-  if (ext_mpi_gpu_is_device_pointer((void *)header->shmem)) {
+  if (header->shmem_gpu) {
     ext_mpi_gpu_destroy_shared_memory(header->comm_row, header->node_num_cores_row,
                                       header->comm_column,
-                                      header->node_num_cores_column, &header->shmem);
+                                      header->node_num_cores_column, &header->shmem_gpu);
+    header->shmem_gpu = NULL;
   }
   ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
@@ -878,10 +879,11 @@ int EXT_MPI_Done_native(int handle) {
     shmem_comm_node_column2 = header->comm_column;
     node_barrier_mpi(handle + 1, MPI_COMM_NULL, MPI_COMM_NULL);
 #ifdef GPU_ENABLED
-    if (ext_mpi_gpu_is_device_pointer((void *)header->shmem)) {
+    if (header->shmem_gpu) {
       ext_mpi_gpu_destroy_shared_memory(header->comm_row, header->node_num_cores_row,
                                         header->comm_column,
-                                        header->node_num_cores_column, &header->shmem);
+                                        header->node_num_cores_column, &header->shmem_gpu);
+      header->shmem_gpu = NULL;
     }
     ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
