@@ -334,7 +334,10 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
     header->locmem = locmem;
     header->shmem = shmem;
 #ifdef GPU_ENABLED
-    shmem = header->shmem = header->shmem_gpu = shmem_gpu;
+    header->shmem_gpu = shmem_gpu;
+    if (on_gpu) {
+      shmem = header->shmem = header->shmem_gpu;
+    }
 #endif
     header->shmem_size = 0;
     header->buf_size = 0;
