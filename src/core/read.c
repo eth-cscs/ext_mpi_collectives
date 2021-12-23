@@ -80,10 +80,6 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
     nbuffer_in++;
     memcpy(*parameters, buffer_in + nbuffer_in, sizeof(**parameters));
     nbuffer_in += sizeof(**parameters);
-    (*parameters)->in_place = 0;
-    (*parameters)->on_gpu = 0;
-    (*parameters)->blocking = 0;
-    (*parameters)->ascii_in = 0;
     (*parameters)->counts = NULL;
     (*parameters)->num_ports = NULL;
     (*parameters)->groups = NULL;
