@@ -159,6 +159,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
+  free(str);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   if (!allreduce_short) {
     for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
