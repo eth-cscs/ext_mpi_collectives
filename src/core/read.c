@@ -81,9 +81,7 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
     memcpy(*parameters, buffer_in + nbuffer_in, sizeof(**parameters));
     nbuffer_in += sizeof(**parameters);
     (*parameters)->in_place = 0;
-#ifdef GPU_ENABLED
     (*parameters)->on_gpu = 0;
-#endif
     (*parameters)->blocking = 0;
     (*parameters)->ascii_in = 0;
     (*parameters)->counts = NULL;
@@ -200,9 +198,7 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->root = -1;
   (*parameters)->in_place = 0;
   (*parameters)->blocking = 0;
-#ifdef GPU_ENABLED
   (*parameters)->on_gpu = 0;
-#endif
   do {
     memset(string1, 0, 100);
     memset(string2, 0, 100);
