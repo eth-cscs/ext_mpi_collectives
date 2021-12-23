@@ -181,7 +181,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   if (bit) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER BIT_IDENTICAL\n");
   }
-  //nbuffer1+=sprintf(buffer1+nbuffer1, " PARAMETER ASCII\n");
+  nbuffer1+=sprintf(buffer1+nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
   if (!allreduce_short) {
