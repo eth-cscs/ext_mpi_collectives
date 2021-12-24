@@ -11,9 +11,11 @@ void ext_mpi_gpu_malloc(void **p, int size) {
 }
 
 void ext_mpi_gpu_free(void *p) {
-  if (cudaFree(p) != cudaSuccess) {
-    printf("error in gpu_free\n");
-    exit(13);
+  if (p){
+    if (cudaFree(p) != cudaSuccess) {
+      printf("error in gpu_free\n");
+      exit(13);
+    }
   }
 }
 
