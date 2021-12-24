@@ -1022,15 +1022,30 @@ static int write_integer(char *buffer_out, int integer1, int ascii) {
   }
 }
 
+static int write_assembler_string(char *buffer_out, enum eassembler_type string1, int ascii){
+  int nbuffer_out = 0;
+  if (!ascii)
+    buffer_out[nbuffer_out++] = 0;
+  nbuffer_out +=
+      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
+  return nbuffer_out;
+}
+
+static int write_assembler_integer(char *buffer_out, int integer1, int ascii){
+  int nbuffer_out = 0;
+  if (!ascii)
+    buffer_out[nbuffer_out++] = 1;
+  nbuffer_out +=
+      write_integer(buffer_out + nbuffer_out, integer1, ascii);
+  return nbuffer_out;
+}
+
 int ext_mpi_write_assembler_line_s(char *buffer_out, enum eassembler_type string1,
                                    int ascii) {
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1043,13 +1058,8 @@ int ext_mpi_write_assembler_line_sd(char *buffer_out, enum eassembler_type strin
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1063,20 +1073,10 @@ int ext_mpi_write_assembler_line_sdsd(char *buffer_out, enum eassembler_type str
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer2, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1090,23 +1090,11 @@ int ext_mpi_write_assembler_line_sddsd(char *buffer_out, enum eassembler_type st
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer3, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer2, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer3, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1120,17 +1108,9 @@ int ext_mpi_write_assembler_line_ssd(char *buffer_out, enum eassembler_type stri
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1145,24 +1125,11 @@ int ext_mpi_write_assembler_line_ssdsd(char *buffer_out, enum eassembler_type st
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string3, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string3, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer2, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1177,27 +1144,12 @@ int ext_mpi_write_assembler_line_ssdsdd(char *buffer_out, enum eassembler_type s
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string3, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer3, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string3, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer3, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1212,26 +1164,12 @@ int ext_mpi_write_assembler_line_ssdddd(char *buffer_out, enum eassembler_type s
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer3, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer4, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer3, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer4, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1246,23 +1184,11 @@ int ext_mpi_write_assembler_line_ssddd(char *buffer_out, enum eassembler_type st
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer3, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer3, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1279,33 +1205,14 @@ int ext_mpi_write_assembler_line_ssdsdddd(char *buffer_out,
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string3, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer3, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer4, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer5, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string3, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer3, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer4, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer5, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1322,34 +1229,14 @@ int ext_mpi_write_assembler_line_ssdsdsdd(char *buffer_out,
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string3, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string4, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer3, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer4, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string3, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer2, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string4, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer3, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer4, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
@@ -1367,41 +1254,16 @@ int ext_mpi_write_assembler_line_ssdsdsdsdd(char *buffer_out,
   int nbuffer_out = 0;
   if (!ascii)
     nbuffer_out += sizeof(int);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer1, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string3, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer2, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string4, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer3, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 0;
-  nbuffer_out +=
-      write_eassembler_type(buffer_out + nbuffer_out, string5, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer4, ascii);
-  if (!ascii)
-    buffer_out[nbuffer_out++] = 1;
-  nbuffer_out += write_integer(buffer_out + nbuffer_out, integer5, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string2, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer1, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string3, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer2, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string4, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer3, ascii);
+  nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, string5, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer4, ascii);
+  nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, integer5, ascii);
   if (!ascii)
     memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
   if (ascii)
