@@ -12,5 +12,6 @@ int main(){
       ext_mpi_allreduce_simulate(size, 8, num_nodes, 1, 1, 1, 0);
     }
   }
+  ext_mpi_delete_bench();
   return 0;
 }
