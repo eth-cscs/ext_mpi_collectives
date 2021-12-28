@@ -1203,6 +1203,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   }
   free(counts);
   counts = NULL;
+  nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER RANK_PERM");
   for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", rank_perm[i]);

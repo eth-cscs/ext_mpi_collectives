@@ -170,7 +170,7 @@ static int print_algorithm(char *buffer, int node, int num_nodes_l,
                            struct data_line **data, int stage_offset,
                            int size_level0_old, int *size_level1_old,
                            struct data_line **data_old, int allgatherv,
-                           int ascii_out, int root, int bit_identical, int blocking, int on_gpu) {
+                           int ascii_out, int root, int bit_identical, int blocking, int on_gpu, int *rank_perm) {
   struct parameters_block parameters;
   int i, j, stage, nbuffer = 0;
   char *buffer_temp;
@@ -199,6 +199,10 @@ static int print_algorithm(char *buffer, int node, int num_nodes_l,
     parameters.groups = groups;
     parameters.rank_perm_max = 0;
     parameters.rank_perm = NULL;
+    if (rank_perm) {
+      parameters.rank_perm_max = num_nodes_l;
+      parameters.rank_perm = rank_perm;
+    }
     parameters.iocounts_max = 0;
     parameters.iocounts = NULL;
     parameters.verbose = 0;
@@ -391,7 +395,7 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
                     counts_max, num_ports_l, groups_l, msizes_l, msizes_max_l,
                     parameters->data_type, num_nodes_start, 0, NULL, NULL, 0, 0,
                     NULL, NULL, flag, parameters->ascii_out, parameters->root,
-                    parameters->bit_identical, parameters->blocking, parameters->on_gpu);
+                    parameters->bit_identical, parameters->blocking, parameters->on_gpu, NULL);
     free(msizes_l);
     if (num_ports_l[0] < 0) {
       num_nodes_start /= igroup;
@@ -782,14 +786,14 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
                         size_level1_l[group], data_l[group], stage_offset,
                         size_level0_l[group - 1], size_level1_l[group - 1],
                         data_l[group - 1], 0, parameters->ascii_out,
-                        parameters->root, parameters->bit_identical, parameters->blocking, parameters->on_gpu);
+                        parameters->root, parameters->bit_identical, parameters->blocking, parameters->on_gpu, parameters->rank_perm);
       } else {
         print_algorithm(
             buffer_out_temp[group], node, num_nodes, node_rank, node_row_size,
             node_column_size, copy_method, counts, counts_max, num_ports, groups,
             msizes, msizes_max, parameters->data_type, 0, size_level0_l[group],
             size_level1_l[group], data_l[group], stage_offset, 0, NULL, NULL, 0,
-            parameters->ascii_out, parameters->root, parameters->bit_identical, parameters->blocking, parameters->on_gpu);
+            parameters->ascii_out, parameters->root, parameters->bit_identical, parameters->blocking, parameters->on_gpu, parameters->rank_perm);
       }
     } else {
       if (group > 0) {
@@ -800,14 +804,14 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
                         size_level1_l[group], data_l[group], stage_offset,
                         size_level0_l[group - 1], size_level1_l[group - 1],
                         data_l[group - 1], 0, parameters->ascii_out,
-                        parameters->root, parameters->bit_identical, parameters->blocking, parameters->on_gpu);
+                        parameters->root, parameters->bit_identical, parameters->blocking, parameters->on_gpu, parameters->rank_perm);
       } else {
         print_algorithm(
             buffer_out_temp[group], node, num_nodes, node_rank, node_row_size,
             node_column_size, copy_method, counts, counts_max, num_ports, groups,
             msizes, msizes_max, parameters->data_type, 0, size_level0_l[group],
             size_level1_l[group], data_l[group], stage_offset, 0, NULL, NULL, 0,
-            parameters->ascii_out, parameters->root, parameters->bit_identical, parameters->blocking, parameters->on_gpu);
+            parameters->ascii_out, parameters->root, parameters->bit_identical, parameters->blocking, parameters->on_gpu, parameters->rank_perm);
       }
     }
     gbstep *= abs(groups[num_port]);
