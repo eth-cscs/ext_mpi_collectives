@@ -17,6 +17,8 @@
 #include "gpu_core.h"
 #endif
 
+int ext_mpi_num_cores_per_node = 0;
+int ext_mpi_group = 1;
 int ext_mpi_blocking = 0;
 int ext_mpi_bit_reproducible = 1;
 int ext_mpi_bit_identical = 0;
@@ -72,6 +74,24 @@ static int read_env() {
   }
   MPI_Bcast(&alternating, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
+    var = ((c = getenv("EXT_MPI_GROUP")) != NULL);
+    if (var) {
+      if (sscanf(c, "%d", &var) >= 1){
+        ext_mpi_group = var;
+      }
+    }
+  }
+  MPI_Bcast(&ext_mpi_group, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (mpi_comm_rank == 0) {
+    var = ((c = getenv("EXT_MPI_NUM_CORES_PER_NODE")) != NULL);
+    if (var) {
+      if (sscanf(c, "%d", &var) >= 1){
+        ext_mpi_num_cores_per_node = var;
+      }
+    }
+  }
+  MPI_Bcast(&ext_mpi_num_cores_per_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_NUM_PORTS")) != NULL);
   }
   MPI_Bcast(&var, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -120,6 +140,9 @@ static int get_num_cores_per_node(MPI_Comm comm) {
   int my_mpi_size, my_mpi_rank, num_cores, *all_num_cores, i, j;
   MPI_Comm comm_node;
   MPI_Info info;
+  if (ext_mpi_num_cores_per_node > 0) {
+    return ext_mpi_num_cores_per_node;
+  }
   MPI_Comm_size(comm, &my_mpi_size);
   MPI_Comm_rank(comm, &my_mpi_rank);
   MPI_Info_create(&info);
