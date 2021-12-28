@@ -5,60 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*static void rank_perm_heuristic__(int num_nodes, int *node_recvcounts,
-                           int *rank_perm) {
-  int i, i1, i2, iii;
-  for (i = 0; i < num_nodes; i++) {
-    rank_perm[i] = i;
-  }
-  //  for (i=0; i<num_nodes; i++){
-  for (i = 0; i < 0; i++) {
-    i1 = rand() % num_nodes;
-    i2 = rand() % num_nodes;
-    iii = rank_perm[i1];
-    rank_perm[i1] = rank_perm[i2];
-    rank_perm[i2] = iii;
-  }
-}*/
-
 static int rank_perm_heuristic_compare(const void *a, const void *b) {
   return (*(int *)a - *(int *)b);
 }
-
-/*static void rank_perm_heuristic_bug(int num_nodes, int *node_recvcounts,
-                             int *rank_perm) {
-  typedef struct node {
-    int value, key;
-  } node_t;
-  node_t array[num_nodes];
-  int lnode_recvcounts[num_nodes / 2], lrank_perm[num_nodes / 2],
-      perm_array[num_nodes];
-  int i;
-  for (i = 0; i < num_nodes; i++) {
-    array[i].value = node_recvcounts[i];
-    array[i].key = i;
-  }
-  if (num_nodes > 1) {
-    qsort(array, num_nodes, sizeof(node_t), rank_perm_heuristic_compare);
-    for (i = 0; i < num_nodes / 2; i++) {
-      lnode_recvcounts[i] =
-          array[i].value + array[(num_nodes / 2) * 2 - 1 - i].value;
-    }
-    ext_mpi_rank_perm_heuristic(num_nodes / 2, lnode_recvcounts, lrank_perm);
-    for (i = 0; i < num_nodes / 2; i++) {
-      perm_array[i * 2] = lrank_perm[i];
-      perm_array[i * 2 + 1] = (num_nodes / 2) * 2 - 1 - lrank_perm[i];
-    }
-    if (num_nodes % 2) {
-      perm_array[num_nodes - 1] = num_nodes - 1;
-    }
-  } else {
-    perm_array[0] = 0;
-  }
-  for (i = 0; i < num_nodes; i++) {
-    rank_perm[array[i].key] = perm_array[i];
-  }
-}*/
 
 void ext_mpi_rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_perm) {
   typedef struct node_sort {
@@ -70,71 +19,83 @@ void ext_mpi_rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_
   node_t array_org[num_nodes], array_org2[num_nodes];
   node_t_s array[num_nodes];
   int num_colors, flag, i, j, k;
+  flag = 0;
   for (i = 0; i < num_nodes; i++) {
-    array_org[i].value = node_recvcounts[i];
-    array_org[i].key = array_org[i].color = i;
+    if (node_recvcounts[i] != node_recvcounts[0]) {
+      flag = 1;
+    }
   }
-  flag = 1;
-  num_colors = num_nodes;
-  while (flag) {
-    for (i = 0; i < num_colors; i++) {
-      array[i].value = 0;
-      array[i].key = i;
-    }
+  if (!flag) {
     for (i = 0; i < num_nodes; i++) {
-      array[array_org[i].color].value += array_org[i].value;
+      rank_perm[i] = i;
     }
-    if (num_colors % 2) {
-      array[0].value = 0;
+  } else {
+    for (i = 0; i < num_nodes; i++) {
+      array_org[i].value = node_recvcounts[i];
+      array_org[i].key = array_org[i].color = i;
     }
-    qsort(array, num_colors, sizeof(node_t_s), rank_perm_heuristic_compare);
-    k = 0;
-    if (!(num_colors % 2)) {
+    flag = 1;
+    num_colors = num_nodes;
+    while (flag) {
       for (i = 0; i < num_colors; i++) {
-        for (j = 0; j < num_nodes; j++) {
-          if (i % 2) {
-            if (array[num_colors - 1 - i / 2].key == array_org[j].color) {
-              array_org2[k] = array_org[j];
-              array_org2[k++].color = i / 2;
+        array[i].value = 0;
+        array[i].key = i;
+      }
+      for (i = 0; i < num_nodes; i++) {
+        array[array_org[i].color].value += array_org[i].value;
+      }
+      if (num_colors % 2) {
+        array[0].value = 0;
+      }
+      qsort(array, num_colors, sizeof(node_t_s), rank_perm_heuristic_compare);
+      k = 0;
+      if (!(num_colors % 2)) {
+        for (i = 0; i < num_colors; i++) {
+          for (j = 0; j < num_nodes; j++) {
+            if (i % 2) {
+              if (array[num_colors - 1 - i / 2].key == array_org[j].color) {
+                array_org2[k] = array_org[j];
+                array_org2[k++].color = i / 2;
+              }
+            } else {
+              if (array[i / 2].key == array_org[j].color) {
+                array_org2[k] = array_org[j];
+                array_org2[k++].color = i / 2;
+              }
             }
-          } else {
-            if (array[i / 2].key == array_org[j].color) {
-              array_org2[k] = array_org[j];
-              array_org2[k++].color = i / 2;
+          }
+        }
+      } else {
+        for (j = 0; j < num_nodes; j++) {
+          if (0 == array_org[j].color) {
+            array_org2[k++] = array_org[j];
+          }
+        }
+        for (i = 0; i < num_colors - 1; i++) {
+          for (j = 0; j < num_nodes; j++) {
+            if (i % 2) {
+              if (array[num_colors - 1 - i / 2].key == array_org[j].color) {
+                array_org2[k] = array_org[j];
+                array_org2[k++].color = i / 2 + 1;
+              }
+            } else {
+              if (array[i / 2 + 1].key == array_org[j].color) {
+                array_org2[k] = array_org[j];
+                array_org2[k++].color = i / 2 + 1;
+              }
             }
           }
         }
       }
-    } else {
-      for (j = 0; j < num_nodes; j++) {
-        if (0 == array_org[j].color) {
-          array_org2[k++] = array_org[j];
-        }
+      for (i = 0; i < num_nodes; i++) {
+        array_org[i] = array_org2[i];
       }
-      for (i = 0; i < num_colors - 1; i++) {
-        for (j = 0; j < num_nodes; j++) {
-          if (i % 2) {
-            if (array[num_colors - 1 - i / 2].key == array_org[j].color) {
-              array_org2[k] = array_org[j];
-              array_org2[k++].color = i / 2 + 1;
-            }
-          } else {
-            if (array[i / 2 + 1].key == array_org[j].color) {
-              array_org2[k] = array_org[j];
-              array_org2[k++].color = i / 2 + 1;
-            }
-          }
-        }
-      }
+      num_colors = (num_colors + 1) / 2;
+      flag = num_colors > 1;
     }
     for (i = 0; i < num_nodes; i++) {
-      array_org[i] = array_org2[i];
+      rank_perm[i] = array_org[i].key;
     }
-    num_colors = (num_colors + 1) / 2;
-    flag = num_colors > 1;
-  }
-  for (i = 0; i < num_nodes; i++) {
-    rank_perm[i] = array_org[i].key;
   }
 }
 
@@ -154,24 +115,7 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
     printf("wrong number of message sizes\n");
     exit(2);
   }
-  rank_perm = (int *)malloc(msizes_max * sizeof(int));
-  if (!rank_perm)
-    goto error;
-  flag = 0;
-  for (i = 0; i < msizes_max; i++) {
-    if (msizes[i] != msizes[0]) {
-      flag = 1;
-    }
-  }
-  if (flag) {
-    ext_mpi_rank_perm_heuristic(num_nodes, msizes, rank_perm);
-  } else {
-    for (i = 0; i < msizes_max; i++) {
-      rank_perm[i] = i;
-    }
-  }
-  parameters->rank_perm_max = msizes_max;
-  parameters->rank_perm = rank_perm;
+  rank_perm = parameters->rank_perm;
   parameters->message_sizes =
       (int *)malloc(sizeof(int) * parameters->message_sizes_max);
   if (!parameters->message_sizes)
