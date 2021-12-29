@@ -78,6 +78,7 @@ static int read_env() {
     if (var) {
       if (sscanf(c, "%d", &var) >= 1){
         ext_mpi_group = var;
+        printf("# EXT_MPI_GROUP=%d\n", ext_mpi_group);
       }
     }
   }
@@ -1262,7 +1263,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
       my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      ext_mpi_bit_identical, !ext_mpi_bit_reproducible, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
+      ext_mpi_bit_identical, !ext_mpi_bit_reproducible, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking, ext_mpi_group);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -1621,7 +1622,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
       groups, my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      0, !ext_mpi_bit_reproducible, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
+      0, !ext_mpi_bit_reproducible, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking, ext_mpi_group);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -1957,7 +1958,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, cin_method, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
+      my_cores_per_node_row * my_cores_per_node_column, cin_method, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking, ext_mpi_group);
   if (*handle < 0)
     goto error;
   free(groups);

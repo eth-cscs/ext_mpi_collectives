@@ -28,6 +28,7 @@
 #include "parallel_memcpy.h"
 #include "ports_groups.h"
 #include "rank_permutation.h"
+#include "rank_permutation_groups.h"
 #include "raw_code.h"
 #include "raw_code_merge.h"
 #include "raw_code_tasks_node.h"
@@ -1073,7 +1074,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *num_ports,
                                int *groups, int num_active_ports, int copyin,
-                               int alt, int bit, int waitany, int recursive, int blocking) {
+                               int alt, int bit, int waitany, int recursive, int blocking, int groups_size) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int coarse_count, *counts = NULL, iret;
@@ -1165,8 +1166,8 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
       msizes[i] *= type_size;
     }
-    ext_mpi_rank_perm_heuristic(my_mpi_size_row / my_cores_per_node_row,
-                                msizes, rank_perm);
+    ext_mpi_rank_perm_heuristic_groups(my_mpi_size_row / my_cores_per_node_row,
+                                       msizes, groups_size, rank_perm);
   } else {
     msizes = (int *)malloc(sizeof(int) * 1);
     if (!msizes)
@@ -1377,11 +1378,11 @@ int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   int my_cores_per_node_column, int *num_ports,
                                   int *groups, int num_active_ports, int copyin,
                                   int alt, int bit, int waitany,
-                                  int recursive, int blocking) {
+                                  int recursive, int blocking, int groups_size) {
   return (EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, -1, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, alt, bit, waitany, recursive, blocking));
+      groups, num_active_ports, copyin, alt, bit, waitany, recursive, blocking, groups_size));
 }
 
 int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
@@ -1389,11 +1390,11 @@ int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
                               int my_cores_per_node_row, MPI_Comm comm_column,
                               int my_cores_per_node_column, int *num_ports,
                               int *groups, int num_active_ports, int copyin,
-                              int alt, int recursive, int blocking) {
+                              int alt, int recursive, int blocking, int groups_size) {
   return (EXT_MPI_Reduce_init_native(
       buffer, buffer, count, datatype, MPI_OP_NULL, -10 - root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, alt, 0, 0, recursive, blocking));
+      groups, num_active_ports, copyin, alt, 0, 0, recursive, blocking, groups_size));
 }
 
 int EXT_MPI_Gatherv_init_native(
