@@ -1167,7 +1167,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
       msizes[i] *= type_size;
     }
     ext_mpi_rank_perm_heuristic_groups(my_mpi_size_row / my_cores_per_node_row,
-                                       msizes, groups_size, rank_perm);
+                                       groups_size, msizes, rank_perm);
   } else {
     msizes = (int *)malloc(sizeof(int) * 1);
     if (!msizes)

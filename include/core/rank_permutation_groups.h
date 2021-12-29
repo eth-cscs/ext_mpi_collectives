@@ -7,7 +7,7 @@ extern "C"
 {
 #endif
 
-void ext_mpi_rank_perm_heuristic_groups(int num_nodes, int *node_recvcounts, int groups_size, int *rank_perm);
+void ext_mpi_rank_perm_heuristic_groups(int num_nodes, int groups_size, int *node_recvcounts, int *rank_perm);
 int ext_mpi_generate_rank_permutation_forward_groups(char *buffer_in, char *buffer_out);
 int ext_mpi_generate_rank_permutation_backward_groups(char *buffer_in, char *buffer_out);
 

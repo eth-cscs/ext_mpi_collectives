@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void ext_mpi_rank_perm_heuristic_groups(int num_nodes, int *node_recvcounts, int groups_size, int *rank_perm){
+void ext_mpi_rank_perm_heuristic_groups(int num_nodes, int groups_size, int *node_recvcounts, int *rank_perm){
   int lnode_recvcounts[num_nodes], lrank_perm[num_nodes], j, i;
   for (i=0; i<groups_size; i++){
     for (j=0; j<num_nodes/groups_size; j++){

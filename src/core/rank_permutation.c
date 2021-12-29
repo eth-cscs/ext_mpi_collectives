@@ -18,7 +18,7 @@ void ext_mpi_rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_
   } node_t;
   node_t array_org[num_nodes], array_org2[num_nodes];
   node_t_s array[num_nodes];
-  int num_colors, flag, i, j, k;
+  int node_recvcounts2[num_nodes], num_colors, flag, i, j, k;
   flag = 0;
   for (i = 0; i < num_nodes; i++) {
     if (node_recvcounts[i] != node_recvcounts[0]) {
@@ -95,6 +95,12 @@ void ext_mpi_rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_
     }
     for (i = 0; i < num_nodes; i++) {
       rank_perm[i] = array_org[i].key;
+    }
+    for (i = 0; i < num_nodes; i++) {
+      node_recvcounts2[i] = node_recvcounts[i];
+    }
+    for (i = 0; i < num_nodes; i++) {
+//      node_recvcounts[i] = node_recvcounts2[rank_perm[i]];
     }
   }
 }
