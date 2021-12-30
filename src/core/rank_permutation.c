@@ -100,7 +100,7 @@ void ext_mpi_rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_
       node_recvcounts2[i] = node_recvcounts[i];
     }
     for (i = 0; i < num_nodes; i++) {
-//      node_recvcounts[i] = node_recvcounts2[rank_perm[i]];
+      node_recvcounts[i] = node_recvcounts2[rank_perm[i]];
     }
   }
 }

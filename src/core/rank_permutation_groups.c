@@ -14,6 +14,7 @@ void ext_mpi_rank_perm_heuristic_groups(int num_nodes, int groups_size, int *nod
     }
     ext_mpi_rank_perm_heuristic(num_nodes/groups_size, lnode_recvcounts, lrank_perm);
     for (j=0; j<num_nodes/groups_size; j++){
+      node_recvcounts[i+j*groups_size] = lnode_recvcounts[j];
       rank_perm[i+j*groups_size] = lrank_perm[j]+i*(num_nodes/groups_size);
       //rank_perm[i*(num_nodes/groups_size)+j] = lrank_perm[j]+i*(num_nodes/groups_size);
     }
