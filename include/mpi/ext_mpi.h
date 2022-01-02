@@ -8,6 +8,7 @@
 extern "C" {
 #endif
 
+extern int ext_mpi_num_tasks_per_node;
 extern int ext_mpi_blocking;
 extern int ext_mpi_bit_identical;
 extern int ext_mpi_bit_reproducible;
