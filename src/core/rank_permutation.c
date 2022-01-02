@@ -5,62 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*static void rank_perm_heuristic__(int num_nodes, int *node_recvcounts,
-                           int *rank_perm) {
-  int i, i1, i2, iii;
-  for (i = 0; i < num_nodes; i++) {
-    rank_perm[i] = i;
-  }
-  //  for (i=0; i<num_nodes; i++){
-  for (i = 0; i < 0; i++) {
-    i1 = rand() % num_nodes;
-    i2 = rand() % num_nodes;
-    iii = rank_perm[i1];
-    rank_perm[i1] = rank_perm[i2];
-    rank_perm[i2] = iii;
-  }
-}*/
-
 static int rank_perm_heuristic_compare(const void *a, const void *b) {
   return (*(int *)a - *(int *)b);
 }
 
-/*static void rank_perm_heuristic_bug(int num_nodes, int *node_recvcounts,
-                             int *rank_perm) {
-  typedef struct node {
-    int value, key;
-  } node_t;
-  node_t array[num_nodes];
-  int lnode_recvcounts[num_nodes / 2], lrank_perm[num_nodes / 2],
-      perm_array[num_nodes];
-  int i;
-  for (i = 0; i < num_nodes; i++) {
-    array[i].value = node_recvcounts[i];
-    array[i].key = i;
-  }
-  if (num_nodes > 1) {
-    qsort(array, num_nodes, sizeof(node_t), rank_perm_heuristic_compare);
-    for (i = 0; i < num_nodes / 2; i++) {
-      lnode_recvcounts[i] =
-          array[i].value + array[(num_nodes / 2) * 2 - 1 - i].value;
-    }
-    ext_mpi_rank_perm_heuristic(num_nodes / 2, lnode_recvcounts, lrank_perm);
-    for (i = 0; i < num_nodes / 2; i++) {
-      perm_array[i * 2] = lrank_perm[i];
-      perm_array[i * 2 + 1] = (num_nodes / 2) * 2 - 1 - lrank_perm[i];
-    }
-    if (num_nodes % 2) {
-      perm_array[num_nodes - 1] = num_nodes - 1;
-    }
-  } else {
-    perm_array[0] = 0;
-  }
-  for (i = 0; i < num_nodes; i++) {
-    rank_perm[array[i].key] = perm_array[i];
-  }
-}*/
-
-void ext_mpi_rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_perm) {
+static void rank_perm_heuristic(int num_nodes, int *node_recvcounts, int *rank_perm) {
   typedef struct node_sort {
     int value, key, color;
   } node_t_s;
@@ -164,7 +113,7 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
     }
   }
   if (flag) {
-    ext_mpi_rank_perm_heuristic(num_nodes, msizes, rank_perm);
+    rank_perm_heuristic(num_nodes, msizes, rank_perm);
   } else {
     for (i = 0; i < msizes_max; i++) {
       rank_perm[i] = i;
