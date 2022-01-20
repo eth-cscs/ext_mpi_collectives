@@ -116,16 +116,10 @@ static void frac_multiply(int gbstep, int igroup, int component, int fac, int *s
         data_new[j][i].source = (*data)[j][i * fac].source;
         for (l = 0; l < data_new[j][i].from_max; l++) {
           data_new[j][i].from_node[l] = (*data)[j][i * fac].from_node[l];
-          if (data_new[j][i].from_node[l] >=0) {
-            data_new[j][i].from_node[l] = node_global(data_new[j][i].from_node[l], gbstep, igroup, component);
-          }
           data_new[j][i].from_line[l] = (*data)[j][i * fac].from_line[l] / fac;
         }
         for (l = 0; l < data_new[j][i].to_max; l++) {
           data_new[j][i].to[l] = (*data)[j][i * fac].to[l];
-          if (data_new[j][i].to[l] >= 0) {
-            data_new[j][i].to[l] = node_global(data_new[j][i].to[l], gbstep, igroup, component);
-          }
         }
       }
     }
@@ -213,13 +207,8 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
     i = ext_mpi_read_algorithm(buffer_out_temp + i, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group], (*parameters2)[group]->ascii_in);
     if (i <= 0) goto error;
     for (fac = (*size_level1_l)[group][0]; (num_nodes_start % fac) || ((*size_level1_l)[group][0] % fac); fac--);
-    if ((*size_level1_l)[group][0] >= num_nodes_start) {
-      frac_multiply(gbstep, igroup, component, (*size_level1_l)[group][0]/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
-      frac_multiply(gbstep, igroup, component, -num_nodes_start/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
-    } else {
-      frac_multiply(gbstep, igroup, component, -(*size_level1_l)[group][0]/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
-      frac_multiply(gbstep, igroup, component, num_nodes_start/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
-    }
+    frac_multiply(gbstep, igroup, component, -(*size_level1_l)[group][0]/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
+    frac_multiply(gbstep, igroup, component, num_nodes_start/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
     num_nodes_start = 0;
     for (i = 0; i < (*size_level1_l)[group][(*size_level0_l)[group] - 1]; i++){
       for (j = 0; j < (*data_l)[group][(*size_level0_l)[group] - 1][i].to_max; j++){
