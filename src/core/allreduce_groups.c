@@ -310,10 +310,10 @@ static void set_frac_recursive(char *buffer_in, struct parameters_block *paramet
   } else {
     gen_core(buffer_in, node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
     set_frac_recursive(buffer_in, parameters, node, group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_end);
-    for (j = 0; j < size_level0[group]; j++) {
+    for (j = 0; j < size_level0[group] - 1; j++) {
       for (k = size_level1[group][j]; k < size_level1[group][j + 1]; k += size_level1[group][0]) {
-        gen_core(buffer_in, data[group][j + 1][k].from_node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
-        set_frac_recursive(buffer_in, parameters, data[group][j + 1][k].from_node, group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_local); 
+        gen_core(buffer_in, data[group][j + 1][k].from_node[0], &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
+        set_frac_recursive(buffer_in, parameters, data[group][j + 1][k].from_node[0], group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_local); 
         for (i = 0; i < size_level1[group][0]; i++) {
           node_translation_end[k + i] = node_translation_local[i];
         }
@@ -348,8 +348,13 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
     goto error;
   ngroups = get_ngroups(parameters);
   gen_core(buffer_in, parameters->node, &parameters2, &group_core, &size_level0_l, &size_level1_l, &data_l);
-  for (group = 0; group < ngroups; group++) {
+  for (group = 0; group <= group_core; group++) {
     set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
+  }
+  for (group = ngroups - 1; group > group_core; group--) {
+    set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
+  }
+  for (group = 0; group < ngroups; group++) {
     nbuffer_out += ext_mpi_write_parameters(parameters2[group], buffer_out + nbuffer_out);
     ext_mpi_delete_parameters(parameters2[group]);
     nbuffer_out += ext_mpi_write_algorithm(size_level0_l[group], size_level1_l[group], data_l[group], buffer_out + nbuffer_out, parameters->ascii_out);
