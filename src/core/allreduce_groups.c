@@ -301,12 +301,23 @@ static void set_frac_recursive(char *buffer_in, struct parameters_block *paramet
   } else {
     gen_core(buffer_in, node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
     set_frac_recursive(buffer_in, parameters, node, group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_end);
-    for (j = 0; j < size_level0[group] - 1; j++) {
-      for (k = size_level1[group][j]; k < size_level1[group][j + 1]; k += size_level1[group][0]) {
-        gen_core(buffer_in, data[group][j + 1][k].from_node[0], &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
-        set_frac_recursive(buffer_in, parameters, data[group][j + 1][k].from_node[0], group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_local); 
-        for (i = 0; i < size_level1[group][0]; i++) {
-          node_translation_end[k + i] = node_translation_local[i];
+    for (i = j = 0; i < size_level1_l[group - 1][size_level0_l[group - 1] - 1]; i++) {
+      for (l = 0; l < data[group - 1][size_level0_l[group - 1] - 1][i].to_max; l++) {
+        if (data[group - 1][size_level0_l[group - 1] - 1][i].to[l] == -1) {
+          node_translation_end[j++] = data_l[group - 1][size_level0_l[group - 1] - 1][i].frac;
+        }
+      }
+    }
+    for (m = 0; m < size_level0[group] - 1; m++) {
+      for (k = size_level1[group][m]; k < size_level1[group][m + 1]; k += size_level1[group][0]) {
+        gen_core(buffer_in, data[group][m + 1][k].from_node[0], &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
+        set_frac_recursive(buffer_in, parameters, data[group][m + 1][k].from_node[0], group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_local);
+        for (i = j = 0; i < size_level1_l[group - 1][size_level0_l[group - 1] - 1]; i++) {
+          for (l = 0; l < data[group - 1][size_level0_l[group - 1] - 1][i].to_max; l++) {
+            if (data[group - 1][size_level0_l[group - 1] - 1][i].to[l] == -1) {
+              node_translation_end[k + j++] = data_l[group - 1][size_level0_l[group - 1] - 1][i].frac;
+            }
+          }
         }
       }
     }
