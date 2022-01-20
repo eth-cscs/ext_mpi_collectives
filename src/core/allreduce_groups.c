@@ -270,44 +270,66 @@ static void get_node_frac(struct parameters_block *parameters, int node, int gro
   }
 }
 
-static void set_frac_recursive(char *buffer_in, struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data, int *node_translation) {
+static void set_frac_recursive(char *buffer_in, struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data, int *node_translation_begin, int *node_translation_end) {
   int node_translation_local[parameters->num_nodes], i, j, k, l, m, ngroups, gbstep, num_port, igroup, ports_chunk, component, flag_allgatherv,
       *size_level0_l = NULL, **size_level1_l = NULL;
   struct parameters_block **parameters2_l = NULL;
   struct data_line ***data_l = NULL;
   if (group == group_core) {
     gen_core(buffer_in, node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
-    get_node_frac(parameters, node, group, group_core, parameters2, node_translation);
+    get_node_frac(parameters, node, group, group_core, parameters2, node_translation_begin);
     for (j = 0; j < size_level0[group]; j++) {
       for (i = 0; i < size_level1[group][j]; i++) {
-        data[group][j][i].frac = node_translation[data_l[group][j][i].frac];
+        data[group][j][i].frac = node_translation_begin[data_l[group][j][i].frac];
+      }
+    }
+    for (i = j = 0; i < size_level1[group][size_level0[group] - 1]; i++) {
+      for (l = 0; l < data[group][size_level0[group] - 1][i].to_max; l++) {
+        if (data[group][size_level0[group] - 1][i].to[l] == -1) {
+          node_translation_end[j++] = node_translation_begin[data_l[group][size_level0[group] - 1][i].frac];
+        }
       }
     }
   } else if (group < group_core) {
     gen_core(buffer_in, node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
-    set_frac_recursive(buffer_in, parameters, node, group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation);
+    set_frac_recursive(buffer_in, parameters, node, group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_end);
     for (j = size_level0[group] - 2; j >= 0; j--) {
       for (k = size_level1[group][j + 1]; k < size_level1[group][j]; k += size_level1[group][size_level0[group] - 1]) {
-        ngroups = get_ngroups(parameters);
         gen_core(buffer_in, data[group][j][k].to[0], &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
-        set_frac_recursive(buffer_in, parameters, data[group][j][k].to[0], group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_local); 
+        set_frac_recursive(buffer_in, parameters, data[group][j][k].to[0], group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_local, node_translation_end); 
         for (i = 0; i < size_level1[group][size_level0[group] - 1]; i++) {
-          node_translation[k + i] = node_translation_local[i];
+          node_translation_begin[k + i] = node_translation_local[i];
         }
       }
     }
     for (j = 0; j < size_level0[group]; j++) {
       for (i = 0; i < size_level1[group][j]; i++) {
-        data[group][j][i].frac = node_translation[i];
+        data[group][j][i].frac = node_translation_begin[i];
       }
     }
   } else {
+    gen_core(buffer_in, node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
+    set_frac_recursive(buffer_in, parameters, node, group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_end);
+    for (j = 0; j < size_level0[group]; j++) {
+      for (k = size_level1[group][j]; k < size_level1[group][j + 1]; k += size_level1[group][0]) {
+        gen_core(buffer_in, data[group][j + 1][k].from_node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
+        set_frac_recursive(buffer_in, parameters, data[group][j + 1][k].from_node, group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_local); 
+        for (i = 0; i < size_level1[group][0]; i++) {
+          node_translation_end[k + i] = node_translation_local[i];
+        }
+      }
+    }
+    for (j = 0; j < size_level0[group]; j++) {
+      for (i = 0; i < size_level1[group][j]; i++) {
+        data[group][j][i].frac = node_translation_end[i];
+      }
+    }
   }
 }
 
 static void set_frac(char *buffer_in, struct parameters_block *parameters, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data){
-  int node_frac[parameters->num_nodes];
-  set_frac_recursive(buffer_in, parameters, parameters->node, group, group_core, parameters2, size_level0, size_level1, data, node_frac);
+  int node_translation_begin[parameters->num_nodes], node_translation_end[parameters->num_nodes];
+  set_frac_recursive(buffer_in, parameters, parameters->node, group, group_core, parameters2, size_level0, size_level1, data, node_translation_begin, node_translation_end);
 }
 
 int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
