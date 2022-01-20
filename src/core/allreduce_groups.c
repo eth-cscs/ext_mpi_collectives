@@ -245,7 +245,6 @@ static void get_node_frac(struct parameters_block *parameters, int node, int gro
   int node_translation_local[parameters->num_nodes], gbstep, factor = -1, flag_allgatherv, component, num_port, ports_chunk, i, j, k;
   num_port = 0;
   for (i = 0; i <= group_core; i++) {
-    gbstep = get_gbstep(group_core, parameters->groups, parameters->num_nodes, &flag_allgatherv);
     for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++)
       ;
     ports_chunk++;
@@ -284,12 +283,15 @@ static void set_frac_recursive(char *buffer_in, struct parameters_block *paramet
   } else if (group < group_core) {
     gen_core(buffer_in, node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
     set_frac_recursive(buffer_in, parameters, node, group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_end);
+    for (i = 0; i < size_level1_l[group][size_level0_l[group] - 1]; i++) {
+      node_translation_begin[i] = data_l[group + 1][0][i].frac;
+    }
     for (j = size_level0[group] - 2; j >= 0; j--) {
       for (k = size_level1[group][j + 1]; k < size_level1[group][j]; k += size_level1[group][size_level0[group] - 1]) {
         gen_core(buffer_in, data[group][j][k].to[0], &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
         set_frac_recursive(buffer_in, parameters, data[group][j][k].to[0], group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_local, node_translation_end); 
-        for (i = 0; i < size_level1[group][size_level0[group] - 1]; i++) {
-          node_translation_begin[k + i] = node_translation_local[i];
+        for (i = 0; i < size_level1_l[group][size_level0_l[group] - 1]; i++) {
+          node_translation_begin[k + i] = data_l[group + 1][0][i].frac;
         }
       }
     }
