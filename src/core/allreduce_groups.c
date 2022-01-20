@@ -212,12 +212,14 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
     if (i <= 0) goto error;
     i = ext_mpi_read_algorithm(buffer_out_temp + i, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group], (*parameters2)[group]->ascii_in);
     if (i <= 0) goto error;
+    for (fac = (*size_level1_l)[group][0]; (num_nodes_start % fac) || ((*size_level1_l)[group][0] % fac); fac--);
     if ((*size_level1_l)[group][0] >= num_nodes_start) {
-      fac = -(*size_level1_l)[group][0] / num_nodes_start;
+      frac_multiply(gbstep, igroup, component, (*size_level1_l)[group][0]/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
+      frac_multiply(gbstep, igroup, component, -num_nodes_start/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
     } else {
-      fac = num_nodes_start / (*size_level1_l)[group][0];
+      frac_multiply(gbstep, igroup, component, -(*size_level1_l)[group][0]/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
+      frac_multiply(gbstep, igroup, component, num_nodes_start/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
     }
-    frac_multiply(gbstep, igroup, component, fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
     num_nodes_start = 0;
     for (i = 0; i < (*size_level1_l)[group][(*size_level0_l)[group] - 1]; i++){
       for (j = 0; j < (*data_l)[group][(*size_level0_l)[group] - 1][i].to_max; j++){
