@@ -26,20 +26,27 @@ static int get_gbstep(int group, int *groups, int num_nodes, int *allgatherv){
       *allgatherv = 1;
     }
   }
-//printf("aaaaaa %d %d %d %d %d\n", max_reduce, max_group, gbstep, group, *allgatherv);
   return gbstep;
 }
 
 static int node_local(int node_global, int gbstep, int factor, int *component) {
-//printf("bbbbb_l %d\n", node_global);
   *component = (node_global / factor / gbstep) * gbstep + node_global % gbstep;
   return ((node_global / gbstep) % factor);
 }
 
 static int node_global(int node_local, int gbstep, int factor, int component) {
-//printf("bbbbb_g %d\n", node_local);
   return (node_local * gbstep + component % gbstep +
           (component / gbstep) * factor * gbstep);
+}
+
+static int get_ngroups(struct parameters_block *parameters) {
+  int ngroups = 0, group;
+  for (group = 0; parameters->groups[group]; group++) {
+    if (parameters->groups[group] < 0) {
+      ngroups++;
+    }
+  }
+  return ngroups;
 }
 
 static int insert_lines(int node, int ngroups, int *size_level0,
@@ -53,71 +60,6 @@ static int communication_partner(int gbstep, int num_ports, int task,
           (task / gbstep / (num_ports + 1)) * (num_ports + 1)) *
              gbstep +
          task % gbstep;
-}
-
-static void gen_frac_start_basis(int num_nodes, int node, int *groups,
-                           int *frac_start) {
-  int frac_start_p[num_nodes], partner, fac, gbstep, i, j;
-  if (!groups[0]) {
-    frac_start[0] = node;
-  } else {
-    for (i = 0, gbstep = num_nodes; groups[i]; gbstep /= groups[i++]);
-    fac = groups[0];
-    for (j = 0; j < fac; j++){
-      if (j == 0) {
-	partner = node;
-      } else {
-        partner = communication_partner(gbstep, fac - 1, node, j - 1);
-      }
-      gen_frac_start_basis(num_nodes, partner, groups + 1, frac_start_p);
-//printf("aaaaaaaa %d %d %d %d %d\n", node, gbstep, fac, partner, frac_start_p[0]);
-      for (i = 0; i < num_nodes / gbstep / fac; i++) {
-	frac_start[i + j * (num_nodes / gbstep / fac)] = frac_start_p[i];
-      }
-    }
-  }
-}
-
-static void gen_frac_start(int num_nodes, int node, int *groups,
-                           int *frac_start) {
-  int group, i, j = 0, k, n, groups_[num_nodes], groups__[num_nodes];
-  for (i = 0; groups[i]; i++) {
-    if (groups[i] < 0) {
-      groups_[j++] = abs(groups[i]);
-    }
-  }
-  groups_[j] = 0;
-  for (group = j - 1, n = 1; n < num_nodes; n *= groups_[group--]);
-  for (i=0, k = group + 1; groups_[k]; i++, k++){
-    groups__[i] = groups_[j - i - 1];
-  }
-  groups__[i] = 0;
-//printf("aaaaa %d %d %d\n", groups__[0], groups__[1], groups__[2]);
-  gen_frac_start_basis(num_nodes, node, groups__, frac_start);
-  for (i = 0; i < node * num_nodes / abs(groups[0]); i++){
-    k = frac_start[num_nodes - 1];
-    for (j = num_nodes - 1; j > 0; j--) {
-      frac_start[j] = frac_start[j - 1];
-    }
-    frac_start[0] = k;
-  }
-for (i=0; i< num_nodes; i++){
-//printf("aaaaa %d %d\n", i, frac_start[i]);
-}
-//exit(9);
-}
-
-static int frac_translate(int num_nodes, int *groups, int node_from,
-                          int node_to, int frac) {
-  int frac_from[num_nodes], frac_to[num_nodes], i;
-  gen_frac_start(num_nodes, node_from, groups, frac_from);
-  gen_frac_start(num_nodes, node_to, groups, frac_to);
-  for (i = 0; i < num_nodes; i++) {
-    if (frac_to[i] == frac) {
-      return (frac_from[i]);
-    }
-  }
-  return -1;
 }
 
 static void frac_multiply(int gbstep, int igroup, int component, int fac, int *size_level0, int **size_level1, struct data_line ***data){
@@ -208,15 +150,8 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  if (node >= 0) {
-    parameters->node = node;
-  }
-  ngroups = 0;
-  for (group = 0; parameters->groups[group]; group++) {
-    if (parameters->groups[group] < 0) {
-      ngroups++;
-    }
-  }
+  parameters->node = node;
+  ngroups = get_ngroups(parameters);
   buffer_in_temp = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer_in_temp)
     goto error;
@@ -318,39 +253,24 @@ error:
 static void get_node_frac(struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *node_translation){
   int node_translation_local[parameters->num_nodes], gbstep, factor = -1, flag_allgatherv, component, num_port, ports_chunk, i, j, k;
   num_port = 0;
-  for (i = 0; i <= group; i++) {
-    gbstep = get_gbstep(group, parameters->groups, parameters->num_nodes, &flag_allgatherv);
+  for (i = 0; i <= group_core; i++) {
+    gbstep = get_gbstep(group_core, parameters->groups, parameters->num_nodes, &flag_allgatherv);
     for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++)
       ;
     ports_chunk++;
     factor = abs(parameters->groups[num_port]);
     num_port += ports_chunk;
   }
-  gbstep = get_gbstep(group, parameters->groups, parameters->num_nodes, &flag_allgatherv);
-  if (group == group_core) {
-    node_local(node, gbstep, factor, &component);
-    for (j = 0; j < parameters->num_nodes / factor; j++) {
-      for (i = 0; i < factor; i++) {
-        node_translation[i + j * factor] = node_global(i, gbstep, factor, (component + j) % (parameters->num_nodes / factor));
-      }
-    }
-  } else if (group < group_core) {
-    get_node_frac(parameters, node, group + 1, group_core, parameters2, node_translation_local);
-    for (i = group + 1, k = parameters2[group + 1]->num_nodes; i < group_core; k *= parameters2[++i]->num_nodes);
-    for (j = 0; j < parameters->num_nodes / k; j++) {
-      for (i = 0; i < k; i++) {
-        node_translation[i + j * k] = node_translation_local[i + j * k];
-      }
-    }
-  } else {
-    get_node_frac(parameters, node, group - 1, group_core, parameters2, node_translation_local);
-    for (i = 0; i < parameters->num_nodes; i++) {
-      node_translation[i] = node_translation_local[i];
+  gbstep = get_gbstep(group_core, parameters->groups, parameters->num_nodes, &flag_allgatherv);
+  node_local(node, gbstep, factor, &component);
+  for (j = 0; j < parameters->num_nodes / factor; j++) {
+    for (i = 0; i < factor; i++) {
+      node_translation[i + j * factor] = node_global(i, gbstep, factor, (component + j) % (parameters->num_nodes / factor));
     }
   }
 }
 
-static void get_node_start(char *buffer_in, struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data, int *node_translation) {
+static void set_frac_recursive(char *buffer_in, struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data, int *node_translation) {
   int node_translation_local[parameters->num_nodes], i, j, k, l, m, ngroups, gbstep, num_port, igroup, ports_chunk, component, flag_allgatherv,
       *size_level0_l = NULL, **size_level1_l = NULL;
   struct parameters_block **parameters2_l = NULL;
@@ -365,43 +285,20 @@ static void get_node_start(char *buffer_in, struct parameters_block *parameters,
     }
   } else if (group < group_core) {
     gen_core(buffer_in, node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
-    get_node_start(buffer_in, parameters, node, group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation);
+    set_frac_recursive(buffer_in, parameters, node, group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation);
     for (j = size_level0[group] - 2; j >= 0; j--) {
       for (k = size_level1[group][j + 1]; k < size_level1[group][j]; k += size_level1[group][size_level0[group] - 1]) {
-        ngroups = 0;
-        for (l = 0; parameters->groups[l]; l++) {
-          if (parameters->groups[l] < 0) {
-            ngroups++;
-          }
-        }
-        m = parameters->node;
-        parameters->node = node;
-/*        num_port = 0;
-        for (l = 0; l < ngroups; l++) {
-          for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++)
-            ;
-          ports_chunk++;
-          igroup = abs(parameters->groups[num_port]);
-          gbstep = get_gbstep(l, parameters->groups, parameters->num_nodes, &flag_allgatherv);
-          parameters2[l]->node = node_local(data[group][j][k].to[0], gbstep, igroup, &component);
-          num_port += ports_chunk;
-        }*/
+        ngroups = get_ngroups(parameters);
         gen_core(buffer_in, data[group][j][k].to[0], &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
-        get_node_start(buffer_in, parameters, data[group][j][k].to[0], group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_local); 
-/*        num_port = 0;
-        for (l = 0; l < ngroups; l++) {
-          for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++)
-            ;
-          ports_chunk++;
-          igroup = abs(parameters->groups[num_port]);
-          gbstep = get_gbstep(l, parameters->groups, parameters->num_nodes, &flag_allgatherv);
-          parameters2[l]->node = node_local(parameters->node, gbstep, igroup, &component);
-          num_port += ports_chunk;
-        }*/
-        parameters->node = m;
+        set_frac_recursive(buffer_in, parameters, data[group][j][k].to[0], group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_local); 
         for (i = 0; i < size_level1[group][size_level0[group] - 1]; i++) {
           node_translation[k + i] = node_translation_local[i];
         }
+      }
+    }
+    for (j = 0; j < size_level0[group]; j++) {
+      for (i = 0; i < size_level1[group][j]; i++) {
+        data[group][j][i].frac = node_translation[i];
       }
     }
   } else {
@@ -409,15 +306,8 @@ static void get_node_start(char *buffer_in, struct parameters_block *parameters,
 }
 
 static void set_frac(char *buffer_in, struct parameters_block *parameters, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data){
-  int node_frac[parameters->num_nodes], i, j;
-  get_node_start(buffer_in, parameters, parameters->node, group, group_core, parameters2, size_level0, size_level1, data, node_frac);
-  if (group != group_core) {
-    for (j = 0; j < size_level0[group]; j++) {
-      for (i = 0; i < size_level1[group][j]; i++) {
-        data[group][j][i].frac = node_frac[i];
-      }
-    }
-  }
+  int node_frac[parameters->num_nodes];
+  set_frac_recursive(buffer_in, parameters, parameters->node, group, group_core, parameters2, size_level0, size_level1, data, node_frac);
 }
 
 int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
@@ -434,13 +324,8 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   if (i < 0)
     goto error;
-  ngroups = 0;
-  for (group = 0; parameters->groups[group]; group++) {
-    if (parameters->groups[group] < 0) {
-      ngroups++;
-    }
-  }
-  gen_core(buffer_in, -1, &parameters2, &group_core, &size_level0_l, &size_level1_l, &data_l);
+  ngroups = get_ngroups(parameters);
+  gen_core(buffer_in, parameters->node, &parameters2, &group_core, &size_level0_l, &size_level1_l, &data_l);
   for (group = 0; group < ngroups; group++) {
     set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
     nbuffer_out += ext_mpi_write_parameters(parameters2[group], buffer_out + nbuffer_out);
