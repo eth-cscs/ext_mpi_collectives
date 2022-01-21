@@ -242,20 +242,18 @@ error:
 }
 
 static void get_node_frac(struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *node_translation){
-  int node_translation_local[parameters->num_nodes], gbstep, factor = -1, flag_allgatherv, component, num_port, ports_chunk, i, j, k;
+  int gbstep, factor = -1, factor2 = 1, num_port, ports_chunk, i, j, k;
   num_port = 0;
-  for (i = 0; i <= group_core; i++) {
-    for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++)
-      ;
+  for (i = 0; i < group_core; i++) {
+    for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++);
     ports_chunk++;
-    factor = abs(parameters->groups[num_port]);
+    factor2 *= abs(parameters->groups[num_port]);
     num_port += ports_chunk;
   }
-  gbstep = get_gbstep(group_core, parameters->groups, parameters->num_nodes, &flag_allgatherv);
-  node_local(node, gbstep, factor, &component);
+  factor = abs(parameters->groups[num_port]);
   for (j = 0; j < parameters->num_nodes / factor; j++) {
     for (i = 0; i < factor; i++) {
-      node_translation[i + j * factor] = node_global(i, gbstep, factor, (component + j) % (parameters->num_nodes / factor));
+      node_translation[i + j * factor] = i + (j + node % factor2)  * factor;
     }
   }
 }
