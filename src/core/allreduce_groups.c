@@ -334,16 +334,53 @@ static void set_frac(char *buffer_in, struct parameters_block *parameters, int g
   set_frac_recursive(buffer_in, parameters, parameters->node, group, group_core, parameters2, size_level0, size_level1, data, node_translation_begin, node_translation_end);
 }
 
+static void merge_groups(struct parameters_block *parameters, int *size_level0_l, int **size_level1_l, struct data_line ***data_l, int *size_level0, int **size_level1, struct data_line ***data) {
+  int ngroups, group, shift, i, j, k;
+  ngroups = get_ngroups(parameters);
+  *size_level0 = 0;
+  for (group = 0; group < ngroups; group++) {
+    if (group == 0) {
+      *size_level0 += size_level0_l[group];
+    } else {
+      *size_level0 += size_level0_l[group] - 1;
+    }
+  }
+  *size_level1 = (int *) malloc(*size_level0 * sizeof(int));
+  *data = (struct data_line **) malloc(*size_level0 * sizeof(struct data_line *));
+  j = 0;
+  for (group = 0; group < ngroups; group++) {
+    if (group == 0) {
+      for (i = 0; i < size_level0_l[group]; i++) {
+        (*size_level1)[j] = size_level1_l[group][i];
+        (*data)[j] = (struct data_line *) malloc((*size_level1)[j] * sizeof(struct data_line));
+        for (k = 0; k < (*size_level1)[j]; k++) {
+          (*data)[j][k] = data_l[group][i][k];
+        }
+        j++;
+      }
+    } else {
+      for (i = 1; i < size_level0_l[group]; i++) {
+        (*size_level1)[j] = size_level1_l[group][i];
+        (*data)[j] = (struct data_line *) malloc((*size_level1)[j] * sizeof(struct data_line));
+        for (k = 0; k < (*size_level1)[j]; k++) {
+          (*data)[j][k] = data_l[group][i][k];
+        }
+        j++;
+      }
+    }
+  }
+}
+
 int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   int node, num_nodes, flag_allgatherv, node_rank,
       node_row_size = 1, node_column_size = 1, copy_method = 0;
   int nbuffer_out = 0, nbuffer_in = 0, num_port,
       group, ngroups = 0, igroup = -1, num_nodes_start;
   int i, j, *size_level0_l = NULL, **size_level1_l = NULL, gbstep, component,
-      ports_chunk, node_l, num_nodes_l, *counts = NULL, counts_max;
+      ports_chunk, node_l, num_nodes_l, *counts = NULL, counts_max, size_level0 = 0, *size_level1 = NULL;
   int fac, group_core = -1, nnodes_core = INT_MAX;
   struct parameters_block *parameters = NULL, **parameters2 = NULL;
-  struct data_line ***data_l = NULL;
+  struct data_line ***data_l = NULL, **data = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   if (i < 0)
@@ -356,6 +393,8 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   for (group = ngroups - 1; group > group_core; group--) {
     set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
   }
+  merge_groups(parameters, size_level0_l, size_level1_l, data_l, &size_level0, &size_level1, &data);
+  nbuffer_out += ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out, parameters->ascii_out);
   for (group = 0; group < ngroups; group++) {
     nbuffer_out += ext_mpi_write_parameters(parameters2[group], buffer_out + nbuffer_out);
     ext_mpi_delete_parameters(parameters2[group]);
