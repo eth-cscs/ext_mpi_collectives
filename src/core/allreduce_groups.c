@@ -350,23 +350,23 @@ static void merge_groups(struct parameters_block *parameters, int *size_level0_l
   j = 0;
   for (group = 0; group < ngroups; group++) {
     if (group == 0) {
-      for (i = 0; i < size_level0_l[group]; i++) {
-        (*size_level1)[j] = size_level1_l[group][i];
-        (*data)[j] = (struct data_line *) malloc((*size_level1)[j] * sizeof(struct data_line));
-        for (k = 0; k < (*size_level1)[j]; k++) {
-          (*data)[j][k] = data_l[group][i][k];
-        }
-        j++;
-      }
+      i = 0;
     } else {
-      for (i = 1; i < size_level0_l[group]; i++) {
-        (*size_level1)[j] = size_level1_l[group][i];
-        (*data)[j] = (struct data_line *) malloc((*size_level1)[j] * sizeof(struct data_line));
-        for (k = 0; k < (*size_level1)[j]; k++) {
-          (*data)[j][k] = data_l[group][i][k];
-        }
-        j++;
+      i = 1;
+    }
+    for (; i < size_level0_l[group]; i++) {
+      (*size_level1)[j] = size_level1_l[group][i];
+      (*data)[j] = (struct data_line *) malloc((*size_level1)[j] * sizeof(struct data_line));
+      for (k = 0; k < (*size_level1)[j]; k++) {
+        (*data)[j][k] = data_l[group][i][k];
       }
+      if ((i == size_level0_l[group] - 1) && (group < ngroups - 1)) {
+        for (k = 0; k < (*size_level1)[j]; k++) {
+          (*data)[j][k].to_max = data_l[group + 1][0][k].to_max;
+          (*data)[j][k].to = data_l[group + 1][0][k].to;
+        }
+      }
+      j++;
     }
   }
 }
