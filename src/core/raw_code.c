@@ -36,8 +36,8 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
-  parameters->node /= (parameters->num_nodes / parameters->message_sizes_max);
-  parameters->num_nodes = parameters->message_sizes_max;
+//  parameters->node /= (parameters->num_nodes / parameters->message_sizes_max);
+//  parameters->num_nodes = parameters->message_sizes_max;
   node = parameters->node;
   num_nodes = parameters->num_nodes;
   node_row_size = parameters->node_row_size;

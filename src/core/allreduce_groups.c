@@ -239,7 +239,7 @@ static void get_node_frac(struct parameters_block *parameters, int node, int gro
   factor = abs(parameters->groups[num_port]);
   for (j = 0; j < parameters->num_nodes / factor; j++) {
     for (i = 0; i < factor; i++) {
-      node_translation[i + j * factor] = i + (j + node % factor2)  * factor;
+      node_translation[i + j * factor] = (i + ((j + node) % (parameters->num_nodes / factor)) * factor) % factor2;
     }
   }
 }
@@ -320,7 +320,7 @@ static void set_frac(char *buffer_in, struct parameters_block *parameters, int g
 }
 
 static void merge_groups(struct parameters_block *parameters, int *size_level0_l, int **size_level1_l, struct data_line ***data_l, int *size_level0, int **size_level1, struct data_line ***data) {
-  int ngroups, group, shift = 0, i, j, k, l, m, n, o;
+  int ngroups, group, shift = 0, i, j, k, l, m, n, flag;
   ngroups = get_ngroups(parameters);
   *size_level0 = 0;
   for (group = 0; group < ngroups; group++) {
@@ -370,16 +370,18 @@ static void merge_groups(struct parameters_block *parameters, int *size_level0_l
         }
       }
       if ((group > 0) && (shift > 0)) {
-        for (k = n = o = 0; k < (*size_level1)[j]; k++) {
-          for (l = 0; l < (*data)[j][k].from_max; l++) {
-            if (((*data)[j][k].from_node[l] == parameters->node) && ((*data)[j][k].from_line[l] != k) && ((*data)[j][k].from_line[l] < size_level1_l[group - 1][size_level0_l[group - 1] - 1] + shift)) {
-              for (m = 0; m < (*data)[j - 1][o].to_max; m++) {
-                if ((*data)[j - 1][o].to[m] == -1) {
-                  (*data)[j][k - o + n].from_line[m] += o - n - shift;
-                  n++;
-                }
+        for (n = 0; n < (*size_level1)[j]; n++) {
+	  flag = 1;
+          for (l = 0; flag && (l < (*data)[j][n].from_max); l++) {
+            if (((*data)[j][n].from_node[l] == parameters->node) && ((*data)[j][n].from_line[l] != n) && ((*data)[j][n].from_line[l] < size_level1_l[group - 1][size_level0_l[group - 1] - 1] + shift)) {
+              for (k = 0; flag && (k < (*size_level1)[j - 1]); k++) {
+                for (m = 0; flag && (m < (*data)[j - 1][k].to_max); m++) {
+	          if (((*data)[j - 1][k].to[m] == -1) && ((*data)[j - 1][k].frac == (*data)[j][n].frac)) {
+                    (*data)[j][n].from_line[l] = k;
+		    flag = 0;
+		  }
+		}
               }
-              o++;
             }
           }
         }
@@ -412,12 +414,11 @@ static void merge_groups(struct parameters_block *parameters, int *size_level0_l
 
 int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0,
-      group, ngroups = 0, i, *size_level0_l = NULL, **size_level1_l = NULL,
+      group, ngroups = 0, i, k, *size_level0_l = NULL, **size_level1_l = NULL,
       size_level0 = 0, *size_level1 = NULL, group_core = -1;
   struct parameters_block *parameters = NULL, **parameters2 = NULL;
   struct data_line ***data_l = NULL, **data = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
-  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   if (i < 0)
     goto error;
   ngroups = get_ngroups(parameters);
@@ -429,6 +430,22 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
     set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
   }
   merge_groups(parameters, size_level0_l, size_level1_l, data_l, &size_level0, &size_level1, &data);
+  k = parameters->num_nodes / size_level1[0];
+//  parameters->message_sizes_max /= k;
+  for (i = 0; i < parameters->num_nodes; i++){
+    if (i % k == 0) {
+      parameters->message_sizes[i / k] = parameters->message_sizes[i];
+      if (i != i / k) {
+        parameters->message_sizes[i] = 0;
+      }
+    } else {
+      parameters->message_sizes[i / k] += parameters->message_sizes[i];
+      if (i != i / k) {
+        parameters->message_sizes[i] = 0;
+      }
+    }
+  }
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   nbuffer_out += ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out, parameters->ascii_out);
   for (group = 0; group < ngroups; group++) {
 //    nbuffer_out += ext_mpi_write_parameters(parameters2[group], buffer_out + nbuffer_out);
