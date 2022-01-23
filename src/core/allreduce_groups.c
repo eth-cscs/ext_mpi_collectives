@@ -431,11 +431,12 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   merge_groups(parameters, size_level0_l, size_level1_l, data_l, &size_level0, &size_level1, &data);
   nbuffer_out += ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out, parameters->ascii_out);
   for (group = 0; group < ngroups; group++) {
-    nbuffer_out += ext_mpi_write_parameters(parameters2[group], buffer_out + nbuffer_out);
+//    nbuffer_out += ext_mpi_write_parameters(parameters2[group], buffer_out + nbuffer_out);
     ext_mpi_delete_parameters(parameters2[group]);
-    nbuffer_out += ext_mpi_write_algorithm(size_level0_l[group], size_level1_l[group], data_l[group], buffer_out + nbuffer_out, parameters->ascii_out);
+//    nbuffer_out += ext_mpi_write_algorithm(size_level0_l[group], size_level1_l[group], data_l[group], buffer_out + nbuffer_out, parameters->ascii_out);
     ext_mpi_delete_algorithm(size_level0_l[group], size_level1_l[group], data_l[group]);
   }
+  nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   free(data_l);
   free(size_level1_l);
   free(size_level0_l);
