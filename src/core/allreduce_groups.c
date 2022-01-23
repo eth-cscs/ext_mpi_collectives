@@ -49,19 +49,6 @@ static int get_ngroups(struct parameters_block *parameters) {
   return ngroups;
 }
 
-static int insert_lines(int node, int ngroups, int *size_level0,
-                        int **size_level1, struct data_line ***data) {
-  return 0;
-}
-
-static int communication_partner(int gbstep, int num_ports, int task,
-                                 int port) {
-  return ((task / gbstep + port + 1) % (num_ports + 1) +
-          (task / gbstep / (num_ports + 1)) * (num_ports + 1)) *
-             gbstep +
-         task % gbstep;
-}
-
 static void frac_multiply(int gbstep, int igroup, int component, int fac, int *size_level0, int **size_level1, struct data_line ***data){
   struct data_line **data_new;
   int *size_level1_new, i, j, k, l;
@@ -132,7 +119,7 @@ static void frac_multiply(int gbstep, int igroup, int component, int fac, int *s
 static int gen_core(char *buffer_in, int node, struct parameters_block ***parameters2, int *group_core, int **size_level0_l, int ***size_level1_l, struct data_line ****data_l) {
   int nbuffer_out = 0, nbuffer_in = 0, num_port,
       group, ngroups = 0, igroup = -1, num_nodes_start, flag_allgatherv;
-  int i, j, gbstep, component, ports_chunk, node_l, num_nodes_l;
+  int i, j, gbstep, component, ports_chunk, num_nodes_l;
   int *frac_start = NULL, *frac_temp = NULL, fac, nnodes_core = INT_MAX;
   struct parameters_block *parameters = NULL;
   char *buffer_in_temp = NULL, *buffer_out_temp = NULL;
@@ -187,7 +174,6 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
     }
     (*parameters2)[group]->num_ports[i] = 0;
     igroup = abs(parameters->groups[num_port]);
-    node_l = node_local(parameters->node, gbstep, igroup, &component);
     num_nodes_l = igroup;
     for (i = 0; i < ports_chunk; i++) {
       (*parameters2)[group]->groups[i] = num_nodes_l;
@@ -242,7 +228,7 @@ error:
 }
 
 static void get_node_frac(struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *node_translation){
-  int gbstep, factor = -1, factor2 = 1, num_port, ports_chunk, i, j, k;
+  int factor = -1, factor2 = 1, num_port, ports_chunk, i, j;
   num_port = 0;
   for (i = 0; i < group_core; i++) {
     for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++);
@@ -259,8 +245,7 @@ static void get_node_frac(struct parameters_block *parameters, int node, int gro
 }
 
 static void set_frac_recursive(char *buffer_in, struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data, int *node_translation_begin, int *node_translation_end) {
-  int node_translation_local[parameters->num_nodes], i, j, k, l, m, ngroups, gbstep, num_port, igroup, ports_chunk, component, flag_allgatherv,
-      *size_level0_l = NULL, **size_level1_l = NULL;
+  int node_translation_local[parameters->num_nodes], i, j, k, l, m, *size_level0_l = NULL, **size_level1_l = NULL;
   struct parameters_block **parameters2_l = NULL;
   struct data_line ***data_l = NULL;
   if (group == group_core) {
@@ -335,7 +320,7 @@ static void set_frac(char *buffer_in, struct parameters_block *parameters, int g
 }
 
 static void merge_groups(struct parameters_block *parameters, int *size_level0_l, int **size_level1_l, struct data_line ***data_l, int *size_level0, int **size_level1, struct data_line ***data) {
-  int ngroups, group, shift, i, j, k;
+  int ngroups, group, shift = 0, i, j, k, l, m, n, o;
   ngroups = get_ngroups(parameters);
   *size_level0 = 0;
   for (group = 0; group < ngroups; group++) {
@@ -353,17 +338,71 @@ static void merge_groups(struct parameters_block *parameters, int *size_level0_l
       i = 0;
     } else {
       i = 1;
+      shift += size_level1_l[group - 1][size_level0_l[group - 1] - 1] - size_level1_l[group][0];
     }
     for (; i < size_level0_l[group]; i++) {
-      (*size_level1)[j] = size_level1_l[group][i];
+      (*size_level1)[j] = size_level1_l[group][i] + shift;
       (*data)[j] = (struct data_line *) malloc((*size_level1)[j] * sizeof(struct data_line));
-      for (k = 0; k < (*size_level1)[j]; k++) {
-        (*data)[j][k] = data_l[group][i][k];
+      for (k = 0; k < shift; k++) {
+        (*data)[j][k].source = -2;
+        (*data)[j][k].to_max = 1;
+        (*data)[j][k].to = (int *) malloc(sizeof(int));
+        (*data)[j][k].to[0] = parameters->node;
+        (*data)[j][k].from_max = 1;
+        (*data)[j][k].from_node = (int *) malloc(sizeof(int));
+        (*data)[j][k].from_line = (int *) malloc(sizeof(int));
+        (*data)[j][k].from_node[0] = parameters->node;
+        (*data)[j][k].from_line[0] = k;
       }
+      for (k = 0; k < size_level1_l[group][i]; k++) {
+        (*data)[j][k + shift] = data_l[group][i][k];
+      }
+      if ((group > 0) && ((*size_level1)[j - 1] < (*size_level1)[j])) {
+        for (k = 0; k < (*size_level1)[j - 1]; k++) {
+          (*data)[j][k].frac = (*data)[j - 1][k].frac;
+        }
+      }
+      for (k = shift; k < (*size_level1)[j]; k++) {
+        for (l = 0; l < (*data)[j][k].from_max; l++) {
+          if ((*data)[j][k].from_node[l] == parameters->node) {
+            (*data)[j][k].from_line[l] += shift;
+          }
+        }
+      }
+      if ((group > 0) && (shift > 0)) {
+        for (k = n = o = 0; k < (*size_level1)[j]; k++) {
+          for (l = 0; l < (*data)[j][k].from_max; l++) {
+            if (((*data)[j][k].from_node[l] == parameters->node) && ((*data)[j][k].from_line[l] != k) && ((*data)[j][k].from_line[l] < size_level1_l[group - 1][size_level0_l[group - 1] - 1] + shift)) {
+              for (m = 0; m < (*data)[j - 1][o].to_max; m++) {
+                if ((*data)[j - 1][o].to[m] == -1) {
+                  (*data)[j][k - o + n].from_line[m] += o - n - shift;
+                  n++;
+                }
+              }
+              o++;
+            }
+          }
+        }
+      }
+      j++;
+    }
+  }
+  j = 0;
+  for (group = 0; group < ngroups; group++) {
+    if (group == 0) {
+      i = 0;
+    } else {
+      i = 1;
+    }
+    for (; i < size_level0_l[group]; i++) {
       if ((i == size_level0_l[group] - 1) && (group < ngroups - 1)) {
-        for (k = 0; k < (*size_level1)[j]; k++) {
-          (*data)[j][k].to_max = data_l[group + 1][0][k].to_max;
-          (*data)[j][k].to = data_l[group + 1][0][k].to;
+        for (k = l = 0; k < (*size_level1)[j]; k++) {
+          for (m = (*data)[j][k].to_max - 1; m >= 0; m--) {
+            if ((*data)[j][k].to[m] == -1) {
+              (*data)[j][k].to_max = data_l[group + 1][0][l].to_max;
+              (*data)[j][k].to = data_l[group + 1][0][l++].to;
+            }
+          }
         }
       }
       j++;
@@ -372,13 +411,9 @@ static void merge_groups(struct parameters_block *parameters, int *size_level0_l
 }
 
 int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
-  int node, num_nodes, flag_allgatherv, node_rank,
-      node_row_size = 1, node_column_size = 1, copy_method = 0;
-  int nbuffer_out = 0, nbuffer_in = 0, num_port,
-      group, ngroups = 0, igroup = -1, num_nodes_start;
-  int i, j, *size_level0_l = NULL, **size_level1_l = NULL, gbstep, component,
-      ports_chunk, node_l, num_nodes_l, *counts = NULL, counts_max, size_level0 = 0, *size_level1 = NULL;
-  int fac, group_core = -1, nnodes_core = INT_MAX;
+  int nbuffer_out = 0, nbuffer_in = 0,
+      group, ngroups = 0, i, *size_level0_l = NULL, **size_level1_l = NULL,
+      size_level0 = 0, *size_level1 = NULL, group_core = -1;
   struct parameters_block *parameters = NULL, **parameters2 = NULL;
   struct data_line ***data_l = NULL, **data = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
