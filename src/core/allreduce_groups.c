@@ -237,10 +237,11 @@ static void get_node_frac(struct parameters_block *parameters, int node, int gro
     num_port += ports_chunk;
   }
   factor = abs(parameters->groups[num_port]);
-  for (j = 0; j < parameters->num_nodes / factor; j++) {
-    for (i = 0; i < factor; i++) {
-      node_translation[i + j * factor] = (i + ((j + node) % (parameters->num_nodes / factor)) * factor) % factor2;
-    }
+  for (i = 0; i < parameters->num_nodes / factor; i++) {
+    node_translation[i] = -1;
+  }
+  for (i = 0; i < factor; i++) {
+    node_translation[i] = (i + (node % (parameters->num_nodes / factor)) * factor) / (parameters->num_nodes / factor2);
   }
 }
 
