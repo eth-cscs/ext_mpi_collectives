@@ -2,10 +2,10 @@
 
 ## What it is
 
-The **ext_mpi_collectives** library provides persistent collective communication operations according to the MPI 4.0 standard. It is build on top of MPI libraries which might support or might not support MPI 4.0. In the former case the MPI profiler hook is applied for linking. The fast execution of the collectives through the library is provided by the following features:
+The **ext_mpi_collectives** library provides persistent collective communication operations according to the MPI 4.0 standard. It is built on top of MPI libraries which might support or might not support MPI 4.0. In the former case the MPI profiler hook is applied for linking. The fast execution of the collectives through the library is provided by the following features:
 
  - Communication with flexible number of ports per node depending on the message size
- - Benchmark at installation time of the library for latency and bandwidth mesurements
+ - Benchmark at installation time of the library for latency and bandwidth measurements
  - Cyclic shift algorithm for flexible number of ports for *allgatherv*, *reduce_scatter* and *allreduce*
  - Rank reordering for variable message sizes of *allgatherv* and *reduce_scatter*
  - Extension of cyclic shift algorithm with prefix sum for *allreduce*
@@ -24,7 +24,7 @@ is executed. If the existing MPI library supports the standard 4.0 it is just re
 mpicxx main.o -Lext_mpi_path/lib -lext_mpi_collectives -o executable.x
 ```
 
-if not the header file `ext_mpi_path/include/mpi/ext_mpi_interface.h` needs to be included in the files calling the libaries and the application nedds to be recompiled, e.g.
+if not the header file `ext_mpi_path/include/mpi/ext_mpi_interface.h` needs to be included in the files calling the libraries and the application needs to be recompiled, e.g.
 
 ```
 mpicxx main.cc -Lext_mpi_path/lib -lext_mpi_collectives -o executable.x
@@ -32,7 +32,7 @@ mpicxx main.cc -Lext_mpi_path/lib -lext_mpi_collectives -o executable.x
 
 ## Benchmark
 
-When compiling the library also a benchmark is generated which serves also als example for the libary's usage
+When compiling the library also a benchmark is generated which serves also als example for the library's usage
 
 ```
 mpirun -n 36 ./bin/benchmark.x
