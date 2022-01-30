@@ -2,7 +2,13 @@
 
 ## What it is
 
-The **ext_mpi_collectives** library provides persistent collective communication operations according to the MPI 4.0 standard. It is build on top of MPI libraries which might support or might not support MPI 4.0. The faster execution of the collectives through the library is provided using the MPI profiler hook.
+The **ext_mpi_collectives** library provides persistent collective communication operations according to the MPI 4.0 standard. It is build on top of MPI libraries which might support or might not support MPI 4.0. In the former case the MPI profiler hook is applied for linking. The fast execution of the collectives through the library is provided by the following features:
+
+ - Communication with flexible number of ports per node depending on the message size
+ - Benchmark at installation time of the library for latency and bandwidth mesurements
+ - Cyclic shift algorithm for flexible number of ports for *allgatherv*, *reduce_scatter* and *allreduce*
+ - Rank reordering for variable message sizes of *allgatherv* and *reduce_scatter*
+ - Extension of cyclic shift algorithm with prefix sum for *allreduce*
 
 ## Installation and usage
 
@@ -54,7 +60,7 @@ Only the collective operations `MPI_Allreduce_init, MPI_Allgatherv_init, MPI_Red
 
 ## Tests
 
-The components of the library which do not require MPI can be tested independently. Every of the follwoing executables takes the input of the previous one and further processes the data. The different steps represent a mini language and an assembler code which is optimised step by step.
+The components of the library which do not require MPI can be tested independently. Every of the following executables takes the input of the previous one and further processes the data. The different steps represent a mini language and an assembler code which is optimised step by step.
 
 ```
 ./bin/get_input_allreduce.x | ./bin/test_allreduce.x | ./bin/test_raw_code_tasks_node.x | ./bin/test_reduce_copyin.x | ./bin/test_raw_code.x | ./bin/test_reduce_copyout.x | ./bin/test_buffer_offset.x | ./bin/test_no_offset.x | ./bin/test_optimise_buffers.x | ./bin/test_optimise_buffers2.x | ./bin/test_parallel_memcpy.x | ./bin/test_raw_code_merge.x
@@ -68,7 +74,7 @@ There is also a standalone test for automatic parameter detection of the **allre
 
 ## Literature
 
-A. Jocksch, N. Ohana, E. Lanti, E. Koutsaniti, V. Karakasis, L. Villard: An optimisation of allreduce communication in message-passing systems. Parallel Computing, 107 (2021) 102812
+[A. Jocksch, N. Ohana, E. Lanti, E. Koutsaniti, V. Karakasis, L. Villard: An optimisation of allreduce communication in message-passing systems. Parallel Computing, 107 (2021) 102812](https://doi.org/10.1016/j.parco.2021.102812)
 
 A. Jocksch, N. Ohana, E. Lanti, V. Karakasis, L. Villard: Optimised allgatherv, reduce_scatter and allreduce communication in message-passing systems. poster at PASC 2021
 
