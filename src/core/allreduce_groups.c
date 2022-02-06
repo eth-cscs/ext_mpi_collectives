@@ -227,8 +227,8 @@ error:
   return ERROR_MALLOC;
 }
 
-static void get_node_frac(struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *node_translation){
-  int factor = -1, factor2 = 1, num_port, ports_chunk, i, j;
+static void get_node_frac(struct parameters_block *parameters, int node, int group, int group_core, int nlines_core, int *node_translation){
+  int factor = -1, factor2 = 1, num_port, ports_chunk, i;
   num_port = 0;
   for (i = 0; i < group_core; i++) {
     for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++);
@@ -241,7 +241,7 @@ static void get_node_frac(struct parameters_block *parameters, int node, int gro
     node_translation[i] = -1;
   }
   for (i = 0; i < factor; i++) {
-    node_translation[i] = (i + (node % (parameters->num_nodes / factor)) * factor) / (parameters->num_nodes / factor2);
+    node_translation[i] = (i + (node % (parameters->num_nodes / factor)) * factor) % (nlines_core * factor2);
   }
 }
 
@@ -251,7 +251,7 @@ static void set_frac_recursive(char *buffer_in, struct parameters_block *paramet
   struct data_line ***data_l = NULL;
   if (group == group_core) {
     gen_core(buffer_in, node, &parameters2_l, &group_core, &size_level0_l, &size_level1_l, &data_l);
-    get_node_frac(parameters, node, group, group_core, parameters2, node_translation_begin);
+    get_node_frac(parameters, node, group, group_core, size_level1[group_core][0], node_translation_begin);
     for (j = 0; j < size_level0[group]; j++) {
       for (i = 0; i < size_level1[group][j]; i++) {
         data[group][j][i].frac = node_translation_begin[data_l[group][j][i].frac];
