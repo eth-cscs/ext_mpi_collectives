@@ -63,7 +63,7 @@ This feature is not highly optimised.
 
 ## Current limitations
 
-Only the collective operations `MPI_Allreduce_init, MPI_Allgatherv_init, MPI_Reduce_scatter_init, MPI_Bcast_init, MPI_Reduce_init, MPI_Gatherv_init, MPI_Scatterv_init, MPI_Allgather_init, MPI_Reduce_scatter_block_init, MPI_Gather_init, MPI_Scatter_init` are provided. Datatypes need to be contiguous and communicators need to be intra communicators. For reduction operations only the datatypes `float`, `double`, `int` and `long int` with the operation `MPI_SUM` are supported.
+Only the collective operations `MPI_Allreduce_init`, `MPI_Allgatherv_init`, `MPI_Reduce_scatter_init`, `MPI_Bcast_init`, `MPI_Reduce_init`, `MPI_Gatherv_init`, `MPI_Scatterv_init`, `MPI_Allgather_init`, `MPI_Reduce_scatter_block_init`, `MPI_Gather_init`, `MPI_Scatter_init` are provided. Datatypes need to be contiguous and communicators need to be intra communicators. For reduction operations only the datatypes `float`, `double`, `int` and `long int` with the operation `MPI_SUM` are supported.
 
 ## Tests
 
