@@ -246,7 +246,7 @@ static void get_node_frac(struct parameters_block *parameters, int node, int gro
     }
   } else {
     for (i = 0; i < factor; i++) {
-      node_translation[i] = ((node % (parameters->num_nodes / factor)) * factor) % (nlines_core * factor2);
+      node_translation[i] = ((node % (parameters->num_nodes / factor)) * 1) % (nlines_core * factor2);
     }
   }
 }
@@ -326,8 +326,8 @@ static void set_frac(char *buffer_in, struct parameters_block *parameters, int g
   set_frac_recursive(buffer_in, parameters, parameters->node, group, group_core, parameters2, size_level0, size_level1, data, node_translation_begin, node_translation_end);
 }
 
-static void merge_groups(struct parameters_block *parameters, int *size_level0_l, int **size_level1_l, struct data_line ***data_l, int *size_level0, int **size_level1, struct data_line ***data) {
-  int ngroups, group, shift = 0, i, j, k, l, m, n, flag;
+static void merge_groups(struct parameters_block *parameters, int group_core, int *size_level0_l, int **size_level1_l, struct data_line ***data_l, int *size_level0, int **size_level1, struct data_line ***data) {
+  int ngroups, group, shift = 0, i, j, k, l, m, n, flag, temp, *ptemp;
   ngroups = get_ngroups(parameters);
   *size_level0 = 0;
   for (group = 0; group < ngroups; group++) {
@@ -414,6 +414,18 @@ static void merge_groups(struct parameters_block *parameters, int *size_level0_l
           }
         }
       }
+      if ((group > group_core)) {
+        l = (*size_level1)[j]-size_level1_l[group][size_level0_l[group] - 1];
+        for (k = 0; k < size_level1_l[group_core][size_level0_l[group_core] - 1]; k++) {
+          for (m = 0; m < data_l[group_core][size_level0_l[group_core] - 1][k].to_max; m++){
+            if (data_l[group_core][size_level0_l[group_core] - 1][k].to[m] == -1){
+              temp = (*data)[j][k].to_max; (*data)[j][k].to_max = (*data)[j][l].to_max; (*data)[j][l].to_max = temp;
+              ptemp = (*data)[j][k].to; (*data)[j][k].to = (*data)[j][l].to; (*data)[j][l].to = ptemp;
+              l++;
+            }
+          }
+        }
+      }
       j++;
     }
   }
@@ -436,7 +448,7 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   for (group = ngroups - 1; group > group_core; group--) {
     set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
   }
-  merge_groups(parameters, size_level0_l, size_level1_l, data_l, &size_level0, &size_level1, &data);
+  merge_groups(parameters, group_core, size_level0_l, size_level1_l, data_l, &size_level0, &size_level1, &data);
   k = parameters->num_nodes / size_level1[0];
 //  parameters->message_sizes_max /= k;
   for (i = 0; i < parameters->num_nodes; i++){
