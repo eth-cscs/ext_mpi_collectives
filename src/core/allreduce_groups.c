@@ -240,7 +240,7 @@ static void get_node_frac(struct parameters_block *parameters, int node, int gro
   for (i = 0; i < parameters->num_nodes / factor; i++) {
     node_translation[i] = -1;
   }
-  if (nlines_core > 1) {
+  if ((nlines_core > 1) || (parameters->num_nodes / factor2 == 1)) {
     for (i = 0; i < factor; i++) {
       node_translation[i] = (i + (node % (parameters->num_nodes / factor)) * factor) % (nlines_core * factor2);
     }
