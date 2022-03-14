@@ -352,10 +352,35 @@ static void set_frac_recursive(char *buffer_in, struct parameters_block *paramet
   free(parameters2_l);
 }
 
-static void set_frac_recursive_allgatherv(char *buffer_in, int node, int group_max, int stage_max, int *size_level0, int **size_level1, struct data_line ***data) {
-  int i, *size_level0_l = NULL, **size_level1_l = NULL, group_core_l, group, stage;
+static void adjust_line_numbers_allgatherv(int node, int size_level0, int *size_level1, struct data_line **data){
+  int max_rank, stage, rank, line, i;
+  for (stage = 0; stage < size_level0; stage++) {
+    max_rank = -1;
+    for (i = 0; i < size_level1[stage]; i++) {
+      if (data[stage][i].from_node[0] > max_rank) {
+        max_rank = data[stage][i].from_node[0];
+      }
+    }
+    for (rank = 0; rank <= max_rank; rank++) {
+      line = 0;
+      for (i = 0; i < size_level1[stage]; i++) {
+        if (data[stage][i].from_node[0] != node) {
+          if (data[stage][i].from_node[0] == rank) {
+            data[stage][i].from_line[0] = line++;
+          }
+        }
+      }
+    }
+  }
+}
+
+static void set_frac_recursive_allgatherv(char *buffer_in, struct parameters_block *parameters, int node, int group_max, int stage_max, int *size_level0, int **size_level1, struct data_line ***data) {
+  int i, j, *size_level0_l = NULL, **size_level1_l = NULL, group_core_l, group, stage;
   struct parameters_block **parameters2_l = NULL;
   struct data_line ***data_l = NULL;
+  for (i = 0; i <= group_max; i++) {
+    adjust_line_numbers_allgatherv(node, size_level0[i], size_level1[i], data[i]);
+  }
   for (group = group_max; group >= 0; group--) {
     if (group == group_max) {
       i = stage_max;
@@ -371,8 +396,12 @@ static void set_frac_recursive_allgatherv(char *buffer_in, int node, int group_m
         for (i = 0; i < size_level1[group][stage]; i++) {
           if (data[group][stage][i].from_node[0] >= 0) {
             gen_core(buffer_in, data[group][stage][i].from_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
-            set_frac_recursive_allgatherv(buffer_in, data[group][stage][i].from_node[0], group - 1, size_level0[group - 1] - 1, size_level0_l, size_level1_l, data_l);
+            set_frac_recursive_allgatherv(buffer_in, parameters, data[group][stage][i].from_node[0], group - 1, size_level0[group - 1] - 1, size_level0_l, size_level1_l, data_l);
             data[group][stage][i].frac = data_l[group - 1][size_level0[group - 1] - 1][data[group][stage][i].from_line[0]].frac;
+            for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
+              ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
+              ext_mpi_delete_parameters(parameters2_l[j]);
+            }
             free(data_l);
             free(size_level1_l);
             free(size_level0_l);
@@ -383,8 +412,12 @@ static void set_frac_recursive_allgatherv(char *buffer_in, int node, int group_m
         for (i = 0; i < size_level1[group][stage]; i++) {
           if (data[group][stage][i].from_node[0] >= 0) {
             gen_core(buffer_in, data[group][stage][i].from_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
-            set_frac_recursive_allgatherv(buffer_in, data[group][stage][i].from_node[0], group, stage - 1, size_level0_l, size_level1_l, data_l);
+            set_frac_recursive_allgatherv(buffer_in, parameters, data[group][stage][i].from_node[0], group, stage - 1, size_level0_l, size_level1_l, data_l);
             data[group][stage][i].frac = data_l[group][stage - 1][data[group][stage][i].from_line[0]].frac;
+            for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
+              ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
+              ext_mpi_delete_parameters(parameters2_l[j]);
+            }
             free(data_l);
             free(size_level1_l);
             free(size_level0_l);
@@ -401,7 +434,7 @@ static void set_frac(char *buffer_in, struct parameters_block *parameters, int g
   if (parameters->collective_type == collective_type_reduce_scatter) {
 //    set_frac_recursive_reduce_scatter(buffer_in, parameters, parameters->node, group, group_core, parameters2, size_level0, size_level1, data, node_translation_begin, node_translation_end);
   } else if (parameters->collective_type == collective_type_allgatherv) {
-    set_frac_recursive_allgatherv(buffer_in, parameters->node, group, size_level0[group] - 1, size_level0, size_level1, data);
+    set_frac_recursive_allgatherv(buffer_in, parameters, parameters->node, group, size_level0[group] - 1, size_level0, size_level1, data);
   } else {
     set_frac_recursive(buffer_in, parameters, parameters->node, group, group_core, parameters2, size_level0, size_level1, data, node_translation_begin, node_translation_end);
   }
