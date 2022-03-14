@@ -550,18 +550,20 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
     set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
   }
   merge_groups(parameters, group_core, size_level0_l, size_level1_l, data_l, &size_level0, &size_level1, &data);
-  k = parameters->num_nodes / size_level1[0];
-//  parameters->message_sizes_max /= k;
-  for (i = 0; i < parameters->num_nodes; i++){
-    if (i % k == 0) {
-      parameters->message_sizes[i / k] = parameters->message_sizes[i];
-      if (i != i / k) {
-        parameters->message_sizes[i] = 0;
-      }
-    } else {
-      parameters->message_sizes[i / k] += parameters->message_sizes[i];
-      if (i != i / k) {
-        parameters->message_sizes[i] = 0;
+  if ((parameters->collective_type == collective_type_allreduce) || (parameters->collective_type == collective_type_allreduce_group)) {
+    k = parameters->num_nodes / size_level1[0];
+//    parameters->message_sizes_max /= k;
+    for (i = 0; i < parameters->num_nodes; i++){
+      if (i % k == 0) {
+        parameters->message_sizes[i / k] = parameters->message_sizes[i];
+        if (i != i / k) {
+          parameters->message_sizes[i] = 0;
+        }
+      } else {
+        parameters->message_sizes[i / k] += parameters->message_sizes[i];
+        if (i != i / k) {
+          parameters->message_sizes[i] = 0;
+        }
       }
     }
   }
