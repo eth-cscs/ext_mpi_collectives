@@ -29,6 +29,18 @@ static int get_gbstep(int group, int *groups, int num_nodes, int *allgatherv){
   return gbstep;
 }
 
+static int get_gbstep_reduce_scatter(int group, int *groups, int num_nodes, int *allgatherv){
+  int groups_short[num_nodes], gbstep, i, max_group = 0;
+  for (i = 0; groups[i]; i++) {
+    if (groups[i] < 0) {
+      groups_short[max_group++] = abs(groups[i]);
+    }
+  }
+  *allgatherv = 0;
+  for (gbstep = 1, i = 0; i < group; gbstep *= groups_short[i], i++);
+  return gbstep;
+}
+
 static int node_local(int node_global, int gbstep, int factor, int *component) {
   *component = (node_global / factor / gbstep) * gbstep + node_global % gbstep;
   return ((node_global / gbstep) % factor);
@@ -162,7 +174,11 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
   }
   num_port = 0;
   for (group = 0; group < ngroups; group++) {
-    gbstep = get_gbstep(group, parameters->groups, parameters->num_nodes, &flag_allgatherv);
+    if (parameters->collective_type == collective_type_reduce_scatter) {
+      gbstep = get_gbstep_reduce_scatter(group, parameters->groups, parameters->num_nodes, &flag_allgatherv);
+    } else {
+      gbstep = get_gbstep(group, parameters->groups, parameters->num_nodes, &flag_allgatherv);
+    }
     for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++)
       ;
     ports_chunk++;
