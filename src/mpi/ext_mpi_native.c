@@ -1398,13 +1398,13 @@ int EXT_MPI_Gatherv_init_native(
     const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf,
     const int *recvcounts, const int *displs, MPI_Datatype recvtype, int root,
     MPI_Comm comm_row, int my_cores_per_node_row, MPI_Comm comm_column,
-    int my_cores_per_node_column, int *num_ports, int *num_parallel,
+    int my_cores_per_node_column, int *num_ports, int *groups,
     int num_active_ports, int alt, int recursive, int blocking) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
-  int nbuffer1 = 0, i, j, *groups;
+  int nbuffer1 = 0, i, j;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer1)
     goto error;
@@ -1504,18 +1504,9 @@ int EXT_MPI_Gatherv_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   free(local_counts);
   local_counts = NULL;
-  for (i = 0; num_ports[i]; i++)
-    ;
-  groups = (int *)malloc((i + 1) * sizeof(int));
-  for (j = 0; j < i; j++) {
-    groups[j] = my_mpi_size_row / my_cores_per_node_row;
-  }
-  groups[i - 1] *= -1;
-  groups[i] = 0;
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
   free(str);
-  free(groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", coarse_counts[i]);
@@ -1550,7 +1541,7 @@ int EXT_MPI_Gatherv_init_native(
     if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
   } else {
-    if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
       goto error;
   }
   if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
@@ -1617,12 +1608,12 @@ int EXT_MPI_Allgatherv_init_native(
     const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf,
     const int *recvcounts, const int *displs, MPI_Datatype recvtype,
     MPI_Comm comm_row, int my_cores_per_node_row, MPI_Comm comm_column,
-    int my_cores_per_node_column, int *num_ports, int *num_parallel,
+    int my_cores_per_node_column, int *num_ports, int *groups,
     int num_active_ports, int alt, int recursive, int blocking) {
   return (EXT_MPI_Gatherv_init_native(
       sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, -1,
       comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column,
-      num_ports, num_parallel, num_active_ports, alt, recursive, blocking));
+      num_ports, groups, num_active_ports, alt, recursive, blocking));
 }
 
 int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
@@ -1632,13 +1623,13 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
                                  MPI_Comm comm_row, int my_cores_per_node_row,
                                  MPI_Comm comm_column,
                                  int my_cores_per_node_column, int *num_ports,
-                                 int *num_parallel, int num_active_ports,
+                                 int *groups, int num_active_ports,
                                  int copyin, int alt, int recursive, int blocking) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
   char *buffer1 = NULL, *buffer2 = NULL, *str, *buffer_temp;
-  int nbuffer1 = 0, i, j, *groups;
+  int nbuffer1 = 0, i, j;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer1)
     goto error;
@@ -1736,16 +1727,9 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   local_counts = NULL;
   for (i = 0; num_ports[i]; i++)
     ;
-  groups = (int *)malloc((i + 1) * sizeof(int));
-  for (j = 0; j < i; j++) {
-    groups[j] = my_mpi_size_row / my_cores_per_node_row;
-  }
-  groups[i - 1] *= -1;
-  groups[i] = 0;
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
   free(str);
-  free(groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", coarse_counts[i]);
@@ -1780,7 +1764,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
     if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
   } else {
-    if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
       goto error;
   }
   if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
@@ -1842,13 +1826,13 @@ int EXT_MPI_Reduce_scatter_init_native(
     const void *sendbuf, void *recvbuf, const int *recvcounts,
     MPI_Datatype datatype, MPI_Op op, MPI_Comm comm_row,
     int my_cores_per_node_row, MPI_Comm comm_column,
-    int my_cores_per_node_column, int *num_ports, int *num_parallel,
+    int my_cores_per_node_column, int *num_ports, int *groups,
     int num_active_ports, int copyin, int alt, int recursive, int blocking) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
   char *buffer1 = NULL, *buffer2 = NULL, *str, *buffer_temp;
-  int nbuffer1 = 0, i, j, *groups;
+  int nbuffer1 = 0, i, j;
   int reduction_op;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer1)
@@ -1958,16 +1942,9 @@ int EXT_MPI_Reduce_scatter_init_native(
   local_counts = NULL;
   for (i = 0; num_ports[i]; i++)
     ;
-  groups = (int *)malloc((i + 1) * sizeof(int));
-  for (j = 0; j < i; j++) {
-    groups[j] = my_mpi_size_row / my_cores_per_node_row;
-  }
-  groups[i - 1] *= -1;
-  groups[i] = 0;
   str = ext_mpi_print_ports_groups(num_ports, groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_PORTS %s\n", str);
   free(str);
-  free(groups);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", coarse_counts[i]);
@@ -1990,7 +1967,7 @@ int EXT_MPI_Reduce_scatter_init_native(
   if (blocking){
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER BLOCKING\n");
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+  //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
 #ifdef GPU_ENABLED
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
@@ -1998,7 +1975,7 @@ int EXT_MPI_Reduce_scatter_init_native(
 #endif
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
     goto error;
   if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
     goto error;
