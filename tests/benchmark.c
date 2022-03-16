@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Type_size(MPI_DATA_TYPE, &type_size);
 
-  bufsize = type_size * MAX_MESSAGE_SIZE;
+  bufsize = type_size * MAX_MESSAGE_SIZE * numprocs;
 
   sendbuf = malloc(bufsize);
   recvbuf = malloc(bufsize);

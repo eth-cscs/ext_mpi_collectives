@@ -28,6 +28,7 @@ static int is_initialised = 0;
 static int copyin_method = 0;
 static int alternating = 0;
 static int verbose = 0;
+static int not_recursive = 0;
 static int *fixed_factors_ports = NULL;
 static int *fixed_factors_groups = NULL;
 
@@ -36,6 +37,14 @@ static int read_env() {
   char *c = NULL;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_comm_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_comm_size);
+  if (mpi_comm_rank == 0) {
+    var = ((c = getenv("EXT_MPI_NOT_RECURSIVE")) != NULL);
+    if (var) {
+      not_recursive = 1;
+      printf("# EXT_MPI not recursive\n");
+    }
+  }
+  MPI_Bcast(&not_recursive, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_VERBOSE")) != NULL);
     if (var) {
@@ -297,8 +306,8 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     *handle = EXT_MPI_Allgatherv_init_native(
         sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
         comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column,
-        num_ports, num_parallel,
-        my_cores_per_node_row * my_cores_per_node_column, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
+        num_ports, groups,
+        my_cores_per_node_row * my_cores_per_node_column, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking);
     if (*handle < 0)
       goto error;
   }
@@ -483,7 +492,7 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
     *handle = EXT_MPI_Gatherv_init_native(
         sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
         root, comm_row, my_cores_per_node_row, comm_column,
-        my_cores_per_node_column, num_ports, num_parallel,
+        my_cores_per_node_column, num_ports, groups,
         my_cores_per_node_row * my_cores_per_node_column, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
     if (*handle < 0)
       goto error;
@@ -601,7 +610,7 @@ static int reduce_scatter_init_general(
     const void *sendbuf, void *recvbuf, const int *recvcounts, MPI_Datatype datatype,
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *handle) {
-  int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, rcount,
+  int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount,
                      i, j, k, cin_method, alt, group_size;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
@@ -611,9 +620,6 @@ static int reduce_scatter_init_general(
     goto error;
   groups = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!groups)
-    goto error;
-  num_parallel = (int *)malloc((comm_size_row + 1) * sizeof(int));
-  if (!num_parallel)
     goto error;
   rcount = 0;
   for (i = 0; i < comm_size_row; i++) {
@@ -667,12 +673,8 @@ static int reduce_scatter_init_general(
       do {
         i++;
         num_ports[i] = fixed_factors_ports[i];
-      } while (fixed_factors_ports[i] > 0);
-    }
-    for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
-      num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
-                        (num_ports[i] + 1);
-      num_parallel[i] = 1;
+        groups[i] = fixed_factors_groups[i];
+      } while (fixed_factors_ports[i]);
     }
     cin_method = 0;
     if (copyin_method >= 1) {
@@ -726,17 +728,15 @@ static int reduce_scatter_init_general(
     *handle = EXT_MPI_Reduce_scatter_init_native(
         sendbuf, recvbuf, recvcounts, datatype, op, comm_row,
         my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-        num_parallel, my_cores_per_node_row * my_cores_per_node_column,
-        cin_method, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
+        groups, my_cores_per_node_row * my_cores_per_node_column,
+        cin_method, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking);
     if (*handle < 0)
       goto error;
   }
-  free(num_parallel);
   free(groups);
   free(num_ports);
   return 0;
 error:
-  free(num_parallel);
   free(groups);
   free(num_ports);
   return ERROR_MALLOC;
@@ -822,7 +822,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
                                  int my_cores_per_node_row,
                                  MPI_Comm comm_column,
                                  int my_cores_per_node_column, int *handle) {
-  int comm_size_row, *num_ports = NULL, *groups = NULL, *num_parallel = NULL, type_size, rcount,
+  int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount,
                      i, j, k, cin_method, alt, group_size;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
@@ -832,9 +832,6 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     goto error;
   groups = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!groups)
-    goto error;
-  num_parallel = (int *)malloc((comm_size_row + 1) * sizeof(int));
-  if (!num_parallel)
     goto error;
   rcount = recvcount;
   if (comm_column != MPI_COMM_NULL) {
@@ -876,11 +873,6 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
         i++;
         num_ports[i] = fixed_factors_ports[i];
       } while (fixed_factors_ports[i] > 0);
-    }
-    for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
-      num_parallel[i] = (my_cores_per_node_row * my_cores_per_node_column) /
-                        (num_ports[i] + 1);
-      num_parallel[i] = 1;
     }
     for (i = 0; num_ports[i]; i++) {
     }
@@ -934,17 +926,15 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     *handle = EXT_MPI_Scatterv_init_native(
         sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
         root, comm_row, my_cores_per_node_row, comm_column,
-        my_cores_per_node_column, num_ports, num_parallel,
+        my_cores_per_node_column, num_ports, groups,
         my_cores_per_node_row * my_cores_per_node_column, cin_method, alt, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
     if (*handle < 0)
       goto error;
   }
-  free(num_parallel);
   free(groups);
   free(num_ports);
   return 0;
 error:
-  free(num_parallel);
   free(groups);
   free(num_ports);
   return ERROR_MALLOC;
@@ -1252,7 +1242,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
       my_cores_per_node_row * my_cores_per_node_column, cin_method, alt,
-      ext_mpi_bit_identical, !ext_mpi_bit_reproducible, group_size==comm_size_row/my_cores_per_node_row, ext_mpi_blocking);
+      ext_mpi_bit_identical, !ext_mpi_bit_reproducible, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking);
   if (*handle < 0)
     goto error;
   free(groups);
