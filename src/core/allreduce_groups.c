@@ -202,7 +202,8 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
     if (flag_allgatherv) {
       (*parameters2)[group]->collective_type = collective_type_allgatherv;
     }
-    ext_mpi_write_parameters((*parameters2)[group], buffer_in_temp);
+    i = ext_mpi_write_parameters((*parameters2)[group], buffer_in_temp);
+    ext_mpi_write_eof(buffer_in_temp + i, (*parameters2)[group]->ascii_out);
     ext_mpi_delete_parameters((*parameters2)[group]);
     nbuffer_out += ext_mpi_generate_allreduce(buffer_in_temp, buffer_out_temp);
     i = ext_mpi_read_parameters(buffer_out_temp, &(*parameters2)[group]);
@@ -619,13 +620,15 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
       }
       if ((group > group_core)) {
         l = (*size_level1)[j]-size_level1_l[group][size_level0_l[group] - 1];
-        for (k = 0; k < size_level1_l[group_core][size_level0_l[group_core] - 1]; k++) {
-          for (m = 0; m < data_l[group_core][size_level0_l[group_core] - 1][k].to_max; m++){
-            if (data_l[group_core][size_level0_l[group_core] - 1][k].to[m] == -1){
-              temp = (*data)[j][k].to_max; (*data)[j][k].to_max = (*data)[j][l].to_max; (*data)[j][l].to_max = temp;
-              ptemp = (*data)[j][k].to; (*data)[j][k].to = (*data)[j][l].to; (*data)[j][l].to = ptemp;
-              l++;
-            }
+	if (l >= 0) {
+          for (k = 0; k < size_level1_l[group_core][size_level0_l[group_core] - 1]; k++) {
+            for (m = 0; m < data_l[group_core][size_level0_l[group_core] - 1][k].to_max; m++){
+              if (data_l[group_core][size_level0_l[group_core] - 1][k].to[m] == -1){
+                temp = (*data)[j][k].to_max; (*data)[j][k].to_max = (*data)[j][l].to_max; (*data)[j][l].to_max = temp;
+                ptemp = (*data)[j][k].to; (*data)[j][k].to = (*data)[j][l].to; (*data)[j][l].to = ptemp;
+                l++;
+              }
+	    }
           }
         }
       }
