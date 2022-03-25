@@ -203,12 +203,11 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
               ttgarray[depth - k] = abs(ttgarray[depth + 1 + k] = tgarray[k]);
               if (k == 0) {
                 ttgarray[depth - k] *= -1;
-              } else {
-                if (tgarray[k - 1] < 0) {
-                  ttgarray[depth - k] *= -1;
-                }
+              } else if (tgarray[k - 1] < 0) {
+                ttgarray[depth - k] *= -1;
               }
             }
+	    ttgarray[depth] = abs(ttgarray[depth]);
           } else {
             for (k = 0; k < depth + 1; k++) {
               trarray[depth + 1 + k] = -(trarray[k] = rarray[k]);
