@@ -71,6 +71,7 @@ static double cost_simple_recursive_rec(int p, double n, int fac, int port_max, 
 double ext_mpi_cost_simple_recursive(int p, double n, int port_max, int *num_ports, int *groups, int num_sockets) {
   double cost;
   int i = 0, e = 1;
+  p /= num_sockets;
   cost = cost_simple_recursive_rec(p, n * num_sockets, 1, port_max, num_ports, num_sockets);
   while (num_ports[i]) {
     num_ports[i]--;

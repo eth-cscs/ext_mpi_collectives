@@ -1535,8 +1535,18 @@ int EXT_MPI_Gatherv_init_native(
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
-  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
-    goto error;
+  j = 0;
+  for (i = 0; groups[i]; i++) {
+    if (groups[i] < 0) j++;
+  }
+  if (j <= 1) {
+    if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
+      goto error;
+  } else {
+    buffer_temp = buffer1;
+    buffer1 = buffer2;
+    buffer2 = buffer_temp;
+  }
   if (recursive) {
     if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
@@ -1544,8 +1554,14 @@ int EXT_MPI_Gatherv_init_native(
     if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
       goto error;
   }
-  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
-    goto error;
+  if (j <= 1) {
+    if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
+      goto error;
+  } else {
+    buffer_temp = buffer1;
+    buffer1 = buffer2;
+    buffer2 = buffer_temp;
+  }
   if (root >= 0) {
     if (ext_mpi_generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)
       goto error;
@@ -1758,8 +1774,18 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
-  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
-    goto error;
+  j = 0;
+  for (i = 0; groups[i]; i++) {
+    if (groups[i] < 0) j++;
+  }
+  if (j <= 1) {
+    if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
+      goto error;
+  } else {
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
   if (recursive) {
     if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
@@ -1767,8 +1793,14 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
     if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
       goto error;
   }
-  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
-    goto error;
+  if (j <= 1) {
+    if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
+      goto error;
+  } else {
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
   if (ext_mpi_generate_forward_interpreter(buffer2, buffer1, comm_row) < 0)
     goto error;
   if (ext_mpi_generate_raw_code_tasks_node(buffer1, buffer2) < 0)
