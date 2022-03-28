@@ -138,6 +138,8 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
     if (rrr > port_max - 1) {
       rrr = port_max - 1;
     }
+    r = (rrr + 1) / num_sockets + 1;
+    if (r < 2) r = 2;
     ma = fac;
     if (ma * r > abs(garray[depth])) {
       ma = (abs(garray[depth]) - ma) / (r - 1);
