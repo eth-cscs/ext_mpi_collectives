@@ -66,34 +66,34 @@ int ext_mpi_cost_simulation(int count, int type_size, int comm_size_row,
     p1->nvolume = 0e0;
     for (i = 0; num_steps[i]; i++) {
       r = num_steps[i] + 1;
-      mb = counts[i];
-      mb /= ext_mpi_file_input[(r - 1 - 1) * ext_mpi_file_input_max_per_core].parallel;
+      mb = counts[i] * num_sockets;
+      mb /= ext_mpi_file_input[((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].parallel;
       p1->nsteps += 1e0;
       p1->nvolume += mb;
       j = floor(mb / (ext_mpi_file_input[1].msize - ext_mpi_file_input[0].msize)) - 1;
       k = j + 1;
       if (j < 0) {
-        T_step = ext_mpi_file_input[0 + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT;
+        T_step = ext_mpi_file_input[0 + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].deltaT;
       } else {
         if (k >= ext_mpi_file_input_max_per_core) {
           T_step = ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                              (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+                              ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
                        .deltaT *
                    mb /
                    ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                              (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+                              ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
                        .msize;
         } else {
           T_step =
-              ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT +
+              ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].deltaT +
               (mb -
-               ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize) *
-                  (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+               ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].msize) *
+                  (ext_mpi_file_input[k + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
                        .deltaT -
-                   ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+                   ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
                        .deltaT) /
-                  (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize -
-                   ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize);
+                  (ext_mpi_file_input[k + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].msize -
+                   ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].msize);
         }
       }
       p1->T_simulated += T_step;

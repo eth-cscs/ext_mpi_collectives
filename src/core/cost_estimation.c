@@ -94,26 +94,35 @@ error:
   return ERROR_MALLOC;
 }
 
-void insert_sockets(int depth, int *trarray, int *ttgarray, int num_sockets) {
-  int i;
+int insert_sockets(int depth, int *trarray, int *ttgarray, int num_sockets) {
+  int i = 1, ret = 0;
   if (num_sockets > 1) {
-    trarray[depth + 2] = +(num_sockets - 1);
-    ttgarray[depth + 2] = -num_sockets;
-    for (i = depth + 1; i > 0; i--){
-      trarray[i] = trarray[i - 1];
-      ttgarray[i] = ttgarray[i - 1];
+    while (i < num_sockets) {
+      ret++;
+      i *= 2;
     }
-    trarray[0] = -(num_sockets - 1);
-    ttgarray[0] = -num_sockets;
-    trarray[depth + 3] = ttgarray[depth + 3] = 0;
+    for (i = 0; i < ret; i++) {
+      trarray[depth + ret + i + 1] = 1;
+      ttgarray[depth + ret + i + 1] = -2;
+    }
+    for (i = depth + ret; i >= ret; i--) {
+      trarray[i] = trarray[i - ret];
+      ttgarray[i] = ttgarray[i - ret];
+    }
+    for (i = 0; i < ret; i++) {
+      trarray[i] = -1;
+      ttgarray[i] = -2;
+    }
+    trarray[depth + 2 * ret + 1] = ttgarray[depth + 2 * ret + 1] = 0;
   }
+  return ret;
 }
 
 static int cost_explicit(int p, double n, int depth, int fac, double T,
                          int port_max, int *rarray, int *garray, int type,
                          int comm_size_row, int comm_rank_row, int simulate, int num_sockets) {
   double T_step, ma, mb;
-  int r, i, j, k, *trarray = NULL, *tgarray = NULL, *ttgarray = NULL;
+  int r, rrr, i, j, k, *trarray = NULL, *tgarray = NULL, *ttgarray = NULL;
   if (port_max > ext_mpi_file_input[ext_mpi_file_input_max - 1].nports) {
     port_max = ext_mpi_file_input[ext_mpi_file_input_max - 1].nports;
   }
@@ -123,35 +132,39 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
   if (port_max < 1) {
     port_max = 1;
   }
-  for (i = 1; i * num_sockets <= port_max; i++) {
+  for (i = 1; i <= port_max; i++) {
     r = i + 1;
+    rrr = (r - 1) * num_sockets - 1;
+    if (rrr > port_max - 1) {
+      rrr = port_max - 1;
+    }
     ma = fac;
     if (ma * r > abs(garray[depth])) {
       ma = (abs(garray[depth]) - ma) / (r - 1);
     }
     mb = n * ma;
-    mb /= ext_mpi_file_input[((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].parallel;
+    mb /= ext_mpi_file_input[rrr * ext_mpi_file_input_max_per_core].parallel;
     j = floor(mb / (ext_mpi_file_input[1].msize - ext_mpi_file_input[0].msize)) - 1;
     k = j + 1;
     if (j < 0) {
-      T_step = ext_mpi_file_input[0 + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].deltaT;
+      T_step = ext_mpi_file_input[0 + rrr * ext_mpi_file_input_max_per_core].deltaT;
     } else {
       if (k >= ext_mpi_file_input_max_per_core) {
         T_step = ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                            ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
+                            rrr * ext_mpi_file_input_max_per_core]
                      .deltaT *
                  mb /
                  ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                            ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
+                            rrr * ext_mpi_file_input_max_per_core]
                      .msize;
       } else {
         T_step =
-            ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].deltaT +
-            (mb - ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].msize) *
-                (ext_mpi_file_input[k + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].deltaT -
-                 ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].deltaT) /
-                (ext_mpi_file_input[k + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].msize -
-                 ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].msize);
+            ext_mpi_file_input[j + rrr * ext_mpi_file_input_max_per_core].deltaT +
+            (mb - ext_mpi_file_input[j + rrr * ext_mpi_file_input_max_per_core].msize) *
+                (ext_mpi_file_input[k + rrr * ext_mpi_file_input_max_per_core].deltaT -
+                 ext_mpi_file_input[j + rrr * ext_mpi_file_input_max_per_core].deltaT) /
+                (ext_mpi_file_input[k + rrr * ext_mpi_file_input_max_per_core].msize -
+                 ext_mpi_file_input[j + rrr * ext_mpi_file_input_max_per_core].msize);
       }
     }
     rarray[depth] = -(r - 1);
@@ -183,10 +196,10 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
                           simulate, num_sockets) < 0)
           goto error;
       } else {
-        trarray = (int *)malloc((depth + 2 + 2) * 2 * sizeof(int));
+        trarray = (int *)malloc((depth + 2 + 2 * num_sockets * num_sockets) * 2 * sizeof(int));
         if (!trarray)
           goto error;
-        ttgarray = (int *)malloc((depth + 2 + 2) * 2 * sizeof(int));
+        ttgarray = (int *)malloc((depth + 2 + 2 * num_sockets * num_sockets) * 2 * sizeof(int));
         if (!ttgarray)
           goto error;
         switch (type) {
@@ -195,8 +208,7 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
             trarray[k] = -rarray[k];
             ttgarray[k] = tgarray[k];
           }
-	  insert_sockets(depth, trarray, ttgarray, num_sockets);
-	  if (num_sockets > 1) depth += 2;
+	  depth += 2 * insert_sockets(depth, trarray, ttgarray, num_sockets);
           if (simulate) {
             if (cost_put_in_pool(depth + 1, trarray, ttgarray, T + T_step, 1,
                                  0) < 0)
@@ -231,8 +243,7 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
               ttgarray[depth + 1 + k] = ttgarray[k] = tgarray[k];
             }
           }
-	  insert_sockets(depth * 2 + 1, trarray, ttgarray, num_sockets);
-	  if (num_sockets > 1) depth++;
+	  depth += insert_sockets(depth * 2 + 1, trarray, ttgarray, num_sockets);
           if (simulate) {
             if (cost_put_in_pool(depth * 2 + 2, trarray, ttgarray,
                                  (T + T_step) * 2, 1, 0) < 0)
@@ -256,8 +267,7 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
             trarray[k] = rarray[depth - j + 1 + k];
             ttgarray[k] = tgarray[depth - j + 1 + k];
           }
-	  insert_sockets(depth + j, trarray, ttgarray, num_sockets);
-	  if (num_sockets > 1) depth += 2;
+	  depth += 2 * insert_sockets(depth + j, trarray, ttgarray, num_sockets);
           if (simulate) {
             if (cost_put_in_pool(depth + 1 + j, trarray, ttgarray, T + T_step,
                                  1, 0) < 0)
