@@ -600,12 +600,35 @@ int EXT_MPI_Allgather_init_general(void *sendbuf, int sendcount,
   return (iret);
 }
 
+static void revert_num_ports(int *num_ports, int *groups) {
+  int i, j, k;
+  for (i = 0; num_ports[i]; i++){
+    num_ports[i] *= -1;
+  }
+  for (j = 0; j < i / 2; j++) {
+    k = num_ports[j];
+    num_ports[j] = num_ports[i - 1 - j];
+    num_ports[i - 1 - j] = k;
+    k = groups[j];
+    groups[j] = groups[i - 1 - j];
+    groups[i - 1 - j] = k;
+  }
+  groups[0] = abs(groups[0]);
+  for (i = 1; groups[i]; i++){
+    if (groups[i] < 0) {
+      groups[i] = abs(groups[i]);
+      groups[i - 1] = -abs(groups[i - 1]);
+    }
+  }
+  groups[i - 1] = -abs(groups[i - 1]);
+}
+
 static int reduce_scatter_init_general(
     const void *sendbuf, void *recvbuf, const int *recvcounts, MPI_Datatype datatype,
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount,
-                     i, j, k, cin_method, alt, group_size;
+                     i, cin_method, alt, group_size;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(datatype, &type_size);
@@ -654,14 +677,7 @@ static int reduce_scatter_init_general(
                            rcount * type_size, 12, num_ports, groups, num_sockets_per_node) < 0)
           goto error;
       }
-      for (i = 0; num_ports[i]; i++){
-        num_ports[i] *= -1;
-      }
-      for (j = 0; j < i / 2; j++) {
-        k = num_ports[j];
-        num_ports[j] = num_ports[i - 1 - j];
-        num_ports[i - 1 - j] = k;
-      }
+      revert_num_ports(num_ports, groups);
     } else {
       i = -1;
       do {
