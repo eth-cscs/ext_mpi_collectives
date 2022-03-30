@@ -586,8 +586,12 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
   int i1, i2; //, n_r, s_r, i;
   struct header_byte_code *header;
 #ifdef NCCL_ENABLED
-  cudaStream_t stream;
-  cudaStreamCreate(&stream);
+  static int initialised = 0;
+  static cudaStream_t stream;
+  if (!initialised) {
+    cudaStreamCreate(&stream);
+    initialised = 1;
+  }
 #endif
   header = (struct header_byte_code *)ip;
   ip = *ip_exec;
@@ -815,7 +819,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
   } while (instruction != OPCODE_RETURN);
   *ip_exec = NULL;
 #ifdef NCCL_ENABLED
-  cudaStreamDestroy(stream);
+//  cudaStreamDestroy(stream);
 #endif
   return 0;
 }

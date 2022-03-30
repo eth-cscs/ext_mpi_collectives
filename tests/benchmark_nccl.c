@@ -32,6 +32,8 @@ int main(int argc, char *argv[]) {
 #ifdef NCCL_ENABLED
   ncclUniqueId id;
   extern ncclComm_t ext_mpi_nccl_comm;
+  cudaStream_t stream;
+  cudaStreamCreate(&stream);
 #endif
 
   MPI_Init(&argc, &argv);
@@ -112,8 +114,14 @@ int main(int argc, char *argv[]) {
             t_start = MPI_Wtime();
             switch (COLLECTIVE_TYPE){
               case 0:
+#ifdef NCCL_ENABLED
+              ncclAllReduce(sendbuf, recvbuf, size, ncclInt64, ncclSum,
+                            ext_mpi_nccl_comm, stream);
+//	      cudaStreamSynchronize(stream);
+#else
               MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
                             new_comm);
+#endif
               break;
               case 1:
               MPI_Reduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, 0,
@@ -136,6 +144,7 @@ int main(int argc, char *argv[]) {
               MPI_Scatterv(sendbuf, counts, displs, MPI_DATA_TYPE, recvbuf, size, MPI_DATA_TYPE, 0, new_comm);
               break;
             }
+	    cudaStreamSynchronize(stream);
             t_stop = MPI_Wtime();
             timer_ref += t_stop - t_start;
 
