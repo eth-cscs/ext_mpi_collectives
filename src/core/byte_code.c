@@ -370,6 +370,11 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
   while ((integer1 = ext_mpi_read_line(buffer_in, line, ascii)) > 0) {
     buffer_in += integer1;
     ext_mpi_read_assembler_line_sd(line, &estring1, &integer1, 0);
+#ifdef NCCL_ENABLED
+    if (estring1 == estart) {
+      code_put_char(&ip, OPCODE_START, isdryrun);
+    }
+#endif
     if (estring1 == ereturn) {
 #ifdef GPU_ENABLED
       if (on_gpu) {

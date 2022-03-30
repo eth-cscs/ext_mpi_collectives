@@ -43,6 +43,10 @@
 #include "gpu_core.h"
 #include "gpu_shmem.h"
 #endif
+#ifdef NCCL_ENABLED
+#include <nccl.h>
+ncclComm_t ext_mpi_nccl_comm;
+#endif
 
 #define NUM_BARRIERS 4
 
@@ -581,6 +585,10 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
   //  char *rlocmem=NULL;
   int i1, i2; //, n_r, s_r, i;
   struct header_byte_code *header;
+#ifdef NCCL_ENABLED
+  cudaStream_t stream;
+  cudaStreamCreate(&stream);
+#endif
   header = (struct header_byte_code *)ip;
   ip = *ip_exec;
   do {
@@ -623,17 +631,33 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       p1 = code_get_pointer(&ip);
       i1 = code_get_int(&ip);
       i2 = code_get_int(&ip);
+#ifdef NCCL_ENABLED
+      code_get_pointer(&ip);
+      ncclRecv((void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
+#else
       MPI_Irecv((void *)p1, i1, MPI_CHAR, i2, header->tag, EXT_MPI_COMM_WORLD,
                 (MPI_Request *)code_get_pointer(&ip));
+#endif
       break;
     case OPCODE_MPIISEND:
       p1 = code_get_pointer(&ip);
       i1 = code_get_int(&ip);
       i2 = code_get_int(&ip);
+#ifdef NCCL_ENABLED
+      code_get_pointer(&ip);
+      ncclSend((const void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
+#else
       MPI_Isend((void *)p1, i1, MPI_CHAR, i2, header->tag, EXT_MPI_COMM_WORLD,
                 (MPI_Request *)code_get_pointer(&ip));
+#endif
       break;
     case OPCODE_MPIWAITALL:
+#ifdef NCCL_ENABLED
+      i1 = code_get_int(&ip);
+      p1 = code_get_pointer(&ip);
+      ncclGroupEnd();
+      cudaStreamSynchronize(stream);
+#else
       if (active_wait & 2) {
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
@@ -649,6 +673,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
           MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
         }
       }
+#endif
       break;
     case OPCODE_MPIWAITANY:
       if (active_wait & 2) {
@@ -778,12 +803,20 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       ext_mpi_gpu_copy_reduce(instruction2, (void *)p1, code_get_int(&ip));
       break;
 #endif
+#ifdef NCCL_ENABLED
+    case OPCODE_START:
+      ncclGroupStart();
+      break;
+#endif
     default:
       printf("illegal MPI_OPCODE execute\n");
       exit(1);
     }
   } while (instruction != OPCODE_RETURN);
   *ip_exec = NULL;
+#ifdef NCCL_ENABLED
+  cudaStreamDestroy(stream);
+#endif
   return 0;
 }
 

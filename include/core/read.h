@@ -57,7 +57,8 @@ enum eassembler_type {
   eshmempbuffer_offsetcp,
   ereturn,
   enop,
-  estage
+  estage,
+  estart
 };
 
 struct parameters_block {
