@@ -1989,7 +1989,7 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
       ((long int *)buffer_hh)[i] = world_rankd * count + i;
     }
     ext_mpi_gpu_memcpy_hd(buffer_ref, buffer_hh, count * type_size);
-    MPI_Bcast(buffer_hh, count, MPI_LONG, MPI_SUM, comm_row);
+    MPI_Bcast(buffer_hh, count, MPI_LONG, root, comm_row);
     if (bcast_init_general(buffer_ref, count, datatype, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
     if (EXT_MPI_Start_native(*handle) < 0)
       goto error;
