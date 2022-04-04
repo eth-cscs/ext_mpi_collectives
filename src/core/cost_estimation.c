@@ -126,8 +126,8 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
   if (port_max > ext_mpi_file_input[ext_mpi_file_input_max - 1].nports) {
     port_max = ext_mpi_file_input[ext_mpi_file_input_max - 1].nports;
   }
-  if (port_max > (abs(garray[depth]) - 1) / fac + 1) {
-    port_max = (abs(garray[depth]) - 1) / fac + 1;
+  if (port_max > (abs(garray[depth]) * num_sockets - 1) / fac + 1) {
+    port_max = (abs(garray[depth]) * num_sockets - 1) / fac + 1;
   }
   if (port_max < 1) {
     port_max = 1;
