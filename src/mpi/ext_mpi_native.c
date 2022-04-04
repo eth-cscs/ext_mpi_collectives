@@ -2048,8 +2048,17 @@ int EXT_MPI_Reduce_scatter_init_native(
     goto error;
   if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
-    goto error;
+#ifdef GPU_ENABLED
+  if (!ext_mpi_gpu_is_device_pointer(recvbuf)) {
+#endif
+    if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
+      goto error;
+#ifdef GPU_ENABLED
+  } else {
+    if (ext_mpi_generate_raw_code_tasks_node_master(buffer2, buffer1) < 0)
+      goto error;
+  }
+#endif
   if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
     goto error;
   if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
@@ -2064,10 +2073,16 @@ int EXT_MPI_Reduce_scatter_init_native(
     goto error;
   if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_parallel_memcpy(buffer2, buffer1) < 0)
-    goto error;
-  if (ext_mpi_generate_raw_code_merge(buffer1, buffer2) < 0)
-    goto error;
+#ifdef GPU_ENABLED
+  if (!ext_mpi_gpu_is_device_pointer(recvbuf)) {
+#endif
+    if (ext_mpi_generate_parallel_memcpy(buffer2, buffer1) < 0)
+      goto error;
+    if (ext_mpi_generate_raw_code_merge(buffer1, buffer2) < 0)
+      goto error;
+#ifdef GPU_ENABLED
+  }
+#endif
   if (alt) {
     if (ext_mpi_generate_no_first_barrier(buffer2, buffer1) < 0)
       goto error;
