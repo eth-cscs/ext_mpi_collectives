@@ -377,6 +377,7 @@ int EXT_MPI_Allgatherv_init_general(const void *sendbuf, int sendcount,
       ((long int *)recvbuf_hh)[i] = -1;
     }
     ext_mpi_gpu_memcpy_hd(sendbuf_h, sendbuf_hh, sendcount * type_size);
+    ext_mpi_gpu_memcpy_hd(recvbuf_ref, recvbuf_hh, j * type_size);
     ext_mpi_gpu_memcpy_hd(recvbuf, recvbuf_hh, j * type_size);
   } else {
 #endif
@@ -403,37 +404,41 @@ int EXT_MPI_Allgatherv_init_general(const void *sendbuf, int sendcount,
   if (EXT_MPI_Done_native(*handle) < 0)
     goto error;
 #ifdef GPU_ENABLED
-  ext_mpi_gpu_memcpy_dh(recvbuf_hh, recvbuf, j * type_size);
-  ext_mpi_gpu_memcpy_dh(recvbuf_ref_hh, recvbuf_ref, j * type_size);
-  k = 0;
-  for (j = 0; j < comm_size_row; j++) {
-    for (i = 0; i < (int)((recvcounts[j] * type_size) / sizeof(long int));
-         i++) {
-      if (((long int *)
-               recvbuf_hh)[(displs[j] * type_size) / sizeof(long int) + i] !=
-          ((long int *)
-               recvbuf_ref_hh)[(displs[j] * type_size) / sizeof(long int) + i]) {
-        k = 1;
-	printf("aaaaaaaaaaaa %d %ld %ld\n", (displs[j] * type_size) / sizeof(long int) + i, ((long int *) recvbuf_hh)[(displs[j] * type_size) / sizeof(long int) + i], ((long int *) recvbuf_ref_hh)[(displs[j] * type_size) / sizeof(long int) + i]);
+  if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
+    ext_mpi_gpu_memcpy_dh(recvbuf_hh, recvbuf, j * type_size);
+    ext_mpi_gpu_memcpy_dh(recvbuf_ref_hh, recvbuf_ref, j * type_size);
+    k = 0;
+    for (j = 0; j < comm_size_row; j++) {
+      for (i = 0; i < (int)((recvcounts[j] * type_size) / sizeof(long int));
+           i++) {
+        if (((long int *)
+                 recvbuf_hh)[(displs[j] * type_size) / sizeof(long int) + i] !=
+            ((long int *)
+                 recvbuf_ref_hh)[(displs[j] * type_size) / sizeof(long int) + i]) {
+          k = 1;
+	  printf("aaaaaaaaaaaa %d %ld %ld\n", (displs[j] * type_size) / sizeof(long int) + i, ((long int *) recvbuf_hh)[(displs[j] * type_size) / sizeof(long int) + i], ((long int *) recvbuf_ref_hh)[(displs[j] * type_size) / sizeof(long int) + i]);
+        }
       }
+//      if ((int)((recvcounts[j] * type_size) % sizeof(long int)) {
+//      }
     }
-//    if ((int)((recvcounts[j] * type_size) % sizeof(long int)) {
-//    }
-  }
-#else
-  k = 0;
-  for (j = 0; j < comm_size_row; j++) {
-    for (i = 0; i < (int)((recvcounts[j] * type_size) / sizeof(long int));
-         i++) {
-      if (((long int *)
-               recvbuf)[(displs[j] * type_size) / sizeof(long int) + i] !=
-          ((long int *)
-               recvbuf_ref)[(displs[j] * type_size) / sizeof(long int) + i]) {
-        k = 1;
+  } else {
+#endif
+    k = 0;
+    for (j = 0; j < comm_size_row; j++) {
+      for (i = 0; i < (int)((recvcounts[j] * type_size) / sizeof(long int));
+           i++) {
+        if (((long int *)
+                 recvbuf)[(displs[j] * type_size) / sizeof(long int) + i] !=
+            ((long int *)
+                 recvbuf_ref)[(displs[j] * type_size) / sizeof(long int) + i]) {
+          k = 1;
+        }
       }
+//      if ((int)((recvcounts[j] * type_size) % sizeof(long int)) {
+//      }
     }
-//    if ((int)((recvcounts[j] * type_size) % sizeof(long int)) {
-//    }
+#ifdef GPU_ENABLED
   }
 #endif
   if (k) {
@@ -441,14 +446,18 @@ int EXT_MPI_Allgatherv_init_general(const void *sendbuf, int sendcount,
     exit(1);
   }
 #ifdef GPU_ENABLED
-  ext_mpi_gpu_free(sendbuf_h);
-  ext_mpi_gpu_free(recvbuf_ref);
-  free(recvbuf_ref_hh);
-  free(recvbuf_hh);
-  free(sendbuf_hh);
-#else
-  free(sendbuf_h);
-  free(recvbuf_ref);
+  if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
+    ext_mpi_gpu_free(sendbuf_h);
+    ext_mpi_gpu_free(recvbuf_ref);
+    free(recvbuf_ref_hh);
+    free(recvbuf_hh);
+    free(sendbuf_hh);
+  } else {
+#endif
+    free(sendbuf_h);
+    free(recvbuf_ref);
+#ifdef GPU_ENABLED
+  }
 #endif
 #endif
   return allgatherv_init_general(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle);
