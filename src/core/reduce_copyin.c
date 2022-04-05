@@ -227,7 +227,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       }
       nbuffer_out += ext_mpi_write_assembler_line_s(
           buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
-      nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
     } else {
       if ((copy_method == 3) && (node_size == 1)) {
         copy_method = 0;
@@ -298,8 +297,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           nbuffer_out += ext_mpi_write_assembler_line_s(
               buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
         }
-        nbuffer_out +=
-            ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
       case 1:
         //        if (collective_type==2){
@@ -407,8 +404,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         }
         nbuffer_out += ext_mpi_write_assembler_line_s(
             buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
-        nbuffer_out +=
-            ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
       case 2:
         if (lrank_row >= node_row_size / 2){
@@ -480,7 +475,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         add=add2=size;
         size=0;
         nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, ememcp_, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
-        nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
       case 3:
         add = node_rank * CACHE_LINE_SIZE;
@@ -543,7 +537,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         add=add2=size;
         size=0;
         nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, ememcp_, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
-        nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
       case 4:
         nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, parameters->node_row_size, lrank_row, 0, buffer_out+nbuffer_out);
@@ -562,7 +555,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         add=add2=total_message_size*(parameters->node_row_size/2-1);
         size=total_message_size;
         nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, ememcp_, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
-        nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
         break;
       case 5:
         if (collective_type == 2) {
@@ -838,6 +830,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
     }
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER\n");
   }
+  nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   ext_mpi_delete_algorithm(size_level0, size_level1, data);
   free(ldispls);
   free(lcounts);

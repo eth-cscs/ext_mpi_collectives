@@ -416,7 +416,6 @@ int EXT_MPI_Allgatherv_init_general(const void *sendbuf, int sendcount,
             ((long int *)
                  recvbuf_ref_hh)[(displs[j] * type_size) / sizeof(long int) + i]) {
           k = 1;
-	  printf("aaaaaaaaaaaa %d %ld %ld\n", (displs[j] * type_size) / sizeof(long int) + i, ((long int *) recvbuf_hh)[(displs[j] * type_size) / sizeof(long int) + i], ((long int *) recvbuf_ref_hh)[(displs[j] * type_size) / sizeof(long int) + i]);
         }
       }
 //      if ((int)((recvcounts[j] * type_size) % sizeof(long int)) {

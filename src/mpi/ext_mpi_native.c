@@ -1657,9 +1657,7 @@ int EXT_MPI_Gatherv_init_native(
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-//printf("aaaaaa\n%s\n", buffer2);
-//exit(9);
-  iret = init_epilogue(buffer2, sendbuf, recvbuf, -1, comm_row,
+  iret = init_epilogue(buffer2, sendbuf, recvbuf, OPCODE_REDUCE_SUM_CHAR, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt);
   free(buffer2);
