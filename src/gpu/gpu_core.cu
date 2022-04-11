@@ -85,6 +85,9 @@ template <typename vartype> __global__ void gpu_copy_reduce_kernel(char *data) {
 
 void ext_mpi_gpu_copy_reduce(char instruction2, void *data, int count) {
   switch (instruction2) {
+  case OPCODE_REDUCE_SUM_CHAR:
+    gpu_copy_reduce_kernel<char><<<(count + 127) / 128, 128>>>((char *)data);
+    break;
   case OPCODE_REDUCE_SUM_DOUBLE:
     gpu_copy_reduce_kernel<double><<<(count + 127) / 128, 128>>>((char *)data);
     break;

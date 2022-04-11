@@ -1009,6 +1009,9 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case eunset_mem:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " UNSET_MEM");
       break;
+    case estart:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " START");
+      break;
     }
   }
   return nbuffer_out;
@@ -1368,6 +1371,9 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   }
   if (strcmp(cstring1, "UNSET_MEM") == 0) {
     return eunset_mem;
+  }
+  if (strcmp(cstring1, "START") == 0) {
+    return estart;
   }
   return (enop);
 }

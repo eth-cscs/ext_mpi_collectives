@@ -94,49 +94,79 @@ error:
   return ERROR_MALLOC;
 }
 
+int insert_sockets(int depth, int *trarray, int *ttgarray, int num_sockets) {
+  int i = 1, ret = 0;
+  if (num_sockets > 1) {
+    while (i < num_sockets) {
+      ret++;
+      i *= 2;
+    }
+    for (i = 0; i < ret; i++) {
+      trarray[depth + ret + i + 1] = 1;
+      ttgarray[depth + ret + i + 1] = -2;
+    }
+    for (i = depth + ret; i >= ret; i--) {
+      trarray[i] = trarray[i - ret];
+      ttgarray[i] = ttgarray[i - ret];
+    }
+    for (i = 0; i < ret; i++) {
+      trarray[i] = -1;
+      ttgarray[i] = -2;
+    }
+    trarray[depth + 2 * ret + 1] = ttgarray[depth + 2 * ret + 1] = 0;
+  }
+  return ret;
+}
+
 static int cost_explicit(int p, double n, int depth, int fac, double T,
                          int port_max, int *rarray, int *garray, int type,
-                         int comm_size_row, int comm_rank_row, int simulate) {
+                         int comm_size_row, int comm_rank_row, int simulate, int num_sockets) {
   double T_step, ma, mb;
-  int r, i, j, k, *trarray = NULL, *tgarray = NULL, *ttgarray = NULL;
+  int r, rrr, i, j, k, *trarray = NULL, *tgarray = NULL, *ttgarray = NULL;
   if (port_max > ext_mpi_file_input[ext_mpi_file_input_max - 1].nports) {
     port_max = ext_mpi_file_input[ext_mpi_file_input_max - 1].nports;
   }
-  if (port_max > (abs(garray[depth]) - 1) / fac + 1) {
-    port_max = (abs(garray[depth]) - 1) / fac + 1;
+  if (port_max > (abs(garray[depth]) * num_sockets - 1) / fac + 1) {
+    port_max = (abs(garray[depth]) * num_sockets - 1) / fac + 1;
   }
   if (port_max < 1) {
     port_max = 1;
   }
   for (i = 1; i <= port_max; i++) {
     r = i + 1;
+    rrr = (r - 1) * num_sockets - 1;
+    if (rrr > port_max - 1) {
+      rrr = port_max - 1;
+    }
+    r = (rrr + 1) / num_sockets + 1;
+    if (r < 2) r = 2;
     ma = fac;
     if (ma * r > abs(garray[depth])) {
       ma = (abs(garray[depth]) - ma) / (r - 1);
     }
     mb = n * ma;
-    mb /= ext_mpi_file_input[(r - 1 - 1) * ext_mpi_file_input_max_per_core].parallel;
+    mb /= ext_mpi_file_input[rrr * ext_mpi_file_input_max_per_core].parallel;
     j = floor(mb / (ext_mpi_file_input[1].msize - ext_mpi_file_input[0].msize)) - 1;
     k = j + 1;
     if (j < 0) {
-      T_step = ext_mpi_file_input[0 + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT;
+      T_step = ext_mpi_file_input[0 + rrr * ext_mpi_file_input_max_per_core].deltaT;
     } else {
       if (k >= ext_mpi_file_input_max_per_core) {
         T_step = ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                            (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+                            rrr * ext_mpi_file_input_max_per_core]
                      .deltaT *
                  mb /
                  ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                            (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+                            rrr * ext_mpi_file_input_max_per_core]
                      .msize;
       } else {
         T_step =
-            ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT +
-            (mb - ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize) *
-                (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT -
-                 ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT) /
-                (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize -
-                 ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize);
+            ext_mpi_file_input[j + rrr * ext_mpi_file_input_max_per_core].deltaT +
+            (mb - ext_mpi_file_input[j + rrr * ext_mpi_file_input_max_per_core].msize) *
+                (ext_mpi_file_input[k + rrr * ext_mpi_file_input_max_per_core].deltaT -
+                 ext_mpi_file_input[j + rrr * ext_mpi_file_input_max_per_core].deltaT) /
+                (ext_mpi_file_input[k + rrr * ext_mpi_file_input_max_per_core].msize -
+                 ext_mpi_file_input[j + rrr * ext_mpi_file_input_max_per_core].msize);
       }
     }
     rarray[depth] = -(r - 1);
@@ -158,20 +188,20 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
       tgarray[depth] = abs(tgarray[depth + 1]);
       if (cost_explicit(p, n, depth + 1, fac * r, T + T_step, port_max, rarray,
                         tgarray, type, comm_size_row, comm_rank_row,
-                        simulate) < 0)
+                        simulate, num_sockets) < 0)
         goto error;
     } else {
       i = port_max + 1;
       if (tgarray[depth + 1]) {
         if (cost_explicit(p, n * ma, depth + 1, 1, T + T_step, port_max, rarray,
                           tgarray, type, comm_size_row, comm_rank_row,
-                          simulate) < 0)
+                          simulate, num_sockets) < 0)
           goto error;
       } else {
-        trarray = (int *)malloc((depth + 2) * 2 * sizeof(int));
+        trarray = (int *)malloc((depth + 2 + 2 * num_sockets * num_sockets) * 2 * sizeof(int));
         if (!trarray)
           goto error;
-        ttgarray = (int *)malloc((depth + 2) * 2 * sizeof(int));
+        ttgarray = (int *)malloc((depth + 2 + 2 * num_sockets * num_sockets) * 2 * sizeof(int));
         if (!ttgarray)
           goto error;
         switch (type) {
@@ -180,6 +210,7 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
             trarray[k] = -rarray[k];
             ttgarray[k] = tgarray[k];
           }
+	  depth += 2 * insert_sockets(depth, trarray, ttgarray, num_sockets);
           if (simulate) {
             if (cost_put_in_pool(depth + 1, trarray, ttgarray, T + T_step, 1,
                                  0) < 0)
@@ -203,18 +234,18 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
               ttgarray[depth - k] = abs(ttgarray[depth + 1 + k] = tgarray[k]);
               if (k == 0) {
                 ttgarray[depth - k] *= -1;
-              } else {
-                if (tgarray[k - 1] < 0) {
-                  ttgarray[depth - k] *= -1;
-                }
+              } else if (tgarray[k - 1] < 0) {
+                ttgarray[depth - k] *= -1;
               }
             }
+	    ttgarray[depth] = abs(ttgarray[depth]);
           } else {
             for (k = 0; k < depth + 1; k++) {
               trarray[depth + 1 + k] = -(trarray[k] = rarray[k]);
               ttgarray[depth + 1 + k] = ttgarray[k] = tgarray[k];
             }
           }
+	  depth += insert_sockets(depth * 2 + 1, trarray, ttgarray, num_sockets);
           if (simulate) {
             if (cost_put_in_pool(depth * 2 + 2, trarray, ttgarray,
                                  (T + T_step) * 2, 1, 0) < 0)
@@ -238,6 +269,7 @@ static int cost_explicit(int p, double n, int depth, int fac, double T,
             trarray[k] = rarray[depth - j + 1 + k];
             ttgarray[k] = tgarray[depth - j + 1 + k];
           }
+	  depth += 2 * insert_sockets(depth + j, trarray, ttgarray, num_sockets);
           if (simulate) {
             if (cost_put_in_pool(depth + 1 + j, trarray, ttgarray, T + T_step,
                                  1, 0) < 0)
@@ -266,7 +298,7 @@ error:
 int ext_mpi_cost_estimation(int count, int type_size, int comm_size_row,
                             int my_cores_per_node_row, int comm_size_column,
                             int my_cores_per_node_column, int comm_size_rowb,
-                            int comm_rank_row, int simulate) {
+                            int comm_rank_row, int simulate, int num_sockets) {
   int *num_ports = NULL, *groups = NULL, *num_steps = NULL, i, j;
   double *counts = NULL;
   num_ports = (int *)malloc(2 * (comm_size_row + 1) * sizeof(int));
@@ -275,47 +307,47 @@ int ext_mpi_cost_estimation(int count, int type_size, int comm_size_row,
   groups = (int *)malloc(2 * (comm_size_row + 1) * sizeof(int));
   if (!groups)
     goto error;
-  groups[0] = -comm_size_row / my_cores_per_node_row;
+  groups[0] = -comm_size_row / my_cores_per_node_row / num_sockets;
   groups[1] = 0;
-  if (cost_explicit(comm_size_row / my_cores_per_node_row,
+  if (cost_explicit(comm_size_row / my_cores_per_node_row / num_sockets,
                     count * type_size * 1e0, 0, 1, 0e0,
                     my_cores_per_node_row * my_cores_per_node_column, num_ports,
-                    groups, 0, comm_size_rowb, comm_rank_row, simulate) < 0)
+                    groups, 0, comm_size_rowb, comm_rank_row, simulate, num_sockets) < 0)
     goto error;
   i = count / (comm_size_row / my_cores_per_node_row);
   if (i < 1) {
     i = 1;
   }
-  if (cost_explicit(comm_size_row / my_cores_per_node_row, i * type_size * 1e0,
+  if (cost_explicit(comm_size_row / my_cores_per_node_row / num_sockets, i * type_size * 1e0,
                     0, 1, 0e0, my_cores_per_node_row * my_cores_per_node_column,
                     num_ports, groups, 1, comm_size_rowb, comm_rank_row,
-                    simulate) < 0)
+                    simulate, num_sockets) < 0)
     goto error;
-  ext_mpi_factors_minimum(comm_size_row / my_cores_per_node_row,
+  ext_mpi_factors_minimum(comm_size_row / my_cores_per_node_row / num_sockets,
                           my_cores_per_node_row * my_cores_per_node_column, groups);
   for (j = 0; groups[j]; j++) {
     groups[j] *= -1;
   }
-  if (cost_explicit(comm_size_row / my_cores_per_node_row,
+  if (cost_explicit(comm_size_row / my_cores_per_node_row / num_sockets,
                     count * type_size * 1e0, 0, 1, 0e0,
                     my_cores_per_node_row * my_cores_per_node_column, num_ports,
-                    groups, 0, comm_size_rowb, comm_rank_row, simulate) < 0)
+                    groups, 0, comm_size_rowb, comm_rank_row, simulate, num_sockets) < 0)
     goto error;
-  if (cost_explicit(comm_size_row / my_cores_per_node_row, i * type_size * 1e0,
+  if (cost_explicit(comm_size_row / my_cores_per_node_row / num_sockets, i * type_size * 1e0,
                     0, 1, 0e0, my_cores_per_node_row * my_cores_per_node_column,
                     num_ports, groups, 1, comm_size_rowb, comm_rank_row,
-                    simulate) < 0)
+                    simulate, num_sockets) < 0)
     goto error;
-  i = ext_mpi_factor_sqrt(comm_size_row / my_cores_per_node_row);
+  i = ext_mpi_factor_sqrt(comm_size_row / my_cores_per_node_row / num_sockets);
   if ((i > 1) && (i < comm_size_row / my_cores_per_node_row)) {
-    groups[0] = -(comm_size_row / my_cores_per_node_row) / i;
+    groups[0] = -(comm_size_row / my_cores_per_node_row) / num_sockets / i;
     groups[1] = -i;
     groups[2] = 0;
-    if (cost_explicit(comm_size_row / my_cores_per_node_row,
+    if (cost_explicit(comm_size_row / my_cores_per_node_row / num_sockets,
                       sqrt(count) * type_size * 1e0, 0, 1, 0e0,
                       my_cores_per_node_row * my_cores_per_node_column,
                       num_ports, groups, 2, comm_size_rowb, comm_rank_row,
-                      simulate) < 0)
+                      simulate, num_sockets) < 0)
       goto error;
   }
   free(groups);

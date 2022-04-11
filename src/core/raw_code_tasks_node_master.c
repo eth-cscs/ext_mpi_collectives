@@ -77,9 +77,7 @@ int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_ou
           }
         }
       }
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
     }
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, "#\n");
   }
   nbuffer_out +=
       ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,

@@ -547,6 +547,9 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
     return i;
   }
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
+  if (parameters->collective_type == collective_type_reduce_scatter) {
+    allreduce = 2;
+  }
   if (parameters->collective_type == collective_type_allgatherv) {
     allreduce = 0;
   }

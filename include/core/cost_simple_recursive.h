@@ -7,7 +7,7 @@ extern "C"
 {
 #endif
 
-double ext_mpi_cost_simple_recursive(int p, double n, int port_max, int *num_ports, int *groups);
+double ext_mpi_cost_simple_recursive(int p, double n, int port_max, int *num_ports, int *groups, int num_sockets);
 
 #ifdef __cplusplus
 }

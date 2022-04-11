@@ -1,11 +1,13 @@
+#include "allreduce_hierarchical.h"
 #include "allreduce_groups.h"
-#include "allreduce.h"
 #include "constants.h"
 #include "read.h"
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define NUM_SOCKETS
 
 static int get_gbstep(int group, int *groups, int num_nodes, int *allgatherv){
   int groups_short[num_nodes], gbstep, i, max_group = 0, max_reduce, gbstep_;
@@ -202,10 +204,9 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
     if (flag_allgatherv) {
       (*parameters2)[group]->collective_type = collective_type_allgatherv;
     }
-    i = ext_mpi_write_parameters((*parameters2)[group], buffer_in_temp);
-    ext_mpi_write_eof(buffer_in_temp + i, (*parameters2)[group]->ascii_out);
+    ext_mpi_write_parameters((*parameters2)[group], buffer_in_temp);
     ext_mpi_delete_parameters((*parameters2)[group]);
-    nbuffer_out += ext_mpi_generate_allreduce(buffer_in_temp, buffer_out_temp);
+    nbuffer_out += ext_mpi_generate_allreduce_groups(buffer_in_temp, buffer_out_temp);
     i = ext_mpi_read_parameters(buffer_out_temp, &(*parameters2)[group]);
     if (i <= 0) goto error;
     i = ext_mpi_read_algorithm(buffer_out_temp + i, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group], (*parameters2)[group]->ascii_in);
@@ -620,15 +621,13 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
       }
       if ((group > group_core)) {
         l = (*size_level1)[j]-size_level1_l[group][size_level0_l[group] - 1];
-	if (l >= 0) {
-          for (k = 0; k < size_level1_l[group_core][size_level0_l[group_core] - 1]; k++) {
-            for (m = 0; m < data_l[group_core][size_level0_l[group_core] - 1][k].to_max; m++){
-              if (data_l[group_core][size_level0_l[group_core] - 1][k].to[m] == -1){
-                temp = (*data)[j][k].to_max; (*data)[j][k].to_max = (*data)[j][l].to_max; (*data)[j][l].to_max = temp;
-                ptemp = (*data)[j][k].to; (*data)[j][k].to = (*data)[j][l].to; (*data)[j][l].to = ptemp;
-                l++;
-              }
-	    }
+        for (k = 0; k < size_level1_l[group_core][size_level0_l[group_core] - 1]; k++) {
+          for (m = 0; m < data_l[group_core][size_level0_l[group_core] - 1][k].to_max; m++){
+            if (data_l[group_core][size_level0_l[group_core] - 1][k].to[m] == -1){
+              temp = (*data)[j][k].to_max; (*data)[j][k].to_max = (*data)[j][l].to_max; (*data)[j][l].to_max = temp;
+              ptemp = (*data)[j][k].to; (*data)[j][k].to = (*data)[j][l].to; (*data)[j][l].to = ptemp;
+              l++;
+            }
           }
         }
       }
@@ -637,7 +636,7 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
   }
 }
 
-int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_allreduce_hierarchical(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0,
       group, ngroups = 0, i, k, *size_level0_l = NULL, **size_level1_l = NULL,
       size_level0 = 0, *size_level1 = NULL, group_core = -1;

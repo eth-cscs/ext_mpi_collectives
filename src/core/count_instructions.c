@@ -488,6 +488,10 @@ int ext_mpi_simulate_native(char *ip) {
       printf("\n");
 #endif
       break;
+#ifdef NCCL_ENABLED
+    case OPCODE_START:
+      break;
+#endif
     default:
       printf("illegal MPI_OPCODE simulate_native\n");
       exit(1);
@@ -657,6 +661,10 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
       case OPCODE_REDUCE_SUM_LONG_INT:
         break;
       }
+      break;
+#endif
+#ifdef NCCL_ENABLED
+    case OPCODE_START:
       break;
 #endif
     default:

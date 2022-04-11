@@ -29,6 +29,9 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       size_s, adds;
   int num_comm = 0, nbuffer_out = 0, nbuffer_in = 0, *msizes, msizes_max, i, j,
       k = -1, m, n, o, q, size_level0 = 0, *size_level1 = NULL;
+#ifdef NCCL_ENABLED
+  int start = 0;
+#endif
   char cline[1000];
   struct data_line **data = NULL;
   struct parameters_block *parameters;
@@ -36,6 +39,8 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
+//  parameters->node /= (parameters->num_nodes / parameters->message_sizes_max);
+//  parameters->num_nodes = parameters->message_sizes_max;
   node = parameters->node;
   num_nodes = parameters->num_nodes;
   node_row_size = parameters->node_row_size;
@@ -90,6 +95,9 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         }
       }
       if (size) {
+#ifdef NCCL_ENABLED
+  if (!start) {nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, estart, parameters->ascii_out); start = 1;}
+#endif
         nbuffer_out += ext_mpi_write_assembler_line_ssdsdddd(
             buffer_out + nbuffer_out, eirecv, eshmempbuffer_offseto,
             buffer_counter, eshmempbuffer_offsetcp, 0, size, q, num_comm,
@@ -178,6 +186,9 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
     nbuffer_out +=
         ext_mpi_write_assembler_line_sdsd(buffer_out + nbuffer_out, ewaitall, num_comm,
                                           elocmemp, 0, parameters->ascii_out);
+#ifdef NCCL_ENABLED
+        start = 0;
+#endif
     //    }
     nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out,
                                                   enode_barrier, parameters->ascii_out);

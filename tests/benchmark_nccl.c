@@ -1,3 +1,4 @@
+#include "ext_mpi.h"
 #include "ext_mpi_interface.h"
 #include <mpi.h>
 #include <stdio.h>
@@ -8,6 +9,9 @@
 #else
 #include <cuda_runtime_api.h>
 #endif
+#endif
+#ifdef NCCL_ENABLED
+#include "nccl.h"
 #endif
 
 #define MAX_MESSAGE_SIZE 10000000
@@ -23,34 +27,46 @@ int main(int argc, char *argv[]) {
   double timer = 0.0;
   double avg_time = 0.0, max_time = 0.0, min_time = 0.0;
   void *sendbuf, *recvbuf;
-#ifdef GPU_ENABLED
-  void *sendbuf_device, *recvbuf_device;
-#endif
   MPI_Comm new_comm;
   MPI_Request request;
+#ifdef NCCL_ENABLED
+  ncclUniqueId id;
+  extern ncclComm_t ext_mpi_nccl_comm;
+  cudaStream_t stream;
+  cudaStreamCreate(&stream);
+#endif
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Type_size(MPI_DATA_TYPE, &type_size);
 
-  bufsize = type_size * MAX_MESSAGE_SIZE * numprocs;
+#ifdef NCCL_ENABLED
+  if (rank == 0) {
+    ncclGetUniqueId(&id);
+  }
+  MPI_Bcast((void *) &id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD);
+  ncclCommInitRank(&ext_mpi_nccl_comm, numprocs, id, rank);
+#endif
+
+  bufsize = type_size * MAX_MESSAGE_SIZE;
   bufsize = 1024*1024*1024;
 
+#ifdef GPU_ENABLED
+  cudaMalloc(&sendbuf, bufsize);
+  cudaMalloc(&recvbuf, bufsize);
+#else
   sendbuf = malloc(bufsize);
   recvbuf = malloc(bufsize);
+#endif
   counts = (int*)malloc(numprocs*sizeof(int));
   displs = (int*)malloc(numprocs*sizeof(int));
-
-#ifdef GPU_ENABLED
-  cudaMalloc(&sendbuf_device, bufsize);
-  cudaMalloc(&recvbuf_device, bufsize);
-#endif
 
   if (rank == 0) {
     printf("# num_tasks message_size avg_time_ref min_time_ref max_time_ref avg_time min_time max_time\n");
   }
 
+  ext_mpi_bit_reproducible = 1;
   for (num_tasks = numprocs; num_tasks > 0; num_tasks -= NUM_CORES) {
     if (rank < num_tasks) {
       MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &new_comm);
@@ -98,13 +114,13 @@ int main(int argc, char *argv[]) {
             t_start = MPI_Wtime();
             switch (COLLECTIVE_TYPE){
               case 0:
-#ifdef GPU_ENABLED
-          cudaMemcpy(sendbuf, sendbuf_device, size * type_size, cudaMemcpyDeviceToHost);
-#endif
+#ifdef NCCL_ENABLED
+              ncclAllReduce(sendbuf, recvbuf, size, ncclInt64, ncclSum,
+                            ext_mpi_nccl_comm, stream);
+	      cudaStreamSynchronize(stream);
+#else
               MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
                             new_comm);
-#ifdef GPU_ENABLED
-          cudaMemcpy(recvbuf_device, recvbuf, size * type_size, cudaMemcpyHostToDevice);
 #endif
               break;
               case 1:
@@ -128,20 +144,17 @@ int main(int argc, char *argv[]) {
               MPI_Scatterv(sendbuf, counts, displs, MPI_DATA_TYPE, recvbuf, size, MPI_DATA_TYPE, 0, new_comm);
               break;
             }
+#ifdef NCCL_ENABLED
+//	    cudaStreamSynchronize(stream);
+#endif
             t_stop = MPI_Wtime();
             timer_ref += t_stop - t_start;
 
             MPI_Barrier(new_comm);
 
             t_start = MPI_Wtime();
-#ifdef GPU_ENABLED
-          cudaMemcpy(sendbuf, sendbuf_device, size * type_size, cudaMemcpyDeviceToHost);
-#endif
             MPI_Start(&request);
             MPI_Wait(&request, MPI_STATUS_IGNORE);
-#ifdef GPU_ENABLED
-          cudaMemcpy(recvbuf_device, recvbuf, size * type_size, cudaMemcpyHostToDevice);
-#endif
             t_stop = MPI_Wtime();
             timer += t_stop - t_start;
 
@@ -193,11 +206,12 @@ int main(int argc, char *argv[]) {
   free(displs);
   free(counts);
 #ifdef GPU_ENABLED
-  cudaFree(sendbuf_device);
-  cudaFree(recvbuf_device);
-#endif
+  cudaFree(sendbuf);
+  cudaFree(recvbuf);
+#else
   free(sendbuf);
   free(recvbuf);
+#endif
 
   MPI_Finalize();
 

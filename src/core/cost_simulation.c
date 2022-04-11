@@ -14,7 +14,7 @@
 int ext_mpi_cost_simulation(int count, int type_size, int comm_size_row,
                             int my_cores_per_node_row, int comm_size_column,
                             int my_cores_per_node_column, int comm_size_rowb,
-                            int comm_rank_row, int simulate, int bit_identical) {
+                            int comm_rank_row, int simulate, int bit_identical, int num_sockets) {
   struct cost_list *p1;
   int *num_ports = NULL, *groups = NULL, i,
       *num_steps = NULL, r, j, k;
@@ -24,7 +24,7 @@ int ext_mpi_cost_simulation(int count, int type_size, int comm_size_row,
   ext_mpi_cost_estimation(count, type_size, comm_size_row,
                           my_cores_per_node_row, comm_size_column,
                           my_cores_per_node_column, comm_size_rowb,
-                          comm_rank_row, simulate);
+                          comm_rank_row, simulate, num_sockets);
   sendbuf = (void *)malloc(count * type_size);
   if (!sendbuf)
     goto error;
@@ -66,34 +66,34 @@ int ext_mpi_cost_simulation(int count, int type_size, int comm_size_row,
     p1->nvolume = 0e0;
     for (i = 0; num_steps[i]; i++) {
       r = num_steps[i] + 1;
-      mb = counts[i];
-      mb /= ext_mpi_file_input[(r - 1 - 1) * ext_mpi_file_input_max_per_core].parallel;
+      mb = counts[i] * num_sockets;
+      mb /= ext_mpi_file_input[((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].parallel;
       p1->nsteps += 1e0;
       p1->nvolume += mb;
       j = floor(mb / (ext_mpi_file_input[1].msize - ext_mpi_file_input[0].msize)) - 1;
       k = j + 1;
       if (j < 0) {
-        T_step = ext_mpi_file_input[0 + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT;
+        T_step = ext_mpi_file_input[0 + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].deltaT;
       } else {
         if (k >= ext_mpi_file_input_max_per_core) {
           T_step = ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                              (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+                              ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
                        .deltaT *
                    mb /
                    ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                              (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+                              ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
                        .msize;
         } else {
           T_step =
-              ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].deltaT +
+              ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].deltaT +
               (mb -
-               ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize) *
-                  (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+               ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].msize) *
+                  (ext_mpi_file_input[k + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
                        .deltaT -
-                   ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core]
+                   ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core]
                        .deltaT) /
-                  (ext_mpi_file_input[k + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize -
-                   ext_mpi_file_input[j + (r - 1 - 1) * ext_mpi_file_input_max_per_core].msize);
+                  (ext_mpi_file_input[k + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].msize -
+                   ext_mpi_file_input[j + ((r - 1) * num_sockets - 1) * ext_mpi_file_input_max_per_core].msize);
         }
       }
       p1->T_simulated += T_step;
@@ -121,7 +121,7 @@ error:
 int ext_mpi_allreduce_simulate(int count, int type_size,
                                int comm_size_row, int my_cores_per_node_row,
                                int comm_size_column,
-                               int my_cores_per_node_column, int bit_identical) {
+                               int my_cores_per_node_column, int bit_identical, int num_sockets) {
   int comm_rank_row = 0, i;
   int *num_ports = NULL, *groups = NULL;
   struct cost_list *p1, *p2;
@@ -139,12 +139,12 @@ int ext_mpi_allreduce_simulate(int count, int type_size,
     if (my_cores_per_node_row == 1) {
       if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
                                   comm_size_column, my_cores_per_node_column,
-                                  comm_size_row, comm_rank_row, 1, bit_identical) < 0)
+                                  comm_size_row, comm_rank_row, 1, bit_identical, num_sockets) < 0)
         goto error;
     } else {
       if (ext_mpi_cost_simulation(count, type_size, comm_size_row, my_cores_per_node_row,
                                   comm_size_column, my_cores_per_node_column,
-                                  comm_size_row, comm_rank_row, 1, bit_identical) < 0)
+                                  comm_size_row, comm_rank_row, 1, bit_identical, num_sockets) < 0)
         goto error;
     }
     p1 = ext_mpi_cost_list_start;
