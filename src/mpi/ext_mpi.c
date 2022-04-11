@@ -17,6 +17,7 @@
 #include "gpu_core.h"
 #endif
 
+int ext_mpi_num_tasks_per_node = 0;
 int ext_mpi_blocking = 0;
 int ext_mpi_bit_reproducible = 1;
 int ext_mpi_bit_identical = 0;

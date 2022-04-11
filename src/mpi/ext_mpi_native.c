@@ -1115,8 +1115,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int coarse_count, *counts = NULL, iret;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
-  int nbuffer1 = 0, msize, *msizes = NULL, *msizes2 = NULL, *rank_perm = NULL,
-      i, allreduce_short = (num_ports[0] > 0);
+  int nbuffer1 = 0, msize, *msizes = NULL, i, allreduce_short = (num_ports[0] > 0);
   int reduction_op;
   if (allreduce_short) {
     for (i = 0; groups[i]; i++) {
@@ -1182,39 +1181,22 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     msize += counts[i];
   }
   if (!allreduce_short) {
-    msizes2 =
-        (int *)malloc(sizeof(int) * my_mpi_size_row / my_cores_per_node_row);
-    if (!msizes2)
-      goto error;
-    for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
-      msizes2[i] =
-          (msize / type_size) / (my_mpi_size_row / my_cores_per_node_row);
-    }
-    for (i = 0;
-         i < (msize / type_size) % (my_mpi_size_row / my_cores_per_node_row);
-         i++) {
-      msizes2[i]++;
-    }
-    for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
-      msizes2[i] *= type_size;
-    }
-    rank_perm =
-        (int *)malloc(my_mpi_size_row / my_cores_per_node_row * sizeof(int));
-    if (!rank_perm)
-      goto error;
-    ext_mpi_rank_perm_heuristic(my_mpi_size_row / my_cores_per_node_row,
-                                msizes2, rank_perm);
     msizes =
         (int *)malloc(sizeof(int) * my_mpi_size_row / my_cores_per_node_row);
     if (!msizes)
       goto error;
     for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
-      msizes[i] = msizes2[rank_perm[i]];
+      msizes[i] =
+          (msize / type_size) / (my_mpi_size_row / my_cores_per_node_row);
     }
-    free(rank_perm);
-    rank_perm = NULL;
-    free(msizes2);
-    msizes2 = NULL;
+    for (i = 0;
+         i < (msize / type_size) % (my_mpi_size_row / my_cores_per_node_row);
+         i++) {
+      msizes[i]++;
+    }
+    for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
+      msizes[i] *= type_size;
+    }
   } else {
     msizes = (int *)malloc(sizeof(int) * 1);
     if (!msizes)
@@ -1293,16 +1275,20 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
+  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
+    goto error;
   if (recursive) {
-    if (ext_mpi_generate_allreduce_recursive(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
   } else if (!allreduce_short) {
-    if (ext_mpi_generate_allreduce_groups(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
       goto error;
   } else {
-    if (ext_mpi_generate_allreduce(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
       goto error;
   }
+  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
+    goto error;
   if ((root >= 0) || (root <= -10)) {
     if (root >= 0) {
       if (ext_mpi_generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)
@@ -1396,9 +1382,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   free(buffer1);
   return iret;
 error:
-  free(rank_perm);
   free(msizes);
-  free(msizes2);
   free(counts);
   free(buffer2);
   free(buffer1);
