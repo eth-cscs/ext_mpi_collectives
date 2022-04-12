@@ -49,12 +49,12 @@ enum eassembler_type {
   ewaitall,
   ewaitany,
   eattached,
-  eshmemp,
   esendbufp,
   erecvbufp,
   elocmemp,
-  eshmempbuffer_offseto,
-  eshmempbuffer_offsetcp,
+  eshmemo,
+  ecpbuffer_offseto,
+  ecp,
   ereturn,
   enop,
   estage,
@@ -103,6 +103,31 @@ struct data_line {
   int from_max;
   int *from_node;
   int *from_line;
+};
+
+struct line_irecv_isend {
+  enum eassembler_type type;
+  enum eassembler_type buffer_type;
+  int buffer_number;
+  int is_offset;
+  int offset_number;
+  int offset;
+  int size, partner, tag;
+};
+
+struct line_memcpy_reduce {
+  enum eassembler_type type;
+  enum eassembler_type buffer_type1;
+  int buffer_number1;
+  int is_offset1;
+  int offset_number1;
+  int offset1;
+  enum eassembler_type buffer_type2;
+  int buffer_number2;
+  int is_offset2;
+  int offset_number2;
+  int offset2;
+  int size;
 };
 
 int ext_mpi_read_parameters(char *buffer_in,
