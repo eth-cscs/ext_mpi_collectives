@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include "constants.h"
@@ -1044,6 +1045,35 @@ static int write_assembler_integer(char *buffer_out, int integer1, int ascii){
   return nbuffer_out;
 }
 
+int ext_mpi_write_assembler_line(char *buffer_out, int ascii, char *types, ...) {
+  va_list valist;
+  int num, nbuffer_out = 0, i;
+  if (!ascii)
+    nbuffer_out += sizeof(int);
+  for (num = 0; types[num]; num++);
+  va_start(valist, num);
+  for (i = 0; i < num; i++) {
+    switch (types[i]) {
+      case 's':
+        nbuffer_out += write_assembler_string(buffer_out + nbuffer_out, va_arg(valist, enum eassembler_type), ascii);
+        break;
+      case 'd':
+        nbuffer_out += write_assembler_integer(buffer_out + nbuffer_out, va_arg(valist, int), ascii);
+        break;
+      default:
+        printf("error in ext_mpi_write_assembler_line\n");
+        exit(1);
+    }
+  }
+  va_end(valist);
+  if (!ascii) {
+    memcpy(buffer_out, &nbuffer_out, sizeof(nbuffer_out));
+  } else {
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
+  }
+  return nbuffer_out;
+}
+
 int ext_mpi_write_assembler_line_s(char *buffer_out, enum eassembler_type string1,
                                    int ascii) {
   int nbuffer_out = 0;
@@ -1394,6 +1424,67 @@ static int read_assembler_integer_bin(char *buffer_in, int n, int *integer1, int
     memcpy(integer1, buffer_in + *i, sizeof(*integer1));
   *i += sizeof(*integer1);
   return 0;
+}
+
+int ext_mpi_read_assembler_line(char *buffer_in, int ascii, char *types, ...) {
+  va_list valist;
+  char cstring1[100], cstring2[100];
+  int num, nbuffer_in = 0, n, i, j;
+  for (num = 0; types[num]; num++);
+  va_start(valist, num);
+  if (!ascii) {
+    memcpy(&n, buffer_in, sizeof(n));
+    j = sizeof(n);
+    for (i = 0; i < num; i++) {
+      switch (types[i]) {
+        case 's':
+          if ((nbuffer_in += read_assembler_string_bin(buffer_in + nbuffer_in, n, va_arg(valist, enum eassembler_type*), &j)) < 0) return -11;
+          break;
+        case 'd':
+          if ((nbuffer_in += read_assembler_integer_bin(buffer_in + nbuffer_in, n, va_arg(valist, int*), &j)) < 0) return -11;
+          break;
+        default:
+          printf("error in ext_mpi_read_assembler_line\n");
+          exit(1);
+      }
+    }
+    va_end(valist);
+    if (j == n) {
+      return n;
+    } else if (j < n) {
+      return 0;
+    } else {
+      return -11;
+    }
+  } else {
+    for (i = 0; i < num; i++) {
+      for (; buffer_in[nbuffer_in] == ' '; nbuffer_in++);
+      switch (types[i]) {
+        case 's':
+          n = sscanf(buffer_in + nbuffer_in, "%99s %99s", cstring1, cstring2);
+          *va_arg(valist, enum eassembler_type*) = read_assembler_type(cstring1);
+          break;
+        case 'd':
+          n = sscanf(buffer_in + nbuffer_in, "%d %99s", va_arg(valist, int*), cstring2);
+          break;
+        default:
+          printf("error in ext_mpi_read_assembler_line\n");
+          exit(1);
+      }
+      if (n < 0) {
+        va_end(valist);
+        return -11;
+      } else if (n < 1) {
+        va_end(valist);
+        return 0;
+      }
+      for (; buffer_in[nbuffer_in] != '\n'; nbuffer_in++);
+    }
+    va_end(valist);
+    for (i = 0; (buffer_in[i] != '\0') && (buffer_in[i] != '\n'); i++)
+      ;
+    return i + 1;
+  }
 }
 
 int ext_mpi_read_assembler_line_s(char *buffer_in, enum eassembler_type *string1,
@@ -2050,13 +2141,13 @@ int ext_mpi_read_irecv_isend(char *line, struct line_irecv_isend *data) {
   int i;
   if (ext_mpi_read_assembler_line_s(line, &data->type, 0) >= 0) {
     if ((data->type == eirecv) || (data->type == eirec_) || (data->type == eisend) || (data->type == eisen_)) {
-      i = ext_mpi_read_assembler_line_ssdddd(line, &data->type, &data->buffer_type, &data->offset, &data->size, &data->partner, &data->tag, 0);
+      i = ext_mpi_read_assembler_line(line, 0, "ssdddd", &data->type, &data->buffer_type, &data->offset, &data->size, &data->partner, &data->tag);
       if ((i < 0) || (data->buffer_type == eshmemo)) {
-        i = ext_mpi_read_assembler_line_ssdsdddd(line, &data->type, &data->buffer_type, &data->buffer_number, &estring, &data->offset, &data->size, &data->partner, &data->tag, 0);
+        i = ext_mpi_read_assembler_line(line, 0, "ssdsdddd", &data->type, &data->buffer_type, &data->buffer_number, &estring, &data->offset, &data->size, &data->partner, &data->tag);
         data->is_offset = 0;
         if ((i < 0) || (estring == ecpbuffer_offseto)) {
           data->is_offset = 1;
-          if (ext_mpi_read_assembler_line_ssdsdsdddd(line, &data->type, &data->buffer_type, &data->buffer_number, &estring, &data->offset_number, &data->offset, &data->size, &data->partner, &data->tag, 0) < 0) {
+          if (ext_mpi_read_assembler_line(line, 0, "ssdsdsdddd", &data->type, &data->buffer_type, &data->buffer_number, &estring, &data->offset_number, &estring, &data->offset, &data->size, &data->partner, &data->tag) < 0) {
             printf(" error reading line in ext_mpi_read_irecv_isend\n");
             exit(1);
           }
@@ -2073,23 +2164,23 @@ int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
   int i;
   if (ext_mpi_read_assembler_line_s(line, &data->type, 0) >= 0) {
     if ((data->type == ememcpy) || (data->type == ememcp_) || (data->type == ereduce) || (data->type == ereduc_)) {
-      i = ext_mpi_read_assembler_line_ssd(line, &data->type, &data->buffer_type1, &data->offset1, 0);
+      i = ext_mpi_read_assembler_line(line, 0, "ssd", &data->type, &data->buffer_type1, &data->offset1);
       if ((i < 0) || (data->buffer_type1 == eshmemo)) {
-        i = ext_mpi_read_assembler_line_ssdsd(line, &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset1, 0);
+        i = ext_mpi_read_assembler_line(line, 0, "ssdsd", &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset1);
         data->is_offset1 = 0;
         if ((i < 0) || (estring == ecpbuffer_offseto)) {
           data->is_offset1 = 1;
-          if (ext_mpi_read_assembler_line_ssdsdsd(line, &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset_number1, &estring, &data->offset1, 0) < 0) {
+          if (ext_mpi_read_assembler_line(line, 0, "ssdsdsd", &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset_number1, &estring, &data->offset1) < 0) {
             printf(" error reading line in ext_mpi_read_memcpy_reduce\n");
             exit(1);
           } else {
-            i = ext_mpi_read_assembler_line_ssdsdsdsd(line, &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset_number1, &estring, &data->offset1, &data->buffer_type2, &data->offset2, 0);
+            i = ext_mpi_read_assembler_line(line, 0, "ssdsdsdsd", &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset_number1, &estring, &data->offset1, &data->buffer_type2, &data->offset2);
             if ((i < 0) || (data->buffer_type2 == eshmemo)) {
-              i = ext_mpi_read_assembler_line_ssdsdsdsdsd(line, &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset_number1, &estring, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring2, &data->offset2, 0);
+              i = ext_mpi_read_assembler_line(line, 0, "ssdsdsdsdsd", &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset_number1, &estring, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring2, &data->offset2);
               data->is_offset2 = 0;
               if ((i < 0) || (estring2 == ecpbuffer_offseto)) {
                 data->is_offset2 = 1;
-                if (ext_mpi_read_assembler_line_ssdsdsdsdsdsd(line, &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset_number1, &estring, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset_number2, &estring, &data->offset2, 0) < 0) {
+                if (ext_mpi_read_assembler_line(line, 0, "ssdsdsdsdsdsd", &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset_number1, &estring, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset_number2, &estring, &data->offset2) < 0) {
                   printf(" error reading line in ext_mpi_read_memcpy_reduce\n");
                   exit(1);
                 }
@@ -2097,13 +2188,13 @@ int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
             }
           }
         } else {
-          i = ext_mpi_read_assembler_line_ssdsdsd(line, &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset1, &data->buffer_type2, &data->offset2, 0);
+          i = ext_mpi_read_assembler_line(line, 0, "ssdsdsd", &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset1, &data->buffer_type2, &data->offset2);
           if ((i < 0) || (data->buffer_type2 == eshmemo)) {
-            i = ext_mpi_read_assembler_line_ssdsdsdsd(line, &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring2, &data->offset2, 0);
+            i = ext_mpi_read_assembler_line(line, 0, "ssdsdsdsd", &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring2, &data->offset2);
             data->is_offset2 = 0;
             if ((i < 0) || (estring2 == ecpbuffer_offseto)) {
               data->is_offset2 = 1;
-              if (ext_mpi_read_assembler_line_ssdsdsdsdsd(line, &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset_number2, &estring, &data->offset2, 0) < 0) {
+              if (ext_mpi_read_assembler_line(line, 0, "ssdsdsdsdsd", &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset_number2, &estring, &data->offset2) < 0) {
                 printf(" error reading line in ext_mpi_read_memcpy_reduce\n");
                 exit(1);
               }
@@ -2111,13 +2202,13 @@ int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
           }
         }
       } else {
-        i = ext_mpi_read_assembler_line_ssdsdsd(line, &data->type, &data->buffer_type1, &data->offset1, &data->buffer_type2, &data->offset2, &data->size, 0);
+        i = ext_mpi_read_assembler_line(line, 0, "ssdsdsd", &data->type, &data->buffer_type1, &data->offset1, &data->buffer_type2, &data->offset2, &data->size);
         if ((i < 0) || (data->buffer_type2 == eshmemo)) {
-          i = ext_mpi_read_assembler_line_ssdsdsdsd(line, &data->type, &data->buffer_type1, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset2, &data->size, 0);
+          i = ext_mpi_read_assembler_line(line, 0, "ssdsdsdsd", &data->type, &data->buffer_type1, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset2, &data->size);
           data->is_offset2 = 0;
           if ((i < 0) || (estring == ecpbuffer_offseto)) {
             data->is_offset2 = 1;
-            if (ext_mpi_read_assembler_line_ssdsdsdsd(line, &data->type, &data->buffer_type1, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset_number2, &estring, &data->offset2, &data->size, 0) < 0) {
+            if (ext_mpi_read_assembler_line(line, 0, "ssdsdsdsd", &data->type, &data->buffer_type1, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset_number2, &estring, &data->offset2, &data->size) < 0) {
               printf(" error reading line in ext_mpi_read_memcpy_reduce\n");
               exit(1);
             }
@@ -2128,4 +2219,42 @@ int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
     }
   }
   return 0;
+}
+
+int ext_mpi_write_irecv_isend(char *buffer_out, struct line_irecv_isend *data, int ascii) {
+  if (data->buffer_type != eshmemo) {
+    return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdddd", data->type, data->buffer_type, data->offset, data->size, data->partner, data->tag);
+  } else if (!data->is_offset) {
+    return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdddd", data->type, data->buffer_type, data->buffer_number, ecp, data->offset, data->size, data->partner, data->tag);
+  } else {
+    return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdddd", data->type, data->buffer_type, data->buffer_number, ecp, data->offset_number, ecp, data->offset, data->size, data->partner, data->tag);
+  }
+}
+
+int ext_mpi_write_memcpy_reduce(char *buffer_out, struct line_memcpy_reduce *data, int ascii) {
+  if (data->buffer_type1 != eshmemo) {
+    if (data->buffer_type2 != eshmemo) {
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->offset2);
+    } else if (!data->is_offset2) {
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
+    } else {
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset_number2, ecp, data->offset2);
+    }
+  } else if (!data->is_offset1) {
+    if (data->buffer_type2 != eshmemo) {
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->offset2);
+    } else if (!data->is_offset2) {
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
+    } else {
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset_number2, ecp, data->offset2);
+    }
+  } else {
+    if (data->buffer_type2 != eshmemo) {
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->offset2);
+    } else if (!data->is_offset2) {
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
+    } else {
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset_number2, ecp, data->offset2);
+    }
+  }
 }
