@@ -2227,7 +2227,7 @@ int ext_mpi_write_irecv_isend(char *buffer_out, struct line_irecv_isend *data, i
   } else if (!data->is_offset) {
     return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdddd", data->type, data->buffer_type, data->buffer_number, ecp, data->offset, data->size, data->partner, data->tag);
   } else {
-    return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdddd", data->type, data->buffer_type, data->buffer_number, ecp, data->offset_number, ecp, data->offset, data->size, data->partner, data->tag);
+    return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdddd", data->type, data->buffer_type, data->buffer_number, ecpbuffer_offseto, data->offset_number, ecp, data->offset, data->size, data->partner, data->tag);
   }
 }
 
@@ -2238,7 +2238,7 @@ int ext_mpi_write_memcpy_reduce(char *buffer_out, struct line_memcpy_reduce *dat
     } else if (!data->is_offset2) {
       return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
     } else {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->buffer_number2, ecpbuffer_offseto, data->offset_number2, ecp, data->offset2);
     }
   } else if (!data->is_offset1) {
     if (data->buffer_type2 != eshmemo) {
@@ -2246,15 +2246,15 @@ int ext_mpi_write_memcpy_reduce(char *buffer_out, struct line_memcpy_reduce *dat
     } else if (!data->is_offset2) {
       return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
     } else {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecpbuffer_offseto, data->offset_number2, ecp, data->offset2);
     }
   } else {
     if (data->buffer_type2 != eshmemo) {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecpbuffer_offseto, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->offset2);
     } else if (!data->is_offset2) {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecpbuffer_offseto, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
     } else {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecpbuffer_offseto, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecpbuffer_offseto, data->offset_number2, ecp, data->offset2);
     }
   }
 }
