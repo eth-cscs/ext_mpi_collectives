@@ -2163,7 +2163,8 @@ int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
   enum eassembler_type estring, estring2;
   int i;
   if (ext_mpi_read_assembler_line_s(line, &data->type, 0) >= 0) {
-    if ((data->type == ememcpy) || (data->type == ememcp_) || (data->type == ereduce) || (data->type == ereduc_)) {
+    if ((data->type == ememcpy) || (data->type == ememcp_) || (data->type == ereduce) || (data->type == ereduc_) ||
+        (data->type == esmemcpy) || (data->type == esmemcp_) || (data->type == esreduce) || (data->type == esreduc_)) {
       i = ext_mpi_read_assembler_line(line, 0, "ssd", &data->type, &data->buffer_type1, &data->offset1);
       if ((i < 0) || (data->buffer_type1 == eshmemo)) {
         i = ext_mpi_read_assembler_line(line, 0, "ssdsd", &data->type, &data->buffer_type1, &data->buffer_number1, &estring, &data->offset1);

@@ -74,8 +74,8 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   node = node * node_size + node_rank;
   for (m = 1; m < size_level0; m++) {
     if (m > 1) {
-      nbuffer_out += ext_mpi_write_assembler_line_s(
-          buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+      nbuffer_out += ext_mpi_write_assembler_line(
+          buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
     }
     buffer_counter = 1;
     for (o = 0; o < num_nodes; o++) {
@@ -98,7 +98,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       }
       if (size) {
 #ifdef NCCL_ENABLED
-  if (!start) {nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, estart, parameters->ascii_out); start = 1;}
+  if (!start) {nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", estart); start = 1;}
 #endif
         data_irecv_isend.type = eirecv;
         data_irecv_isend.buffer_type = eshmemo;
@@ -149,18 +149,8 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
               data_memcpy_reduce.size = size;
               if (node_rank == 0) {
                 data_memcpy_reduce.type = ememcpy;
-//                nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                    buffer_out + nbuffer_out, ememcpy, eshmempbuffer_offseto,
-//                    buffer_counter, eshmempbuffer_offsetcp, add,
-//                    eshmempbuffer_offseto, 0, eshmempbuffer_offsetcp, add2,
-//                    size, parameters->ascii_out);
               } else {
                 data_memcpy_reduce.type = ememcp_;
-//                nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                    buffer_out + nbuffer_out, ememcp_, eshmempbuffer_offseto,
-//                    buffer_counter, eshmempbuffer_offsetcp, add,
-//                    eshmempbuffer_offseto, 0, eshmempbuffer_offsetcp, add2,
-//                    size, parameters->ascii_out);
               }
               nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
             }
@@ -183,18 +173,8 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
               data_memcpy_reduce.size = size;
               if (node_rank == 0) {
                 data_memcpy_reduce.type = ememcpy;
-//                nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                    buffer_out + nbuffer_out, ememcpy, eshmempbuffer_offseto,
-//                    buffer_counter, eshmempbuffer_offsetcp, adds,
-//                    eshmempbuffer_offseto, 0, eshmempbuffer_offsetcp, add2,
-//                    size, parameters->ascii_out);
               } else {
                 data_memcpy_reduce.type = ememcp_;
-//                nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                    buffer_out + nbuffer_out, ememcp_, eshmempbuffer_offseto,
-//                    buffer_counter, eshmempbuffer_offsetcp, adds,
-//                    eshmempbuffer_offseto, 0, eshmempbuffer_offsetcp, add2,
-//                    size, parameters->ascii_out);
               }
               nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
             }
@@ -205,8 +185,8 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
                         data[m - 1][n].frac, data[m - 1][n].source);
       }
       if (add) {
-        nbuffer_out += ext_mpi_write_assembler_line_s(
-            buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+        nbuffer_out += ext_mpi_write_assembler_line(
+            buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
         data_irecv_isend.type = eisend;
         data_irecv_isend.buffer_type = eshmemo;
         data_irecv_isend.buffer_number = 0;
@@ -217,16 +197,12 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         data_irecv_isend.partner = q;
         data_irecv_isend.tag = num_comm;
         nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
-//        nbuffer_out += ext_mpi_write_assembler_line_ssdsdddd(
-//            buffer_out + nbuffer_out, eisend, eshmempbuffer_offseto,
-//            buffer_counter, eshmempbuffer_offsetcp, 0, add, q, num_comm,
-//            parameters->ascii_out);
         num_comm++;
         buffer_counter++;
       }
       if (adds) {
-        nbuffer_out += ext_mpi_write_assembler_line_s(
-            buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+        nbuffer_out += ext_mpi_write_assembler_line(
+            buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
         data_irecv_isend.type = eisen_;
         data_irecv_isend.buffer_type = eshmemo;
         data_irecv_isend.buffer_number = 0;
@@ -237,23 +213,17 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         data_irecv_isend.partner = q;
         data_irecv_isend.tag = num_comm;
         nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
-//        nbuffer_out += ext_mpi_write_assembler_line_ssdsdddd(
-//            buffer_out + nbuffer_out, eisen_, eshmempbuffer_offseto,
-//            buffer_counter, eshmempbuffer_offsetcp, 0, adds, q, num_comm,
-//            parameters->ascii_out);
         buffer_counter++;
       }
     }
     //    if (num_comm){
     nbuffer_out +=
-        ext_mpi_write_assembler_line_sdsd(buffer_out + nbuffer_out, ewaitall, num_comm,
-                                          elocmemp, 0, parameters->ascii_out);
+        ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sdsd", ewaitall, num_comm, elocmemp, 0);
 #ifdef NCCL_ENABLED
         start = 0;
 #endif
     //    }
-    nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out,
-                                                  enode_barrier, parameters->ascii_out);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
     num_comm = 0;
     buffer_counter = 1;
     for (o = 0; o < num_nodes; o++) {
@@ -293,42 +263,21 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
             (-data[m][k].from_node[0] - 10 != node)) {
           if (node_rank == 0) {
             data_memcpy_reduce.type = ememcpy;
-//            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                buffer_out + nbuffer_out, ememcpy, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, j, eshmempbuffer_offseto,
-//                buffer_counter, eshmempbuffer_offsetcp, 0, size,
-//                parameters->ascii_out);
           } else {
             data_memcpy_reduce.type = ememcp_;
-//            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                buffer_out + nbuffer_out, ememcp_, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, j, eshmempbuffer_offseto,
-//                buffer_counter, eshmempbuffer_offsetcp, 0, size,
-//                parameters->ascii_out);
           }
         } else {
           if (node_rank == 0) {
             data_memcpy_reduce.type = ereduce;
-//            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                buffer_out + nbuffer_out, ereduce, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, j, eshmempbuffer_offseto,
-//                buffer_counter, eshmempbuffer_offsetcp, 0, size,
-//                parameters->ascii_out);
           } else {
             data_memcpy_reduce.type = ereduc_;
-//            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                buffer_out + nbuffer_out, ereduc_, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, j, eshmempbuffer_offseto,
-//                buffer_counter, eshmempbuffer_offsetcp, 0, size,
-//                parameters->ascii_out);
           }
         }
         nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         buffer_counter++;
       }
     }
-    nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out,
-                                                  enode_barrier, parameters->ascii_out);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
     add = 0;
     for (n = 0; n < size_level1[m]; n++) {
       for (i = 0; i < data[m][n].from_max; i++) {
@@ -354,16 +303,8 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
           data_memcpy_reduce.size = size;
           if (node_rank == 0) {
             data_memcpy_reduce.type = ereduce;
-//            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                buffer_out + nbuffer_out, ereduce, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, add, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, add2, size, parameters->ascii_out);
           } else {
             data_memcpy_reduce.type = ereduc_;
-//            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                buffer_out + nbuffer_out, ereduc_, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, add, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, add2, size, parameters->ascii_out);
           }
           nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         }
@@ -397,16 +338,8 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
           data_memcpy_reduce.size = size;
           if (node_rank == 0) {
             data_memcpy_reduce.type = ememcpy;
-//            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                buffer_out + nbuffer_out, ememcpy, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, add, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, add2, size, parameters->ascii_out);
           } else {
             data_memcpy_reduce.type = ememcp_;
-//            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-//                buffer_out + nbuffer_out, ememcp_, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, add, eshmempbuffer_offseto, 0,
-//                eshmempbuffer_offsetcp, add2, size, parameters->ascii_out);
           }
           nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         }
