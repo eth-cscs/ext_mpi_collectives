@@ -2235,27 +2235,27 @@ int ext_mpi_write_irecv_isend(char *buffer_out, struct line_irecv_isend *data, i
 int ext_mpi_write_memcpy_reduce(char *buffer_out, struct line_memcpy_reduce *data, int ascii) {
   if (data->buffer_type1 != eshmemo) {
     if (data->buffer_type2 != eshmemo) {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->offset2, data->size);
     } else if (!data->is_offset2) {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2, data->size);
     } else {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->buffer_number2, ecpbuffer_offseto, data->offset_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdd", data->type, data->buffer_type1, data->offset1, data->buffer_type2, data->buffer_number2, ecpbuffer_offseto, data->offset_number2, ecp, data->offset2, data->size);
     }
   } else if (!data->is_offset1) {
     if (data->buffer_type2 != eshmemo) {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->offset2, data->size);
     } else if (!data->is_offset2) {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2, data->size);
     } else {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecpbuffer_offseto, data->offset_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsdd", data->type, data->buffer_type1, data->buffer_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecpbuffer_offseto, data->offset_number2, ecp, data->offset2, data->size);
     }
   } else {
     if (data->buffer_type2 != eshmemo) {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecpbuffer_offseto, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdd", data->type, data->buffer_type1, data->buffer_number1, ecpbuffer_offseto, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->offset2, data->size);
     } else if (!data->is_offset2) {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecpbuffer_offseto, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsdd", data->type, data->buffer_type1, data->buffer_number1, ecpbuffer_offseto, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecp, data->offset2, data->size);
     } else {
-      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsdsd", data->type, data->buffer_type1, data->buffer_number1, ecpbuffer_offseto, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecpbuffer_offseto, data->offset_number2, ecp, data->offset2);
+      return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdsdsdsdd", data->type, data->buffer_type1, data->buffer_number1, ecpbuffer_offseto, data->offset_number1, ecp, data->offset1, data->buffer_type2, data->buffer_number2, ecpbuffer_offseto, data->offset_number2, ecp, data->offset2, data->size);
     }
   }
 }

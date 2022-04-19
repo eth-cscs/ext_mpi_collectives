@@ -120,7 +120,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         data_irecv_isend.is_offset = 1;
         data_irecv_isend.offset_number = buffer_counter;
         data_irecv_isend.offset = 0;
-        data_irecv_isend.size = size;
+        data_irecv_isend.size = size_s;
         data_irecv_isend.partner = q;
         data_irecv_isend.tag = num_comm;
         nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);

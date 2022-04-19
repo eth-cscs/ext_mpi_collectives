@@ -70,7 +70,7 @@ Only the collective operations `MPI_Allreduce_init`, `MPI_Allgatherv_init`, `MPI
 The components of the library which do not require MPI can be tested independently. Every of the following executables takes the input of the previous one and further processes the data. The different steps represent a mini language and an assembler code which is optimised step by step.
 
 ```
-./bin/get_input_allreduce.x | ./bin/test_allreduce.x | ./bin/test_raw_code_tasks_node.x | ./bin/test_reduce_copyin.x | ./bin/test_raw_code.x | ./bin/test_reduce_copyout.x | ./bin/test_buffer_offset.x | ./bin/test_no_offset.x | ./bin/test_optimise_buffers.x | ./bin/test_optimise_buffers2.x | ./bin/test_parallel_memcpy.x | ./bin/test_raw_code_merge.x
+./bin/get_input_allreduce.x | ./bin/test_allreduce_groups.x | ./bin/test_raw_code_tasks_node.x | ./bin/test_reduce_copyin.x | ./bin/test_raw_code.x | ./bin/test_reduce_copyout.x | ./bin/test_buffer_offset.x | ./bin/test_no_offset.x | ./bin/test_optimise_buffers.x | ./bin/test_optimise_buffers2.x | ./bin/test_parallel_memcpy.x | ./bin/test_raw_code_merge.x
 ```
 
 There is also a standalone test for automatic parameter detection of the *allreduce* algorithm
