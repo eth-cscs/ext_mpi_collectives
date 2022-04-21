@@ -28,9 +28,9 @@ int ext_mpi_generate_optimise_buffers(char *buffer_in, char *buffer_out) {
             flag2 = 1;
             while (line2_new && flag2) {
               ext_mpi_read_memcpy_reduce(line2, &data_memcpy_reduce_);
-              if (((data_memcpy_reduce_.type == ememcpy) || (data_memcpy_reduce_.type == ememcp_)) && (data_memcpy_reduce_.buffer_type1 == eshmemp)) {
+              if (((data_memcpy_reduce_.type == ememcpy) || (data_memcpy_reduce_.type == ememcp_)) && (data_memcpy_reduce_.buffer_type1 == eshmemo)) {
                 if ((data_memcpy_reduce.offset1 + data_memcpy_reduce.size == data_memcpy_reduce_.offset1) && (data_memcpy_reduce.offset2 + data_memcpy_reduce.size == data_memcpy_reduce_.offset2) &&
-                    (data_memcpy_reduce_.buffer_type1 == eshmemp) && (data_memcpy_reduce_.buffer_type2 == eshmemp)) {
+                    (data_memcpy_reduce_.buffer_type1 == eshmemo) && (data_memcpy_reduce_.buffer_type2 == eshmemo)) {
                   data_memcpy_reduce.size += data_memcpy_reduce_.size;
                   i = ext_mpi_read_line(buffer_in + nbuffer_in + nline2, line2,
                                         parameters->ascii_in);
@@ -48,10 +48,8 @@ int ext_mpi_generate_optimise_buffers(char *buffer_in, char *buffer_out) {
                     nline2 += i;
                     if (line2_new) {
                       if (ext_mpi_read_irecv_isend(line2, &data_irecv_isend) >= 0) {
-		        if (((data_irecv_isend.type == eisend) || (data_irecv_isend.type == eisen_)) && (data_irecv_isend.buffer_type == eshmemp)){
-                          if (((data_memcpy_reduce_.type == eisend) || (data_memcpy_reduce_.type == eisen_)) &&
-                              ((data_memcpy_reduce.offset1 == data_irecv_isend.offset) && (data_memcpy_reduce.size == data_irecv_isend.size) &&
-                               (data_irecv_isend.buffer_type == eshmemp))) {
+		        if (((data_irecv_isend.type == eisend) || (data_irecv_isend.type == eisen_)) && (data_irecv_isend.buffer_type == eshmemo)){
+                          if ((data_memcpy_reduce.offset1 == data_irecv_isend.offset) && (data_memcpy_reduce.size == data_irecv_isend.size)) {
                             data_irecv_isend.offset = data_memcpy_reduce.offset2;
                             nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
                             nbuffer_in += nline2;
