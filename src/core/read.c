@@ -2139,6 +2139,7 @@ int ext_mpi_write_eof(char *buffer_out, int ascii) {
 int ext_mpi_read_irecv_isend(char *line, struct line_irecv_isend *data) {
   enum eassembler_type estring;
   int i;
+  data->buffer_number = data->offset_number = -1;
   if (ext_mpi_read_assembler_line_s(line, &data->type, 0) >= 0) {
     if ((data->type == eirecv) || (data->type == eirec_) || (data->type == eisend) || (data->type == eisen_)) {
       i = ext_mpi_read_assembler_line(line, 0, "ssdddd", &data->type, &data->buffer_type, &data->offset, &data->size, &data->partner, &data->tag);
@@ -2162,6 +2163,7 @@ int ext_mpi_read_irecv_isend(char *line, struct line_irecv_isend *data) {
 int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
   enum eassembler_type estring, estring2;
   int i;
+  data->buffer_number1 = data->offset_number1 = data->buffer_number2 = data->offset_number2 = -1;
   if (ext_mpi_read_assembler_line_s(line, &data->type, 0) >= 0) {
     if ((data->type == ememcpy) || (data->type == ememcp_) || (data->type == ereduce) || (data->type == ereduc_) ||
         (data->type == esmemcpy) || (data->type == esmemcp_) || (data->type == esreduce) || (data->type == esreduc_)) {
