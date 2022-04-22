@@ -6,15 +6,15 @@
 #include <string.h>
 
 int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
-  int size, add, flag, flag3, node_rank, node_row_size = 1,
-                                         node_column_size = 1, node_size;
-  int nbuffer_out = 0, nbuffer_in = 0, i, os1 = -1, os2 = -1, reset = 1,
-      size_old = -1, os1_old = -1, type_size = 1, p1 = -1, os1_ = -1, os2_ = -1,
-      size_ = -1;
+  struct line_memcpy_reduce data_memcpy_reduce, data_memcpy_reduce_, data_memcpy_reduce_old;
+  int add, flag, flag3, node_rank, node_row_size = 1, node_column_size = 1, node_size;
+  int nbuffer_out = 0, nbuffer_in = 0, i, reset = 1, type_size = 1, p1 = -1;
   char line[1000], line2[1000];
-  enum eassembler_type estring1, estring2, estring3, estring1_, estring2_,
-      estring3_;
+  enum eassembler_type estring1;
   struct parameters_block *parameters;
+  data_memcpy_reduce.offset1 = data_memcpy_reduce.offset2 = data_memcpy_reduce_.offset1 = data_memcpy_reduce_.offset2 = 
+  data_memcpy_reduce_old.offset1 = data_memcpy_reduce_old.offset2 =
+  data_memcpy_reduce.size = data_memcpy_reduce_.size = data_memcpy_reduce_old.size = -1;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
@@ -42,23 +42,17 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
   node_size = node_row_size * node_column_size;
   do {
     flag3 = ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
-    ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &os1, &estring3,
-                                       &os2, &size, 0);
-    estring1_ = estring1;
-    estring2_ = estring2;
-    estring3_ = estring3;
-    os1_ = os1;
-    os2_ = os2;
-    size_ = size;
-    if ((flag3 > 0) && (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0)) {
+    ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
+    data_memcpy_reduce_ = data_memcpy_reduce;
+    if ((flag3 > 0) && (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0)) {
       reset = 0;
       flag = 0;
       if (estring1 == enode_barrier) {
         reset = 1;
         flag = 1;
       }
-      if (os1_old != os1) {
-        os1_old = os1;
+      if (data_memcpy_reduce_old.offset1 != data_memcpy_reduce.offset1) {
+        data_memcpy_reduce_old.offset1 = data_memcpy_reduce.offset1;
         reset = 1;
       }
       if (reset) {
@@ -68,25 +62,24 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
                                   parameters->ascii_in);
         }
         flag = 1;
-        size_old = 0;
+        data_memcpy_reduce_old.size = 0;
         while (flag) {
           p1 += flag = ext_mpi_read_line(buffer_in + nbuffer_in + p1, line2,
                                          parameters->ascii_in);
-          ext_mpi_read_assembler_line_ssdsdd(line2, &estring1, &estring2, &os1,
-                                             &estring3, &os2, &size, 0);
+          ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
           if ((flag > 0) && (ext_mpi_read_assembler_line_s(line2, &estring1, 0) >= 0)) {
             if (estring1 == enode_barrier) {
               flag = 0;
             }
-            if (os1_old != os1) {
+            if (data_memcpy_reduce_old.offset1 != data_memcpy_reduce.offset1) {
               flag = 0;
             }
             if (flag) {
-              if ((estring1 == ememcpy) || (estring1 == ememcp_) ||
-                  (estring1 == ereduce) || (estring1 == ereduc_)) {
-                if ((estring2 == eshmemp) && (estring3 == eshmemp)) {
-                  if (size > size_old) {
-                    size_old = size;
+              if ((data_memcpy_reduce.type == ememcpy) || (data_memcpy_reduce.type == ememcp_) ||
+                  (data_memcpy_reduce.type == ereduce) || (data_memcpy_reduce.type == ereduc_)) {
+                if ((data_memcpy_reduce.buffer_type1 == eshmemo) && (data_memcpy_reduce.buffer_type2 == eshmemo)) {
+                  if (data_memcpy_reduce.size > data_memcpy_reduce_old.size) {
+                    data_memcpy_reduce_old.size = data_memcpy_reduce.size;
                   }
                 }
               }
@@ -95,49 +88,43 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
             flag = 0;
           }
         }
-        estring1 = estring1_;
-        estring2 = estring2_;
-        estring3 = estring3_;
-        os1 = os1_;
-        os2 = os2_;
-        size = size_;
+        data_memcpy_reduce = data_memcpy_reduce_;
       }
       flag = 1;
-      if ((estring1 == ememcpy) || (estring1 == ememcp_) ||
-          (estring1 == ereduce) || (estring1 == ereduc_)) {
-        if ((estring2 == eshmemp) && (estring3 == eshmemp)) {
+      if ((data_memcpy_reduce.type == ememcpy) || (data_memcpy_reduce.type == ememcp_) ||
+          (data_memcpy_reduce.type == ereduce) || (data_memcpy_reduce.type == ereduc_)) {
+        if ((data_memcpy_reduce.buffer_type1 == eshmemo) && (data_memcpy_reduce.buffer_type1 == eshmemo)) {
           if (node_rank < node_size) {
-            add = ((size_old / type_size) / node_size) * node_rank;
-            i = (size_old / type_size) / node_size;
-            if (node_rank < (size_old / type_size) % node_size) {
+            add = ((data_memcpy_reduce_old.size / type_size) / node_size) * node_rank;
+            i = (data_memcpy_reduce_old.size / type_size) / node_size;
+            if (node_rank < (data_memcpy_reduce_old.size / type_size) % node_size) {
               add += node_rank;
               i++;
             } else {
-              add += (size_old / type_size) % node_size;
+              add += (data_memcpy_reduce_old.size / type_size) % node_size;
             }
-            if (add * type_size > size) {
+            if (add * type_size > data_memcpy_reduce.size) {
               i = 0;
             } else {
-              if ((add + i) * type_size > size) {
-                i = size / type_size - add;
+              if ((add + i) * type_size > data_memcpy_reduce.size) {
+                i = data_memcpy_reduce.size / type_size - add;
               }
             }
           } else {
             i = add = 0;
           }
-          size = i * type_size;
-          os1 += add * type_size;
-          os2 += add * type_size;
-          if (estring1 == ememcp_) {
-            estring1 = ememcpy;
+          data_memcpy_reduce.size = i * type_size;
+          data_memcpy_reduce.offset1 += add * type_size;
+          data_memcpy_reduce.offset2 += add * type_size;
+          if (data_memcpy_reduce.type == ememcp_) {
+            data_memcpy_reduce.type = ememcpy;
           }
-          if (estring1 == ereduc_) {
-            estring1 = ereduce;
+          if (data_memcpy_reduce.type == ereduc_) {
+            data_memcpy_reduce.type = ereduce;
           }
-          if (size) {
-            nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                buffer_out + nbuffer_out, estring1, estring2, os1, estring3,
-                os2, size, parameters->ascii_out);
+          if (data_memcpy_reduce.size) {
+            nbuffer_out += ext_mpi_write_memcpy_reduce(
+                buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
           }
           flag = 0;
         }
