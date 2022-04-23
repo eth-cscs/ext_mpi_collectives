@@ -40,7 +40,7 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
       nbuffer_in += flag3 =
           ext_mpi_read_line(buffer_in_loop + nbuffer_in, line, parameters->ascii_in);
       if (flag3) {
-        if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
+        if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
           flag = 1;
           if (ext_mpi_read_line(buffer_in_loop + nbuffer_in, line2,
                                 parameters->ascii_in)) {

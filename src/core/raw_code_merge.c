@@ -6,11 +6,10 @@
 #include <string.h>
 
 int ext_mpi_generate_raw_code_merge(char *buffer_in, char *buffer_out) {
-  int nbuffer_out = 0, nbuffer_in = 0, i, nin_new, flag, flag3, flag4, flag5,
-      bo1, bo2, o1, o2, size, bo1_, bo2_, o1_, o2_, size_, o1__, o2__;
+  struct line_memcpy_reduce data_memcpy_reduce, data_memcpy_reduce_, data_memcpy_reduce__;
+  int nbuffer_out = 0, nbuffer_in = 0, i, nin_new, flag, flag3, flag4, flag5;
   char line[1000], line2[1000];
-  enum eassembler_type estring1, estring2, estring3, estring4, estring5,
-      estring1_, estring2_, estring3_, estring4_, estring5_;
+  enum eassembler_type estring1;
   struct parameters_block *parameters;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
@@ -20,124 +19,59 @@ int ext_mpi_generate_raw_code_merge(char *buffer_in, char *buffer_out) {
     nbuffer_in += flag3 =
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if ((flag3 > 0) &&
-        (flag4 = ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0)) {
+        (flag4 = ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0)) {
       flag = 1;
       if ((estring1 == ememcpy) || (estring1 == ereduce) ||
           (estring1 == ememcp_) || (estring1 == ereduc_)) {
-	ext_mpi_read_assembler_line_ssd(line, &estring1, &estring2, &bo1, 0);
-	if (estring2 == eshmempbuffer_offseto) {
-          ext_mpi_read_assembler_line_ssdsdsdsdd(line, &estring1, &estring2, &bo1,
-                                                 &estring3, &o1, &estring4, &bo2,
-                                                 &estring5, &o2, &size, 0);
-          nin_new = nbuffer_in;
-          flag5 =
-              ext_mpi_read_line(buffer_in + nbuffer_in, line2, parameters->ascii_in);
-          if (ext_mpi_read_assembler_line_ssdsdsdsdd(
-                  line2, &estring1_, &estring2_, &bo1_, &estring3_, &o1_,
-                  &estring4_, &bo2_, &estring5_, &o2_, &size_, 0) >= 0) {
-            while ((flag5 > 0) && (estring1 == estring1_) && (bo1 == bo1_) &&
-                   (bo2 == bo2_) && (o1 + size == o1_) && (o2 + size == o2_) &&
-                   (o1 != o2_)) {
-              size += size_;
+        ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
+        nin_new = nbuffer_in;
+        flag5 =
+            ext_mpi_read_line(buffer_in + nbuffer_in, line2, parameters->ascii_in);
+        if (ext_mpi_read_memcpy_reduce(line2, &data_memcpy_reduce_) >= 0) {
+          while ((flag5 > 0) && (data_memcpy_reduce.type == data_memcpy_reduce_.type) && (data_memcpy_reduce.offset_number1 == data_memcpy_reduce_.offset_number1) &&
+                 (data_memcpy_reduce.offset_number2 == data_memcpy_reduce_.offset_number2) && (data_memcpy_reduce.buffer_number1 == data_memcpy_reduce_.buffer_number1) && 
+                 (data_memcpy_reduce.buffer_number2 == data_memcpy_reduce_.buffer_number2) && (data_memcpy_reduce.offset1 + data_memcpy_reduce.size == data_memcpy_reduce_.offset1) &&
+                 (data_memcpy_reduce.offset2 + data_memcpy_reduce.size == data_memcpy_reduce_.offset2) &&
+                 (data_memcpy_reduce.offset1 != data_memcpy_reduce_.offset2)) {
+            data_memcpy_reduce.size += data_memcpy_reduce_.size;
+            nin_new += flag5;
+            flag5 =
+                ext_mpi_read_line(buffer_in + nin_new, line2, parameters->ascii_in);
+            flag = 0;
+            if (flag5 > 0) {
+              if (ext_mpi_read_memcpy_reduce(line2, &data_memcpy_reduce_) < 0) {
+                data_memcpy_reduce_.offset1 = data_memcpy_reduce_.offset2 = 0;
+              }
+            }
+          }
+          nbuffer_in = nin_new;
+          if (!flag) {
+            nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+          } else {
+            while ((flag5 > 0) && (data_memcpy_reduce.type == data_memcpy_reduce_.type) && (data_memcpy_reduce.offset_number1 == data_memcpy_reduce_.offset_number1) &&
+                   (data_memcpy_reduce.offset_number2 == data_memcpy_reduce_.offset_number2) && (data_memcpy_reduce.buffer_number1 == data_memcpy_reduce_.buffer_number1) &&
+                   (data_memcpy_reduce.buffer_number2 == data_memcpy_reduce_.buffer_number2) && (data_memcpy_reduce.offset1 - data_memcpy_reduce.size == data_memcpy_reduce_.offset1) &&
+                   (data_memcpy_reduce.offset2 - data_memcpy_reduce.size == data_memcpy_reduce_.offset2)) {
+              data_memcpy_reduce.size += data_memcpy_reduce_.size;
               nin_new += flag5;
               flag5 =
                   ext_mpi_read_line(buffer_in + nin_new, line2, parameters->ascii_in);
               flag = 0;
+              data_memcpy_reduce__.offset1 = data_memcpy_reduce_.offset1;
+              data_memcpy_reduce__.offset2 = data_memcpy_reduce_.offset2;
               if (flag5 > 0) {
-                if (ext_mpi_read_assembler_line_ssdsdsdsdd(
-                        line2, &estring1_, &estring2_, &bo1_, &estring3_, &o1_,
-                        &estring4_, &bo2_, &estring5_, &o2_, &size_, 0) < 0) {
-                  o1_ = o2_ = 0;
+                if (ext_mpi_read_memcpy_reduce(line2, &data_memcpy_reduce_) < 0) {
+                  data_memcpy_reduce_.offset1 = data_memcpy_reduce_.offset2 = 0;
                 }
               }
             }
             nbuffer_in = nin_new;
             if (!flag) {
-              nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-                  buffer_out + nbuffer_out, estring1, estring2, bo1, estring3,
-                  o1, estring4, bo2, estring5, o2, size, parameters->ascii_out);
-            } else {
-              while ((flag5 > 0) && (estring1 == estring1_) && (bo1 == bo1_) &&
-                     (bo2 == bo2_) && (o1 - size == o1_) &&
-                     (o2 - size == o2_)) {
-                size += size_;
-                nin_new += flag5;
-                flag5 =
-                    ext_mpi_read_line(buffer_in + nin_new, line2, parameters->ascii_in);
-                flag = 0;
-                o1__ = o1_;
-                o2__ = o2_;
-                if (flag5 > 0) {
-                  if (ext_mpi_read_assembler_line_ssdsdsdsdd(
-                          line2, &estring1_, &estring2_, &bo1_, &estring3_,
-                          &o1_, &estring4_, &bo2_, &estring5_, &o2_, &size_,
-                          0) < 0) {
-                    o1_ = o2_ = 0;
-                  }
-                }
-              }
-              nbuffer_in = nin_new;
-              if (!flag) {
-                nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-                    buffer_out + nbuffer_out, estring1, estring2, bo1, estring3,
-                    o1__, estring4, bo2, estring5, o2__, size,
-                    parameters->ascii_out);
-              }
-            }
-          }
-        } else {
-          if (ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1,
-                                                 &estring3, &o2, &size, 0) >= 0) {
-            nin_new = nbuffer_in;
-            flag5 = ext_mpi_read_line(buffer_in + nin_new, line2, parameters->ascii_in);
-	    ext_mpi_read_assembler_line_s(line2, &estring1_, 0);
-            if ((estring1 == estring1_) && ext_mpi_read_assembler_line_ssdsdd(line2, &estring1_, &estring2_, &o1_,
-                                                   &estring3_, &o2_, &size_, 0) >= 0) {
-              while ((flag5 > 0) && (estring1 == estring1_) &&
-                     (o1 + size == o1_) && (o2 + size == o2_) && (o1 != o2_)) {
-                size += size_;
-                nin_new += flag5;
-                flag5 =
-                    ext_mpi_read_line(buffer_in + nin_new, line2, parameters->ascii_in);
-                flag = 0;
-                if (flag5 > 0) {
-                  if (ext_mpi_read_assembler_line_ssdsdd(line2, &estring1_, &estring2_,
-                                                         &o1_, &estring3_, &o2_, &size_,
-                                                         0) < 0) {
-                    o1_ = o2_ = 0;
-                  }
-                }
-              }
-              nbuffer_in = nin_new;
-              if (!flag) {
-                nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                    buffer_out + nbuffer_out, estring1, estring2, o1, estring3,
-                    o2, size, parameters->ascii_out);
-              } else {
-                while ((flag5 > 0) && (estring1 == estring1_) &&
-                       (o1 - size == o1_) && (o2 - size == o2_)) {
-                  size += size_;
-                  nin_new += flag5;
-                  flag5 = ext_mpi_read_line(buffer_in + nin_new, line2,
-                                            parameters->ascii_in);
-                  flag = 0;
-                  o1__ = o1_;
-                  o2__ = o2_;
-                  if (flag5 > 0) {
-                    if (ext_mpi_read_assembler_line_ssdsdd(line2, &estring1_,
-                                                           &estring2_, &o1_, &estring3_,
-                                                           &o2_, &size_, 0) < 0) {
-                      o1_ = o2_ = 0;
-                    }
-                  }
-                }
-                nbuffer_in = nin_new;
-                if (!flag) {
-                  nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                      buffer_out + nbuffer_out, estring1, estring2, o1__,
-                      estring3, o2__, size, parameters->ascii_out);
-                }
-              }
+              i = data_memcpy_reduce.offset1; data_memcpy_reduce.offset1 = data_memcpy_reduce__.offset1; data_memcpy_reduce__.offset1 = i;
+              i = data_memcpy_reduce.offset2; data_memcpy_reduce.offset2 = data_memcpy_reduce__.offset2; data_memcpy_reduce__.offset2 = i;
+              nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+              i = data_memcpy_reduce.offset1; data_memcpy_reduce.offset1 = data_memcpy_reduce__.offset1; data_memcpy_reduce__.offset1 = i;
+              i = data_memcpy_reduce.offset2; data_memcpy_reduce.offset2 = data_memcpy_reduce__.offset2; data_memcpy_reduce__.offset2 = i;
             }
           }
         }
