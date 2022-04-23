@@ -23,6 +23,7 @@ static int overlapp(int dest_start, int dest_end, int source_start,
 }
 
 int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
+  struct line_memcpy_reduce data_memcpy_reduce;
   int num_nodes = 1, size, add, add2, node_rank, node_row_size = 1,
       node_column_size = 1, node_size, *counts = NULL, counts_max = 0,
       *iocounts = NULL, iocounts_max = 0, *displs = NULL, *iodispls = NULL,
@@ -124,8 +125,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   for (i = 0; i < num_nodes; i++) {
     moffsets[i + 1] = moffsets[i] + mcounts[i];
   }
-  nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier,
-                                                parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
   if (allreduce) {
     if ((parameters->root == -1) ||
         ((parameters->root < 0) &&
@@ -148,9 +148,16 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
                                moffsets[data[size_level0 - 1][i].frac],
                                moffsets[data[size_level0 - 1][i].frac + 1],
                                &add))) {
-            nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                buffer_out + nbuffer_out, ememcpy, erecvbufp, add, eshmemp,
-                add2, size, parameters->ascii_out);
+            data_memcpy_reduce.type = ememcpy;
+            data_memcpy_reduce.buffer_type1 = erecvbufp;
+            data_memcpy_reduce.is_offset1 = 0;
+            data_memcpy_reduce.offset1 = add;
+            data_memcpy_reduce.buffer_type2 = eshmemo;
+            data_memcpy_reduce.buffer_number2 = 0;
+            data_memcpy_reduce.is_offset2 = 0;
+            data_memcpy_reduce.offset2 = add2;
+            data_memcpy_reduce.size = size;
+            nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
           }
         }
         add2 += mcounts[data[size_level0 - 1][i].frac];
@@ -161,13 +168,19 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
     add2 = iodispls[node_rank];
     size = iocounts[node_rank];
     if (size) {
-      nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-          buffer_out + nbuffer_out, ememcpy, erecvbufp, add, eshmemp, add2,
-          size, parameters->ascii_out);
+      data_memcpy_reduce.type = ememcpy;
+      data_memcpy_reduce.buffer_type1 = erecvbufp;
+      data_memcpy_reduce.is_offset1 = 0;
+      data_memcpy_reduce.offset1 = add;
+      data_memcpy_reduce.buffer_type2 = eshmemo;
+      data_memcpy_reduce.buffer_number2 = 0;
+      data_memcpy_reduce.is_offset2 = 0;
+      data_memcpy_reduce.offset2 = add2;
+      data_memcpy_reduce.size = size;
+      nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
     }
   }
-  nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, ereturn,
-                                                parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", ereturn);
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   ext_mpi_delete_algorithm(size_level0, size_level1, data);
   free(ldispls);

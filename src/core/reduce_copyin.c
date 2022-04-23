@@ -8,6 +8,7 @@
 #define RADIX 7
 
 static int copyin(struct parameters_block *parameters, struct data_line **data, int size_level0, int *size_level1, int type_size, int num_tasks, int my_task, int block_offset, char *buffer_out){
+  struct line_memcpy_reduce data_memcpy_reduce;
   int nbuffer_out=0, remote_offsets[size_level1[0]+1], total_message_size=0, my_message_size, my_message_offset, i, j, k, start_copy, stop_copy, add, add2, size;
   enum eassembler_type op_type;
   for (i = 0; i < size_level1[0]; i++) {
@@ -51,17 +52,27 @@ static int copyin(struct parameters_block *parameters, struct data_line **data, 
           }else{
             op_type=ereduce;
           }
-          nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, op_type, eshmemp, add, esendbufp, add2, size, parameters->ascii_out);
+          data_memcpy_reduce.type = op_type;
+          data_memcpy_reduce.buffer_type1 = eshmemo;
+          data_memcpy_reduce.buffer_number1 = 0;
+          data_memcpy_reduce.is_offset1 = 0;
+          data_memcpy_reduce.offset1 = add;
+          data_memcpy_reduce.buffer_type2 = esendbufp;
+          data_memcpy_reduce.is_offset2 = 0;
+          data_memcpy_reduce.offset2 = add2;
+          data_memcpy_reduce.size = size;
+          nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         }
       }
     }
-    nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enode_cycl_barrier, parameters->ascii_out);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_cycl_barrier);
   }
-  nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
   return nbuffer_out;
 }
 
 static int reduce(struct parameters_block *parameters, struct data_line **data, int size_level0, int *size_level1, int type_size, int num_tasks, int my_task, int num_blocks, int *block_offsets, char *buffer_out){
+  struct line_memcpy_reduce data_memcpy_reduce;
   int nbuffer_out=0, total_message_size=0, my_message_size, my_message_offset, i, j, add, add2, size;
   for (i = 0; i < size_level1[0]; i++) {
     total_message_size+=parameters->message_sizes[i];
@@ -83,13 +94,24 @@ static int reduce(struct parameters_block *parameters, struct data_line **data, 
     add=my_message_offset+block_offsets[0]*total_message_size;
     for (j=1; j<num_blocks; j++){
       add2=my_message_offset+block_offsets[j]*total_message_size;
-      nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, esreduce, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
+      data_memcpy_reduce.type = esreduce;
+      data_memcpy_reduce.buffer_type1 = eshmemo;
+      data_memcpy_reduce.buffer_number1 = 0;
+      data_memcpy_reduce.is_offset1 = 0;
+      data_memcpy_reduce.offset1 = add;
+      data_memcpy_reduce.buffer_type2 = eshmemo;
+      data_memcpy_reduce.buffer_number2 = 0;
+      data_memcpy_reduce.is_offset2 = 0;
+      data_memcpy_reduce.offset2 = add2;
+      data_memcpy_reduce.size = size;
+      nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
     }
   }
   return nbuffer_out;
 }
 
 int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
+  struct line_memcpy_reduce data_memcpy_reduce;
   int num_nodes = 1, size, add, add2, node_rank, node_row_size = 1,
       node_column_size = 1, node_size, *counts = NULL, counts_max = 0,
       *displs = NULL, *iocounts = NULL, iocounts_max = 0, *iodispls = NULL,
@@ -200,13 +222,10 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   // ememcpy, eshmempbuffer_offseto, buffer_counter, eshmempbuffer_offsetcp, add,
   // eshmempbuffer_offseto, 0, eshmempbuffer_offsetcp, add2, size, parameters->as
   nbuffer_out +=
-      ext_mpi_write_assembler_line_sd(buffer_out + nbuffer_out, eset_num_cores,
-                              node_size, parameters->ascii_out);
+      ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_num_cores, node_size);
   nbuffer_out +=
-      ext_mpi_write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_rank,
-                              node_rank, parameters->ascii_out);
-  nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier,
-                                        parameters->ascii_out);
+      ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_node_rank, node_rank);
+  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
   if (collective_type) {
     if (((collective_type == 2) && (parameters->root >= 0)) ||
         (parameters->root <= -10)) {
@@ -219,14 +238,21 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         add = 0;
         for (i = 0; i < num_nodes; i++) {
           j = (num_nodes + i + parameters->node) % num_nodes;
-          nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-              buffer_out + nbuffer_out, ememcpy, eshmemp, add, esendbufp,
-              moffsets[j], mcounts[j], parameters->ascii_out);
+          data_memcpy_reduce.type = ememcpy;
+          data_memcpy_reduce.buffer_type1 = eshmemo;
+          data_memcpy_reduce.buffer_number1 = 0;
+          data_memcpy_reduce.is_offset1 = 0;
+          data_memcpy_reduce.offset1 = add; 
+          data_memcpy_reduce.buffer_type2 = esendbufp;
+          data_memcpy_reduce.buffer_number2 = 0;
+          data_memcpy_reduce.is_offset2 = 0;
+          data_memcpy_reduce.offset2 = moffsets[j];
+          data_memcpy_reduce.size = mcounts[j];
+          nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
           add += mcounts[j];
         }
       }
-      nbuffer_out += ext_mpi_write_assembler_line_s(
-          buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
     } else {
       if ((copy_method == 3) && (node_size == 1)) {
         copy_method = 0;
@@ -242,14 +268,21 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           size = mcounts[data[0][i].frac];
           add2 = moffsets[data[0][i].frac];
           if (size) {
-            nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                buffer_out + nbuffer_out, ememcpy, eshmemp, add, esendbufp,
-                add2, size, parameters->ascii_out);
+            data_memcpy_reduce.type = ememcpy;
+            data_memcpy_reduce.buffer_type1 = eshmemo;
+            data_memcpy_reduce.buffer_number1 = 0;
+            data_memcpy_reduce.is_offset1 = 0;
+            data_memcpy_reduce.offset1 = add; 
+            data_memcpy_reduce.buffer_type2 = esendbufp;
+            data_memcpy_reduce.buffer_number2 = 0;
+            data_memcpy_reduce.is_offset2 = 0;
+            data_memcpy_reduce.offset2 = add2;
+            data_memcpy_reduce.size = size;
+            nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
           }
           add += size;
         }
-        nbuffer_out += ext_mpi_write_assembler_line_s(
-            buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
         size = moffsets[num_nodes];
         add = 0;
         if (size <= CACHE_LINE_SIZE) {
@@ -261,20 +294,35 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
             if (size) {
               if (node_rank == 0) {
-                nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                    buffer_out + nbuffer_out, esreduce, eshmemp, add, eshmemp,
-                    add2, size, parameters->ascii_out);
+                data_memcpy_reduce.type = esreduce;
+                data_memcpy_reduce.buffer_type1 = eshmemo;
+                data_memcpy_reduce.buffer_number1 = 0;
+                data_memcpy_reduce.is_offset1 = 0;
+                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.buffer_type2 = eshmemo;
+                data_memcpy_reduce.buffer_number2 = 0;
+                data_memcpy_reduce.is_offset2 = 0;
+                data_memcpy_reduce.offset2 = add2;
+                data_memcpy_reduce.size = size;
+                nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
               } else {
-                nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                    buffer_out + nbuffer_out, esreduc_, eshmemp, add, eshmemp,
-                    add2, size, parameters->ascii_out);
+                data_memcpy_reduce.type = esreduc_;
+                data_memcpy_reduce.buffer_type1 = eshmemo;
+                data_memcpy_reduce.buffer_number1 = 0;
+                data_memcpy_reduce.is_offset1 = 0;
+                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.buffer_type2 = eshmemo;
+                data_memcpy_reduce.buffer_number2 = 0;
+                data_memcpy_reduce.is_offset2 = 0;
+                data_memcpy_reduce.offset2 = add2;
+                data_memcpy_reduce.size = size;
+                nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
               }
             }
           }
           //        nbuffer_out+=sprintf(buffer_out+nbuffer_out, "
           //        NODE_BARRIER_MASTER\n");
-          nbuffer_out += ext_mpi_write_assembler_line_s(
-              buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
         } else {
           for (i = 1; i < node_size / counts_max; i++) {
             if (moffsets[num_nodes] < CACHE_LINE_SIZE) {
@@ -284,18 +332,33 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
             if (size) {
               if (node_rank == 0) {
-                nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                    buffer_out + nbuffer_out, ereduce, eshmemp, add, eshmemp,
-                    add2, size, parameters->ascii_out);
+                data_memcpy_reduce.type = ereduce;
+                data_memcpy_reduce.buffer_type1 = eshmemo;
+                data_memcpy_reduce.buffer_number1 = 0;
+                data_memcpy_reduce.is_offset1 = 0;
+                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.buffer_type2 = eshmemo;
+                data_memcpy_reduce.buffer_number2 = 0;
+                data_memcpy_reduce.is_offset2 = 0;
+                data_memcpy_reduce.offset2 = add2;
+                data_memcpy_reduce.size = size;
+                nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
               } else {
-                nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                    buffer_out + nbuffer_out, ereduc_, eshmemp, add, eshmemp,
-                    add2, size, parameters->ascii_out);
+                data_memcpy_reduce.type = ereduc_;
+                data_memcpy_reduce.buffer_type1 = eshmemo;
+                data_memcpy_reduce.buffer_number1 = 0;
+                data_memcpy_reduce.is_offset1 = 0;
+                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.buffer_type2 = eshmemo;
+                data_memcpy_reduce.buffer_number2 = 0;
+                data_memcpy_reduce.is_offset2 = 0;
+                data_memcpy_reduce.offset2 = add2;
+                data_memcpy_reduce.size = size;
+                nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
               }
             }
           }
-          nbuffer_out += ext_mpi_write_assembler_line_s(
-              buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
         }
         break;
       case 1:
@@ -313,9 +376,17 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                     (node_size / counts_max) ==
                 0) {
               if (size) {
-                nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                    buffer_out + nbuffer_out, ememcpy, eshmemp, add, esendbufp,
-                    add2, size, parameters->ascii_out);
+                data_memcpy_reduce.type = ememcpy;
+                data_memcpy_reduce.buffer_type1 = eshmemo;
+                data_memcpy_reduce.buffer_number1 = 0;
+                data_memcpy_reduce.is_offset1 = 0;
+                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.buffer_type2 = esendbufp;
+                data_memcpy_reduce.buffer_number2 = 0;
+                data_memcpy_reduce.is_offset2 = 0;
+                data_memcpy_reduce.offset2 = add2;
+                data_memcpy_reduce.size = size;
+                nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
               }
             }
             add += size;
@@ -331,9 +402,17 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                       (node_size / counts_max) ==
                   i) {
                 if (size) {
-                  nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                      buffer_out + nbuffer_out, ereduce, eshmemp, add,
-                      esendbufp, add2, size, parameters->ascii_out);
+                  data_memcpy_reduce.type = ereduce;
+                  data_memcpy_reduce.buffer_type1 = eshmemo;
+                  data_memcpy_reduce.buffer_number1 = 0;
+                  data_memcpy_reduce.is_offset1 = 0;
+                  data_memcpy_reduce.offset1 = add; 
+                  data_memcpy_reduce.buffer_type2 = esendbufp;
+                  data_memcpy_reduce.buffer_number2 = 0;
+                  data_memcpy_reduce.is_offset2 = 0;
+                  data_memcpy_reduce.offset2 = add2;
+                  data_memcpy_reduce.size = size;
+                  nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
                 }
               }
               add += size;
@@ -359,10 +438,17 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                        size_level1[0] ==
                    0)) {
                 if (size_local) {
-                  nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                      buffer_out + nbuffer_out, ememcpy, eshmemp,
-                      add + add_local, esendbufp, add2 + add_local, size_local,
-                      parameters->ascii_out);
+                  data_memcpy_reduce.type = ememcpy;
+                  data_memcpy_reduce.buffer_type1 = eshmemo;
+                  data_memcpy_reduce.buffer_number1 = 0;
+                  data_memcpy_reduce.is_offset1 = 0;
+                  data_memcpy_reduce.offset1 = add + add_local; 
+                  data_memcpy_reduce.buffer_type2 = esendbufp;
+                  data_memcpy_reduce.buffer_number2 = 0;
+                  data_memcpy_reduce.is_offset2 = 0;
+                  data_memcpy_reduce.offset2 = add2 + add_local;
+                  data_memcpy_reduce.size = size_local;
+                  nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
                 }
               }
             }
@@ -391,10 +477,17 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                          size_level1[0] ==
                      i / k)) {
                   if (size_local) {
-                    nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                        buffer_out + nbuffer_out, ereduce, eshmemp,
-                        add + add_local, esendbufp, add2 + add_local,
-                        size_local, parameters->ascii_out);
+                    data_memcpy_reduce.type = ereduce;
+                    data_memcpy_reduce.buffer_type1 = eshmemo;
+                    data_memcpy_reduce.buffer_number1 = 0;
+                    data_memcpy_reduce.is_offset1 = 0;
+                    data_memcpy_reduce.offset1 = add + add_local; 
+                    data_memcpy_reduce.buffer_type2 = esendbufp;
+                    data_memcpy_reduce.buffer_number2 = 0;
+                    data_memcpy_reduce.is_offset2 = 0;
+                    data_memcpy_reduce.offset2 = add2 + add_local;
+                    data_memcpy_reduce.size = size_local;
+                    nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
                   }
                 }
               }
@@ -416,17 +509,25 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             size = mcounts[data[0][i].frac];
             add2 = moffsets[data[0][i].frac];
             if (size) {
-              nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                  buffer_out + nbuffer_out, ememcpy, eshmemp, add, esendbufp,
-                  add2, size, parameters->ascii_out);
+              data_memcpy_reduce.type = ememcpy;
+              data_memcpy_reduce.buffer_type1 = eshmemo;
+              data_memcpy_reduce.buffer_number1 = 0;
+              data_memcpy_reduce.is_offset1 = 0;
+              data_memcpy_reduce.offset1 = add; 
+              data_memcpy_reduce.buffer_type2 = esendbufp;
+              data_memcpy_reduce.buffer_number2 = 0;
+              data_memcpy_reduce.is_offset2 = 0;
+              data_memcpy_reduce.offset2 = add2;
+              data_memcpy_reduce.size = size;
+              nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
             }
             add += size;
           }
-          nbuffer_out += ext_mpi_write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row, parameters->ascii_out);
-          nbuffer_out += ext_mpi_write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row - node_row_size / 2, parameters->ascii_out);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_node_barrier, lrank_row);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_node_barrier, lrank_row - node_row_size / 2);
         } else {
-          nbuffer_out += ext_mpi_write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row, parameters->ascii_out);
-          nbuffer_out += ext_mpi_write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row + node_row_size / 2, parameters->ascii_out);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_node_barrier, lrank_row);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_node_barrier, lrank_row + node_row_size / 2);
           if (moffsets[num_nodes] < CACHE_LINE_SIZE) {
             add = CACHE_LINE_SIZE * lrank_row + ldispls[lrank_column];
           } else {
@@ -436,20 +537,28 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             size = mcounts[data[0][i].frac];
             add2 = moffsets[data[0][i].frac];
             if (size) {
-              nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                  buffer_out + nbuffer_out, ereduce, eshmemp, add, esendbufp,
-                  add2, size, parameters->ascii_out);
+              data_memcpy_reduce.type = ereduce;
+              data_memcpy_reduce.buffer_type1 = eshmemo;
+              data_memcpy_reduce.buffer_number1 = 0;
+              data_memcpy_reduce.is_offset1 = 0;
+              data_memcpy_reduce.offset1 = add; 
+              data_memcpy_reduce.buffer_type2 = esendbufp;
+              data_memcpy_reduce.buffer_number2 = 0;
+              data_memcpy_reduce.is_offset2 = 0;
+              data_memcpy_reduce.offset2 = add2;
+              data_memcpy_reduce.size = size;
+              nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
             }
             add += size;
           }
         }
         size = moffsets[num_nodes];
         for (step = node_row_size / 4, i = 1; step >= 1; step /= 2, i++) {
-          nbuffer_out += ext_mpi_write_assembler_line_sd(buffer_out + nbuffer_out, eset_node_barrier, lrank_row + i * node_row_size, parameters->ascii_out);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_node_barrier, lrank_row + i * node_row_size);
           if (lrank_row % (step * 2) < step) {
-            nbuffer_out += ext_mpi_write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row + step + i * node_row_size, parameters->ascii_out);
+            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_node_barrier, lrank_row + step + i * node_row_size);
           } else {
-            nbuffer_out += ext_mpi_write_assembler_line_sd(buffer_out + nbuffer_out, ewait_node_barrier, lrank_row - step + i * node_row_size, parameters->ascii_out);
+            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_node_barrier, lrank_row - step + i * node_row_size);
           }
           if (lrank_row < step) {
             if (size <= CACHE_LINE_SIZE) {
@@ -460,21 +569,39 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               add2 = add + size * step;
             }
             if (size) {
-              nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                  buffer_out + nbuffer_out, esreduce, eshmemp, add, eshmemp,
-                  add2, size, parameters->ascii_out);
+              data_memcpy_reduce.type = esreduce;
+              data_memcpy_reduce.buffer_type1 = eshmemo;
+              data_memcpy_reduce.buffer_number1 = 0;
+              data_memcpy_reduce.is_offset1 = 0;
+              data_memcpy_reduce.offset1 = add; 
+              data_memcpy_reduce.buffer_type2 = eshmemo;
+              data_memcpy_reduce.buffer_number2 = 0;
+              data_memcpy_reduce.is_offset2 = 0;
+              data_memcpy_reduce.offset2 = add2;
+              data_memcpy_reduce.size = size;
+              nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
             }
           }
         }
-        nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enext_node_barrier, parameters->ascii_out);
-        nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enext_node_barrier);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
         add=add2=0;
         size=moffsets[num_nodes];
         if (size <= CACHE_LINE_SIZE) size = CACHE_LINE_SIZE;
         size *= node_row_size;
         add=add2=size;
         size=0;
-        nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, ememcp_, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
+        data_memcpy_reduce.type = ememcp_;
+        data_memcpy_reduce.buffer_type1 = eshmemo;
+        data_memcpy_reduce.buffer_number1 = 0;
+        data_memcpy_reduce.is_offset1 = 0;
+        data_memcpy_reduce.offset1 = add; 
+        data_memcpy_reduce.buffer_type2 = eshmemo;
+        data_memcpy_reduce.buffer_number2 = 0;
+        data_memcpy_reduce.is_offset2 = 0;
+        data_memcpy_reduce.offset2 = add2;
+        data_memcpy_reduce.size = size;
+        nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         break;
       case 3:
 	tsize = 8;
@@ -486,15 +613,24 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           size = mcounts[data[0][i].frac];
           add2 = moffsets[data[0][i].frac];
           if (size) {
-            nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdd(
-                buffer_out + nbuffer_out, esmemcpy, eshmempbuffer_offseto, -1, eshmempbuffer_offsetcp, add, esendbufp,
-                add2, size, parameters->ascii_out);
+            data_memcpy_reduce.type = esmemcpy;
+            data_memcpy_reduce.buffer_type1 = eshmemo;
+            data_memcpy_reduce.buffer_number1 = 0;
+            data_memcpy_reduce.is_offset1 = 1;
+            data_memcpy_reduce.offset_number1 = -1;
+            data_memcpy_reduce.offset1 = add; 
+            data_memcpy_reduce.buffer_type2 = esendbufp;
+            data_memcpy_reduce.buffer_number2 = 0;
+            data_memcpy_reduce.is_offset2 = 0;
+            data_memcpy_reduce.offset2 = add2;
+            data_memcpy_reduce.size = size;
+            nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
           }
           add += size;
         }
         for (barriers_size = 0, step = 1; step < node_size; barriers_size++, step <<= 1) {
-          nbuffer_out += ext_mpi_write_assembler_line_ssdsd(buffer_out + nbuffer_out, eset_mem, eshmempbuffer_offseto, -1, eshmempbuffer_offsetcp, (barriers_size * node_size + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1, parameters->ascii_out);
-          nbuffer_out += ext_mpi_write_assembler_line_ssdsd(buffer_out + nbuffer_out, eunset_mem, eshmempbuffer_offseto, -1, eshmempbuffer_offsetcp, (barriers_size * node_size + (node_rank + step) % node_size) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1, parameters->ascii_out);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "ssdsd", eset_mem, eshmempbuffer_offseto, -1, eshmempbuffer_offsetcp, (barriers_size * node_size + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "ssdsd", eunset_mem, eshmempbuffer_offseto, -1, eshmempbuffer_offsetcp, (barriers_size * node_size + (node_rank + step) % node_size) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1);
           if (!(node_rank % (step << 1))) {
             add = ((barriers_size + 1) * node_size + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - tsize;
             add2 = (barriers_size * node_size + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - tsize;
@@ -506,9 +642,19 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             for (i = 0; i < size_level1[0]; i++) {
               size = mcounts[data[0][i].frac];
               if (size) {
-                nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-                    buffer_out + nbuffer_out, esmemcpy, eshmempbuffer_offseto, j, eshmempbuffer_offsetcp, add, eshmempbuffer_offseto, -1,
-                    eshmempbuffer_offsetcp, add2, size, parameters->ascii_out);
+                data_memcpy_reduce.type = esmemcpy;
+                data_memcpy_reduce.buffer_type1 = eshmemo;
+                data_memcpy_reduce.buffer_number1 = 0;
+                data_memcpy_reduce.is_offset1 = 1;
+                data_memcpy_reduce.offset_number1 = j;
+                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.buffer_type2 = eshmemo;
+                data_memcpy_reduce.buffer_number2 = 0;
+                data_memcpy_reduce.is_offset2 = 1;
+                data_memcpy_reduce.offset_number2 = -1;
+                data_memcpy_reduce.offset2 = add2;
+                data_memcpy_reduce.size = size;
+                nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
               }
               add += size;
 	      add2 += size;
@@ -524,9 +670,19 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               for (i = 0; i < size_level1[0]; i++) {
                 size = mcounts[data[0][i].frac];
                 if (size) {
-                  nbuffer_out += ext_mpi_write_assembler_line_ssdsdsdsdd(
-                      buffer_out + nbuffer_out, esreduce, eshmempbuffer_offseto, j, eshmempbuffer_offsetcp, add, eshmempbuffer_offseto, -1,
-                      eshmempbuffer_offsetcp, add2, size, parameters->ascii_out);
+                  data_memcpy_reduce.type = esreduce;
+                  data_memcpy_reduce.buffer_type1 = eshmemo;
+                  data_memcpy_reduce.buffer_number1 = 0;
+                  data_memcpy_reduce.is_offset1 = 1;
+                  data_memcpy_reduce.offset_number1 = j;
+                  data_memcpy_reduce.offset1 = add; 
+                  data_memcpy_reduce.buffer_type2 = eshmemo;
+                  data_memcpy_reduce.buffer_number2 = 0;
+                  data_memcpy_reduce.is_offset2 = 1;
+                  data_memcpy_reduce.offset_number2 = -1;
+                  data_memcpy_reduce.offset2 = add2;
+                  data_memcpy_reduce.size = size;
+                  nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
                 }
                 add += size;
 	        add2 += size;
@@ -534,13 +690,23 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
           }
         }
-        nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
         size=moffsets[num_nodes];
         if (size <= CACHE_LINE_SIZE) size = CACHE_LINE_SIZE + CACHE_LINE_SIZE - tsize;
         size *= node_row_size;
         add=add2=size;
         size=0;
-        nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, ememcp_, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
+        data_memcpy_reduce.type = ememcp_;
+        data_memcpy_reduce.buffer_type1 = eshmemo;
+        data_memcpy_reduce.buffer_number1 = 0;
+        data_memcpy_reduce.is_offset1 = 0;
+        data_memcpy_reduce.offset1 = add; 
+        data_memcpy_reduce.buffer_type2 = eshmemo;
+        data_memcpy_reduce.buffer_number2 = 0;
+        data_memcpy_reduce.is_offset2 = 0;
+        data_memcpy_reduce.offset2 = add2;
+        data_memcpy_reduce.size = size;
+        nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         break;
       case 4:
         nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, parameters->node_row_size, lrank_row, 0, buffer_out+nbuffer_out);
@@ -550,7 +716,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           block_offsets[0]=(lrank_row/2/i)*i;
           block_offsets[1]=(lrank_row/2/i)*i+i/2;
           nbuffer_out += reduce(parameters, data, size_level0, size_level1, type_size, i*2, lrank_row%(i*2), 2, block_offsets, buffer_out+nbuffer_out);
-          nbuffer_out += write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier, parameters->ascii_out);
+          nbuffer_out += write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
         }
         free(block_offsets);*/
         for (i = 0; i < size_level1[0]; i++) {
@@ -558,7 +724,17 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         }
         add=add2=total_message_size*(parameters->node_row_size/2-1);
         size=total_message_size;
-        nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, ememcp_, eshmemp, add, eshmemp, add2, size, parameters->ascii_out);
+        data_memcpy_reduce.type = ememcp_;
+        data_memcpy_reduce.buffer_type1 = eshmemo;
+        data_memcpy_reduce.buffer_number1 = 0;
+        data_memcpy_reduce.is_offset1 = 0;
+        data_memcpy_reduce.offset1 = add; 
+        data_memcpy_reduce.buffer_type2 = eshmemo;
+        data_memcpy_reduce.buffer_number2 = 0;
+        data_memcpy_reduce.is_offset2 = 0;
+        data_memcpy_reduce.offset2 = add2;
+        data_memcpy_reduce.size = size;
+        nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         break;
       case 5:
         if (collective_type == 2) {
@@ -828,11 +1004,19 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
     add2 = 0;
     size = iocounts[node_rank];
     if (size) {
-      nbuffer_out +=
-          sprintf(buffer_out + nbuffer_out,
-                  " MEMCPY SHMEM+ %d SENDBUF+ %d %d\n", add, add2, size);
+      data_memcpy_reduce.type = ememcpy;
+      data_memcpy_reduce.buffer_type1 = eshmemo;
+      data_memcpy_reduce.buffer_number1 = 0;
+      data_memcpy_reduce.is_offset1 = 0;
+      data_memcpy_reduce.offset1 = add; 
+      data_memcpy_reduce.buffer_type2 = esendbufp;
+      data_memcpy_reduce.buffer_number2 = 0;
+      data_memcpy_reduce.is_offset2 = 0;
+      data_memcpy_reduce.offset2 = add2;
+      data_memcpy_reduce.size = size;
+      nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
     }
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER\n");
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
   }
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   ext_mpi_delete_algorithm(size_level0, size_level1, data);
