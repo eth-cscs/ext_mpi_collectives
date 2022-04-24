@@ -15,7 +15,7 @@ int ext_mpi_generate_dummy(char *buffer_in, char *buffer_out) {
     nbuffer_in += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag) {
-      if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
+      if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
         nbuffer_out +=
             ext_mpi_write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
       }

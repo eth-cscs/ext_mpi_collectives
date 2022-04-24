@@ -302,6 +302,8 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
                                int node_num_cores_row, MPI_Comm comm_column,
                                int node_num_cores_column,
                                volatile char *shmem_gpu, int *gpu_byte_code_counter, int tag) {
+  struct line_memcpy_reduce data_memcpy_reduce;
+  struct line_irecv_isend data_irecv_isend;
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
@@ -369,7 +371,7 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
   ip += sizeof(struct header_byte_code);
   while ((integer1 = ext_mpi_read_line(buffer_in, line, ascii)) > 0) {
     buffer_in += integer1;
-    ext_mpi_read_assembler_line_sd(line, &estring1, &integer1, 0);
+    ext_mpi_read_assembler_line(line, 0, "sd", &estring1, &integer1);
 #ifdef NCCL_ENABLED
     if (estring1 == estart) {
       code_put_char(&ip, OPCODE_START, isdryrun);
@@ -431,8 +433,8 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
     }
     if (estring1 == ewaitany) {
       code_put_char(&ip, OPCODE_MPIWAITANY, isdryrun);
-      ext_mpi_read_assembler_line_sddsd(line, &estring1, &integer1,
-                                        &integer2, &estring2, &integer3, 0);
+      ext_mpi_read_assembler_line(line, 0, "sddsd", &estring1, &integer1,
+                                  &integer2, &estring2, &integer3);
       code_put_int(&ip, integer1, isdryrun);
       code_put_int(&ip, integer2, isdryrun);
       code_put_pointer(&ip, header->locmem, isdryrun);
@@ -450,8 +452,13 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
         }
       }
 #endif
-      ext_mpi_read_assembler_line_ssdddd(line, &estring1, &estring2, &integer1,
-                                         &integer2, &integer3, &integer4, 0);
+      ext_mpi_read_irecv_isend(line, &data_irecv_isend);
+      estring1 = data_irecv_isend.type;
+      estring2 = data_irecv_isend.buffer_type;
+      integer1 = data_irecv_isend.offset;
+      integer2 = data_irecv_isend.size;
+      integer3 = data_irecv_isend.partner;
+      integer4 = data_irecv_isend.tag;
       if (estring1 == eisend) {
 #ifdef GPU_ENABLED
         if (on_gpu && (header->num_cores == 1) && isend) {
@@ -506,7 +513,7 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
       }
     }
     if ((estring1 == eset_mem) || (estring1 == eunset_mem)){
-      ext_mpi_read_assembler_line_ssd(line, &estring1, &estring2, &integer1, 0);
+      ext_mpi_read_assembler_line(line, 0, "ssd", &estring1, &estring2, &integer1);
       if (estring1 == eset_mem){
         code_put_char(&ip, OPCODE_SET_MEM, isdryrun);
       }else{
@@ -524,8 +531,13 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
     }
     if ((estring1 == ememcpy) || (estring1 == ereduce) ||
         (estring1 == esreduce) || (estring1 == esmemcpy)) {
-      ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring1a, &integer1,
-                                         &estring2, &integer2, &integer3, 0);
+      ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
+      estring1 = data_memcpy_reduce.type;
+      estring1a = data_memcpy_reduce.buffer_type1;
+      integer1 = data_memcpy_reduce.offset1;
+      estring2 = data_memcpy_reduce.buffer_type2;
+      integer2 = data_memcpy_reduce.offset2;
+      integer3 = data_memcpy_reduce.size;
 #ifdef GPU_ENABLED
       if (!on_gpu) {
 #endif
