@@ -48,7 +48,7 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
     nbuffer_in += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag) {
-      if (ext_mpi_read_assembler_line_sd(line, &estring1, &integer1, 0) != -1) {
+      if (ext_mpi_read_assembler_line(line, 0, "sd", &estring1, &integer1) != -1) {
         if (!((estring1 == enop) ||
               (((estring1 == ewaitall)||(estring1 == ewaitany)) && (integer1 == 0)))) {
           if (estring1 != enode_barrier) {
