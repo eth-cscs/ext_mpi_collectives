@@ -760,7 +760,7 @@ int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
     *size_level0 = -1;
     do {
       nbuffer_in += flag = read_single_line(buffer_in + nbuffer_in, line);
-      if (flag && (ext_mpi_read_assembler_line_sd(line, &estring1, &stage, 1) >= 0)) {
+      if (flag && (ext_mpi_read_assembler_line(line, 1, "sd", &estring1, &stage) >= 0)) {
         if (estring1 == estage) {
           if (stage > *size_level0) {
             *size_level0 = stage;
@@ -789,7 +789,7 @@ int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
     nbuffer_in = 0;
     do {
       nbuffer_in += flag = read_single_line(buffer_in + nbuffer_in, line);
-      if (flag && (ext_mpi_read_assembler_line_sd(line, &estring1, &stage, 1) >= 0)) {
+      if (flag && (ext_mpi_read_assembler_line(line, 1, "sd", &estring1, &stage) >= 0)) {
         if (estring1 == estage) {
           ((*size_level1)[stage])++;
         } else {
@@ -809,7 +809,7 @@ int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
     stage_old = -1;
     do {
       nbuffer_in += flag = read_single_line(buffer_in + nbuffer_in, line);
-      if (flag && (ext_mpi_read_assembler_line_sd(line, &estring1, &stage, 1) >= 0)) {
+      if (flag && (ext_mpi_read_assembler_line(line, 1, "sd", &estring1, &stage) >= 0)) {
         if (estring1 == estage) {
           if (stage != stage_old) {
             i = 0;
@@ -1370,7 +1370,7 @@ int ext_mpi_read_irecv_isend(char *line, struct line_irecv_isend *data) {
   enum eassembler_type estring;
   int i;
   data->buffer_number = data->offset_number = -1;
-  if (ext_mpi_read_assembler_line_s(line, &data->type, 0) >= 0) {
+  if (ext_mpi_read_assembler_line(line, 0, "s", &data->type) >= 0) {
     if ((data->type == eirecv) || (data->type == eirec_) || (data->type == eisend) || (data->type == eisen_)) {
       i = ext_mpi_read_assembler_line(line, 0, "ssdddd", &data->type, &data->buffer_type, &data->offset, &data->size, &data->partner, &data->tag);
       if ((i < 0) || (data->buffer_type == eshmemo)) {
@@ -1394,7 +1394,7 @@ int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
   enum eassembler_type estring, estring2;
   int i;
   data->buffer_number1 = data->offset_number1 = data->buffer_number2 = data->offset_number2 = -1;
-  if (ext_mpi_read_assembler_line_s(line, &data->type, 0) >= 0) {
+  if (ext_mpi_read_assembler_line(line, 0, "s", &data->type) >= 0) {
     if ((data->type == ememcpy) || (data->type == ememcp_) || (data->type == ereduce) || (data->type == ereduc_) ||
         (data->type == esmemcpy) || (data->type == esmemcp_) || (data->type == esreduce) || (data->type == esreduc_)) {
       i = ext_mpi_read_assembler_line(line, 0, "ssd", &data->type, &data->buffer_type1, &data->offset1);

@@ -5,10 +5,12 @@
 #include <string.h>
 
 int ext_mpi_generate_use_recvbuf(char *buffer_in, char *buffer_out) {
-  int buffer_in_size = 0, buffer_out_size = 0, nbuffer_in = 0, nbuffer_out = 0, nbuffer_in_first, flag, flag3, o1, o2, size, partner, tag;
+  struct line_memcpy_reduce data_memcpy_reduce;
+  struct line_irecv_isend data_irecv_isend;
+  int buffer_in_size = 0, buffer_out_size = 0, nbuffer_in = 0, nbuffer_out = 0, nbuffer_in_first, flag, flag3;
   char line[1000];
   struct parameters_block *parameters;
-  enum eassembler_type estring1, estring2, estring3;
+  enum eassembler_type estring1;
   nbuffer_in += ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   nbuffer_in_first = nbuffer_in;
@@ -16,14 +18,14 @@ int ext_mpi_generate_use_recvbuf(char *buffer_in, char *buffer_out) {
     nbuffer_in_first += flag3 =
         ext_mpi_read_line(buffer_in + nbuffer_in_first, line, parameters->ascii_in);
     if (flag3) {
-      if (ext_mpi_read_assembler_line_ssd(line, &estring1, &estring2, &o1, 0) >= 0) {
+      if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
         if (estring1==ememcpy){
-          if (ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1, &estring3, &o2, &size, 0) >= 0) {
-            if ((estring3==esendbufp)&&(o2+size>buffer_in_size)){
-              buffer_in_size=o2+size;
+          if (ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce) >= 0) {
+            if ((data_memcpy_reduce.buffer_type2==esendbufp)&&(data_memcpy_reduce.offset2+data_memcpy_reduce.size>buffer_in_size)){
+              buffer_in_size=data_memcpy_reduce.offset2+data_memcpy_reduce.size;
             }
-            if ((estring2==erecvbufp)&&(o1+size>buffer_out_size)){
-              buffer_out_size=o1+size;
+            if ((data_memcpy_reduce.buffer_type1==erecvbufp)&&(data_memcpy_reduce.offset1+data_memcpy_reduce.size>buffer_out_size)){
+              buffer_out_size=data_memcpy_reduce.offset1+data_memcpy_reduce.size;
 	    }
           }
         }
@@ -35,30 +37,31 @@ int ext_mpi_generate_use_recvbuf(char *buffer_in, char *buffer_out) {
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag3) {
       flag = 1;
-      if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
+      if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
         if ((estring1 == ememcpy) || (estring1 == ememcp_) || (estring1 == ereduce) || (estring1 == ereduc_)) {
-          if (ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1, &estring3, &o2, &size, 0) >= 0) {
-            if (((estring3==esendbufp)&&parameters->in_place)||(estring2==erecvbufp)){
+          if (ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce) >= 0) {
+            if (((data_memcpy_reduce.buffer_type2==esendbufp)&&parameters->in_place)||(data_memcpy_reduce.buffer_type1==erecvbufp)){
               flag = 0;
             }else{
-              if ((estring2==eshmemp)&&(o1+size<=buffer_out_size)){
-                estring2=erecvbufp;
+              if ((data_memcpy_reduce.buffer_type1==eshmemo)&&(data_memcpy_reduce.offset1+data_memcpy_reduce.size<=buffer_out_size)){
+                data_memcpy_reduce.buffer_type1=erecvbufp;
                 flag = 2;
               }
-              if ((estring3==eshmemp)&&(o2+size<=buffer_out_size)){
-                estring3=erecvbufp;
+              if ((data_memcpy_reduce.buffer_type2==eshmemo)&&(data_memcpy_reduce.offset2+data_memcpy_reduce.size<=buffer_out_size)){
+                data_memcpy_reduce.buffer_type2=erecvbufp;
                 flag = 2;
               }
               if (flag == 2){
-                nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(buffer_out + nbuffer_out, estring1, estring2, o1, estring3, o2, size, parameters->ascii_out);
+                nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
                 flag = 0;
               }
             }
           }
         }else if ((estring1 == eirecv) || (estring1 == eirec_) || (estring1 == eisend) || (estring1 == eisen_)){
-          if (ext_mpi_read_assembler_line_ssdddd(line, &estring1, &estring2, &o1, &size, &partner, &tag, 0) >= 0) {
-            if ((estring2==eshmemp)&&(o1+size<=buffer_out_size)){
-              nbuffer_out += ext_mpi_write_assembler_line_ssdddd(buffer_out + nbuffer_out, estring1, erecvbufp, o1, size, partner, tag, parameters->ascii_out);
+          if (ext_mpi_read_irecv_isend(line, &data_irecv_isend) >= 0) {
+            if ((data_irecv_isend.buffer_type==eshmemo)&&(data_irecv_isend.offset+data_irecv_isend.size<=buffer_out_size)){
+              data_irecv_isend.buffer_type=erecvbufp;
+              nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
               flag = 0;
             }
           }

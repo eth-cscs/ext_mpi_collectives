@@ -51,7 +51,7 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
                 while (flag2 && (i = ext_mpi_read_line(buffer_in_loop + nline2, line2,
                                                        parameters->ascii_in))) {
                   nline2 += i;
-                  if (ext_mpi_read_assembler_line_s(line2, &estring1__, 0) >= 0) {
+                  if (ext_mpi_read_assembler_line(line2, 0, "s", &estring1__) >= 0) {
                     if (estring1__ == ewaitall) {
                       flag2 = 2;
                     }

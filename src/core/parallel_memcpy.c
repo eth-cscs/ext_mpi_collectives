@@ -67,7 +67,7 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
           p1 += flag = ext_mpi_read_line(buffer_in + nbuffer_in + p1, line2,
                                          parameters->ascii_in);
           ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
-          if ((flag > 0) && (ext_mpi_read_assembler_line_s(line2, &estring1, 0) >= 0)) {
+          if ((flag > 0) && (ext_mpi_read_assembler_line(line2, 0, "s", &estring1) >= 0)) {
             if (estring1 == enode_barrier) {
               flag = 0;
             }
