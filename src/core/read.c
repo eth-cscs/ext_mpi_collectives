@@ -1247,7 +1247,7 @@ int ext_mpi_read_assembler_line(char *buffer_in, int ascii, char *types, ...) {
         va_end(valist);
         return 0;
       }
-      for (; buffer_in[nbuffer_in] != '\n'; nbuffer_in++);
+      for (; (buffer_in[nbuffer_in] != '\n') && (buffer_in[nbuffer_in] != '\0'); nbuffer_in++);
     }
     va_end(valist);
     for (i = 0; (buffer_in[i] != '\0') && (buffer_in[i] != '\n'); i++)
