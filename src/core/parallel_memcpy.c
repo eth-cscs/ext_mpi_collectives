@@ -93,7 +93,7 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
       flag = 1;
       if ((data_memcpy_reduce.type == ememcpy) || (data_memcpy_reduce.type == ememcp_) ||
           (data_memcpy_reduce.type == ereduce) || (data_memcpy_reduce.type == ereduc_)) {
-        if ((data_memcpy_reduce.buffer_type1 == eshmemo) && (data_memcpy_reduce.buffer_type1 == eshmemo)) {
+        if ((data_memcpy_reduce.buffer_type1 == eshmemo) && (data_memcpy_reduce.buffer_type2 == eshmemo)) {
           if (node_rank < node_size) {
             add = ((data_memcpy_reduce_old.size / type_size) / node_size) * node_rank;
             i = (data_memcpy_reduce_old.size / type_size) / node_size;
