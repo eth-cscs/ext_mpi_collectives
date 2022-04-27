@@ -12,7 +12,7 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
   char line[1000], line2[1000];
   enum eassembler_type estring1;
   struct parameters_block *parameters;
-  data_memcpy_reduce.offset1 = data_memcpy_reduce.offset2 = data_memcpy_reduce_.offset1 = data_memcpy_reduce_.offset2 = 
+  data_memcpy_reduce.offset1 = data_memcpy_reduce.offset2 = data_memcpy_reduce_.offset1 = data_memcpy_reduce_.offset2 =
   data_memcpy_reduce_old.offset1 = data_memcpy_reduce_old.offset2 =
   data_memcpy_reduce.size = data_memcpy_reduce_.size = data_memcpy_reduce_old.size = -1;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
