@@ -1127,6 +1127,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   if (bit) {
     allreduce_short = 0;
   }
+allreduce_short = 0;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer1)
     goto error;
@@ -1275,8 +1276,11 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
-  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
-    goto error;
+//  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
+//    goto error;
+buffer_temp = buffer1;
+buffer1 = buffer2;
+buffer2 = buffer_temp;
   if (recursive) {
     if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
@@ -1287,8 +1291,11 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
     if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
       goto error;
   }
-  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
-    goto error;
+//  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
+//    goto error;
+buffer_temp = buffer1;
+buffer1 = buffer2;
+buffer2 = buffer_temp;
   if ((root >= 0) || (root <= -10)) {
     if (root >= 0) {
       if (ext_mpi_generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)
