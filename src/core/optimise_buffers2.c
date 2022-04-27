@@ -45,7 +45,7 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
           if (ext_mpi_read_line(buffer_in_loop + nbuffer_in, line2,
                                 parameters->ascii_in)) {
             if ((estring1 == eirecv) || (estring1 == eirec_)) {
-              if (ext_mpi_read_irecv_isend(line2, &data_irecv_isend) >= 0) {
+              if (ext_mpi_read_irecv_isend(line, &data_irecv_isend) >= 0) {
                 flag2 = 1;
                 nline2 = nbuffer_in;
                 while (flag2 && (i = ext_mpi_read_line(buffer_in_loop + nline2, line2,
@@ -59,7 +59,7 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
                         (estring1__ == ereturn)) {
                       flag2 = 0;
                       nline2 = -1;
-                    } else if ((ext_mpi_read_memcpy_reduce(line2, &data_memcpy_reduce) >= 0) && (data_memcpy_reduce.buffer_type1 != eshmemo)){
+                    } else if ((ext_mpi_read_memcpy_reduce(line2, &data_memcpy_reduce) >= 0) && (data_memcpy_reduce.buffer_type1 == erecvbufp)){
                       flag2 = 0;
                       nline2 = -1;
                     } else {
