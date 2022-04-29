@@ -11,12 +11,11 @@ extern "C" {
 int ext_mpi_gpu_sizeof_memhandle();
 int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
                                     MPI_Comm comm_column, int my_cores_per_node_column,
-                                    int size_shared, void *shmemid_gpu,
-                                    char **shmem_gpu);
+                                    int size_shared, int num_segments,
+                                    char ***shmem_gpu);
 int ext_mpi_gpu_destroy_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
-                                      MPI_Comm comm_column,
-                                      int my_cores_per_node_column,
-                                      char **shmem_gpu);
+                                      MPI_Comm comm_column, int my_cores_per_node_column,
+                                      int num_segments, char **shmem_gpu);
 
 #ifdef __cplusplus
 }

@@ -1370,12 +1370,12 @@ int ext_mpi_read_irecv_isend(char *line, struct line_irecv_isend *data) {
   enum eassembler_type estring;
   int i;
   data->buffer_number = data->offset_number = -1;
+  data->is_offset = 0;
   if (ext_mpi_read_assembler_line(line, 0, "s", &data->type) >= 0) {
     if ((data->type == eirecv) || (data->type == eirec_) || (data->type == eisend) || (data->type == eisen_)) {
       i = ext_mpi_read_assembler_line(line, 0, "ssdddd", &data->type, &data->buffer_type, &data->offset, &data->size, &data->partner, &data->tag);
       if ((i < 0) || (data->buffer_type == eshmemo)) {
         i = ext_mpi_read_assembler_line(line, 0, "ssdsdddd", &data->type, &data->buffer_type, &data->buffer_number, &estring, &data->offset, &data->size, &data->partner, &data->tag);
-        data->is_offset = 0;
         if ((i < 0) || (estring == ecpbuffer_offseto)) {
           data->is_offset = 1;
           if (ext_mpi_read_assembler_line(line, 0, "ssdsdsdddd", &data->type, &data->buffer_type, &data->buffer_number, &estring, &data->offset_number, &estring, &data->offset, &data->size, &data->partner, &data->tag) < 0) {
