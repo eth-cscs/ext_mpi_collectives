@@ -16,7 +16,11 @@ static struct DataItem** hashArray;
 static struct DataItem* dummyItem;
 
 static int hashCode(MPI_Request *key) {
-   return (unsigned long int)(*key) % SIZE;
+   int value = 0, i;
+   for (i = 0; i < sizeof(MPI_Request); i++){
+     value += ((char *)(key))[i];
+   }
+   return value % SIZE;
 }
 
 int ext_mpi_hash_search(MPI_Request *key) {
