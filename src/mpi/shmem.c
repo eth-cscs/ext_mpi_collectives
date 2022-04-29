@@ -49,24 +49,24 @@ static void gen_shared_name(MPI_Comm comm_node_row, MPI_Comm comm_node_column,
 }
 #endif
 
-int ext_mpi_destroy_shared_memory(int handle, int *size_shared, int *shmemid,
-                                  volatile char **shmem, char **comm_code) {
-  if (*shmem != NULL) {
+int ext_mpi_destroy_shared_memory(int handle, int size_shared, int num_segments, int *shmemid,
+                                  char **shmem, char **comm_code) {
+  int i;
+  for (i = 0; i < num_segments; i++) {
 #ifndef MMAP
     ext_mpi_node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
-    shmdt((void *)*shmem);
+    shmdt((void *)(shmem[i]));
     ext_mpi_node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
-    if (*shmemid != -1) {
-      shmctl(*shmemid, IPC_RMID, NULL);
+    if (shmemid[i] != -1) {
+      shmctl(shmemid[i], IPC_RMID, NULL);
     }
     ext_mpi_node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
 #else
-    munmap((void *)*shmem, *size_shared);
+    munmap((void *)(shmem[i]), size_shared);
 #endif
-    *size_shared = 0;
-    *shmem = NULL;
-    *shmemid = -1;
   }
+  free(shmemid);
+  free(shmem);
   return (0);
 }
 
@@ -75,10 +75,10 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
                                 MPI_Comm comm_row, int my_cores_per_node_row,
                                 MPI_Comm comm_column,
                                 int my_cores_per_node_column, int size_shared,
-                                int *size_shared_old, int *shmemid,
-                                volatile char **shmem, char fill, int numfill,
+                                int num_segments, int **shmemid,
+                                char ***shmem, char fill, int numfill,
 				char **comm_code) {
-  int my_mpi_rank_row, my_mpi_size_row, my_mpi_rank_column, my_mpi_size_column;
+  int my_mpi_rank_row, my_mpi_size_row, my_mpi_rank_column, my_mpi_size_column, i;
 #ifdef MMAP
   static int shmem_fd = -1;
   static char shmem_name[10000];
@@ -101,72 +101,75 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
   } else {
     *shmem_comm_node_column = MPI_COMM_NULL;
   }
-  ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
+  *shmemid = (int *)malloc(num_segments * sizeof(int));
+  *shmem = (char **)malloc(num_segments * sizeof(char *));
+  for (i = 0; i < num_segments; i++) {
+    ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
 #ifndef MMAP
-  if ((my_mpi_rank_row % my_cores_per_node_row == 0) &&
-      (my_mpi_rank_column % my_cores_per_node_column == 0)) {
-    (*shmemid) = shmget(IPC_PRIVATE, size_shared, IPC_CREAT | 0600);
-  }
-  ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-  MPI_Bcast(shmemid, 1, MPI_INT, 0, *shmem_comm_node_row);
-  if (*shmem_comm_node_column != MPI_COMM_NULL) {
-    MPI_Bcast(shmemid, 1, MPI_INT, 0, *shmem_comm_node_column);
-  }
-  ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-  (*shmem) = (char *)shmat(*shmemid, NULL, 0);
-  if ((*shmem) == NULL)
-    goto error;
-  ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-  if (!((my_mpi_rank_row % my_cores_per_node_row == 0) &&
-        (my_mpi_rank_column % my_cores_per_node_column == 0))) {
-    (*shmemid) = -1;
-  } else {
-    shmctl(*shmemid, IPC_RMID, NULL);
-    memset((void *)(*shmem + (size_shared - numfill)), fill, numfill);
-  }
-  (*shmemid) = -1;
+    if ((my_mpi_rank_row % my_cores_per_node_row == 0) &&
+        (my_mpi_rank_column % my_cores_per_node_column == 0)) {
+      (*shmemid)[i] = shmget(IPC_PRIVATE, size_shared, IPC_CREAT | 0600);
+    }
+    ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
+    MPI_Bcast(&((*shmemid)[i]), 1, MPI_INT, 0, *shmem_comm_node_row);
+    if (*shmem_comm_node_column != MPI_COMM_NULL) {
+      MPI_Bcast(&((*shmemid)[i]), 1, MPI_INT, 0, *shmem_comm_node_column);
+    }
+    ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
+    (*shmem)[i] = (char *)shmat((*shmemid)[i], NULL, 0);
+    if ((*shmem)[i] == NULL)
+     goto error;
+    ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
+    if (!((my_mpi_rank_row % my_cores_per_node_row == 0) &&
+          (my_mpi_rank_column % my_cores_per_node_column == 0))) {
+      (*shmemid)[i] = -1;
+    } else {
+      shmctl((*shmemid)[i], IPC_RMID, NULL);
+      memset((void *)((*shmem)[i] + (size_shared - numfill)), fill, numfill);
+    }
+    (*shmemid)[i] = -1;
 #else
-  if (numfill > 0) {
-    sprintf(shmem_name, "/ext_mpi");
-  } else {
-    sprintf(shmem_name, "/ext_mpi_");
-  }
-  gen_shared_name(shmem_comm_node_row, shmem_comm_node_column, shmem_name);
-  if ((my_mpi_rank_row % my_cores_per_node_row == 0) &&
-      (my_mpi_rank_column % my_cores_per_node_column == 0)) {
-    shmem_fd = shm_open(shmem_name, O_RDWR | O_CREAT, 0600);
-    if (shmem_fd == -1) {
+    if (numfill > 0) {
+      sprintf(shmem_name, "/ext_mpi");
+    } else {
+      sprintf(shmem_name, "/ext_mpi_");
+    }
+    gen_shared_name(shmem_comm_node_row, shmem_comm_node_column, shmem_name);
+    if ((my_mpi_rank_row % my_cores_per_node_row == 0) &&
+        (my_mpi_rank_column % my_cores_per_node_column == 0)) {
+      shmem_fd = shm_open(shmem_name, O_RDWR | O_CREAT, 0600);
+      if (shmem_fd == -1) {
+        printf("not enough shared memory\n");
+        exit(2);
+      }
+      if (ftruncate(shmem_fd, size_shared) != 0) {
+        printf("not enough shared memory\n");
+        exit(2);
+      }
+    }
+    ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
+    if (!((my_mpi_rank_row % my_cores_per_node_row == 0) &&
+          (my_mpi_rank_column % my_cores_per_node_column == 0))) {
+      shmem_fd = shm_open(shmem_name, O_RDWR, 0600);
+      if (shmem_fd == -1) {
+        printf("not enough shared memory\n");
+        exit(2);
+      }
+    }
+    ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
+    (*shmem)[i] = (char *)mmap(NULL, size_shared, PROT_READ | PROT_WRITE, MAP_SHARED,
+                               shmem_fd, 0);
+    if ((*shmem)[i] == MAP_FAILED) {
       printf("not enough shared memory\n");
       exit(2);
     }
-    if (ftruncate(shmem_fd, size_shared) != 0) {
-      printf("not enough shared memory\n");
-      exit(2);
-    }
-  }
-  ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-  if (!((my_mpi_rank_row % my_cores_per_node_row == 0) &&
-        (my_mpi_rank_column % my_cores_per_node_column == 0))) {
-    shmem_fd = shm_open(shmem_name, O_RDWR, 0600);
-    if (shmem_fd == -1) {
-      printf("not enough shared memory\n");
-      exit(2);
-    }
-  }
-  ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-  *shmem = (char *)mmap(NULL, size_shared, PROT_READ | PROT_WRITE, MAP_SHARED,
-                        shmem_fd, 0);
-  if (shmem == MAP_FAILED) {
-    printf("not enough shared memory\n");
-    exit(2);
-  }
-  close(shmem_fd);
-  ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-  memset((void *)(*shmem + (size_shared - numfill)), fill, numfill);
-  (*shmemid) = -1;
+    close(shmem_fd);
+    ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
+    memset((void *)((*shmem)[i] + (size_shared - numfill)), fill, numfill);
+    (*shmemid)[i] = -1;
 #endif
+  }
   ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-  *size_shared_old = size_shared;
   return 0;
 error:
   return ERROR_SHMEM;

@@ -425,7 +425,7 @@ static void exec_waitany(int num_wait, int num_red_max, volatile void *p3, char 
 
 static int exec_native(char *ip, char **ip_exec, int active_wait) {
   char instruction, instruction2; //, *r_start, *r_temp, *ipl;
-  volatile void *p1, *p2, *p3;
+  void *p1, *p2, *p3;
   //  char *rlocmem=NULL;
   int i1, i2; //, n_r, s_r, i;
   struct header_byte_code *header;
@@ -719,9 +719,9 @@ int EXT_MPI_Wait_native(int handle) {
 }
 
 int EXT_MPI_Done_native(int handle) {
-  volatile char *shmem;
+  char **shmem;
   char *ip, *locmem;
-  int shmem_size, shmemid, i;
+  int shmem_size, *shmemid, i;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column, shmem_comm_node_row2,
       shmem_comm_node_column2;
   struct header_byte_code *header;
@@ -744,7 +744,7 @@ int EXT_MPI_Done_native(int handle) {
   }
   ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
-  ext_mpi_destroy_shared_memory(handle, &shmem_size, &shmemid, &shmem, comm_code);
+  ext_mpi_destroy_shared_memory(handle, shmem_size, 1, shmemid, shmem, comm_code);
   ext_mpi_node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
   free(locmem);
   free(comm_code[handle]);
@@ -768,7 +768,7 @@ int EXT_MPI_Done_native(int handle) {
     }
     ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
-    ext_mpi_destroy_shared_memory(handle + 1, &shmem_size, &shmemid, &shmem, comm_code);
+    ext_mpi_destroy_shared_memory(handle + 1, shmem_size, 1, shmemid, shmem, comm_code);
     ext_mpi_node_barrier_mpi(handle + 1, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
     free(locmem);
     free(comm_code[handle + 1]);
@@ -810,11 +810,11 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
          nbuffer_in = 0, tag;
   char *ip, *locmem = NULL;
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
-  int locmem_size, shmem_size, shmemid;
-  volatile char *shmem = NULL;
+  int locmem_size, shmem_size = 0, *shmemid = NULL;
+  char **shmem = NULL;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column;
   int gpu_byte_code_counter = 0;
-  volatile char *shmem_gpu = NULL;
+  char *shmem_gpu = NULL;
 #ifdef GPU_ENABLED
   char *shmemid_gpu = NULL;
 #endif
@@ -831,8 +831,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   locmem = (char *)malloc(locmem_size);
   if (!locmem)
     goto error;
-  shmem_size = -111;
-  shmemid = -1;
   for (barriers_size = 0, step = 1;
        step <= my_cores_per_node_row * my_cores_per_node_column;
        barriers_size++, step *= 2)
@@ -842,10 +840,10 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                    (NUM_BARRIERS + 1) * CACHE_LINE_SIZE;
   barriers_size += NUM_BARRIERS * CACHE_LINE_SIZE;
   barriers_size = (barriers_size/CACHE_LINE_SIZE + 1) * CACHE_LINE_SIZE;
+  shmem_size = my_size_shared_buf + barriers_size * 2;
   if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
                                   comm_row, my_cores_per_node_row, comm_column,
-                                  my_cores_per_node_column,
-                                  my_size_shared_buf + barriers_size * 2, &shmem_size,
+                                  my_cores_per_node_column, shmem_size, 1,
                                   &shmemid, &shmem, 0, barriers_size * 2, comm_code) < 0)
     goto error_shared;
   shmem_size -= barriers_size;
@@ -898,10 +896,10 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     ip = comm_code[handle + 1] = (char *)malloc(code_size);
     if (!ip)
       goto error;
+    shmem_size = my_size_shared_buf + barriers_size * 2;
     if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
                                     comm_row, my_cores_per_node_row, comm_column,
-                                    my_cores_per_node_column,
-                                    my_size_shared_buf + barriers_size * 2, &shmem_size,
+                                    my_cores_per_node_column, shmem_size, 1,
                                     &shmemid, &shmem, 0, barriers_size * 2, comm_code) < 0)
       goto error_shared;
     shmem_size -= barriers_size;
@@ -933,14 +931,14 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
 #endif
   return handle;
 error:
-  ext_mpi_destroy_shared_memory(handle, &shmem_size, &shmemid, &shmem, comm_code);
+  ext_mpi_destroy_shared_memory(handle, shmem_size, 1, shmemid, shmem, comm_code);
   free(global_ranks);
 #ifdef GPU_ENABLED
   free(shmemid_gpu);
 #endif
   return ERROR_MALLOC;
 error_shared:
-  ext_mpi_destroy_shared_memory(handle, &shmem_size, &shmemid, &shmem, comm_code);
+  ext_mpi_destroy_shared_memory(handle, shmem_size, 1, shmemid, shmem, comm_code);
   free(global_ranks);
 #ifdef GPU_ENABLED
   free(shmemid_gpu);

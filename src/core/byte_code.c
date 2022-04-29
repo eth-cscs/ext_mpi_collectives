@@ -293,15 +293,15 @@ static void flush_complete(char **ip, struct gpu_stream **streams,
 }
 #endif
 
-int ext_mpi_generate_byte_code(volatile char *shmem,
-                               int shmem_size, int shmemid,
+int ext_mpi_generate_byte_code(char **shmem,
+                               int shmem_size, int *shmemid,
                                char *buffer_in, char *sendbuf, char *recvbuf,
                                int my_size_shared_buf, int barriers_size, char *locmem,
                                int reduction_op, int *global_ranks,
                                char *code_out, MPI_Comm comm_row,
                                int node_num_cores_row, MPI_Comm comm_column,
                                int node_num_cores_column,
-                               volatile char *shmem_gpu, int *gpu_byte_code_counter, int tag) {
+                               char *shmem_gpu, int *gpu_byte_code_counter, int tag) {
   struct line_memcpy_reduce data_memcpy_reduce;
   struct line_irecv_isend data_irecv_isend;
   char line[1000], *ip = code_out;
@@ -330,7 +330,7 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
   } else {
     header = (struct header_byte_code *)ip;
     header->barrier_counter = 0;
-    header->barrier_shmem = shmem + my_size_shared_buf;
+    header->barrier_shmem = shmem[0] + my_size_shared_buf;
     header->barrier_shmem_size = barriers_size;
     header->shmemid = shmemid;
     header->locmem = locmem;
@@ -476,7 +476,7 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
         if (estring2 == erecvbufp) {
           code_put_pointer(&ip, recvbuf + integer1, isdryrun);
         } else {
-          code_put_pointer(&ip, ((char *)shmem) + integer1, isdryrun);
+          code_put_pointer(&ip, (void *)(shmem[data_irecv_isend.buffer_number] + integer1), isdryrun);
         }
       }
       code_put_int(&ip, integer2, isdryrun);
@@ -525,7 +525,7 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
         if (estring2 == erecvbufp) {
           code_put_pointer(&ip, recvbuf + integer1, isdryrun);
         } else {
-          code_put_pointer(&ip, ((char *)shmem) + integer1, isdryrun);
+          code_put_pointer(&ip, (void *)(shmem[0] + integer1), isdryrun);
         }
       }
     }
@@ -567,7 +567,7 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
           if (estring1a == erecvbufp) {
             code_put_pointer(&ip, recvbuf + integer1, isdryrun);
           } else {
-            code_put_pointer(&ip, ((char *)shmem) + integer1, isdryrun);
+            code_put_pointer(&ip, (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1), isdryrun);
           }
         }
         if (estring2 == esendbufp) {
@@ -576,7 +576,7 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
           if (estring2 == erecvbufp) {
             code_put_pointer(&ip, recvbuf + integer2, isdryrun);
           } else {
-            code_put_pointer(&ip, ((char *)shmem) + integer2, isdryrun);
+            code_put_pointer(&ip, (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2), isdryrun);
           }
         }
         code_put_int(&ip, integer3, isdryrun);
