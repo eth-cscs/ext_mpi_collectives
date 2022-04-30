@@ -147,7 +147,7 @@ static int delete_env() {
 }
 
 static int get_num_tasks_per_socket(MPI_Comm comm) {
-  int my_mpi_size, my_mpi_rank, num_cores, *all_num_cores, i, j;
+  int my_mpi_size = -1, my_mpi_rank = -1, num_cores = -1, *all_num_cores, i, j;
   MPI_Comm comm_node;
   MPI_Info info;
   if (num_tasks_per_socket > 0) {
@@ -162,6 +162,9 @@ static int get_num_tasks_per_socket(MPI_Comm comm) {
   MPI_Comm_size(comm_node, &num_cores);
   MPI_Comm_free(&comm_node);
   all_num_cores = (int*)malloc((my_mpi_size+1)*sizeof(int));
+  for (i=0; i<my_mpi_size+1; i++) {
+    all_num_cores[i] = 0;
+  }
   if (!all_num_cores) goto error;
   MPI_Allgather(&num_cores, 1, MPI_INT, all_num_cores, 1, MPI_INT, comm);
   for (j=all_num_cores[0]; j>=1; j--){

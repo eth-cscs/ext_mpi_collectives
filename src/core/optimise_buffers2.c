@@ -20,6 +20,7 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
   buffer_in_start = buffer_in + nbuffer_in;
   buffer_out_start = buffer_out + nbuffer_out;
   buffer_temp = (char *)malloc(MAX_BUFFER_SIZE);
+data_memcpy_reduce.buffer_type1 = enop;
   if (buffer_temp == NULL)
     goto error;
   do {

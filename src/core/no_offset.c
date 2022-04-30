@@ -16,14 +16,15 @@ int ext_mpi_generate_no_offset(char *buffer_in, char *buffer_out) {
   buffer_offset = parameters->shmem_buffer_offset;
   parameters->shmem_max = buffer_offset[buffer_offset_max - 1];
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
+data_memcpy_reduce.type = enop;
   do {
     nbuffer_in += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag > 0) {
       if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
-        if ((ext_mpi_read_irecv_isend(line, &data_irecv_isend) >= 0) ||
-	     ((estring1 == eirecv) || (estring1 == eisend) ||
-             (estring1 == eirec_) || (estring1 == eisen_))) {
+        if (((estring1 == eirecv) || (estring1 == eisend) ||
+             (estring1 == eirec_) || (estring1 == eisen_)) &&
+            (ext_mpi_read_irecv_isend(line, &data_irecv_isend) >= 0)) {
           if (data_irecv_isend.is_offset) {
             data_irecv_isend.is_offset = 0;
             if (data_irecv_isend.offset_number >= 0) {
