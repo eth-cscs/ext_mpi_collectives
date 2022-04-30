@@ -5,7 +5,7 @@
 #include "constants.h"
 #include "hash_table.h"
 
-#define SIZE 50
+#define SIZE 256
 
 struct DataItem {
    int data;   
@@ -16,26 +16,27 @@ static struct DataItem** hashArray;
 static struct DataItem* dummyItem;
 
 static int hashCode(MPI_Request *key) {
-   int value = 0, i;
+   unsigned char value = 0;
+   int i;
    for (i = 0; i < sizeof(MPI_Request); i++){
-     value += ((char *)(key))[i];
+     value += ((unsigned char *)(key))[i];
    }
-   return value % SIZE;
+   return value;
 }
 
 int ext_mpi_hash_search(MPI_Request *key) {
    int hashIndex = hashCode(key);  
-	
+
    while(hashArray[hashIndex] != NULL) {
-	
+
       if(hashArray[hashIndex]->key == *key)
          return hashArray[hashIndex]->data;
-			
+
       ++hashIndex;
-		
+
       hashIndex %= SIZE;
    }        
-	
+
    return -1;
 }
 
@@ -63,6 +64,7 @@ int ext_mpi_hash_delete(MPI_Request *key) {
 	
       if(hashArray[hashIndex]->key == *key) {
          int temp = hashArray[hashIndex]->data;
+	 free(hashArray[hashIndex]);
          hashArray[hashIndex] = dummyItem;
          return temp;
       }
