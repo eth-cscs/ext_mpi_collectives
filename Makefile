@@ -5,11 +5,11 @@ LIBNAME = ext_mpi_collectives
 INCLUDE = -I. -Iinclude/core -Iinclude/mpi
 
 DEPDIR := .deps
-directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(BIN); mkdir -p lib))
+directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(DEPDIR)/fortran; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(OBJ)/fortran; mkdir -p $(BIN); mkdir -p lib))
 
 CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DM_MAP
 
-SOURCES = $(wildcard src/core/*.c src/mpi/*.c)
+SOURCES = $(wildcard src/core/*.c src/mpi/*.c src/fortran/*.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))
 TESTS = $(wildcard tests/*.c)
 TESTSBIN = $(subst tests,bin,$(TESTS:.c=.x))
@@ -18,7 +18,7 @@ TESTSBIN = $(subst tests,bin,$(TESTS:.c=.x))
 all: lib/libext_mpi_collectives.a $(TESTSBIN)
 
 lib/libext_mpi_collectives.a: $(OBJECTS)
-	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o
+	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/fortran/*.o
 
 DEPFLAGS = -MMD -MT $(OBJ)/$*.o -MP -MF $(DEPDIR)/$*.d
 DEPENDENCIES = $(subst src,$(DEPDIR),$(SOURCES:.c=.d))
@@ -46,4 +46,4 @@ obj/%.o: .deps/%.d
 	$(CC) -c $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) src/$*.c
 
 clean:
-	rm $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/gpu/*.o lib/lib$(LIBNAME).a $(BIN)/* latency_bandwidth.tmp node_size_threshold.tmp
+	rm $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/gpu/*.o $(OBJ)/fortran/*.o lib/lib$(LIBNAME).a $(BIN)/* latency_bandwidth.tmp node_size_threshold.tmp
