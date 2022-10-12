@@ -242,7 +242,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           data_memcpy_reduce.buffer_type1 = eshmemo;
           data_memcpy_reduce.buffer_number1 = 0;
           data_memcpy_reduce.is_offset1 = 0;
-          data_memcpy_reduce.offset1 = add; 
+          data_memcpy_reduce.offset1 = add;
           data_memcpy_reduce.buffer_type2 = esendbufp;
           data_memcpy_reduce.buffer_number2 = 0;
           data_memcpy_reduce.is_offset2 = 0;
@@ -272,7 +272,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             data_memcpy_reduce.buffer_type1 = eshmemo;
             data_memcpy_reduce.buffer_number1 = 0;
             data_memcpy_reduce.is_offset1 = 0;
-            data_memcpy_reduce.offset1 = add; 
+            data_memcpy_reduce.offset1 = add;
             data_memcpy_reduce.buffer_type2 = esendbufp;
             data_memcpy_reduce.buffer_number2 = 0;
             data_memcpy_reduce.is_offset2 = 0;
@@ -298,7 +298,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                 data_memcpy_reduce.buffer_type1 = eshmemo;
                 data_memcpy_reduce.buffer_number1 = 0;
                 data_memcpy_reduce.is_offset1 = 0;
-                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.offset1 = add;
                 data_memcpy_reduce.buffer_type2 = eshmemo;
                 data_memcpy_reduce.buffer_number2 = 0;
                 data_memcpy_reduce.is_offset2 = 0;
@@ -310,7 +310,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                 data_memcpy_reduce.buffer_type1 = eshmemo;
                 data_memcpy_reduce.buffer_number1 = 0;
                 data_memcpy_reduce.is_offset1 = 0;
-                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.offset1 = add;
                 data_memcpy_reduce.buffer_type2 = eshmemo;
                 data_memcpy_reduce.buffer_number2 = 0;
                 data_memcpy_reduce.is_offset2 = 0;
@@ -336,7 +336,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                 data_memcpy_reduce.buffer_type1 = eshmemo;
                 data_memcpy_reduce.buffer_number1 = 0;
                 data_memcpy_reduce.is_offset1 = 0;
-                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.offset1 = add;
                 data_memcpy_reduce.buffer_type2 = eshmemo;
                 data_memcpy_reduce.buffer_number2 = 0;
                 data_memcpy_reduce.is_offset2 = 0;
@@ -348,7 +348,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                 data_memcpy_reduce.buffer_type1 = eshmemo;
                 data_memcpy_reduce.buffer_number1 = 0;
                 data_memcpy_reduce.is_offset1 = 0;
-                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.offset1 = add;
                 data_memcpy_reduce.buffer_type2 = eshmemo;
                 data_memcpy_reduce.buffer_number2 = 0;
                 data_memcpy_reduce.is_offset2 = 0;
@@ -380,7 +380,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                 data_memcpy_reduce.buffer_type1 = eshmemo;
                 data_memcpy_reduce.buffer_number1 = 0;
                 data_memcpy_reduce.is_offset1 = 0;
-                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.offset1 = add;
                 data_memcpy_reduce.buffer_type2 = esendbufp;
                 data_memcpy_reduce.buffer_number2 = 0;
                 data_memcpy_reduce.is_offset2 = 0;
@@ -406,7 +406,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                   data_memcpy_reduce.buffer_type1 = eshmemo;
                   data_memcpy_reduce.buffer_number1 = 0;
                   data_memcpy_reduce.is_offset1 = 0;
-                  data_memcpy_reduce.offset1 = add; 
+                  data_memcpy_reduce.offset1 = add;
                   data_memcpy_reduce.buffer_type2 = esendbufp;
                   data_memcpy_reduce.buffer_number2 = 0;
                   data_memcpy_reduce.is_offset2 = 0;
@@ -442,7 +442,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                   data_memcpy_reduce.buffer_type1 = eshmemo;
                   data_memcpy_reduce.buffer_number1 = 0;
                   data_memcpy_reduce.is_offset1 = 0;
-                  data_memcpy_reduce.offset1 = add + add_local; 
+                  data_memcpy_reduce.offset1 = add + add_local;
                   data_memcpy_reduce.buffer_type2 = esendbufp;
                   data_memcpy_reduce.buffer_number2 = 0;
                   data_memcpy_reduce.is_offset2 = 0;
@@ -481,7 +481,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                     data_memcpy_reduce.buffer_type1 = eshmemo;
                     data_memcpy_reduce.buffer_number1 = 0;
                     data_memcpy_reduce.is_offset1 = 0;
-                    data_memcpy_reduce.offset1 = add + add_local; 
+                    data_memcpy_reduce.offset1 = add + add_local;
                     data_memcpy_reduce.buffer_type2 = esendbufp;
                     data_memcpy_reduce.buffer_number2 = 0;
                     data_memcpy_reduce.is_offset2 = 0;
@@ -513,7 +513,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               data_memcpy_reduce.buffer_type1 = eshmemo;
               data_memcpy_reduce.buffer_number1 = 0;
               data_memcpy_reduce.is_offset1 = 0;
-              data_memcpy_reduce.offset1 = add; 
+              data_memcpy_reduce.offset1 = add;
               data_memcpy_reduce.buffer_type2 = esendbufp;
               data_memcpy_reduce.buffer_number2 = 0;
               data_memcpy_reduce.is_offset2 = 0;
@@ -541,7 +541,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               data_memcpy_reduce.buffer_type1 = eshmemo;
               data_memcpy_reduce.buffer_number1 = 0;
               data_memcpy_reduce.is_offset1 = 0;
-              data_memcpy_reduce.offset1 = add; 
+              data_memcpy_reduce.offset1 = add;
               data_memcpy_reduce.buffer_type2 = esendbufp;
               data_memcpy_reduce.buffer_number2 = 0;
               data_memcpy_reduce.is_offset2 = 0;
@@ -573,7 +573,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               data_memcpy_reduce.buffer_type1 = eshmemo;
               data_memcpy_reduce.buffer_number1 = 0;
               data_memcpy_reduce.is_offset1 = 0;
-              data_memcpy_reduce.offset1 = add; 
+              data_memcpy_reduce.offset1 = add;
               data_memcpy_reduce.buffer_type2 = eshmemo;
               data_memcpy_reduce.buffer_number2 = 0;
               data_memcpy_reduce.is_offset2 = 0;
@@ -595,7 +595,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         data_memcpy_reduce.buffer_type1 = eshmemo;
         data_memcpy_reduce.buffer_number1 = 0;
         data_memcpy_reduce.is_offset1 = 0;
-        data_memcpy_reduce.offset1 = add; 
+        data_memcpy_reduce.offset1 = add;
         data_memcpy_reduce.buffer_type2 = eshmemo;
         data_memcpy_reduce.buffer_number2 = 0;
         data_memcpy_reduce.is_offset2 = 0;
@@ -618,7 +618,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             data_memcpy_reduce.buffer_number1 = 0;
             data_memcpy_reduce.is_offset1 = 1;
             data_memcpy_reduce.offset_number1 = -1;
-            data_memcpy_reduce.offset1 = add; 
+            data_memcpy_reduce.offset1 = add;
             data_memcpy_reduce.buffer_type2 = esendbufp;
             data_memcpy_reduce.buffer_number2 = 0;
             data_memcpy_reduce.is_offset2 = 0;
@@ -647,7 +647,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                 data_memcpy_reduce.buffer_number1 = 0;
                 data_memcpy_reduce.is_offset1 = 1;
                 data_memcpy_reduce.offset_number1 = j;
-                data_memcpy_reduce.offset1 = add; 
+                data_memcpy_reduce.offset1 = add;
                 data_memcpy_reduce.buffer_type2 = eshmemo;
                 data_memcpy_reduce.buffer_number2 = 0;
                 data_memcpy_reduce.is_offset2 = 1;
@@ -675,7 +675,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                   data_memcpy_reduce.buffer_number1 = 0;
                   data_memcpy_reduce.is_offset1 = 1;
                   data_memcpy_reduce.offset_number1 = j;
-                  data_memcpy_reduce.offset1 = add; 
+                  data_memcpy_reduce.offset1 = add;
                   data_memcpy_reduce.buffer_type2 = eshmemo;
                   data_memcpy_reduce.buffer_number2 = 0;
                   data_memcpy_reduce.is_offset2 = 1;
@@ -700,7 +700,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         data_memcpy_reduce.buffer_type1 = eshmemo;
         data_memcpy_reduce.buffer_number1 = 0;
         data_memcpy_reduce.is_offset1 = 0;
-        data_memcpy_reduce.offset1 = add; 
+        data_memcpy_reduce.offset1 = add;
         data_memcpy_reduce.buffer_type2 = eshmemo;
         data_memcpy_reduce.buffer_number2 = 0;
         data_memcpy_reduce.is_offset2 = 0;
@@ -728,7 +728,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         data_memcpy_reduce.buffer_type1 = eshmemo;
         data_memcpy_reduce.buffer_number1 = 0;
         data_memcpy_reduce.is_offset1 = 0;
-        data_memcpy_reduce.offset1 = add; 
+        data_memcpy_reduce.offset1 = add;
         data_memcpy_reduce.buffer_type2 = eshmemo;
         data_memcpy_reduce.buffer_number2 = 0;
         data_memcpy_reduce.is_offset2 = 0;
@@ -1008,7 +1008,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       data_memcpy_reduce.buffer_type1 = eshmemo;
       data_memcpy_reduce.buffer_number1 = 0;
       data_memcpy_reduce.is_offset1 = 0;
-      data_memcpy_reduce.offset1 = add; 
+      data_memcpy_reduce.offset1 = add;
       data_memcpy_reduce.buffer_type2 = esendbufp;
       data_memcpy_reduce.buffer_number2 = 0;
       data_memcpy_reduce.is_offset2 = 0;

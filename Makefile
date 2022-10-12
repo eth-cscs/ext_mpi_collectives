@@ -7,7 +7,7 @@ INCLUDE = -I. -Iinclude/core -Iinclude/mpi
 DEPDIR := .deps
 directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(BIN); mkdir -p lib))
 
-CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DM_MAP
+CFLAGS = -g -O0 -Wall $(INCLUDE) -DDEBUG -DM_MAP
 
 SOURCES = $(wildcard src/core/*.c src/mpi/*.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))

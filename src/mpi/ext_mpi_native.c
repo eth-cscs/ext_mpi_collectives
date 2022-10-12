@@ -1096,14 +1096,16 @@ allreduce_short = 0;
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
-  //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
-//  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
-//    goto error;
-buffer_temp = buffer1;
-buffer1 = buffer2;
-buffer2 = buffer_temp;
+  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
+    goto error;
+printf(buffer2);
+exit(9);
+//buffer_temp = buffer1;
+//buffer1 = buffer2;
+//buffer2 = buffer_temp;
   if (recursive) {
     if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
       goto error;
@@ -1114,11 +1116,8 @@ buffer2 = buffer_temp;
     if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
       goto error;
   }
-//  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
-//    goto error;
-buffer_temp = buffer1;
-buffer1 = buffer2;
-buffer2 = buffer_temp;
+  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
+    goto error;
   if ((root >= 0) || (root <= -10)) {
     if (root >= 0) {
       if (ext_mpi_generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)
