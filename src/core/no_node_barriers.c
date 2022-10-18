@@ -1,7 +1,6 @@
 #include "no_node_barriers.h"
 #include "constants.h"
 #include "read.h"
-#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
