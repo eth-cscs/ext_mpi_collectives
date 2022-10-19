@@ -43,6 +43,8 @@
 #define ERROR_SHMEM -2
 #define ERROR_SYNTAX -3
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static void code_put_char(char **code, char c, int isdryrun) {
   if (!isdryrun)
     *((char *)(*code)) = c;
@@ -81,5 +83,5 @@ static void *code_get_pointer(char **code) {
   *code += sizeof(void *);
   return p;
 }
-
+#pragma GCC diagnostic pop
 #endif
