@@ -67,7 +67,7 @@ int ext_mpi_destroy_shared_memory(int handle, int size_shared, int num_segments,
   }
   free(shmemid);
   free(shmem);
-  return (0);
+  return 0;
 }
 
 int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
@@ -78,7 +78,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
                                 int num_segments, int **shmemid,
                                 char ***shmem, char fill, int numfill,
 				char **comm_code) {
-  int my_mpi_rank_row, my_mpi_size_row, my_mpi_rank_column, my_mpi_size_column, i;
+  int my_mpi_rank_row, my_mpi_size_row, my_mpi_rank_column, my_mpi_size_column, i, ii;
 #ifdef MMAP
   static int shmem_fd = -1;
   static char shmem_name[10000];
@@ -92,8 +92,8 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;
   }
-  MPI_Comm_split(comm_row, my_mpi_rank_row / my_cores_per_node_row,
-                 my_mpi_rank_row % my_cores_per_node_row, shmem_comm_node_row);
+  MPI_Comm_split(comm_row, my_mpi_rank_row / (my_cores_per_node_row * num_segments),
+                 my_mpi_rank_row % (my_cores_per_node_row * num_segments), shmem_comm_node_row);
   if (comm_column != MPI_COMM_NULL) {
     MPI_Comm_split(comm_column, my_mpi_rank_column / my_cores_per_node_column,
                    my_mpi_rank_column % my_cores_per_node_column,
@@ -104,30 +104,33 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
   *shmemid = (int *)malloc(num_segments * sizeof(int));
   *shmem = (char **)malloc(num_segments * sizeof(char *));
   for (i = 0; i < num_segments; i++) {
+    ii = (i + my_mpi_rank_row / my_cores_per_node_row) % num_segments;
     ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
 #ifndef MMAP
-    if ((my_mpi_rank_row % my_cores_per_node_row == 0) &&
+    if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments) == i * my_cores_per_node_row) &&
         (my_mpi_rank_column % my_cores_per_node_column == 0)) {
-      (*shmemid)[i] = shmget(IPC_PRIVATE, size_shared, IPC_CREAT | 0600);
+      (*shmemid)[ii] = shmget(IPC_PRIVATE, size_shared, IPC_CREAT | 0600);
     }
     ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-    MPI_Bcast(&((*shmemid)[i]), 1, MPI_INT, 0, *shmem_comm_node_row);
+    MPI_Bcast(&((*shmemid)[ii]), 1, MPI_INT, i * my_cores_per_node_row, *shmem_comm_node_row);
     if (*shmem_comm_node_column != MPI_COMM_NULL) {
-      MPI_Bcast(&((*shmemid)[i]), 1, MPI_INT, 0, *shmem_comm_node_column);
+      MPI_Bcast(&((*shmemid)[ii]), 1, MPI_INT, 0, *shmem_comm_node_column);
     }
     ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-    (*shmem)[i] = (char *)shmat((*shmemid)[i], NULL, 0);
-    if ((*shmem)[i] == NULL)
-     goto error;
-    ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
-    if (!((my_mpi_rank_row % my_cores_per_node_row == 0) &&
-          (my_mpi_rank_column % my_cores_per_node_column == 0))) {
-      (*shmemid)[i] = -1;
+    if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments)) / my_cores_per_node_row == i) {
+      (*shmem)[ii] = (char *)shmat((*shmemid)[ii], NULL, 0);
     } else {
-      shmctl((*shmemid)[i], IPC_RMID, NULL);
-      memset((void *)((*shmem)[i] + (size_shared - numfill)), fill, numfill);
+      (*shmem)[ii] = (char *)shmat((*shmemid)[ii], NULL, SHM_RDONLY);
     }
-    (*shmemid)[i] = -1;
+    if ((*shmem)[ii] == NULL)
+      goto error;
+    ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
+    if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments) == i * my_cores_per_node_row) &&
+         (my_mpi_rank_column % my_cores_per_node_column == 0)) {
+      memset((void *)((*shmem)[ii] + (size_shared - numfill)), fill, numfill);
+    } else {
+      (*shmemid)[ii] = -1;
+    }
 #else
     if (numfill > 0) {
       sprintf(shmem_name, "/ext_mpi");

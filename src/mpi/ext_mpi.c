@@ -17,13 +17,13 @@
 #include "gpu_core.h"
 #endif
 
-int ext_mpi_num_tasks_per_node = 0;
+extern int ext_mpi_num_sockets_per_node;
+
 int ext_mpi_blocking = 0;
 int ext_mpi_bit_reproducible = 1;
 int ext_mpi_bit_identical = 0;
 //parameter for minimum computation set
 int ext_mpi_minimum_computation = 0;
-int num_sockets_per_node = 1;
 
 static int num_tasks_per_socket = 0;
 static int is_initialised = 0;
@@ -43,11 +43,11 @@ static int read_env() {
     var = ((c = getenv("EXT_MPI_NUM_SOCKETS_PER_NODE")) != NULL);
     if (var) {
       if (sscanf(c, "%d", &var) >= 1){
-        num_sockets_per_node = var;
+        ext_mpi_num_sockets_per_node = var;
       }
     }
   }
-  MPI_Bcast(&num_sockets_per_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ext_mpi_num_sockets_per_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_NOT_RECURSIVE")) != NULL);
     if (var) {
@@ -172,9 +172,9 @@ static int get_num_tasks_per_socket(MPI_Comm comm) {
     if (i==my_mpi_size){
       free(all_num_cores);
       if (verbose&&(my_mpi_rank==0)){
-        printf("# EXT_MPI MPI tasks per socket: %d\n", j/num_sockets_per_node);
+        printf("# EXT_MPI MPI tasks per socket: %d\n", j/ext_mpi_num_sockets_per_node);
       }
-      return j/num_sockets_per_node;
+      return j/ext_mpi_num_sockets_per_node;
     }
   }
   free(all_num_cores);
@@ -265,11 +265,11 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size,
                            my_cores_per_node_row * my_cores_per_node_column,
-                           num_ports, groups, num_sockets_per_node) < 0)
+                           num_ports, groups, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           scount * type_size, 12, num_ports, groups, num_sockets_per_node) < 0)
+                           scount * type_size, 12, num_ports, groups, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       }
     } else {
@@ -517,11 +517,11 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            scount * type_size,
                            my_cores_per_node_row * my_cores_per_node_column,
-                           num_ports, groups, num_sockets_per_node) < 0)
+                           num_ports, groups, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           scount * type_size, 12, num_ports, groups, num_sockets_per_node) < 0)
+                           scount * type_size, 12, num_ports, groups, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       }
     } else {
@@ -749,11 +749,11 @@ static int reduce_scatter_init_general(
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            rcount * type_size,
                            my_cores_per_node_row * my_cores_per_node_column,
-                           num_ports, groups, num_sockets_per_node) < 0)
+                           num_ports, groups, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           rcount * type_size, 12, num_ports, groups, num_sockets_per_node) < 0)
+                           rcount * type_size, 12, num_ports, groups, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       }
       revert_num_ports(num_ports, groups);
@@ -1002,11 +1002,11 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
                            rcount * type_size,
                            my_cores_per_node_row * my_cores_per_node_column,
-                           num_ports, groups, num_sockets_per_node) < 0)
+                           num_ports, groups, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simple_recursive(comm_size_row / my_cores_per_node_row,
-                           rcount * type_size, 12, num_ports, groups, num_sockets_per_node) < 0)
+                           rcount * type_size, 12, num_ports, groups, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       }
     } else {
@@ -1237,12 +1237,12 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       if (my_cores_per_node_row == 1) {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, num_sockets_per_node) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row, my_cores_per_node_row,
                                            comm_size_column, my_cores_per_node_column,
-                                           comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, num_sockets_per_node) < 0)
+                                           comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       }
       p1 = ext_mpi_cost_list_start;
@@ -1634,12 +1634,12 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       if (my_cores_per_node_row == 1) {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, num_sockets_per_node) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row, my_cores_per_node_row,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, num_sockets_per_node) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       }
       p1 = ext_mpi_cost_list_start;
@@ -1977,12 +1977,12 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
       if (my_cores_per_node_row == 1) {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, num_sockets_per_node) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       } else {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row, my_cores_per_node_row,
                                     comm_size_column, my_cores_per_node_column,
-                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, num_sockets_per_node) < 0)
+                                    comm_size_row, comm_rank_row, 0, ext_mpi_bit_identical, ext_mpi_num_sockets_per_node) < 0)
           goto error;
       }
       p1 = ext_mpi_cost_list_start;
