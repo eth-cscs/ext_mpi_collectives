@@ -139,14 +139,14 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
     nbuffer1 += sprintf(buffer1 + nbuffer1,
                         " PARAMETER COLLECTIVE_TYPE ALLREDUCE_GROUP\n");
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER NODE_RANK %d\n", my_lrank_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_ROW_SIZE %d\n",
+      sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_ROW_SIZE %d\n",
                       my_cores_per_node_row);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_COLUMN_SIZE %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
                       my_cores_per_node_column);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER COPY_METHOD %d\n", copyin);

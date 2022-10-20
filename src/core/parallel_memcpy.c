@@ -19,9 +19,9 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
-  node_row_size = parameters->node_row_size;
-  node_column_size = parameters->node_column_size;
-  node_rank = parameters->node_rank;
+  node_row_size = parameters->socket_row_size;
+  node_column_size = parameters->socket_column_size;
+  node_rank = parameters->socket_rank;
   switch (parameters->data_type) {
   case data_type_char:
     type_size = sizeof(char);

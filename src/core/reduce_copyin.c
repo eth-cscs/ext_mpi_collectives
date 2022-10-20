@@ -128,10 +128,10 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
 //  parameters->node /= (parameters->num_nodes / parameters->message_sizes_max);
 //  parameters->num_nodes = parameters->message_sizes_max;
-  num_nodes = parameters->num_nodes;
-  node_rank = parameters->node_rank;
-  node_row_size = parameters->node_row_size;
-  node_column_size = parameters->node_column_size;
+  num_nodes = parameters->num_sockets;
+  node_rank = parameters->socket_rank;
+  node_row_size = parameters->socket_row_size;
+  node_column_size = parameters->socket_column_size;
   copy_method = parameters->copy_method;
   if (parameters->collective_type == collective_type_allgatherv) {
     collective_type = 0;
@@ -229,15 +229,15 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   if (collective_type) {
     if (((collective_type == 2) && (parameters->root >= 0)) ||
         (parameters->root <= -10)) {
-      if ((parameters->node * parameters->node_row_size +
-               parameters->node_rank ==
+      if ((parameters->socket * parameters->socket_row_size +
+               parameters->socket_rank ==
            parameters->root) ||
-          (parameters->node * parameters->node_row_size +
-               parameters->node_rank ==
+          (parameters->socket * parameters->socket_row_size +
+               parameters->socket_rank ==
            -10 - parameters->root)) {
         add = 0;
         for (i = 0; i < num_nodes; i++) {
-          j = (num_nodes + i + parameters->node) % num_nodes;
+          j = (num_nodes + i + parameters->socket) % num_nodes;
           data_memcpy_reduce.type = ememcpy;
           data_memcpy_reduce.buffer_type1 = eshmemo;
           data_memcpy_reduce.buffer_number1 = 0;
@@ -709,7 +709,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         break;
       case 4:
-        nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, parameters->node_row_size, lrank_row, 0, buffer_out+nbuffer_out);
+        nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, parameters->socket_row_size, lrank_row, 0, buffer_out+nbuffer_out);
 /*        nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, 2, lrank_row%2, lrank_row/2, buffer_out+nbuffer_out);
         block_offsets=(int*)malloc(2*sizeof(int));
         for (i=2; i<parameters->node_row_size; i*=2){
@@ -722,7 +722,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         for (i = 0; i < size_level1[0]; i++) {
           total_message_size+=parameters->message_sizes[i];
         }
-        add=add2=total_message_size*(parameters->node_row_size/2-1);
+        add=add2=total_message_size*(parameters->socket_row_size/2-1);
         size=total_message_size;
         data_memcpy_reduce.type = ememcp_;
         data_memcpy_reduce.buffer_type1 = eshmemo;

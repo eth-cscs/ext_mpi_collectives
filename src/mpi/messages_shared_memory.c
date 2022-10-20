@@ -25,7 +25,7 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
   buffer_in += ext_mpi_read_parameters(buffer_in, &parameters);
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   ascii = parameters->ascii_in;
-  node_rank = parameters->node_rank;
+  node_rank = parameters->socket_rank;
   ext_mpi_delete_parameters(parameters);
   while ((integer1 = ext_mpi_read_line(buffer_in, line, ascii)) > 0) {
     buffer_in += integer1;

@@ -143,7 +143,7 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  parameters->node = node;
+  parameters->socket = node;
   ngroups = get_ngroups(parameters);
   buffer_in_temp = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer_in_temp)
@@ -151,10 +151,10 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
   buffer_out_temp = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer_out_temp)
     goto error;
-  frac_start = (int *)malloc((parameters->num_nodes + 1) * sizeof(int));
+  frac_start = (int *)malloc((parameters->num_sockets + 1) * sizeof(int));
   if (!frac_start)
     goto error;
-  frac_temp = (int *)malloc(parameters->num_nodes * sizeof(int));
+  frac_temp = (int *)malloc(parameters->num_sockets * sizeof(int));
   if (!frac_temp)
     goto error;
   *parameters2 = (struct parameters_block **) malloc(ngroups * sizeof(struct parameters_block *));
@@ -175,9 +175,9 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
   num_port = 0;
   for (group = 0; group < ngroups; group++) {
     if (parameters->collective_type == collective_type_reduce_scatter) {
-      gbstep = get_gbstep_reduce_scatter(group, parameters->groups, parameters->num_nodes, &flag_allgatherv);
+      gbstep = get_gbstep_reduce_scatter(group, parameters->groups, parameters->num_sockets, &flag_allgatherv);
     } else {
-      gbstep = get_gbstep(group, parameters->groups, parameters->num_nodes, &flag_allgatherv);
+      gbstep = get_gbstep(group, parameters->groups, parameters->num_sockets, &flag_allgatherv);
     }
     for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++)
       ;
@@ -197,8 +197,8 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
     (*parameters2)[group]->groups[i - 1] *= -1;
     (*parameters2)[group]->groups[i] = 0;
     (*parameters2)[group]->message_sizes_max = num_nodes_l;
-    (*parameters2)[group]->num_nodes = num_nodes_l;
-    (*parameters2)[group]->node = node_local(parameters->node, gbstep, igroup, &component);
+    (*parameters2)[group]->num_sockets = num_nodes_l;
+    (*parameters2)[group]->socket = node_local(parameters->socket, gbstep, igroup, &component);
     if (flag_allgatherv) {
       (*parameters2)[group]->collective_type = collective_type_allgatherv;
     }
@@ -261,22 +261,22 @@ static void get_node_frac(struct parameters_block *parameters, int node, int gro
     num_port += ports_chunk;
   }
   factor = abs(parameters->groups[num_port]);
-  for (i = 0; i < parameters->num_nodes / factor; i++) {
+  for (i = 0; i < parameters->num_sockets / factor; i++) {
     node_translation[i] = -1;
   }
-  if ((nlines_core > 1) || (parameters->num_nodes / factor2 == 1)) {
+  if ((nlines_core > 1) || (parameters->num_sockets / factor2 == 1)) {
     for (i = 0; i < factor; i++) {
-      node_translation[i] = (i + (node % (parameters->num_nodes / factor)) * factor) % (nlines_core * factor2);
+      node_translation[i] = (i + (node % (parameters->num_sockets / factor)) * factor) % (nlines_core * factor2);
     }
   } else {
     for (i = 0; i < factor; i++) {
-      node_translation[i] = ((node % (parameters->num_nodes / factor)) * 1) % (nlines_core * factor2);
+      node_translation[i] = ((node % (parameters->num_sockets / factor)) * 1) % (nlines_core * factor2);
     }
   }
 }
 
 static void set_frac_recursive(char *buffer_in, struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data, int *node_translation_begin, int *node_translation_end) {
-  int node_translation_local[parameters->num_nodes], i, j, k, l, m, *size_level0_l = NULL, **size_level1_l = NULL, group_core_l;
+  int node_translation_local[parameters->num_sockets], i, j, k, l, m, *size_level0_l = NULL, **size_level1_l = NULL, group_core_l;
   struct parameters_block **parameters2_l = NULL;
   struct data_line ***data_l = NULL;
   if (group == group_core) {
@@ -500,13 +500,13 @@ static void set_frac_recursive_reduce_scatter(char *buffer_in, struct parameters
 }
 
 static void set_frac(char *buffer_in, struct parameters_block *parameters, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data){
-  int node_translation_begin[parameters->num_nodes], node_translation_end[parameters->num_nodes];
+  int node_translation_begin[parameters->num_sockets], node_translation_end[parameters->num_sockets];
   if (parameters->collective_type == collective_type_reduce_scatter) {
-    set_frac_recursive_reduce_scatter(buffer_in, parameters, parameters->node, group, 0, size_level0, size_level1, data);
+    set_frac_recursive_reduce_scatter(buffer_in, parameters, parameters->socket, group, 0, size_level0, size_level1, data);
   } else if (parameters->collective_type == collective_type_allgatherv) {
-    set_frac_recursive_allgatherv(buffer_in, parameters, parameters->node, group, size_level0[group] - 1, size_level0, size_level1, data);
+    set_frac_recursive_allgatherv(buffer_in, parameters, parameters->socket, group, size_level0[group] - 1, size_level0, size_level1, data);
   } else {
-    set_frac_recursive(buffer_in, parameters, parameters->node, group, group_core, parameters2, size_level0, size_level1, data, node_translation_begin, node_translation_end);
+    set_frac_recursive(buffer_in, parameters, parameters->socket, group, group_core, parameters2, size_level0, size_level1, data, node_translation_begin, node_translation_end);
   }
 }
 
@@ -539,11 +539,11 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
         (*data)[j][k].frac = -2;
         (*data)[j][k].to_max = 1;
         (*data)[j][k].to = (int *) malloc(sizeof(int));
-        (*data)[j][k].to[0] = parameters->node;
+        (*data)[j][k].to[0] = parameters->socket;
         (*data)[j][k].from_max = 1;
         (*data)[j][k].from_node = (int *) malloc(sizeof(int));
         (*data)[j][k].from_line = (int *) malloc(sizeof(int));
-        (*data)[j][k].from_node[0] = parameters->node;
+        (*data)[j][k].from_node[0] = parameters->socket;
         (*data)[j][k].from_line[0] = k;
       }
       for (k = 0; k < size_level1_l[group][i]; k++) {
@@ -569,7 +569,7 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
       }
       for (k = shift; k < (*size_level1)[j]; k++) {
         for (l = 0; l < (*data)[j][k].from_max; l++) {
-          if ((*data)[j][k].from_node[l] == parameters->node) {
+          if ((*data)[j][k].from_node[l] == parameters->socket) {
             (*data)[j][k].from_line[l] += shift;
           }
         }
@@ -578,7 +578,7 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
         for (n = 0; n < (*size_level1)[j]; n++) {
 	  flag = 1;
           for (l = 0; flag && (l < (*data)[j][n].from_max); l++) {
-            if (((*data)[j][n].from_node[l] == parameters->node) && ((*data)[j][n].from_line[l] != n) && ((*data)[j][n].from_line[l] < size_level1_l[group - 1][size_level0_l[group - 1] - 1] + shift)) {
+            if (((*data)[j][n].from_node[l] == parameters->socket) && ((*data)[j][n].from_line[l] != n) && ((*data)[j][n].from_line[l] < size_level1_l[group - 1][size_level0_l[group - 1] - 1] + shift)) {
               for (k = 0; flag && (k < (*size_level1)[j - 1]); k++) {
                 for (m = 0; flag && (m < (*data)[j - 1][k].to_max); m++) {
 	          if (((*data)[j - 1][k].to[m] == -1) && ((*data)[j - 1][k].frac == (*data)[j][n].frac)) {
@@ -647,7 +647,7 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
   if (i < 0)
     goto error;
   ngroups = get_ngroups(parameters);
-  gen_core(buffer_in, parameters->node, &parameters2, &group_core, &size_level0_l, &size_level1_l, &data_l);
+  gen_core(buffer_in, parameters->socket, &parameters2, &group_core, &size_level0_l, &size_level1_l, &data_l);
 //  if (parameters->collective_type == collective_type_reduce_scatter) {
 //    for (group = ngroups - 1; group >= 0; group--) {
 //      set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
@@ -662,9 +662,9 @@ int ext_mpi_generate_allreduce_groups(char *buffer_in, char *buffer_out) {
 //  }
   merge_groups(parameters, group_core, size_level0_l, size_level1_l, data_l, &size_level0, &size_level1, &data);
   if ((parameters->collective_type == collective_type_allreduce) || (parameters->collective_type == collective_type_allreduce_group)) {
-    k = parameters->num_nodes / size_level1[0];
+    k = parameters->num_sockets / size_level1[0];
 //    parameters->message_sizes_max /= k;
-    for (i = 0; i < parameters->num_nodes; i++){
+    for (i = 0; i < parameters->num_sockets; i++){
       if (i % k == 0) {
         parameters->message_sizes[i / k] = parameters->message_sizes[i];
         if (i != i / k) {

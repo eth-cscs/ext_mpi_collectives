@@ -63,11 +63,12 @@ enum eassembler_type {
 
 struct parameters_block {
   enum ecollective_type collective_type;
-  int node;
-  int num_nodes;
-  int node_rank;
-  int node_row_size;
-  int node_column_size;
+  int socket;
+  int num_sockets;
+  int socket_rank;
+  int socket_row_size;
+  int socket_column_size;
+  int node_sockets;
   int *counts;
   int counts_max;
   int *num_ports;

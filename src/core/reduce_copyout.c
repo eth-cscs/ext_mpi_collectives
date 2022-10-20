@@ -40,8 +40,8 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
 //  parameters->node /= (parameters->num_nodes / parameters->message_sizes_max);
 //  parameters->num_nodes = parameters->message_sizes_max;
-  num_nodes = parameters->num_nodes;
-  node_rank = parameters->node_rank;
+  num_nodes = parameters->num_sockets;
+  node_rank = parameters->socket_rank;
   // FIXME
   //  node_row_size=parameters->node_row_size;
   //  node_column_size=parameters->node_column_size;
@@ -130,11 +130,11 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
     if ((parameters->root == -1) ||
         ((parameters->root < 0) &&
          (-10 - parameters->root !=
-          parameters->node * parameters->node_row_size +
-              parameters->node_rank % parameters->node_row_size)) ||
+          parameters->socket * parameters->socket_row_size +
+              parameters->socket_rank % parameters->socket_row_size)) ||
         (parameters->root ==
-         parameters->node * parameters->node_row_size +
-             parameters->node_rank % parameters->node_row_size)) {
+         parameters->socket * parameters->socket_row_size +
+             parameters->socket_rank % parameters->socket_row_size)) {
       add2 = 0;
       for (i = 0; i < size_level1[size_level0 - 1]; i++) {
         k = 0;

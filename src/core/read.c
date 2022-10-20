@@ -179,11 +179,12 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->iocounts = NULL;
   (*parameters)->iocounts_max = 0;
   (*parameters)->collective_type = collective_type_allreduce_group;
-  (*parameters)->node = 0;
-  (*parameters)->num_nodes = 0;
-  (*parameters)->node_rank = 0;
-  (*parameters)->node_row_size = 1;
-  (*parameters)->node_column_size = 1;
+  (*parameters)->socket = 0;
+  (*parameters)->num_sockets = 0;
+  (*parameters)->socket_rank = 0;
+  (*parameters)->socket_row_size = 1;
+  (*parameters)->socket_column_size = 1;
+  (*parameters)->node_sockets = 1;
   (*parameters)->copy_method = 0;
   (*parameters)->data_type = data_type_char;
   (*parameters)->verbose = 0;
@@ -231,20 +232,23 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
         if (strcmp(string2, "ROOT") == 0) {
           (*parameters)->root = integer1;
         }
-        if (strcmp(string2, "NODE") == 0) {
-          (*parameters)->node = integer1;
+        if (strcmp(string2, "SOCKET") == 0) {
+          (*parameters)->socket = integer1;
         }
-        if (strcmp(string2, "NUM_NODES") == 0) {
-          (*parameters)->num_nodes = integer1;
+        if (strcmp(string2, "NUM_SOCKETS") == 0) {
+          (*parameters)->num_sockets = integer1;
         }
-        if (strcmp(string2, "NODE_RANK") == 0) {
-          (*parameters)->node_rank = integer1;
+        if (strcmp(string2, "SOCKET_RANK") == 0) {
+          (*parameters)->socket_rank = integer1;
         }
-        if (strcmp(string2, "NODE_ROW_SIZE") == 0) {
-          (*parameters)->node_row_size = integer1;
+        if (strcmp(string2, "SOCKET_ROW_SIZE") == 0) {
+          (*parameters)->socket_row_size = integer1;
         }
-        if (strcmp(string2, "NODE_COLUMN_SIZE") == 0) {
-          (*parameters)->node_column_size = integer1;
+        if (strcmp(string2, "SOCKET_COLUMN_SIZE") == 0) {
+          (*parameters)->socket_column_size = integer1;
+        }
+        if (strcmp(string2, "NODE_SOCKETS") == 0) {
+          (*parameters)->node_sockets = integer1;
         }
         if (strcmp(string2, "COPY_METHOD") == 0) {
           (*parameters)->copy_method = integer1;
@@ -468,18 +472,21 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
                            " PARAMETER COLLECTIVE_TYPE ALLREDUCE_SHORT\n");
     break;
   }
-  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NODE %d\n",
-                         parameters->node);
-  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NUM_NODES %d\n",
-                         parameters->num_nodes);
-  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NODE_RANK %d\n",
-                         parameters->node_rank);
+  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET %d\n",
+                         parameters->socket);
+  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NUM_SOCKETS %d\n",
+                         parameters->num_sockets);
+  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_RANK %d\n",
+                         parameters->socket_rank);
   nbuffer_out +=
-      sprintf(buffer_out + nbuffer_out, " PARAMETER NODE_ROW_SIZE %d\n",
-              parameters->node_row_size);
+      sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_ROW_SIZE %d\n",
+              parameters->socket_row_size);
   nbuffer_out +=
-      sprintf(buffer_out + nbuffer_out, " PARAMETER NODE_COLUMN_SIZE %d\n",
-              parameters->node_column_size);
+      sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
+              parameters->socket_column_size);
+  nbuffer_out +=
+      sprintf(buffer_out + nbuffer_out, " PARAMETER NODE_SOCKETS %d\n",
+              parameters->node_sockets);
   nbuffer_out +=
       sprintf(buffer_out + nbuffer_out, " PARAMETER COPY_METHOD %d\n",
               parameters->copy_method);

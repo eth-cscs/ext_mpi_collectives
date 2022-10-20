@@ -1036,15 +1036,17 @@ allreduce_short = 0;
     nbuffer1 += sprintf(buffer1 + nbuffer1,
                         " PARAMETER COLLECTIVE_TYPE ALLREDUCE_GROUP\n");
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER NODE_RANK %d\n", my_lrank_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_ROW_SIZE %d\n",
+      sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_ROW_SIZE %d\n",
                       my_cores_per_node_row);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_COLUMN_SIZE %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
                       my_cores_per_node_column);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_SOCKETS %d\n",
+                      ext_mpi_num_sockets_per_node);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER COPY_METHOD %d\n", copyin);
   if ((root >= 0) || (root <= -10)) {
@@ -1098,7 +1100,7 @@ allreduce_short = 0;
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
-  //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
 //  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
@@ -1150,6 +1152,7 @@ buffer2 = buffer_temp;
     goto error;
   if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
+printf("%s\n", buffer2);
   /*
      int mpi_rank;
    MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
@@ -1328,15 +1331,17 @@ int EXT_MPI_Gatherv_init_native(
   }
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER COLLECTIVE_TYPE ALLGATHERV\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER NODE_RANK %d\n", my_lrank_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_ROW_SIZE %d\n",
+      sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_ROW_SIZE %d\n",
                       my_cores_per_node_row);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_COLUMN_SIZE %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
                       my_cores_per_node_column);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_SOCKETS %d\n",
+                      ext_mpi_num_sockets_per_node);
   if (root >= 0) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ROOT %d\n", root);
   }
@@ -1580,15 +1585,17 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1,
                       " PARAMETER COLLECTIVE_TYPE REDUCE_SCATTER\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER NODE_RANK %d\n", my_lrank_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_ROW_SIZE %d\n",
+      sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_ROW_SIZE %d\n",
                       my_cores_per_node_row);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_COLUMN_SIZE %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
                       my_cores_per_node_column);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_SOCKETS %d\n",
+                      ext_mpi_num_sockets_per_node);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ROOT %d\n", root);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER COPY_METHOD %d\n", copyin);
@@ -1812,15 +1819,17 @@ int EXT_MPI_Reduce_scatter_init_native(
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1,
                       " PARAMETER COLLECTIVE_TYPE REDUCE_SCATTER\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER NODE_RANK %d\n", my_lrank_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_ROW_SIZE %d\n",
+      sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_ROW_SIZE %d\n",
                       my_cores_per_node_row);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_COLUMN_SIZE %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
                       my_cores_per_node_column);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_SOCKETS %d\n",
+                      ext_mpi_num_sockets_per_node);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER COPY_METHOD %d\n", copyin);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COUNTS");

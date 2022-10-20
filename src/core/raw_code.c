@@ -43,11 +43,11 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
 //  parameters->node /= (parameters->num_nodes / parameters->message_sizes_max);
 //  parameters->num_nodes = parameters->message_sizes_max;
-  node = parameters->node;
-  num_nodes = parameters->num_nodes;
-  node_row_size = parameters->node_row_size;
-  node_column_size = parameters->node_column_size;
-  node_rank = parameters->node_rank;
+  node = parameters->socket;
+  num_nodes = parameters->num_sockets;
+  node_row_size = parameters->socket_row_size;
+  node_column_size = parameters->socket_column_size;
+  node_rank = parameters->socket_rank;
   msizes_max = parameters->message_sizes_max;
   msizes = parameters->message_sizes;
   node_size = node_row_size * node_column_size;

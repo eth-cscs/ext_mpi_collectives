@@ -13,7 +13,7 @@ int ext_mpi_generate_no_node_barriers(char *buffer_in, char *buffer_out) {
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  if (parameters->node_row_size*parameters->node_column_size != 1){
+  if (parameters->socket_row_size*parameters->socket_column_size != 1){
     printf("ext_mpi_generate_no_node_barriers only for 1 task per node\n");
     exit(2);
   }

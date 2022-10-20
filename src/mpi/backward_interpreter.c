@@ -54,7 +54,7 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
   for (i = 0; i < size_level1[size_level0 - 1]; i++) {
     for (j = 0; j < data[size_level0 - 1][i].to_max; j++) {
       if ((data[size_level0 - 1][i].to[j] == -1) &&
-          (parameters->node == parameters->root / parameters->node_row_size)) {
+          (parameters->socket == parameters->root / parameters->socket_row_size)) {
         values[size_level0 - 1][i] = 1;
       }
     }
@@ -84,7 +84,7 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
   }
   j = 0;
   for (i = 0; i < max_lines; i++) {
-    recv_values[i] = (int *)malloc(sizeof(int) * parameters->num_nodes);
+    recv_values[i] = (int *)malloc(sizeof(int) * parameters->num_sockets);
     if (!recv_values[i])
       j = ERROR_MALLOC;
   }
@@ -95,17 +95,17 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
     l = 0;
     for (j = size_level1[i - 1] - 1; j >= 0; j--) {
       for (k = 0; k < data[i - 1][j].to_max; k++) {
-        if (data[i - 1][j].to[k] != parameters->node) {
+        if (data[i - 1][j].to[k] != parameters->socket) {
           MPI_Irecv(&recv_values[j][data[i - 1][j].to[k]], 1, MPI_INT,
-                    data[i - 1][j].to[k] * parameters->node_row_size +
-                        parameters->node_rank % parameters->node_row_size,
+                    data[i - 1][j].to[k] * parameters->socket_row_size +
+                        parameters->socket_rank % parameters->socket_row_size,
                     0, comm_row, &request[l++]);
         }
       }
     }
     for (j = size_level1[i] - 1; j >= 0; j--) {
       for (k = 0; k < data[i][j].from_max; k++) {
-        if (data[i][j].from_node[k] == parameters->node) {
+        if (data[i][j].from_node[k] == parameters->socket) {
           if ((data[i][j].from_line[k] < j) && (data[i][j].from_line[k] >= 0)) {
             if (values[i][j]) {
               values[i][data[i][j].from_line[k]] = 1;
@@ -113,8 +113,8 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
           }
         } else {
           MPI_Isend(&values[i][j], 1, MPI_INT,
-                    data[i][j].from_node[k] * parameters->node_row_size +
-                        parameters->node_rank % parameters->node_row_size,
+                    data[i][j].from_node[k] * parameters->socket_row_size +
+                        parameters->socket_rank % parameters->socket_row_size,
                     0, comm_row, &request[l++]);
         }
       }
@@ -129,11 +129,11 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
     MPI_Waitall(l, request, MPI_STATUSES_IGNORE);
     for (j = size_level1[i] - 1; j >= 0; j--) {
       for (k = 0; k < data[i][j].from_max; k++) {
-        if (data[i][j].from_node[k] != parameters->node) {
+        if (data[i][j].from_node[k] != parameters->socket) {
           if (!values[i][j]) {
-            if (parameters->node_row_size * parameters->node_column_size == 1) {
+            if (parameters->socket_row_size * parameters->socket_column_size == 1) {
               if (data[i][j].from_max == 1) {
-                data[i][j].from_node[k] = parameters->node;
+                data[i][j].from_node[k] = parameters->socket;
                 data[i][j].from_line[k] = j;
               } else {
                 for (l = k; l < data[i][j].from_max - 1; l++) {
@@ -152,11 +152,11 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
     }
     for (j = size_level1[i - 1] - 1; j >= 0; j--) {
       for (k = 0; k < data[i - 1][j].to_max; k++) {
-        if (data[i - 1][j].to[k] != parameters->node) {
+        if (data[i - 1][j].to[k] != parameters->socket) {
           if (!recv_values[j][data[i - 1][j].to[k]]) {
-            if (parameters->node_row_size * parameters->node_column_size == 1) {
+            if (parameters->socket_row_size * parameters->socket_column_size == 1) {
               if (data[i - 1][j].to_max == 1) {
-                data[i - 1][j].to[k] = parameters->node;
+                data[i - 1][j].to[k] = parameters->socket;
               } else {
                 for (l = k; l < data[i - 1][j].to_max - 1; l++) {
                   data[i - 1][j].to[l] = data[i - 1][j].to[l + 1];

@@ -328,8 +328,8 @@ int ext_mpi_generate_allreduce_recursive(char *buffer_in, char *buffer_out) {
   if (parameters->collective_type == collective_type_allreduce_short) {
     allreduce = 3;
   }
-  task = parameters->node;
-  num_nodes = parameters->num_nodes;
+  task = parameters->socket;
+  num_nodes = parameters->num_sockets;
   for (i = 0; parameters->num_ports[i]; i++) {
     nstep++;
   }
