@@ -75,7 +75,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   for (m = 1; m < size_level0; m++) {
     if (m > 1) {
       nbuffer_out += ext_mpi_write_assembler_line(
-          buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+          buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
     }
     buffer_counter = 1;
     for (o = 0; o < num_nodes; o++) {
@@ -186,7 +186,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       }
       if (add) {
         nbuffer_out += ext_mpi_write_assembler_line(
-            buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+            buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         data_irecv_isend.type = eisend;
         data_irecv_isend.buffer_type = eshmemo;
         data_irecv_isend.buffer_number = 0;
@@ -202,7 +202,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       }
       if (adds) {
         nbuffer_out += ext_mpi_write_assembler_line(
-            buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+            buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         data_irecv_isend.type = eisen_;
         data_irecv_isend.buffer_type = eshmemo;
         data_irecv_isend.buffer_number = 0;
@@ -223,7 +223,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         start = 0;
 #endif
     //    }
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
     num_comm = 0;
     buffer_counter = 1;
     for (o = 0; o < num_nodes; o++) {
@@ -277,7 +277,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         buffer_counter++;
       }
     }
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
     add = 0;
     for (n = 0; n < size_level1[m]; n++) {
       for (i = 0; i < data[m][n].from_max; i++) {

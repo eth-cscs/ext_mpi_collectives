@@ -1,11 +1,11 @@
-#include "no_node_barriers.h"
+#include "no_socket_barriers.h"
 #include "constants.h"
 #include "read.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int ext_mpi_generate_no_node_barriers(char *buffer_in, char *buffer_out) {
+int ext_mpi_generate_no_socket_barriers(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, i, flag;
   char line[1000];
   enum eassembler_type estring1;
@@ -14,7 +14,7 @@ int ext_mpi_generate_no_node_barriers(char *buffer_in, char *buffer_out) {
   if (i < 0)
     goto error;
   if (parameters->socket_row_size*parameters->socket_column_size != 1){
-    printf("ext_mpi_generate_no_node_barriers only for 1 task per node\n");
+    printf("ext_mpi_generate_no_socket_barriers only for 1 task per node\n");
     exit(2);
   }
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
@@ -23,7 +23,7 @@ int ext_mpi_generate_no_node_barriers(char *buffer_in, char *buffer_out) {
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag) {
       if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
-        if (estring1 != enode_barrier) {
+        if (estring1 != esocket_barrier) {
           nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
                                             parameters->ascii_out);
         }

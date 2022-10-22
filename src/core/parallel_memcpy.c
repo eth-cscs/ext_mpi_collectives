@@ -47,7 +47,7 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
     if ((flag3 > 0) && (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0)) {
       reset = 0;
       flag = 0;
-      if (estring1 == enode_barrier) {
+      if (estring1 == esocket_barrier) {
         reset = 1;
         flag = 1;
       }
@@ -68,7 +68,7 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
                                          parameters->ascii_in);
           ext_mpi_read_memcpy_reduce(line2, &data_memcpy_reduce);
           if ((flag > 0) && (ext_mpi_read_assembler_line(line2, 0, "s", &estring1) >= 0)) {
-            if (estring1 == enode_barrier) {
+            if (estring1 == esocket_barrier) {
               flag = 0;
             }
             if (data_memcpy_reduce_old.offset1 != data_memcpy_reduce.offset1) {

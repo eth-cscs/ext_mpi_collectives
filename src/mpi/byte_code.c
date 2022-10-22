@@ -396,20 +396,20 @@ int ext_mpi_generate_byte_code(char **shmem,
       code_put_char(&ip, OPCODE_SETNUMCORES, isdryrun);
       code_put_int(&ip, integer1, isdryrun);
     }
-    if (estring1 == eset_node_rank) {
+    if (estring1 == eset_socket_rank) {
       header->node_rank = integer1;
-      code_put_char(&ip, OPCODE_SETNODERANK, isdryrun);
+      code_put_char(&ip, OPCODE_SETSOCKETRANK, isdryrun);
       code_put_int(&ip, integer1, isdryrun);
     }
-    if (estring1 == eset_node_barrier) {
+    if (estring1 == eset_socket_barrier) {
       if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_SET_NODEBARRIER, isdryrun);
+        code_put_char(&ip, OPCODE_SET_SOCKETBARRIER, isdryrun);
         code_put_int(&ip, integer1, isdryrun);
       }
     }
-    if (estring1 == ewait_node_barrier) {
+    if (estring1 == ewait_socket_barrier) {
       if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_WAIT_NODEBARRIER, isdryrun);
+        code_put_char(&ip, OPCODE_WAIT_SOCKETBARRIER, isdryrun);
         code_put_int(&ip, integer1, isdryrun);
       }
     }
@@ -489,7 +489,7 @@ int ext_mpi_generate_byte_code(char **shmem,
       code_put_int(&ip, global_ranks[integer3], isdryrun);
       code_put_pointer(&ip, locmem + sizeof(MPI_Request) * integer4, isdryrun);
     }
-    if (estring1 == enode_barrier) {
+    if (estring1 == esocket_barrier) {
       if (header->num_cores != 1) {
 #ifdef GPU_ENABLED
         if (on_gpu) {
@@ -502,20 +502,20 @@ int ext_mpi_generate_byte_code(char **shmem,
         }
 #endif
         if (blocking){
-          code_put_char(&ip, OPCODE_BNODEBARRIER, isdryrun);
+          code_put_char(&ip, OPCODE_BSOCKETBARRIER, isdryrun);
         } else {
-          code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
+          code_put_char(&ip, OPCODE_SOCKETBARRIER, isdryrun);
         }
       }
     }
-    if (estring1 == enode_cycl_barrier) {
+    if (estring1 == esocket_cycl_barrier) {
       if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_CYCL_NODEBARRIER, isdryrun);
+        code_put_char(&ip, OPCODE_CYCL_SOCKETBARRIER, isdryrun);
       }
     }
-    if (estring1 == enext_node_barrier) {
+    if (estring1 == enext_socket_barrier) {
       if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_NEXT_NODEBARRIER, isdryrun);
+        code_put_char(&ip, OPCODE_NEXT_SOCKETBARRIER, isdryrun);
       }
     }
     if ((estring1 == eset_mem) || (estring1 == eunset_mem)){

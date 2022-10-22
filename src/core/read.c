@@ -921,23 +921,23 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case eset_num_cores:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_NUM_CORES");
       break;
-    case eset_node_rank:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_NODE_RANK");
+    case eset_socket_rank:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_SOCKET_RANK");
       break;
-    case enode_barrier:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER");
+    case esocket_barrier:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER");
       break;
-    case enode_cycl_barrier:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_CYCL_BARRIER");
+    case esocket_cycl_barrier:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_CYCL_BARRIER");
       break;
-    case eset_node_barrier:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_NODE_BARRIER");
+    case eset_socket_barrier:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_SOCKET_BARRIER");
       break;
-    case ewait_node_barrier:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " WAIT_NODE_BARRIER");
+    case ewait_socket_barrier:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " WAIT_SOCKET_BARRIER");
       break;
-    case enext_node_barrier:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " NEXT_NODE_BARRIER");
+    case enext_socket_barrier:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " NEXT_SOCKET_BARRIER");
       break;
     case ememcpy:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMCPY");
@@ -1085,23 +1085,23 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   if (strcmp(cstring1, "SET_NUM_CORES") == 0) {
     return eset_num_cores;
   }
-  if (strcmp(cstring1, "SET_NODE_RANK") == 0) {
-    return eset_node_rank;
+  if (strcmp(cstring1, "SET_SOCKET_RANK") == 0) {
+    return eset_socket_rank;
   }
-  if (strcmp(cstring1, "NODE_BARRIER") == 0) {
-    return enode_barrier;
+  if (strcmp(cstring1, "SOCKET_BARRIER") == 0) {
+    return esocket_barrier;
   }
-  if (strcmp(cstring1, "NODE_CYCL_BARRIER") == 0) {
-    return enode_cycl_barrier;
+  if (strcmp(cstring1, "SOCKET_CYCL_BARRIER") == 0) {
+    return esocket_cycl_barrier;
   }
-  if (strcmp(cstring1, "SET_NODE_BARRIER") == 0) {
-    return eset_node_barrier;
+  if (strcmp(cstring1, "SET_SOCKET_BARRIER") == 0) {
+    return eset_socket_barrier;
   }
-  if (strcmp(cstring1, "WAIT_NODE_BARRIER") == 0) {
-    return ewait_node_barrier;
+  if (strcmp(cstring1, "WAIT_SOCKET_BARRIER") == 0) {
+    return ewait_socket_barrier;
   }
-  if (strcmp(cstring1, "NEXT_NODE_BARRIER") == 0) {
-    return enext_node_barrier;
+  if (strcmp(cstring1, "NEXT_SOCKET_BARRIER") == 0) {
+    return enext_socket_barrier;
   }
   if (strcmp(cstring1, "MEMCPY") == 0) {
     return ememcpy;

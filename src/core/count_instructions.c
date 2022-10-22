@@ -351,36 +351,36 @@ int ext_mpi_simulate_native(char *ip) {
       printf("MPI_Waitany %d %p\n", i1, p1);
 #endif
       break;
-    case OPCODE_BNODEBARRIER:
+    case OPCODE_BSOCKETBARRIER:
 #ifdef VERBOSE_PRINT
-      printf("bnode_barrier\n");
+      printf("bsocket_barrier\n");
 #endif
       break;
-    case OPCODE_NODEBARRIER:
+    case OPCODE_SOCKETBARRIER:
 #ifdef VERBOSE_PRINT
-      printf("node_barrier\n");
+      printf("socket_barrier\n");
 #endif
       break;
-    case OPCODE_CYCL_NODEBARRIER:
+    case OPCODE_CYCL_SOCKETBARRIER:
 #ifdef VERBOSE_PRINT
       printf("node_cycl_barrier\n");
 #endif
       break;
-    case OPCODE_SET_NODEBARRIER:
+    case OPCODE_SET_SOCKETBARRIER:
       i1 = code_get_int(&ip);
 #ifdef VERBOSE_PRINT
-      printf("set_node_barrier %d\n", i1);
+      printf("set_socket_barrier %d\n", i1);
 #endif
       break;
-    case OPCODE_WAIT_NODEBARRIER:
+    case OPCODE_WAIT_SOCKETBARRIER:
       i1 = code_get_int(&ip);
 #ifdef VERBOSE_PRINT
-      printf("wait_node_barrier %d\n", i1);
+      printf("wait_socket_barrier %d\n", i1);
 #endif
       break;
-    case OPCODE_NEXT_NODEBARRIER:
+    case OPCODE_NEXT_SOCKETBARRIER:
 #ifdef VERBOSE_PRINT
-      printf("next_node_barrier\n");
+      printf("next_socket_barrier\n");
 #endif
       break;
     case OPCODE_SET_MEM:
@@ -401,7 +401,7 @@ int ext_mpi_simulate_native(char *ip) {
       printf("num_cores %d\n", i1);
 #endif
       break;
-    case OPCODE_SETNODERANK:
+    case OPCODE_SETSOCKETRANK:
       i1 = code_get_int(&ip);
 #ifdef VERBOSE_PRINT
       printf("node_rank %d\n", i1);
@@ -560,19 +560,19 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
         count = 0e0;
       }
       break;
-    case OPCODE_BNODEBARRIER:
+    case OPCODE_BSOCKETBARRIER:
       break;
-    case OPCODE_NODEBARRIER:
+    case OPCODE_SOCKETBARRIER:
       break;
-    case OPCODE_CYCL_NODEBARRIER:
+    case OPCODE_CYCL_SOCKETBARRIER:
       break;
-    case OPCODE_SET_NODEBARRIER:
+    case OPCODE_SET_SOCKETBARRIER:
       i1 = code_get_int(&ip);
       break;
-    case OPCODE_WAIT_NODEBARRIER:
+    case OPCODE_WAIT_SOCKETBARRIER:
       i1 = code_get_int(&ip);
       break;
-    case OPCODE_NEXT_NODEBARRIER:
+    case OPCODE_NEXT_SOCKETBARRIER:
       break;
     case OPCODE_SET_MEM:
       code_get_pointer(&ip);
@@ -583,7 +583,7 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
     case OPCODE_SETNUMCORES:
       i1 = code_get_int(&ip);
       break;
-    case OPCODE_SETNODERANK:
+    case OPCODE_SETSOCKETRANK:
       i1 = code_get_int(&ip);
       break;
     case OPCODE_REDUCE:

@@ -65,9 +65,9 @@ static int copyin(struct parameters_block *parameters, struct data_line **data, 
         }
       }
     }
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_cycl_barrier);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_cycl_barrier);
   }
-  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   return nbuffer_out;
 }
 
@@ -224,8 +224,8 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   nbuffer_out +=
       ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_num_cores, node_size);
   nbuffer_out +=
-      ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_node_rank, node_rank);
-  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+      ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_rank, node_rank);
+  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   if (collective_type) {
     if (((collective_type == 2) && (parameters->root >= 0)) ||
         (parameters->root <= -10)) {
@@ -252,7 +252,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           add += mcounts[j];
         }
       }
-      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
     } else {
       if ((copy_method == 3) && (node_size == 1)) {
         copy_method = 0;
@@ -282,7 +282,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
           add += size;
         }
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         size = moffsets[num_nodes];
         add = 0;
         if (size <= CACHE_LINE_SIZE) {
@@ -321,8 +321,8 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
           }
           //        nbuffer_out+=sprintf(buffer_out+nbuffer_out, "
-          //        NODE_BARRIER_MASTER\n");
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+          //        SOCKET_BARRIER_MASTER\n");
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         } else {
           for (i = 1; i < node_size / counts_max; i++) {
             if (moffsets[num_nodes] < CACHE_LINE_SIZE) {
@@ -358,7 +358,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               }
             }
           }
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         }
         break;
       case 1:
@@ -393,7 +393,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
           for (i = 1; i < node_size / counts_max; i++) {
             nbuffer_out += ext_mpi_write_assembler_line(
-                buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+                buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
             add = ldispls[lrank_column];
             for (j = 0; j < size_level1[0]; j++) {
               size = mcounts[data[0][j].frac];
@@ -456,7 +456,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
           for (i = 1; i < node_size / counts_max; i++) {
             nbuffer_out += ext_mpi_write_assembler_line(
-                buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+                buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
             add = ldispls[lrank_column];
             for (j = 0; j < size_level1[0]; j++) {
               size = mcounts[data[0][j].frac];
@@ -496,7 +496,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
         }
         nbuffer_out += ext_mpi_write_assembler_line(
-            buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+            buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         break;
       case 2:
         if (lrank_row >= node_row_size / 2){
@@ -523,11 +523,11 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
             add += size;
           }
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_node_barrier, lrank_row);
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_node_barrier, lrank_row - node_row_size / 2);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_barrier, lrank_row);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, lrank_row - node_row_size / 2);
         } else {
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_node_barrier, lrank_row);
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_node_barrier, lrank_row + node_row_size / 2);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_barrier, lrank_row);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, lrank_row + node_row_size / 2);
           if (moffsets[num_nodes] < CACHE_LINE_SIZE) {
             add = CACHE_LINE_SIZE * lrank_row + ldispls[lrank_column];
           } else {
@@ -554,11 +554,11 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         }
         size = moffsets[num_nodes];
         for (step = node_row_size / 4, i = 1; step >= 1; step /= 2, i++) {
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_node_barrier, lrank_row + i * node_row_size);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_barrier, lrank_row + i * node_row_size);
           if (lrank_row % (step * 2) < step) {
-            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_node_barrier, lrank_row + step + i * node_row_size);
+            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, lrank_row + step + i * node_row_size);
           } else {
-            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_node_barrier, lrank_row - step + i * node_row_size);
+            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, lrank_row - step + i * node_row_size);
           }
           if (lrank_row < step) {
             if (size <= CACHE_LINE_SIZE) {
@@ -583,8 +583,8 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
           }
         }
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enext_node_barrier);
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enext_socket_barrier);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         add=add2=0;
         size=moffsets[num_nodes];
         if (size <= CACHE_LINE_SIZE) size = CACHE_LINE_SIZE;
@@ -690,7 +690,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
           }
         }
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         size=moffsets[num_nodes];
         if (size <= CACHE_LINE_SIZE) size = CACHE_LINE_SIZE + CACHE_LINE_SIZE - tsize;
         size *= node_row_size;
@@ -716,7 +716,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           block_offsets[0]=(lrank_row/2/i)*i;
           block_offsets[1]=(lrank_row/2/i)*i+i/2;
           nbuffer_out += reduce(parameters, data, size_level0, size_level1, type_size, i*2, lrank_row%(i*2), 2, block_offsets, buffer_out+nbuffer_out);
-          nbuffer_out += write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+          nbuffer_out += write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         }
         free(block_offsets);*/
         for (i = 0; i < size_level1[0]; i++) {
@@ -807,7 +807,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                 -CACHE_LINE_SIZE * (1 + node_rank + barriers_size * node_size));
           }
         }
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER\n");
+        nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER\n");
         for (barriers_size -= 2; barriers_size >= 0; barriers_size--) {
           nbuffer_out += sprintf(
               buffer_out + nbuffer_out, " SETTOZERO SHMEM+ %d 1\n",
@@ -886,7 +886,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             //              -CACHE_LINE_SIZE*(1+node_rank+barriers_size*node_size));
           }
         }
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER\n");
+        nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER\n");
         for (barriers_size -= 2; barriers_size >= 0; barriers_size--) {
           nbuffer_out += sprintf(
               buffer_out + nbuffer_out, " SETTOZERO SHMEM+ %d 1\n",
@@ -911,7 +911,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             add += size;
           }
         }
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER\n");
+        nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER\n");
         if (lrank_row != 0) {
           add = ldispls[lrank_column];
           for (i = 0; i < size_level1[0]; i++) {
@@ -925,7 +925,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             add += size;
           }
         }
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER\n");
+        nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER\n");
         break;
       case 8:
         if (moffsets[num_nodes] < CACHE_LINE_SIZE) {
@@ -983,7 +983,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
         }
         nbuffer_out +=
-            sprintf(buffer_out + nbuffer_out, " NODE_BARRIER_MASTER\n");
+            sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER_MASTER\n");
         break;
       }
     }
@@ -1016,7 +1016,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       data_memcpy_reduce.size = size;
       nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
     }
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   }
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   ext_mpi_delete_algorithm(size_level0, size_level1, data);

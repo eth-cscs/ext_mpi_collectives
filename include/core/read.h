@@ -26,12 +26,12 @@ enum edata_type {
 };
 enum eassembler_type {
   eset_num_cores,
-  eset_node_rank,
-  enode_barrier,
-  enode_cycl_barrier,
-  eset_node_barrier,
-  ewait_node_barrier,
-  enext_node_barrier,
+  eset_socket_rank,
+  esocket_barrier,
+  esocket_cycl_barrier,
+  eset_socket_barrier,
+  ewait_socket_barrier,
+  enext_socket_barrier,
   eset_mem,
   eunset_mem,
   ememcpy,
