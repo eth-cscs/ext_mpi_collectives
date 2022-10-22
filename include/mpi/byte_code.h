@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 struct header_byte_code {
-  int barrier_counter;
+  char barrier_counter;
   char *barrier_shmem;
   int barrier_shmem_size;
   int *shmemid;

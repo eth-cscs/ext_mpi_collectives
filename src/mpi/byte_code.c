@@ -327,7 +327,7 @@ int ext_mpi_generate_byte_code(char **shmem,
     header = &header_temp;
   } else {
     header = (struct header_byte_code *)ip;
-    header->barrier_counter = 0;
+    header->barrier_counter = 1;
     if (shmem != NULL) {
       header->barrier_shmem = shmem[0] + my_size_shared_buf;
     } else {
