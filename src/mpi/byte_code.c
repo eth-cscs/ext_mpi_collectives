@@ -334,12 +334,15 @@ int ext_mpi_generate_byte_code(char **shmem,
     header->barrier_counter_socket = 1;
     header->barrier_counter_node = 1;
     header->barrier_shmem_node = (volatile char **)malloc(node_sockets*sizeof(char *));
-    for (i=0; i<node_sockets; i++) {
-      header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + barriers_size;
-    }
     if (shmem != NULL) {
+      for (i=0; i<node_sockets; i++) {
+        header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + barriers_size;
+      }
       header->barrier_shmem_socket = shmem[0] + my_size_shared_buf;
     } else {
+      for (i=0; i<node_sockets; i++) {
+        header->barrier_shmem_node[i] = NULL + my_size_shared_buf + barriers_size;
+      }
       header->barrier_shmem_socket = NULL + my_size_shared_buf;
     }
     header->barrier_shmem_size = barriers_size;
