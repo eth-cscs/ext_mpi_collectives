@@ -395,18 +395,6 @@ int ext_mpi_simulate_native(char *ip) {
       printf("unset_mem\n");
 #endif
       break;
-    case OPCODE_SETNUMCORES:
-      i1 = code_get_int(&ip);
-#ifdef VERBOSE_PRINT
-      printf("num_cores %d\n", i1);
-#endif
-      break;
-    case OPCODE_SETSOCKETRANK:
-      i1 = code_get_int(&ip);
-#ifdef VERBOSE_PRINT
-      printf("node_rank %d\n", i1);
-#endif
-      break;
     case OPCODE_REDUCE:
       instruction2 = code_get_char(&ip);
       switch (instruction2) {
@@ -579,12 +567,6 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
       break;
     case OPCODE_UNSET_MEM:
       code_get_pointer(&ip);
-      break;
-    case OPCODE_SETNUMCORES:
-      i1 = code_get_int(&ip);
-      break;
-    case OPCODE_SETSOCKETRANK:
-      i1 = code_get_int(&ip);
       break;
     case OPCODE_REDUCE:
       instruction2 = code_get_char(&ip);

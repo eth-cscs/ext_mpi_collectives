@@ -9,8 +9,6 @@
 #include "gpu_shmem.h"
 #endif
 
-#define NUM_BARRIERS 4
-
 #ifdef GPU_ENABLED
 struct mem_addresses {
   void *dest, *src;
@@ -305,7 +303,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-                                              ascii, blocking;
+      ascii, blocking, num_cores, socket_rank, node_sockets, i;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
@@ -321,17 +319,28 @@ int ext_mpi_generate_byte_code(char **shmem,
   on_gpu = parameters->on_gpu;
 #endif
   blocking = parameters->blocking;
+  num_cores = parameters->socket_row_size*parameters->socket_column_size;
+  socket_rank = parameters->socket_rank;
+  node_sockets = parameters->node_sockets;
   ext_mpi_delete_parameters(parameters);
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
     header = &header_temp;
+    header->num_cores = num_cores;
+    header->socket_rank = socket_rank;
+    header->node_sockets = node_sockets;
   } else {
     header = (struct header_byte_code *)ip;
-    header->barrier_counter = 1;
+    header->barrier_counter_socket = 1;
+    header->barrier_counter_node = 1;
+    header->barrier_shmem_node = (volatile char **)malloc(node_sockets*sizeof(char *));
+    for (i=0; i<node_sockets; i++) {
+      header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + barriers_size;
+    }
     if (shmem != NULL) {
-      header->barrier_shmem = shmem[0] + my_size_shared_buf;
+      header->barrier_shmem_socket = shmem[0] + my_size_shared_buf;
     } else {
-      header->barrier_shmem = NULL + my_size_shared_buf;
+      header->barrier_shmem_socket = NULL + my_size_shared_buf;
     }
     header->barrier_shmem_size = barriers_size;
     header->shmemid = shmemid;
@@ -343,14 +352,13 @@ int ext_mpi_generate_byte_code(char **shmem,
       shmem = header->shmem = header->shmem_gpu;
     }
 #endif
-    header->shmem_size = 0;
-    header->buf_size = 0;
     header->comm_row = comm_row;
     header->comm_column = comm_column;
     header->node_num_cores_row = node_num_cores_row;
     header->node_num_cores_column = node_num_cores_column;
-    header->num_cores = 0;
-    header->node_rank = 0;
+    header->num_cores = num_cores;
+    header->socket_rank = socket_rank;
+    header->node_sockets = node_sockets;
     header->tag = tag;
 #ifdef GPU_ENABLED
     header->gpu_byte_code = NULL;
@@ -390,16 +398,6 @@ int ext_mpi_generate_byte_code(char **shmem,
       }
 #endif
       code_put_char(&ip, OPCODE_RETURN, isdryrun);
-    }
-    if (estring1 == eset_num_cores) {
-      header->num_cores = integer1;
-      code_put_char(&ip, OPCODE_SETNUMCORES, isdryrun);
-      code_put_int(&ip, integer1, isdryrun);
-    }
-    if (estring1 == eset_socket_rank) {
-      header->node_rank = integer1;
-      code_put_char(&ip, OPCODE_SETSOCKETRANK, isdryrun);
-      code_put_int(&ip, integer1, isdryrun);
     }
     if (estring1 == eset_socket_barrier) {
       if (header->num_cores != 1) {

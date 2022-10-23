@@ -918,12 +918,6 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     nbuffer_out += sizeof(string1);
   } else {
     switch (string1) {
-    case eset_num_cores:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_NUM_CORES");
-      break;
-    case eset_socket_rank:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_SOCKET_RANK");
-      break;
     case esocket_barrier:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER");
       break;
@@ -1082,12 +1076,6 @@ int ext_mpi_write_assembler_line(char *buffer_out, int ascii, char *types, ...) 
 }
 
 static enum eassembler_type read_assembler_type(char *cstring1) {
-  if (strcmp(cstring1, "SET_NUM_CORES") == 0) {
-    return eset_num_cores;
-  }
-  if (strcmp(cstring1, "SET_SOCKET_RANK") == 0) {
-    return eset_socket_rank;
-  }
   if (strcmp(cstring1, "SOCKET_BARRIER") == 0) {
     return esocket_barrier;
   }

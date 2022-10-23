@@ -221,10 +221,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   // nbuffer_out+=write_assembler_line_ssdsdsdsdd(buffer_out+nbuffer_out,
   // ememcpy, eshmempbuffer_offseto, buffer_counter, eshmempbuffer_offsetcp, add,
   // eshmempbuffer_offseto, 0, eshmempbuffer_offsetcp, add2, size, parameters->as
-  nbuffer_out +=
-      ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_num_cores, node_size);
-  nbuffer_out +=
-      ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_rank, node_rank);
   nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   if (collective_type) {
     if (((collective_type == 2) && (parameters->root >= 0)) ||

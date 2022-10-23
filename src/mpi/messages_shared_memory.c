@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NUM_BARRIERS 4
-
 struct line_irecv_isend_node {
   struct line_irecv_isend data;
   int socket;

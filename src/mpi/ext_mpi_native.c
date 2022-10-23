@@ -183,6 +183,27 @@ static void unset_mem(volatile char *shmem){
   while (!__sync_bool_compare_and_swap(shmem, 1, 0));
 }
 
+static void node_barrier(volatile char **shmem, char *barrier_count, int socket_rank, int num_cores, int node_sockets) {
+  int barriers_size, step;
+  for (barriers_size = 0, step = 1; step < node_sockets; barriers_size++, step <<= 1) {
+    shmem[0][(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] = *barrier_count;
+    while ((unsigned char)(shmem[step][(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] - *barrier_count) > 1)
+      ;
+  }
+  (*barrier_count)++;
+}
+
+static int node_barrier_test(volatile char **shmem, char barrier_count, int socket_rank, int num_cores, int node_sockets) {
+  int barriers_size, step;
+  for (barriers_size = 0, step = 1; step < node_sockets; barriers_size++, step <<= 1) {
+    shmem[0][(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] = barrier_count;
+    if ((unsigned char)(shmem[step][(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] - barrier_count) > 1) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static void socket_barrier_b(volatile char *shmem, char *barrier_count, int node_rank, int num_cores) {
   int barriers_size, step;
   for (barriers_size = 0, step = 1; step < num_cores; barriers_size++, step <<= 1) {
@@ -191,21 +212,21 @@ static void socket_barrier_b(volatile char *shmem, char *barrier_count, int node
   }
 }
 
-static void socket_barrier(volatile char *shmem, char *barrier_count, int node_rank, int num_cores) {
+static void socket_barrier(volatile char *shmem, char *barrier_count, int socket_rank, int num_cores) {
   int barriers_size, step;
   for (barriers_size = 0, step = 1; step < num_cores; barriers_size++, step <<= 1) {
-    shmem[(barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE] = *barrier_count;
-    while ((unsigned char)(shmem[(barriers_size * num_cores + (node_rank + step) % num_cores) * CACHE_LINE_SIZE] - *barrier_count) > 1)
+    shmem[(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] = *barrier_count;
+    while ((unsigned char)(shmem[(barriers_size * num_cores + (socket_rank + step) % num_cores) * CACHE_LINE_SIZE] - *barrier_count) > 1)
       ;
   }
   (*barrier_count)++;
 }
 
-static int socket_barrier_test(volatile char *shmem, char barrier_count, int node_rank, int num_cores) {
+static int socket_barrier_test(volatile char *shmem, char barrier_count, int socket_rank, int num_cores) {
   int barriers_size, step;
   for (barriers_size = 0, step = 1; step < num_cores; barriers_size++, step <<= 1) {
-    shmem[(barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE] = barrier_count;
-    if ((unsigned char)(shmem[(barriers_size * num_cores + (node_rank + step) % num_cores) * CACHE_LINE_SIZE] - barrier_count) > 1) {
+    shmem[(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] = barrier_count;
+    if ((unsigned char)(shmem[(barriers_size * num_cores + (socket_rank + step) % num_cores) * CACHE_LINE_SIZE] - barrier_count) > 1) {
       return 1;
     }
   }
@@ -528,62 +549,71 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       }
       break;
     case OPCODE_BSOCKETBARRIER:
-      socket_barrier_b(header->barrier_shmem, &header->barrier_counter,
-                       header->node_rank, header->num_cores);
+      socket_barrier_b(header->barrier_shmem_socket, &header->barrier_counter_socket,
+                       header->socket_rank, header->num_cores);
       break;
     case OPCODE_SOCKETBARRIER:
       if (active_wait & 2) {
-        socket_barrier(header->barrier_shmem + header->barrier_shmem_size, &header->barrier_counter,
-                       header->node_rank, header->num_cores);
+        socket_barrier(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
+                       header->socket_rank, header->num_cores);
       } else {
         *ip_exec = ip - 1;
-        if (!socket_barrier_test(header->barrier_shmem + header->barrier_shmem_size, header->barrier_counter,
-                                 header->node_rank, header->num_cores)) {
+        if (!socket_barrier_test(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket,
+                                 header->socket_rank, header->num_cores)) {
           return 0;
         } else {
-          socket_barrier(header->barrier_shmem + header->barrier_shmem_size, &header->barrier_counter,
-                         header->node_rank, header->num_cores);
+          socket_barrier(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
+                         header->socket_rank, header->num_cores);
+        }
+      }
+      break;
+    case OPCODE_NODEBARRIER:
+      if (active_wait & 2) {
+        node_barrier(header->barrier_shmem_node, &header->barrier_counter_node,
+                       header->socket_rank, header->num_cores, header->node_sockets);
+      } else {
+        *ip_exec = ip - 1;
+        if (!node_barrier_test(header->barrier_shmem_node, header->barrier_counter_node,
+                                 header->socket_rank, header->num_cores, header->node_sockets)) {
+          return 0;
+        } else {
+          node_barrier(header->barrier_shmem_node, &header->barrier_counter_node,
+                         header->socket_rank, header->num_cores, header->node_sockets);
         }
       }
       break;
     case OPCODE_CYCL_SOCKETBARRIER:
       if (active_wait & 2) {
-        socket_cycl_barrier(header->barrier_shmem + header->barrier_shmem_size, &header->barrier_counter,
-                            header->node_rank, header->num_cores);
+        socket_cycl_barrier(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
+                            header->socket_rank, header->num_cores);
       } else {
         *ip_exec = ip - 1;
-        if (!socket_cycl_barrier_test(header->barrier_shmem + header->barrier_shmem_size, &header->barrier_counter,
-                                      header->node_rank, header->num_cores)) {
+        if (!socket_cycl_barrier_test(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
+                                      header->socket_rank, header->num_cores)) {
           return 0;
         } else {
-          socket_cycl_barrier(header->barrier_shmem + header->barrier_shmem_size, &header->barrier_counter,
-                              header->node_rank, header->num_cores);
+          socket_cycl_barrier(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
+                              header->socket_rank, header->num_cores);
         }
       }
       break;
     case OPCODE_SET_SOCKETBARRIER:
       i1 = code_get_int(&ip);
-      socket_barrier_set(header->barrier_shmem + header->barrier_shmem_size, header->barrier_counter, i1);
+      socket_barrier_set(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket, i1);
       break;
     case OPCODE_WAIT_SOCKETBARRIER:
       i1 = code_get_int(&ip);
-      socket_barrier_wait(header->barrier_shmem + header->barrier_shmem_size, header->barrier_counter, i1);
+      socket_barrier_wait(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket, i1);
       break;
     case OPCODE_NEXT_SOCKETBARRIER:
-      socket_barrier_next(header->barrier_shmem + header->barrier_shmem_size, &header->barrier_counter,
-                        header->node_rank, header->num_cores);
+      socket_barrier_next(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
+                        header->socket_rank, header->num_cores);
       break;
     case OPCODE_SET_MEM:
       set_mem(code_get_pointer(&ip));
       break;
     case OPCODE_UNSET_MEM:
       unset_mem(code_get_pointer(&ip));
-      break;
-    case OPCODE_SETNUMCORES:
-      header->num_cores = code_get_int(&ip);
-      break;
-    case OPCODE_SETSOCKETRANK:
-      header->node_rank = code_get_int(&ip);
       break;
     case OPCODE_REDUCE:
       instruction2 = code_get_char(&ip);
@@ -728,6 +758,7 @@ int EXT_MPI_Done_native(int handle) {
   ext_mpi_destroy_shared_memory(handle, shmem_size, ext_mpi_num_sockets_per_node, shmemid, shmem, comm_code);
   ext_mpi_node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
   free(locmem);
+  free(((struct header_byte_code *)comm_code[handle])->barrier_shmem_node);
   free(comm_code[handle]);
   comm_code[handle] = NULL;
   ip = comm_code[handle + 1];
@@ -752,6 +783,7 @@ int EXT_MPI_Done_native(int handle) {
     ext_mpi_destroy_shared_memory(handle + 1, shmem_size, ext_mpi_num_sockets_per_node, shmemid, shmem, comm_code);
     ext_mpi_node_barrier_mpi(handle + 1, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
     free(locmem);
+    free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_node);
     free(comm_code[handle + 1]);
     comm_code[handle + 1] = NULL;
   }
@@ -791,7 +823,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
          nbuffer_in = 0, tag;
   char *ip, *locmem = NULL;
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
-  int locmem_size, shmem_size = 0, *shmemid = NULL;
+  int locmem_size, shmem_size = 0, *shmemid = NULL, node_sockets;
   char **shmem = NULL;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column;
   int gpu_byte_code_counter = 0;
@@ -804,13 +836,15 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   MPI_Comm_size(comm_row, &my_mpi_size_row);
   num_comm_max = parameters->locmem_max;
   my_size_shared_buf = parameters->shmem_max;
+  node_sockets = parameters->node_sockets;
   ext_mpi_delete_parameters(parameters);
   locmem_size = num_comm_max * sizeof(MPI_Request);
   locmem = (char *)malloc(locmem_size);
   if (!locmem)
     goto error;
   for (barriers_size = 0, step = 1;
-       step <= my_cores_per_node_row * my_cores_per_node_column;
+       step <= my_cores_per_node_row * my_cores_per_node_column ||
+       step <= node_sockets;
        barriers_size++, step *= 2)
     ;
   barriers_size += 1;
@@ -818,11 +852,11 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                    (NUM_BARRIERS + 1) * CACHE_LINE_SIZE;
   barriers_size += NUM_BARRIERS * CACHE_LINE_SIZE;
   barriers_size = (barriers_size/CACHE_LINE_SIZE + 1) * CACHE_LINE_SIZE;
-  shmem_size = my_size_shared_buf + barriers_size * 2;
+  shmem_size = my_size_shared_buf + barriers_size * 4;
   if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
                                   comm_row, my_cores_per_node_row, comm_column,
                                   my_cores_per_node_column, shmem_size, ext_mpi_num_sockets_per_node,
-                                  &shmemid, &shmem, 0, barriers_size * 2, comm_code) < 0)
+                                  &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
     goto error_shared;
   shmem_size -= barriers_size;
 #ifdef GPU_ENABLED

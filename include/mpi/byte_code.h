@@ -9,20 +9,21 @@ extern "C" {
 #endif
 
 struct header_byte_code {
-  char barrier_counter;
-  char *barrier_shmem;
+  char barrier_counter_socket;
+  char barrier_counter_node;
+  char *barrier_shmem_socket;
   int barrier_shmem_size;
+  volatile char **barrier_shmem_node;
   int *shmemid;
   char *locmem;
   char **shmem;
-  int shmem_size;
-  int buf_size;
   MPI_Comm comm_row;
   MPI_Comm comm_column;
   int node_num_cores_row;
   int node_num_cores_column;
   int num_cores;
-  int node_rank;
+  int socket_rank;
+  int node_sockets;
   int tag;
 #ifdef GPU_ENABLED
   char **shmem_gpu;
