@@ -1241,6 +1241,9 @@ int ext_mpi_read_assembler_line(char *buffer_in, int ascii, char *types, ...) {
       } else if (n < 1) {
         va_end(valist);
         return 0;
+      } else if (n < 2) {
+        va_end(valist);
+        return 1;
       }
       for (; (buffer_in[nbuffer_in] != ' ') && (buffer_in[nbuffer_in] != '\n') && (buffer_in[nbuffer_in] != '\0'); nbuffer_in++);
     }
