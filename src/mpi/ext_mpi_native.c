@@ -38,6 +38,7 @@
 #include "use_recvbuf.h"
 #include "no_socket_barriers.h"
 #include "waitany.h"
+#include "messages_shared_memory.h"
 #include "shmem.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
@@ -903,11 +904,11 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     ip = comm_code[handle + 1] = (char *)malloc(code_size);
     if (!ip)
       goto error;
-    shmem_size = my_size_shared_buf + barriers_size * 2;
+    shmem_size = my_size_shared_buf + barriers_size * 4;
     if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
                                     comm_row, my_cores_per_node_row, comm_column,
-                                    my_cores_per_node_column, shmem_size, 1,
-                                    &shmemid, &shmem, 0, barriers_size * 2, comm_code) < 0)
+                                    my_cores_per_node_column, shmem_size, ext_mpi_num_sockets_per_node,
+                                    &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
       goto error_shared;
     shmem_size -= barriers_size;
     locmem = (char *)malloc(locmem_size);
@@ -1113,7 +1114,7 @@ allreduce_short = 0;
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
-  //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
 //  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
@@ -1173,6 +1174,12 @@ buffer2 = buffer_temp;
    }
    exit(9);
    */
+  if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column) < 0)
+    goto error;
+  buffer_temp = buffer2;
+  buffer2 = buffer1;
+  buffer1 = buffer_temp;
+printf("%s\n", buffer2);
   if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)

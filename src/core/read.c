@@ -918,6 +918,9 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     nbuffer_out += sizeof(string1);
   } else {
     switch (string1) {
+    case enode_barrier:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " NODE_BARRIER");
+      break;
     case esocket_barrier:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER");
       break;
@@ -1076,6 +1079,9 @@ int ext_mpi_write_assembler_line(char *buffer_out, int ascii, char *types, ...) 
 }
 
 static enum eassembler_type read_assembler_type(char *cstring1) {
+  if (strcmp(cstring1, "NODE_BARRIER") == 0) {
+    return enode_barrier;
+  }
   if (strcmp(cstring1, "SOCKET_BARRIER") == 0) {
     return esocket_barrier;
   }

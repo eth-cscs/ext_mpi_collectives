@@ -25,6 +25,7 @@ enum edata_type {
   data_type_double
 };
 enum eassembler_type {
+  enode_barrier,
   esocket_barrier,
   esocket_cycl_barrier,
   eset_socket_barrier,

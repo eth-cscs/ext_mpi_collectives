@@ -490,6 +490,9 @@ int ext_mpi_generate_byte_code(char **shmem,
       code_put_int(&ip, global_ranks[integer3], isdryrun);
       code_put_pointer(&ip, locmem + sizeof(MPI_Request) * integer4, isdryrun);
     }
+    if (estring1 == enode_barrier) {
+      code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
+    }
     if (estring1 == esocket_barrier) {
       if (header->num_cores != 1) {
 #ifdef GPU_ENABLED
