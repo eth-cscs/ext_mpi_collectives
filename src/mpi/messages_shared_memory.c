@@ -36,34 +36,47 @@ static int flush_lines(char *buffer_out, struct line_list **lines_listed_org, in
   return nbuffer_out;
 }
 
+static int delete_element(struct line_list **lines_listed_org, struct line_list **lines_listed_p){
+  struct line_list *lines_listed_p2;
+  lines_listed_p2 = *lines_listed_org;
+  if (lines_listed_p2 == *lines_listed_p) {
+    *lines_listed_org = *lines_listed_p = (*lines_listed_p)->next;
+    free(lines_listed_p2);
+  } else {
+    if (!lines_listed_p2->next) return 0;
+    while (lines_listed_p2->next != *lines_listed_p) {
+      lines_listed_p2 = lines_listed_p2->next;
+      if (!lines_listed_p2->next) return 0;
+    }
+    lines_listed_p2->next = lines_listed_p2->next->next;
+    free(*lines_listed_p);
+    *lines_listed_p = *lines_listed_org;
+  }
+  return 1;
+}
+
 static int delete_from_list(struct line_list **lines_listed_org, int partner){
   struct line_irecv_isend_node data_irecv_isend;
-  struct line_list *lines_listed_p1, *lines_listed_p2;
+  struct line_list *lines_listed_p1;
   enum eassembler_type estring1;
-  int integer1, flag, ret = 0;
+  int integer1, flag, num_comm, ret = 0;
   lines_listed_p1 = *lines_listed_org;
   if (lines_listed_p1) {
     while (lines_listed_p1) {
       ext_mpi_read_assembler_line(lines_listed_p1->line, 0, "sd", &estring1, &integer1);
       flag = 1;
-      if ((estring1 == ewaitall) {
-//        ext_mpi_write_assembler_line(lines_listed_p1->line, 0, "sdsd", &estring1, &integer1);
+      if (estring1 == ewaitall) {
+        num_comm = integer1 - ret;
+        if (num_comm) {
+          ext_mpi_write_assembler_line(lines_listed_p1->line, 0, "sdsd", ewaitall, num_comm, elocmemp, 0);
+        } else {
+          delete_element(lines_listed_org, &lines_listed_p1);
+        }
       }
       if ((estring1 == eisend) || (estring1 == eirecv)) {
         ext_mpi_read_irecv_isend(lines_listed_p1->line, &data_irecv_isend.data);
         if (data_irecv_isend.data.partner == partner) {
-          lines_listed_p2 = *lines_listed_org;
-          if (lines_listed_p2 == lines_listed_p1) {
-            *lines_listed_org = lines_listed_p1 = lines_listed_p1->next;
-            free(lines_listed_p2);
-          } else {
-            while (lines_listed_p2->next != lines_listed_p1) {
-              lines_listed_p2 = lines_listed_p2->next;
-            }
-            lines_listed_p2->next = lines_listed_p2->next->next;
-            free(lines_listed_p1);
-            lines_listed_p1 = *lines_listed_org;
-          }
+          delete_element(lines_listed_org, &lines_listed_p1);
           ret++;
           flag = 0;
         }
@@ -74,6 +87,22 @@ static int delete_from_list(struct line_list **lines_listed_org, int partner){
     }
   }
   return ret;
+}
+
+static struct line_list* new_last_element(struct line_list **lines_listed_org){
+  struct line_list *p;
+  if (*lines_listed_org == NULL){
+    *lines_listed_org = (struct line_list*)malloc(sizeof(struct line_list));
+    (*lines_listed_org)->next = 0;
+    return *lines_listed_org;
+  }
+  p = *lines_listed_org;
+  while (p->next){
+    p = p->next;
+  }
+  p->next = (struct line_list*)malloc(sizeof(struct line_list));
+  p->next->next = NULL;
+  return p->next;
 }
 
 int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
@@ -124,11 +153,11 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
         if (data_irecv_isend_list_recv->data_irecv_isend.socket/node_sockets == socket/node_sockets) {
           data_memcpy_reduce.buffer_number2 = (node_sockets + data_irecv_isend_list_recv->data_irecv_isend.socket - socket) % node_sockets;
           if (!flag) {
-            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii_out, "s", esocket_barrier);
-            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii_out, "s", enode_barrier);
+            ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", esocket_barrier);
+            ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", enode_barrier);
             flag = 1;
           }
-          nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, ascii_out);
+          ext_mpi_write_memcpy_reduce(new_last_element(&lines_listed_org)->line, &data_memcpy_reduce, 0);
           send_recv_deleted += delete_from_list(&lines_listed_org, data_irecv_isend_list_recv->data_irecv_isend.socket);
         }
         data_irecv_isend_list_temp = data_irecv_isend_list_recv;
@@ -137,8 +166,8 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
       }
       data_irecv_isend_list_recv = NULL;
       if (flag) {
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii_out, "s", enode_barrier);
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii_out, "s", esocket_barrier);
+        ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", enode_barrier);
+        ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", esocket_barrier);
       }
       while (data_irecv_isend_list_send) {
         MPI_Wait(&data_irecv_isend_list_send->request, MPI_STATUS_IGNORE);
@@ -166,7 +195,7 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
         data_irecv_isend_list_send->data_irecv_isend = data_irecv_isend;
         data_irecv_isend_list_temp->data_irecv_isend.socket = socket;
         MPI_Isend(&data_irecv_isend_list_send->data_irecv_isend, sizeof(struct line_irecv_isend_node), MPI_CHAR, data_irecv_isend.data.partner, 0, comm_row, &data_irecv_isend_list_send->request);
-        MPI_Irecv(&data_irecv_isend_list_send->data_irecv_isend_reversed, sizeof(struct line_irecv_isend_node), MPI_CHAR, data_irecv_isend.data.partner, 0, comm_row, &data_irecv_isend_list_send->request_reversed);
+        MPI_Irecv(&data_irecv_isend_list_send->data_irecv_isend_reversed.socket, sizeof(int), MPI_CHAR, data_irecv_isend.data.partner, 1, comm_row, &data_irecv_isend_list_send->request_reversed);
       } else {
         data_irecv_isend_list_temp = (struct line_irecv_isend_list*)malloc(sizeof(struct line_irecv_isend_list));
         data_irecv_isend_list_temp->next = data_irecv_isend_list_recv;
@@ -174,7 +203,7 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
         data_irecv_isend_list_recv->data_irecv_isend_reversed = data_irecv_isend;
         data_irecv_isend_list_temp->data_irecv_isend_reversed.socket = socket;
         MPI_Irecv(&data_irecv_isend_list_recv->data_irecv_isend, sizeof(struct line_irecv_isend_node), MPI_CHAR, data_irecv_isend.data.partner, 0, comm_row, &data_irecv_isend_list_recv->request);
-        MPI_Isend(&data_irecv_isend_list_recv->data_irecv_isend_reversed, sizeof(struct line_irecv_isend_node), MPI_CHAR, data_irecv_isend.data.partner, 0, comm_row, &data_irecv_isend_list_recv->request_reversed);
+        MPI_Isend(&data_irecv_isend_list_recv->data_irecv_isend_reversed.socket, sizeof(int), MPI_CHAR, data_irecv_isend.data.partner, 1, comm_row, &data_irecv_isend_list_recv->request_reversed);
       }
     }
     if (!flush) {

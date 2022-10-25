@@ -1114,7 +1114,7 @@ allreduce_short = 0;
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+  //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
 //  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
@@ -1174,16 +1174,15 @@ buffer2 = buffer_temp;
    }
    exit(9);
    */
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
+    goto error;
+  if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
+    goto error;
   if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column) < 0)
     goto error;
   buffer_temp = buffer2;
   buffer2 = buffer1;
   buffer1 = buffer_temp;
-printf("%s\n", buffer2);
-  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
-    goto error;
-  if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
-    goto error;
   if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
     goto error;
   if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
