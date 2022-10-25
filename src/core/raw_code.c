@@ -29,7 +29,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   int node, num_nodes, size, add, add2, flag, node_rank,
       node_row_size = 1, node_column_size = 1, node_size, buffer_counter,
       size_s, adds;
-  int num_comm = 0, nbuffer_out = 0, nbuffer_in = 0, *msizes, msizes_max, i, j,
+  int num_comm = 0, num_comms = 0, nbuffer_out = 0, nbuffer_in = 0, *msizes, msizes_max, i, j,
       k = -1, m, n, o, q, size_level0 = 0, *size_level1 = NULL;
 #ifdef NCCL_ENABLED
   int start = 0;
@@ -122,8 +122,9 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         data_irecv_isend.offset = 0;
         data_irecv_isend.size = size_s;
         data_irecv_isend.partner = q;
-        data_irecv_isend.tag = num_comm;
+        data_irecv_isend.tag = num_comms;
         nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
+        num_comms++;
         buffer_counter++;
       }
     }
@@ -211,8 +212,9 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         data_irecv_isend.offset = 0;
         data_irecv_isend.size = adds;
         data_irecv_isend.partner = q;
-        data_irecv_isend.tag = num_comm;
+        data_irecv_isend.tag = num_comms;
         nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
+        num_comms++;
         buffer_counter++;
       }
     }
@@ -224,7 +226,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
 #endif
     //    }
     nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
-    num_comm = 0;
+    num_comm = num_comms = 0;
     buffer_counter = 1;
     for (o = 0; o < num_nodes; o++) {
       q = (num_nodes + node - o) % num_nodes;
