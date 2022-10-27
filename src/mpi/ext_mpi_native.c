@@ -856,7 +856,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   shmem_size = my_size_shared_buf + barriers_size * 4;
   if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
                                   comm_row, my_cores_per_node_row, comm_column,
-                                  my_cores_per_node_column, shmem_size, ext_mpi_num_sockets_per_node,
+                                  my_cores_per_node_column, &shmem_size, ext_mpi_num_sockets_per_node,
                                   &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
     goto error_shared;
   shmem_size -= barriers_size;
@@ -907,7 +907,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     shmem_size = my_size_shared_buf + barriers_size * 4;
     if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
                                     comm_row, my_cores_per_node_row, comm_column,
-                                    my_cores_per_node_column, shmem_size, ext_mpi_num_sockets_per_node,
+                                    my_cores_per_node_column, &shmem_size, ext_mpi_num_sockets_per_node,
                                     &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
       goto error_shared;
     shmem_size -= barriers_size;

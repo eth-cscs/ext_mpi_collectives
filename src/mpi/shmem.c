@@ -74,7 +74,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
                                 MPI_Comm *shmem_comm_node_column,
                                 MPI_Comm comm_row, int my_cores_per_node_row,
                                 MPI_Comm comm_column,
-                                int my_cores_per_node_column, int size_shared,
+                                int my_cores_per_node_column, int *size_shared,
                                 int num_segments, int **shmemid,
                                 char ***shmem, char fill, int numfill,
 				char **comm_code) {
@@ -85,9 +85,11 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
 #endif
   MPI_Comm_size(comm_row, &my_mpi_size_row);
   MPI_Comm_rank(comm_row, &my_mpi_rank_row);
+  MPI_Allreduce(MPI_IN_PLACE, size_shared, 1, MPI_INT, MPI_MAX, comm_row);
   if (comm_column != MPI_COMM_NULL) {
     MPI_Comm_size(comm_column, &my_mpi_size_column);
     MPI_Comm_rank(comm_column, &my_mpi_rank_column);
+    MPI_Allreduce(MPI_IN_PLACE, size_shared, 1, MPI_INT, MPI_MAX, comm_column);
   } else {
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;
@@ -109,7 +111,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
 #ifndef MMAP
     if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments) == i * my_cores_per_node_row) &&
         (my_mpi_rank_column % my_cores_per_node_column == 0)) {
-      (*shmemid)[ii] = shmget(IPC_PRIVATE, size_shared, IPC_CREAT | 0600);
+      (*shmemid)[ii] = shmget(IPC_PRIVATE, *size_shared, IPC_CREAT | 0600);
     }
     ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
     MPI_Bcast(&((*shmemid)[ii]), 1, MPI_INT, i * my_cores_per_node_row, *shmem_comm_node_row);
@@ -127,7 +129,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
     ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
     if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments) == i * my_cores_per_node_row) &&
          (my_mpi_rank_column % my_cores_per_node_column == 0)) {
-      memset((void *)((*shmem)[ii] + (size_shared - numfill)), fill, numfill);
+      memset((void *)((*shmem)[ii] + (*size_shared - numfill)), fill, numfill);
     } else {
       (*shmemid)[ii] = -1;
     }
