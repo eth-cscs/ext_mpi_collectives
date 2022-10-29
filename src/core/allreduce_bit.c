@@ -518,7 +518,6 @@ int ext_mpi_generate_allreduce_bit(char *buffer_in, char *buffer_out) {
       goto error;
     for (i = 0; i < size_level1[0]; i++) {
       stages[0].frac[i] = data[0][i].frac;
-      stages[0].source[i] = data[0][i].source;
       stages[0].num_from[i] = 1;
       stages[0].from_value[i] = -1;
       stages[0].from_line[i] = -1;
@@ -569,32 +568,31 @@ int ext_mpi_generate_allreduce_bit(char *buffer_in, char *buffer_out) {
     if (!data[i])
       goto error;
     for (j = 0; j < size_level1[i]; j++) {
-      data[i][j].to = NULL;
-      data[i][j].from_node = NULL;
-      data[i][j].from_line = NULL;
+      data[i][j].sendto = NULL;
+      data[i][j].recvfrom_node = NULL;
+      data[i][j].recvfrom_line = NULL;
     }
     k = 0;
     for (j = 0; j < stages[i].max_lines; j++) {
       data[i][k].frac = stages[i].frac[j];
-      data[i][k].source = stages[i].source[j];
-      data[i][k].to_max = stages[i].num_to[j];
-      data[i][k].from_max = stages[i].num_from[j];
-      data[i][k].to = (int *)malloc(sizeof(int) * data[i][k].to_max);
-      if (!data[i][k].to)
+      data[i][k].sendto_max = stages[i].num_to[j];
+      data[i][k].recvfrom_max = stages[i].num_from[j];
+      data[i][k].sendto = (int *)malloc(sizeof(int) * data[i][k].sendto_max);
+      if (!data[i][k].sendto)
         goto error;
-      data[i][k].from_node = (int *)malloc(sizeof(int) * data[i][k].from_max);
-      if (!data[i][k].from_node)
+      data[i][k].recvfrom_node = (int *)malloc(sizeof(int) * data[i][k].recvfrom_max);
+      if (!data[i][k].recvfrom_node)
         goto error;
-      data[i][k].from_line = (int *)malloc(sizeof(int) * data[i][k].from_max);
-      if (!data[i][k].from_line)
+      data[i][k].recvfrom_line = (int *)malloc(sizeof(int) * data[i][k].recvfrom_max);
+      if (!data[i][k].recvfrom_line)
         goto error;
-      for (l = 0; l < data[i][k].to_max; l++) {
-        data[i][k].to[l] = stages[i].to_value[l * stages[i].max_lines + j];
+      for (l = 0; l < data[i][k].sendto_max; l++) {
+        data[i][k].sendto[l] = stages[i].to_value[l * stages[i].max_lines + j];
       }
-      for (l = 0; l < data[i][k].from_max; l++) {
-        data[i][k].from_node[l] =
+      for (l = 0; l < data[i][k].recvfrom_max; l++) {
+        data[i][k].recvfrom_node[l] =
             stages[i].from_value[l * stages[i].max_lines + j];
-        data[i][k].from_line[l] =
+        data[i][k].recvfrom_line[l] =
             stages[i].from_line[l * stages[i].max_lines + j];
       }
       k++;

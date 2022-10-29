@@ -987,8 +987,8 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
     add = iodispls[node_rank];
     k = 1;
     for (i = 0; (i < size_level1[0]) && k; i++) {
-      for (j = 0; j < data[0][i].from_max; j++){
-        if (data[0][i].from_node[j] == -1){
+      for (j = 0; j < data[0][i].recvfrom_max; j++){
+        if (data[0][i].recvfrom_node[j] == -1){
           k = 0;
         }
       }

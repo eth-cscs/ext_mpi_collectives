@@ -98,12 +98,13 @@ struct parameters_block {
 
 struct data_line {
   int frac;
-  int source;
-  int to_max;
-  int *to;
-  int from_max;
-  int *from_node;
-  int *from_line;
+  int sendto_max;
+  int *sendto;
+  int recvfrom_max;
+  int *recvfrom_node;
+  int *recvfrom_line;
+  int reducefrom_max;
+  int *reducefrom;
 };
 
 struct line_irecv_isend {

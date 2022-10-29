@@ -357,31 +357,30 @@ int ext_mpi_generate_allreduce_recursive(char *buffer_in, char *buffer_out) {
     if (!data[i])
       goto error;
     for (j = 0; j < size_level1[i]; j++) {
-      data[i][j].to = NULL;
-      data[i][j].from_node = NULL;
-      data[i][j].from_line = NULL;
+      data[i][j].sendto = NULL;
+      data[i][j].recvfrom_node = NULL;
+      data[i][j].recvfrom_line = NULL;
     }
     for (j = 0; j < stages[i].max_lines; j++) {
       data[i][j].frac = stages[i].frac[j];
-      data[i][j].source = stages[i].source[j];
-      data[i][j].to_max = stages[i].num_to[j];
-      data[i][j].from_max = stages[i].num_from[j];
-      data[i][j].to = (int *)malloc(sizeof(int) * data[i][j].to_max);
-      if (!data[i][j].to)
+      data[i][j].sendto_max = stages[i].num_to[j];
+      data[i][j].recvfrom_max = stages[i].num_from[j];
+      data[i][j].sendto = (int *)malloc(sizeof(int) * data[i][j].sendto_max);
+      if (!data[i][j].sendto)
         goto error;
-      data[i][j].from_node = (int *)malloc(sizeof(int) * data[i][j].from_max);
-      if (!data[i][j].from_node)
+      data[i][j].recvfrom_node = (int *)malloc(sizeof(int) * data[i][j].recvfrom_max);
+      if (!data[i][j].recvfrom_node)
         goto error;
-      data[i][j].from_line = (int *)malloc(sizeof(int) * data[i][j].from_max);
-      if (!data[i][j].from_line)
+      data[i][j].recvfrom_line = (int *)malloc(sizeof(int) * data[i][j].recvfrom_max);
+      if (!data[i][j].recvfrom_line)
         goto error;
-      for (l = 0; l < data[i][j].to_max; l++) {
-        data[i][j].to[l] = stages[i].to_value[l * stages[i].max_lines + j];
+      for (l = 0; l < data[i][j].sendto_max; l++) {
+        data[i][j].sendto[l] = stages[i].to_value[l * stages[i].max_lines + j];
       }
-      for (l = 0; l < data[i][j].from_max; l++) {
-        data[i][j].from_node[l] =
+      for (l = 0; l < data[i][j].recvfrom_max; l++) {
+        data[i][j].recvfrom_node[l] =
             stages[i].from_value[l * stages[i].max_lines + j];
-        data[i][j].from_line[l] =
+        data[i][j].recvfrom_line[l] =
             stages[i].from_line[l * stages[i].max_lines + j];
       }
     }

@@ -75,24 +75,23 @@ static void frac_multiply(int gbstep, int igroup, int component, int fac, int *s
       data_new[j] = (struct data_line *)malloc(size_level1_new[j] * sizeof(struct data_line));
       for (i = 0; i < (*size_level1)[j]; i++) {
         for (k = 0; k < fac; k++){
-          data_new[j][i * fac + k].from_max = (*data)[j][i].from_max;
-          data_new[j][i * fac + k].from_node = (int *) malloc(data_new[j][i * fac + k].from_max * sizeof(int));
-          data_new[j][i * fac + k].from_line = (int *) malloc(data_new[j][i * fac + k].from_max * sizeof(int));
-          data_new[j][i * fac + k].to_max = (*data)[j][i].to_max;
-          data_new[j][i * fac + k].to = (int *) malloc(data_new[j][i * fac + k].to_max * sizeof(int));
+          data_new[j][i * fac + k].recvfrom_max = (*data)[j][i].recvfrom_max;
+          data_new[j][i * fac + k].recvfrom_node = (int *) malloc(data_new[j][i * fac + k].recvfrom_max * sizeof(int));
+          data_new[j][i * fac + k].recvfrom_line = (int *) malloc(data_new[j][i * fac + k].recvfrom_max * sizeof(int));
+          data_new[j][i * fac + k].sendto_max = (*data)[j][i].sendto_max;
+          data_new[j][i * fac + k].sendto = (int *) malloc(data_new[j][i * fac + k].sendto_max * sizeof(int));
           data_new[j][i * fac + k].frac = (*data)[j][i].frac;
-          data_new[j][i * fac + k].source = (*data)[j][i].source;
-          for (l = 0; l < data_new[j][i * fac + k].from_max; l++) {
-            data_new[j][i * fac + k].from_node[l] = (*data)[j][i].from_node[l];
-            if (data_new[j][i * fac + k].from_node[l] >= 0) {
-              data_new[j][i * fac + k].from_node[l] = node_global(data_new[j][i * fac + k].from_node[l], gbstep, igroup, component);
+          for (l = 0; l < data_new[j][i * fac + k].recvfrom_max; l++) {
+            data_new[j][i * fac + k].recvfrom_node[l] = (*data)[j][i].recvfrom_node[l];
+            if (data_new[j][i * fac + k].recvfrom_node[l] >= 0) {
+              data_new[j][i * fac + k].recvfrom_node[l] = node_global(data_new[j][i * fac + k].recvfrom_node[l], gbstep, igroup, component);
             }
-            data_new[j][i * fac + k].from_line[l] = (*data)[j][i].from_line[l] * fac + k;
+            data_new[j][i * fac + k].recvfrom_line[l] = (*data)[j][i].recvfrom_line[l] * fac + k;
           }
-          for (l = 0; l < data_new[j][i * fac + k].to_max; l++) {
-            data_new[j][i * fac + k].to[l] = (*data)[j][i].to[l];
-            if (data_new[j][i * fac + k].to[l] >= 0) {
-              data_new[j][i * fac + k].to[l] = node_global(data_new[j][i * fac + k].to[l], gbstep, igroup, component);
+          for (l = 0; l < data_new[j][i * fac + k].sendto_max; l++) {
+            data_new[j][i * fac + k].sendto[l] = (*data)[j][i].sendto[l];
+            if (data_new[j][i * fac + k].sendto[l] >= 0) {
+              data_new[j][i * fac + k].sendto[l] = node_global(data_new[j][i * fac + k].sendto[l], gbstep, igroup, component);
             }
           }
         }
@@ -107,19 +106,18 @@ static void frac_multiply(int gbstep, int igroup, int component, int fac, int *s
     for (j = 0; j < *size_level0; j++) {
       data_new[j] = (struct data_line *)malloc(size_level1_new[j] * sizeof(struct data_line));
       for (i = 0; i < size_level1_new[j]; i++) {
-        data_new[j][i].from_max = (*data)[j][i * fac].from_max;
-        data_new[j][i].from_node = (int *) malloc(data_new[j][i].from_max * sizeof(int));
-        data_new[j][i].from_line = (int *) malloc(data_new[j][i].from_max * sizeof(int));
-        data_new[j][i].to_max = (*data)[j][i * fac].to_max;
-        data_new[j][i].to = (int *) malloc(data_new[j][i].to_max * sizeof(int));
+        data_new[j][i].recvfrom_max = (*data)[j][i * fac].recvfrom_max;
+        data_new[j][i].recvfrom_node = (int *) malloc(data_new[j][i].recvfrom_max * sizeof(int));
+        data_new[j][i].recvfrom_line = (int *) malloc(data_new[j][i].recvfrom_max * sizeof(int));
+        data_new[j][i].sendto_max = (*data)[j][i * fac].sendto_max;
+        data_new[j][i].sendto = (int *) malloc(data_new[j][i].sendto_max * sizeof(int));
         data_new[j][i].frac = (*data)[j][i * fac].frac;
-        data_new[j][i].source = (*data)[j][i * fac].source;
-        for (l = 0; l < data_new[j][i].from_max; l++) {
-          data_new[j][i].from_node[l] = (*data)[j][i * fac].from_node[l];
-          data_new[j][i].from_line[l] = (*data)[j][i * fac].from_line[l] / fac;
+        for (l = 0; l < data_new[j][i].recvfrom_max; l++) {
+          data_new[j][i].recvfrom_node[l] = (*data)[j][i * fac].recvfrom_node[l];
+          data_new[j][i].recvfrom_line[l] = (*data)[j][i * fac].recvfrom_line[l] / fac;
         }
-        for (l = 0; l < data_new[j][i].to_max; l++) {
-          data_new[j][i].to[l] = (*data)[j][i * fac].to[l];
+        for (l = 0; l < data_new[j][i].sendto_max; l++) {
+          data_new[j][i].sendto[l] = (*data)[j][i * fac].sendto[l];
         }
       }
     }
@@ -220,8 +218,8 @@ static int gen_core(char *buffer_in, int node, struct parameters_block ***parame
     frac_multiply(gbstep, igroup, component, num_nodes_start/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
     num_nodes_start = 0;
     for (i = 0; i < (*size_level1_l)[group][(*size_level0_l)[group] - 1]; i++){
-      for (j = 0; j < (*data_l)[group][(*size_level0_l)[group] - 1][i].to_max; j++){
-        if ((*data_l)[group][(*size_level0_l)[group] - 1][i].to[j] == -1) {
+      for (j = 0; j < (*data_l)[group][(*size_level0_l)[group] - 1][i].sendto_max; j++){
+        if ((*data_l)[group][(*size_level0_l)[group] - 1][i].sendto[j] == -1) {
           num_nodes_start++;
         }
       }
@@ -293,8 +291,8 @@ static void set_frac_recursive(char *buffer_in, struct parameters_block *paramet
       }
     }
     for (i = j = 0; i < size_level1[group][size_level0[group] - 1]; i++) {
-      for (l = 0; l < data[group][size_level0[group] - 1][i].to_max; l++) {
-        if (data[group][size_level0[group] - 1][i].to[l] == -1) {
+      for (l = 0; l < data[group][size_level0[group] - 1][i].sendto_max; l++) {
+        if (data[group][size_level0[group] - 1][i].sendto[l] == -1) {
           node_translation_end[j++] = node_translation_begin[data_l[group][size_level0[group] - 1][i].frac];
         }
       }
@@ -315,8 +313,8 @@ static void set_frac_recursive(char *buffer_in, struct parameters_block *paramet
         free(size_level1_l);
         free(size_level0_l);
         free(parameters2_l);
-        gen_core(buffer_in, data[group][j][k].to[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
-        set_frac_recursive(buffer_in, parameters, data[group][j][k].to[0], group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_local, node_translation_end); 
+        gen_core(buffer_in, data[group][j][k].sendto[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+        set_frac_recursive(buffer_in, parameters, data[group][j][k].sendto[0], group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_local, node_translation_end); 
         for (i = 0; i < size_level1_l[group][size_level0_l[group] - 1]; i++) {
           node_translation_begin[k + i] = data_l[group + 1][0][i].frac;
         }
@@ -331,8 +329,8 @@ static void set_frac_recursive(char *buffer_in, struct parameters_block *paramet
     gen_core(buffer_in, node, &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
     set_frac_recursive(buffer_in, parameters, node, group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_end);
     for (i = j = 0; i < size_level1_l[group - 1][size_level0_l[group - 1] - 1]; i++) {
-      for (l = 0; l < data[group - 1][size_level0_l[group - 1] - 1][i].to_max; l++) {
-        if (data[group - 1][size_level0_l[group - 1] - 1][i].to[l] == -1) {
+      for (l = 0; l < data[group - 1][size_level0_l[group - 1] - 1][i].sendto_max; l++) {
+        if (data[group - 1][size_level0_l[group - 1] - 1][i].sendto[l] == -1) {
           node_translation_end[j++] = data_l[group - 1][size_level0_l[group - 1] - 1][i].frac;
         }
       }
@@ -347,11 +345,11 @@ static void set_frac_recursive(char *buffer_in, struct parameters_block *paramet
         free(size_level1_l);
         free(size_level0_l);
         free(parameters2_l);
-        gen_core(buffer_in, data[group][m + 1][k].from_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
-        set_frac_recursive(buffer_in, parameters, data[group][m + 1][k].from_node[0], group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_local);
+        gen_core(buffer_in, data[group][m + 1][k].recvfrom_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+        set_frac_recursive(buffer_in, parameters, data[group][m + 1][k].recvfrom_node[0], group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_local);
         for (i = j = 0; i < size_level1_l[group - 1][size_level0_l[group - 1] - 1]; i++) {
-          for (l = 0; l < data[group - 1][size_level0_l[group - 1] - 1][i].to_max; l++) {
-            if (data[group - 1][size_level0_l[group - 1] - 1][i].to[l] == -1) {
+          for (l = 0; l < data[group - 1][size_level0_l[group - 1] - 1][i].sendto_max; l++) {
+            if (data[group - 1][size_level0_l[group - 1] - 1][i].sendto[l] == -1) {
               node_translation_end[k + j++] = data_l[group - 1][size_level0_l[group - 1] - 1][i].frac;
             }
           }
@@ -379,16 +377,16 @@ static void adjust_line_numbers_allgatherv(int node, int size_level0, int *size_
   for (stage = 0; stage < size_level0; stage++) {
     max_rank = -1;
     for (i = 0; i < size_level1[stage]; i++) {
-      if (data[stage][i].from_node[0] > max_rank) {
-        max_rank = data[stage][i].from_node[0];
+      if (data[stage][i].recvfrom_node[0] > max_rank) {
+        max_rank = data[stage][i].recvfrom_node[0];
       }
     }
     for (rank = 0; rank <= max_rank; rank++) {
       line = 0;
       for (i = 0; i < size_level1[stage]; i++) {
-        if (data[stage][i].from_node[0] != node) {
-          if (data[stage][i].from_node[0] == rank) {
-            data[stage][i].from_line[0] = line++;
+        if (data[stage][i].recvfrom_node[0] != node) {
+          if (data[stage][i].recvfrom_node[0] == rank) {
+            data[stage][i].recvfrom_line[0] = line++;
           }
         }
       }
@@ -416,10 +414,10 @@ static void set_frac_recursive_allgatherv(char *buffer_in, struct parameters_blo
         }
       } else if ((stage == 1) && (group > 0)) {
         for (i = 0; i < size_level1[group][stage]; i++) {
-          if (data[group][stage][i].from_node[0] >= 0) {
-            gen_core(buffer_in, data[group][stage][i].from_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
-            set_frac_recursive_allgatherv(buffer_in, parameters, data[group][stage][i].from_node[0], group - 1, size_level0[group - 1] - 1, size_level0_l, size_level1_l, data_l);
-            data[group][stage][i].frac = data_l[group - 1][size_level0[group - 1] - 1][data[group][stage][i].from_line[0]].frac;
+          if (data[group][stage][i].recvfrom_node[0] >= 0) {
+            gen_core(buffer_in, data[group][stage][i].recvfrom_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+            set_frac_recursive_allgatherv(buffer_in, parameters, data[group][stage][i].recvfrom_node[0], group - 1, size_level0[group - 1] - 1, size_level0_l, size_level1_l, data_l);
+            data[group][stage][i].frac = data_l[group - 1][size_level0[group - 1] - 1][data[group][stage][i].recvfrom_line[0]].frac;
             for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
               ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
               ext_mpi_delete_parameters(parameters2_l[j]);
@@ -432,10 +430,10 @@ static void set_frac_recursive_allgatherv(char *buffer_in, struct parameters_blo
         }
       } else {
         for (i = 0; i < size_level1[group][stage]; i++) {
-          if (data[group][stage][i].from_node[0] >= 0) {
-            gen_core(buffer_in, data[group][stage][i].from_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
-            set_frac_recursive_allgatherv(buffer_in, parameters, data[group][stage][i].from_node[0], group, stage - 1, size_level0_l, size_level1_l, data_l);
-            data[group][stage][i].frac = data_l[group][stage - 1][data[group][stage][i].from_line[0]].frac;
+          if (data[group][stage][i].recvfrom_node[0] >= 0) {
+            gen_core(buffer_in, data[group][stage][i].recvfrom_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+            set_frac_recursive_allgatherv(buffer_in, parameters, data[group][stage][i].recvfrom_node[0], group, stage - 1, size_level0_l, size_level1_l, data_l);
+            data[group][stage][i].frac = data_l[group][stage - 1][data[group][stage][i].recvfrom_line[0]].frac;
             for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
               ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
               ext_mpi_delete_parameters(parameters2_l[j]);
@@ -469,9 +467,9 @@ static void set_frac_recursive_reduce_scatter(char *buffer_in, struct parameters
         }
       } else if (stage == size_level0[group] - 1) {
         for (i = 0; i < size_level1[group][stage]; i++) {
-          if (data[group + 1][0][i].to[0] >= 0) {
-            gen_core(buffer_in, data[group + 1][0][i].to[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
-            set_frac_recursive_reduce_scatter(buffer_in, parameters, data[group + 1][0][i].to[0], group + 1, 1, size_level0_l, size_level1_l, data_l);
+          if (data[group + 1][0][i].sendto[0] >= 0) {
+            gen_core(buffer_in, data[group + 1][0][i].sendto[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+            set_frac_recursive_reduce_scatter(buffer_in, parameters, data[group + 1][0][i].sendto[0], group + 1, 1, size_level0_l, size_level1_l, data_l);
             data[group][stage][i].frac = data_l[group + 1][1][i % size_level1_l[group + 1][1]].frac;
             for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
               ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
@@ -485,9 +483,9 @@ static void set_frac_recursive_reduce_scatter(char *buffer_in, struct parameters
         }
       } else {
         for (i = 0; i < size_level1[group][stage]; i++) {
-          if (data[group][stage][i].to[0] >= 0) {
-            gen_core(buffer_in, data[group][stage][i].to[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
-            set_frac_recursive_reduce_scatter(buffer_in, parameters, data[group][stage][i].to[0], group, stage + 1, size_level0_l, size_level1_l, data_l);
+          if (data[group][stage][i].sendto[0] >= 0) {
+            gen_core(buffer_in, data[group][stage][i].sendto[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+            set_frac_recursive_reduce_scatter(buffer_in, parameters, data[group][stage][i].sendto[0], group, stage + 1, size_level0_l, size_level1_l, data_l);
             data[group][stage][i].frac = data_l[group][stage + 1][i % size_level1_l[group][stage + 1]].frac;
             for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
               ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
@@ -540,31 +538,29 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
       (*size_level1)[j] = size_level1_l[group][i] + shift;
       (*data)[j] = (struct data_line *) malloc((*size_level1)[j] * sizeof(struct data_line));
       for (k = 0; k < shift; k++) {
-        (*data)[j][k].source = -2;
         (*data)[j][k].frac = -2;
-        (*data)[j][k].to_max = 1;
-        (*data)[j][k].to = (int *) malloc(sizeof(int));
-        (*data)[j][k].to[0] = parameters->socket;
-        (*data)[j][k].from_max = 1;
-        (*data)[j][k].from_node = (int *) malloc(sizeof(int));
-        (*data)[j][k].from_line = (int *) malloc(sizeof(int));
-        (*data)[j][k].from_node[0] = parameters->socket;
-        (*data)[j][k].from_line[0] = k;
+        (*data)[j][k].sendto_max = 1;
+        (*data)[j][k].sendto = (int *) malloc(sizeof(int));
+        (*data)[j][k].sendto[0] = parameters->socket;
+        (*data)[j][k].recvfrom_max = 1;
+        (*data)[j][k].recvfrom_node = (int *) malloc(sizeof(int));
+        (*data)[j][k].recvfrom_line = (int *) malloc(sizeof(int));
+        (*data)[j][k].recvfrom_node[0] = parameters->socket;
+        (*data)[j][k].recvfrom_line[0] = k;
       }
       for (k = 0; k < size_level1_l[group][i]; k++) {
-        (*data)[j][k + shift].source = data_l[group][i][k].source;
         (*data)[j][k + shift].frac = data_l[group][i][k].frac;
-        (*data)[j][k + shift].to_max = data_l[group][i][k].to_max;
-        (*data)[j][k + shift].from_max = data_l[group][i][k].from_max;
-        (*data)[j][k + shift].to = (int*) malloc((*data)[j][k + shift].to_max*sizeof(int));
-        (*data)[j][k + shift].from_node = (int*) malloc((*data)[j][k + shift].from_max*sizeof(int));
-        (*data)[j][k + shift].from_line = (int*) malloc((*data)[j][k + shift].from_max*sizeof(int));
-        for (m = 0; m < (*data)[j][k + shift].to_max; m++){
-          (*data)[j][k + shift].to[m] = data_l[group][i][k].to[m];
+        (*data)[j][k + shift].sendto_max = data_l[group][i][k].sendto_max;
+        (*data)[j][k + shift].recvfrom_max = data_l[group][i][k].recvfrom_max;
+        (*data)[j][k + shift].sendto = (int*) malloc((*data)[j][k + shift].sendto_max*sizeof(int));
+        (*data)[j][k + shift].recvfrom_node = (int*) malloc((*data)[j][k + shift].recvfrom_max*sizeof(int));
+        (*data)[j][k + shift].recvfrom_line = (int*) malloc((*data)[j][k + shift].recvfrom_max*sizeof(int));
+        for (m = 0; m < (*data)[j][k + shift].sendto_max; m++){
+          (*data)[j][k + shift].sendto[m] = data_l[group][i][k].sendto[m];
         }
-        for (m = 0; m < (*data)[j][k + shift].from_max; m++){
-          (*data)[j][k + shift].from_node[m] = data_l[group][i][k].from_node[m];
-          (*data)[j][k + shift].from_line[m] = data_l[group][i][k].from_line[m];
+        for (m = 0; m < (*data)[j][k + shift].recvfrom_max; m++){
+          (*data)[j][k + shift].recvfrom_node[m] = data_l[group][i][k].recvfrom_node[m];
+          (*data)[j][k + shift].recvfrom_line[m] = data_l[group][i][k].recvfrom_line[m];
         }
       }
       if ((group > 0) && ((*size_level1)[j - 1] < (*size_level1)[j])) {
@@ -573,21 +569,21 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
         }
       }
       for (k = shift; k < (*size_level1)[j]; k++) {
-        for (l = 0; l < (*data)[j][k].from_max; l++) {
-          if ((*data)[j][k].from_node[l] == parameters->socket) {
-            (*data)[j][k].from_line[l] += shift;
+        for (l = 0; l < (*data)[j][k].recvfrom_max; l++) {
+          if ((*data)[j][k].recvfrom_node[l] == parameters->socket) {
+            (*data)[j][k].recvfrom_line[l] += shift;
           }
         }
       }
       if ((group > 0) && (shift > 0)) {
         for (n = 0; n < (*size_level1)[j]; n++) {
 	  flag = 1;
-          for (l = 0; flag && (l < (*data)[j][n].from_max); l++) {
-            if (((*data)[j][n].from_node[l] == parameters->socket) && ((*data)[j][n].from_line[l] != n) && ((*data)[j][n].from_line[l] < size_level1_l[group - 1][size_level0_l[group - 1] - 1] + shift)) {
+          for (l = 0; flag && (l < (*data)[j][n].recvfrom_max); l++) {
+            if (((*data)[j][n].recvfrom_node[l] == parameters->socket) && ((*data)[j][n].recvfrom_line[l] != n) && ((*data)[j][n].recvfrom_line[l] < size_level1_l[group - 1][size_level0_l[group - 1] - 1] + shift)) {
               for (k = 0; flag && (k < (*size_level1)[j - 1]); k++) {
-                for (m = 0; flag && (m < (*data)[j - 1][k].to_max); m++) {
-	          if (((*data)[j - 1][k].to[m] == -1) && ((*data)[j - 1][k].frac == (*data)[j][n].frac)) {
-                    (*data)[j][n].from_line[l] = k;
+                for (m = 0; flag && (m < (*data)[j - 1][k].sendto_max); m++) {
+	          if (((*data)[j - 1][k].sendto[m] == -1) && ((*data)[j - 1][k].frac == (*data)[j][n].frac)) {
+                    (*data)[j][n].recvfrom_line[l] = k;
 		    flag = 0;
 		  }
 		}
@@ -609,13 +605,13 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
     for (; i < size_level0_l[group]; i++) {
       if ((i == size_level0_l[group] - 1) && (group < ngroups - 1)) {
         for (k = l = 0; k < (*size_level1)[j]; k++) {
-          for (m = (*data)[j][k].to_max - 1; m >= 0; m--) {
-            if ((*data)[j][k].to[m] == -1) {
-              (*data)[j][k].to_max = data_l[group + 1][0][l].to_max;
-              free((*data)[j][k].to);
-              (*data)[j][k].to = (int *) malloc((*data)[j][k].to_max*sizeof(int));
-              for (m = 0; m < (*data)[j][k].to_max; m++) {
-                (*data)[j][k].to[m] = data_l[group + 1][0][l].to[m];
+          for (m = (*data)[j][k].sendto_max - 1; m >= 0; m--) {
+            if ((*data)[j][k].sendto[m] == -1) {
+              (*data)[j][k].sendto_max = data_l[group + 1][0][l].sendto_max;
+              free((*data)[j][k].sendto);
+              (*data)[j][k].sendto = (int *) malloc((*data)[j][k].sendto_max*sizeof(int));
+              for (m = 0; m < (*data)[j][k].sendto_max; m++) {
+                (*data)[j][k].sendto[m] = data_l[group + 1][0][l].sendto[m];
               }
               l++;
               m = -1;
@@ -627,10 +623,10 @@ static void merge_groups(struct parameters_block *parameters, int group_core, in
         l = (*size_level1)[j]-size_level1_l[group][size_level0_l[group] - 1];
 	if (l >= 0) {
           for (k = 0; k < size_level1_l[group_core][size_level0_l[group_core] - 1]; k++) {
-            for (m = 0; m < data_l[group_core][size_level0_l[group_core] - 1][k].to_max; m++){
-              if (data_l[group_core][size_level0_l[group_core] - 1][k].to[m] == -1){
-                temp = (*data)[j][k].to_max; (*data)[j][k].to_max = (*data)[j][l].to_max; (*data)[j][l].to_max = temp;
-                ptemp = (*data)[j][k].to; (*data)[j][k].to = (*data)[j][l].to; (*data)[j][l].to = ptemp;
+            for (m = 0; m < data_l[group_core][size_level0_l[group_core] - 1][k].sendto_max; m++){
+              if (data_l[group_core][size_level0_l[group_core] - 1][k].sendto[m] == -1){
+                temp = (*data)[j][k].sendto_max; (*data)[j][k].sendto_max = (*data)[j][l].sendto_max; (*data)[j][l].sendto_max = temp;
+                ptemp = (*data)[j][k].sendto; (*data)[j][k].sendto = (*data)[j][l].sendto; (*data)[j][l].sendto = ptemp;
                 l++;
               }
 	    }

@@ -138,8 +138,8 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
       add2 = 0;
       for (i = 0; i < size_level1[size_level0 - 1]; i++) {
         k = 0;
-        for (j = 0; j < data[size_level0 - 1][i].to_max; j++) {
-          if (data[size_level0 - 1][i].to[j] == -1) {
+        for (j = 0; j < data[size_level0 - 1][i].sendto_max; j++) {
+          if (data[size_level0 - 1][i].sendto[j] == -1) {
             k = 1;
           }
         }

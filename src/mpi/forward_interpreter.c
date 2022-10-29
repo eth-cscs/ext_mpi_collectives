@@ -52,13 +52,13 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
     }
   }
   for (i = 0; i < size_level1[0]; i++) {
-    for (j = 0; j < data[0][i].from_max; j++) {
+    for (j = 0; j < data[0][i].recvfrom_max; j++) {
       k = parameters->socket == parameters->root / parameters->socket_row_size;
       if (parameters->root <= -10) {
         k = parameters->socket ==
             (-10 - parameters->root) / parameters->socket_row_size;
       }
-      if ((data[0][i].from_node[j] == -1) && k) {
+      if ((data[0][i].recvfrom_node[j] == -1) && k) {
         values[0][i] = 1;
       }
     }
@@ -98,26 +98,26 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
   for (i = 1; i < size_level0; i++) {
     l = 0;
     for (j = 0; j < size_level1[i]; j++) {
-      for (k = 0; k < data[i][j].from_max; k++) {
-        if (data[i][j].from_node[k] == parameters->socket) {
-          if ((data[i][j].from_line[k] < j) && (data[i][j].from_line[k] >= 0)) {
+      for (k = 0; k < data[i][j].recvfrom_max; k++) {
+        if (data[i][j].recvfrom_node[k] == parameters->socket) {
+          if ((data[i][j].recvfrom_line[k] < j) && (data[i][j].recvfrom_line[k] >= 0)) {
             if (values[i][j]) {
-              values[i][data[i][j].from_line[k]] = 1;
+              values[i][data[i][j].recvfrom_line[k]] = 1;
             }
           }
         } else {
-          MPI_Irecv(&recv_values[j][data[i][j].from_node[k]], 1, MPI_INT,
-                    data[i][j].from_node[k] * parameters->socket_row_size +
+          MPI_Irecv(&recv_values[j][data[i][j].recvfrom_node[k]], 1, MPI_INT,
+                    data[i][j].recvfrom_node[k] * parameters->socket_row_size +
                         parameters->socket_rank % parameters->socket_row_size,
                     0, comm_row, &request[l++]);
         }
       }
     }
     for (j = 0; j < size_level1[i - 1]; j++) {
-      for (k = 0; k < data[i - 1][j].to_max; k++) {
-        if (data[i - 1][j].to[k] != parameters->socket) {
+      for (k = 0; k < data[i - 1][j].sendto_max; k++) {
+        if (data[i - 1][j].sendto[k] != parameters->socket) {
           MPI_Isend(&values[i - 1][j], 1, MPI_INT,
-                    data[i - 1][j].to[k] * parameters->socket_row_size +
+                    data[i - 1][j].sendto[k] * parameters->socket_row_size +
                         parameters->socket_rank % parameters->socket_row_size,
                     0, comm_row, &request[l++]);
         }
@@ -130,43 +130,43 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
     }
     MPI_Waitall(l, request, MPI_STATUSES_IGNORE);
     for (j = 0; j < size_level1[i - 1]; j++) {
-      for (k = 0; k < data[i - 1][j].to_max; k++) {
-        if (data[i - 1][j].to[k] != parameters->socket) {
+      for (k = 0; k < data[i - 1][j].sendto_max; k++) {
+        if (data[i - 1][j].sendto[k] != parameters->socket) {
           if (!values[i - 1][j]) {
             if (parameters->socket_row_size * parameters->socket_column_size == 1) {
-              if (data[i - 1][j].to_max == 1) {
-                data[i - 1][j].to[k] = parameters->socket;
+              if (data[i - 1][j].sendto_max == 1) {
+                data[i - 1][j].sendto[k] = parameters->socket;
               } else {
-                for (l = k; l < data[i - 1][j].to_max - 1; l++) {
-                  data[i - 1][j].to[l] = data[i - 1][j].to[l + 1];
+                for (l = k; l < data[i - 1][j].sendto_max - 1; l++) {
+                  data[i - 1][j].sendto[l] = data[i - 1][j].sendto[l + 1];
                 }
-                data[i - 1][j].to_max--;
+                data[i - 1][j].sendto_max--;
                 k--;
               }
             } else {
-              data[i - 1][j].to[k] = -10 - data[i - 1][j].to[k];
+              data[i - 1][j].sendto[k] = -10 - data[i - 1][j].sendto[k];
             }
           }
         }
       }
     }
     for (j = 0; j < size_level1[i]; j++) {
-      for (k = 0; k < data[i][j].from_max; k++) {
-        if (data[i][j].from_node[k] != parameters->socket) {
-          if (!recv_values[j][data[i][j].from_node[k]]) {
+      for (k = 0; k < data[i][j].recvfrom_max; k++) {
+        if (data[i][j].recvfrom_node[k] != parameters->socket) {
+          if (!recv_values[j][data[i][j].recvfrom_node[k]]) {
             if (parameters->socket_row_size * parameters->socket_column_size == 1) {
-              if (data[i][j].from_max == 1) {
-                data[i][j].from_node[k] = parameters->socket;
+              if (data[i][j].recvfrom_max == 1) {
+                data[i][j].recvfrom_node[k] = parameters->socket;
               } else {
-                for (l = k; l < data[i][j].from_max - 1; l++) {
-                  data[i][j].from_node[l] = data[i][j].from_node[l + 1];
-                  data[i][j].from_line[l] = data[i][j].from_line[l + 1];
+                for (l = k; l < data[i][j].recvfrom_max - 1; l++) {
+                  data[i][j].recvfrom_node[l] = data[i][j].recvfrom_node[l + 1];
+                  data[i][j].recvfrom_line[l] = data[i][j].recvfrom_line[l + 1];
                 }
-                data[i][j].from_max--;
+                data[i][j].recvfrom_max--;
                 k--;
               }
             } else {
-              data[i][j].from_node[k] = -10 - data[i][j].from_node[k];
+              data[i][j].recvfrom_node[k] = -10 - data[i][j].recvfrom_node[k];
             }
           } else {
             values[i][j] = 1;
@@ -175,26 +175,26 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
       }
     }
     for (j = 0; j < size_level1[i]; j++) {
-      for (k = 0; k < data[i][j].from_max; k++) {
-        if (data[i][j].from_node[k] == parameters->socket) {
-          if ((data[i][j].from_line[k] < j) &&
-              (values[i][data[i][j].from_line[k]])) {
-            data[i][j].from_line[k] = -10 - data[i][j].from_line[k];
+      for (k = 0; k < data[i][j].recvfrom_max; k++) {
+        if (data[i][j].recvfrom_node[k] == parameters->socket) {
+          if ((data[i][j].recvfrom_line[k] < j) &&
+              (values[i][data[i][j].recvfrom_line[k]])) {
+            data[i][j].recvfrom_line[k] = -10 - data[i][j].recvfrom_line[k];
             values[i][j] = 1;
           } else {
             if (parameters->socket_row_size * parameters->socket_column_size == 1) {
-              if (data[i][j].from_max == 1) {
-                data[i][j].from_node[k] = parameters->socket;
+              if (data[i][j].recvfrom_max == 1) {
+                data[i][j].recvfrom_node[k] = parameters->socket;
               } else {
-                for (l = k; l < data[i][j].from_max - 1; l++) {
-                  data[i][j].from_node[l] = data[i][j].from_node[l + 1];
-                  data[i][j].from_line[l] = data[i][j].from_line[l + 1];
+                for (l = k; l < data[i][j].recvfrom_max - 1; l++) {
+                  data[i][j].recvfrom_node[l] = data[i][j].recvfrom_node[l + 1];
+                  data[i][j].recvfrom_line[l] = data[i][j].recvfrom_line[l + 1];
                 }
-                data[i][j].from_max--;
+                data[i][j].recvfrom_max--;
                 k--;
               }
             } else {
-              data[i][j].from_node[k] = -10 - data[i][j].from_node[k];
+              data[i][j].recvfrom_node[k] = -10 - data[i][j].recvfrom_node[k];
             }
           }
         }
