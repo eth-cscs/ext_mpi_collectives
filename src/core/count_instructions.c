@@ -3,7 +3,6 @@
 #include <string.h>
 #include "constants.h"
 #include "allreduce.h"
-#include "allreduce_groups.h"
 #include "alltoall.h"
 #include "backward_interpreter.h"
 #include "buffer_offset.h"
@@ -185,7 +184,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   free(msizes);
   msizes = NULL;
   if (!allreduce_short) {
-    if (ext_mpi_generate_allreduce_groups(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_allreduce(buffer1, buffer2) < 0)
       goto error;
   } else {
     if (ext_mpi_generate_allreduce(buffer1, buffer2) < 0)

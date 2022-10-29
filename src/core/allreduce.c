@@ -1,742 +1,708 @@
 #include "allreduce.h"
+#include "allreduce_single.h"
 #include "allreduce_bit.h"
 #include "constants.h"
 #include "read.h"
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct allreduce_data_element {
-  int max_lines;
-  int *frac;
-  int *source;
-  int *num_from;
-  int *from_value;
-  int *from_line;
-  int *num_to;
-  int *to_value;
-};
-
-static int allreduce_start(struct allreduce_data_element **stages,
-                           int num_processors, int *num_ports, int task,
-                           int allreduce) {
-  int max_port_from, max_port_to;
-  int nsteps, step, min_lines, i;
-  struct allreduce_data_element *stages_in = *stages;
-  for (nsteps = 0; num_ports[nsteps]; nsteps++) {
-  }
-  *stages = (struct allreduce_data_element *)malloc(
-      (nsteps + 1) * sizeof(struct allreduce_data_element));
-  if (!(*stages))
-    goto error;
-  for (step = 0; step <= nsteps; step++) {
-    (*stages)[step].frac = NULL;
-    (*stages)[step].source = NULL;
-    (*stages)[step].num_from = NULL;
-    (*stages)[step].from_value = NULL;
-    (*stages)[step].from_line = NULL;
-    (*stages)[step].num_to = NULL;
-    (*stages)[step].to_value = NULL;
-  }
-  if (!stages_in) {
-    for (step = 0; step <= nsteps; step++) {
-      if (allreduce) {
-        if (allreduce == 3) {
-          for ((*stages)[step].max_lines = 1, i = 1;
-               (num_ports[i - 1] > 0) && (i <= step);
-               (*stages)[step].max_lines =
-                   ((*stages)[step].max_lines - 1) / (num_ports[i - 1] + 1) + 1,
-              i++) {
-          }
-        } else {
-          for ((*stages)[step].max_lines = num_processors, i = 1;
-               (num_ports[i - 1] > 0) && (i <= step);
-               (*stages)[step].max_lines =
-                   ((*stages)[step].max_lines - 1) / (num_ports[i - 1] + 1) + 1,
-              i++) {
-          }
-        }
-      } else {
-        (*stages)[step].max_lines = 1;
-        i = 1;
-      }
-      min_lines = (*stages)[step].max_lines;
-      for (; num_ports[i - 1] && (i <= step);
-           (*stages)[step].max_lines *= (abs(num_ports[i - 1]) + 1), i++) {
-      }
-      if ((*stages)[step].max_lines > num_processors * min_lines) {
-        (*stages)[step].max_lines = num_processors * min_lines;
-      }
-      if (step != 0) {
-        max_port_from = abs(num_ports[step - 1]) + 1;
-      } else {
-        max_port_from = 1;
-      }
-      if (step != nsteps) {
-        max_port_to = abs(num_ports[step]) + 1;
-      } else {
-        max_port_to = 2;
-      }
-      (*stages)[step].frac =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
-      if (!(*stages)[step].frac)
-        goto error;
-      (*stages)[step].source =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
-      if (!(*stages)[step].source)
-        goto error;
-      (*stages)[step].num_from =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
-      if (!(*stages)[step].num_from)
-        goto error;
-      (*stages)[step].from_value = (int *)malloc(
-          sizeof(int) * (*stages)[step].max_lines * max_port_from);
-      if (!(*stages)[step].from_value)
-        goto error;
-      (*stages)[step].from_line = (int *)malloc(
-          sizeof(int) * (*stages)[step].max_lines * max_port_from);
-      if (!(*stages)[step].from_line)
-        goto error;
-      (*stages)[step].num_to =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
-      if (!(*stages)[step].num_to)
-        goto error;
-      (*stages)[step].to_value =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines * max_port_to);
-      if (!(*stages)[step].to_value)
-        goto error;
+static int get_gbstep(int group, int *groups, int num_nodes, int *allgatherv){
+  int groups_short[num_nodes], gbstep, i, max_group = 0, max_reduce, gbstep_;
+  for (i = 0; groups[i]; i++) {
+    if (groups[i] < 0) {
+      groups_short[max_group++] = abs(groups[i]);
     }
-    for (i = 0; i < (*stages)[0].max_lines; i++) {
-      if (allreduce == 3) {
-        (*stages)[0].frac[i] = 0;
-      } else {
-        (*stages)[0].frac[i] = (i + task) % num_processors;
-      }
-      (*stages)[0].source[i] = task;
-      (*stages)[0].num_from[i] = 1;
-      (*stages)[0].from_value[i] = -1;
-      (*stages)[0].from_line[i] = i;
-    }
+  }
+  max_group--;
+  for (gbstep = 1, max_reduce = max_group; gbstep < num_nodes; gbstep *= groups_short[max_reduce], max_reduce--);
+  *allgatherv = 0;
+  if (group <= max_reduce) {
+    for (gbstep = 1, i = 0; i < group; gbstep *= groups_short[i], i++);
   } else {
-    for (step = 0; step <= nsteps; step++) {
-      if (allreduce) {
-        if (allreduce == 3) {
-          for ((*stages)[step].max_lines = 1, i = 1;
-               (num_ports[i - 1] > 0) && (i <= step);
-               (*stages)[step].max_lines =
-                   ((*stages)[step].max_lines - 1) / (num_ports[i - 1] + 1) + 1,
-              i++) {
-          }
-        } else {
-          for ((*stages)[step].max_lines = num_processors, i = 1;
-               (num_ports[i - 1] > 0) && (i <= step);
-               (*stages)[step].max_lines =
-                   ((*stages)[step].max_lines - 1) / (num_ports[i - 1] + 1) + 1,
-              i++) {
-          }
-        }
-      } else {
-        (*stages)[step].max_lines = 1;
-        i = 1;
-      }
-      min_lines = (*stages)[step].max_lines;
-      for (; num_ports[i - 1] && (i <= step);
-           (*stages)[step].max_lines *= (abs(num_ports[i - 1]) + 1), i++) {
-      }
-      if ((*stages)[step].max_lines > num_processors * min_lines) {
-        (*stages)[step].max_lines = num_processors * min_lines;
-      }
-      if (allreduce) {
-        (*stages)[step].max_lines *= stages_in[0].max_lines / num_processors;
-      } else {
-        (*stages)[step].max_lines *= stages_in[0].max_lines;
-      }
-      if (step != 0) {
-        max_port_from = abs(num_ports[step - 1]) + 1;
-      } else {
-        max_port_from = 1;
-      }
-      if (step != nsteps) {
-        max_port_to = abs(num_ports[step]) + 1;
-      } else {
-        max_port_to = 2;
-      }
-      (*stages)[step].frac =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
-      if (!(*stages)[step].frac)
-        goto error;
-      (*stages)[step].source =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
-      if (!(*stages)[step].source)
-        goto error;
-      (*stages)[step].num_from =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
-      if (!(*stages)[step].num_from)
-        goto error;
-      (*stages)[step].from_value = (int *)malloc(
-          sizeof(int) * (*stages)[step].max_lines * max_port_from);
-      if (!(*stages)[step].from_value)
-        goto error;
-      (*stages)[step].from_line = (int *)malloc(
-          sizeof(int) * (*stages)[step].max_lines * max_port_from);
-      if (!(*stages)[step].from_line)
-        goto error;
-      (*stages)[step].num_to =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines);
-      if (!(*stages)[step].num_to)
-        goto error;
-      (*stages)[step].to_value =
-          (int *)malloc(sizeof(int) * (*stages)[step].max_lines * max_port_to);
-      if (!(*stages)[step].to_value)
-        goto error;
-    }
-    for (i = 0; i < (*stages)[0].max_lines; i++) {
-      (*stages)[0].frac[i] = stages_in[0].frac[i];
-      (*stages)[0].source[i] = stages_in[0].source[i];
-      (*stages)[0].num_from[i] = 1;
-      (*stages)[0].from_value[i] = -1;
-      (*stages)[0].from_line[i] = i;
+    for (gbstep = 1, i = max_group; i > group; gbstep *= groups_short[i], i--);
+    for (gbstep_ = 1, i = 0; i < group; gbstep_ *= groups_short[i], i++);
+    if (gbstep_ >= num_nodes) {
+      *allgatherv = 1;
     }
   }
-  return 0;
-error:
-  if (*stages) {
-    for (step = 0; step <= nsteps; step++) {
-      free((*stages)[step].frac);
-      free((*stages)[step].source);
-      free((*stages)[step].num_from);
-      free((*stages)[step].from_value);
-      free((*stages)[step].from_line);
-      free((*stages)[step].num_to);
-      free((*stages)[step].to_value);
-    }
-  }
-  free(*stages);
-  return ERROR_MALLOC;
+  return gbstep;
 }
 
-static void allreduce_done(struct allreduce_data_element *stages,
-                           int *num_ports) {
-  int nsteps, step;
-  for (nsteps = 0; num_ports[nsteps]; nsteps++) {
+static int get_gbstep_reduce_scatter(int group, int *groups, int num_nodes, int *allgatherv){
+  int groups_short[num_nodes], gbstep, i, max_group = 0;
+  for (i = 0; groups[i]; i++) {
+    if (groups[i] < 0) {
+      groups_short[max_group++] = abs(groups[i]);
+    }
   }
-  for (step = 0; step <= nsteps; step++) {
-    free(stages[step].to_value);
-    free(stages[step].num_to);
-    free(stages[step].from_line);
-    free(stages[step].from_value);
-    free(stages[step].num_from);
-    free(stages[step].source);
-    free(stages[step].frac);
-  }
-  free(stages);
+  *allgatherv = 0;
+  for (gbstep = 1, i = 0; i < group; gbstep *= groups_short[i], i++);
+  return gbstep;
 }
 
-static int update_lines_used(struct allreduce_data_element *stages,
-                             int *num_ports, int *lines_used) {
-  int step, port, i, flag;
-  flag = 0;
-  for (step = 0; num_ports[step]; step++) {
-  }
-  for (step--; (step >= 0) && (num_ports[step] < 0); step--) {
-    for (port = 0; port < abs(num_ports[step]); port++) {
-      for (i = 0; (i < stages[step].max_lines) &&
-                  (i + (port + 1) * stages[step].max_lines <
-                   stages[step + 1].max_lines);
-           i++) {
-        if (lines_used[(port + 1) * stages[step].max_lines + i]) {
-          if (!lines_used[i]) {
-            flag = 1;
-          }
-          lines_used[i] = 1;
-        }
-      }
-    }
-  }
-  return flag;
+static int node_local(int node_global, int gbstep, int factor, int *component) {
+  *component = (node_global / factor / gbstep) * gbstep + node_global % gbstep;
+  return ((node_global / gbstep) % factor);
 }
 
-static int allreduce_init(struct allreduce_data_element **stages,
-                          int num_processors, int *num_ports, int *lines_used,
-                          int task, int allreduce) {
-  int chunk, gbstep, port, i, j, k, l, m, step, task_dup, step_mid, flag, im,
-      *used = NULL, used_max;
-  i = allreduce_start(stages, num_processors, num_ports, task, allreduce);
-  if (i < 0)
-    goto error;
-  used_max = (*stages)[0].max_lines;
-  for (step = 0; num_ports[step]; step++) {
-    if ((*stages)[step + 1].max_lines > used_max) {
-      used_max = (*stages)[step + 1].max_lines;
+static int node_global(int node_local, int gbstep, int factor, int component) {
+  return (node_local * gbstep + component % gbstep +
+          (component / gbstep) * factor * gbstep);
+}
+
+static int get_ngroups(struct parameters_block *parameters) {
+  int ngroups = 0, group;
+  for (group = 0; parameters->groups[group]; group++) {
+    if (parameters->groups[group] < 0) {
+      ngroups++;
     }
   }
-  used = (int *)malloc(used_max * sizeof(int));
-  if (!used)
-    goto error;
-  for (step = 0; num_ports[step] > 0; step++) {
-    for (i = 0, gbstep = num_processors; (num_ports[i] > 0) && (i <= step);
-         i++) {
-      gbstep = (gbstep - 1) / (num_ports[i] + 1) + 1;
+  return ngroups;
+}
+
+static void frac_multiply(int gbstep, int igroup, int component, int fac, int *size_level0, int **size_level1, struct data_line ***data){
+  struct data_line **data_new;
+  int *size_level1_new, i, j, k, l;
+  size_level1_new = (int *) malloc(*size_level0 * sizeof(int));
+  if (fac > 0) {
+    for (i = 0; i < *size_level0; i++) {
+      size_level1_new[i] = (*size_level1)[i] * fac;
     }
-    for (i = 0; i < gbstep * (*stages)[0].max_lines / num_processors; i++) {
-      (*stages)[step + 1].frac[i] = (*stages)[step].frac[i];
-      (*stages)[step + 1].source[i] = (*stages)[step].source[i];
-      (*stages)[step + 1].num_from[i] = 1;
-      (*stages)[step + 1].from_value[i] = task;
-      (*stages)[step + 1].from_line[i] = -1;
-    }
-    for (port = 0; port < num_ports[step]; port++) {
-      for (i = 0;
-           (i < gbstep * (*stages)[0].max_lines / num_processors) &&
-           ((port + 1) * gbstep * (*stages)[0].max_lines / num_processors + i <
-            (*stages)[step].max_lines);
-           i++) {
-        (*stages)[step + 1].num_from[i] = 1;
-        (*stages)[step + 1].from_value[i] = task;
-        (*stages)[step + 1].from_line[i] = i;
-      }
-    }
-    for (port = 0; port < num_ports[step]; port++) {
-      task_dup = (num_processors + task - (port + 1) * gbstep) % num_processors;
-      for (i = 0;
-           (i < gbstep * (*stages)[0].max_lines / num_processors) &&
-           ((port + 1) * gbstep * (*stages)[0].max_lines / num_processors + i <
-            (*stages)[step].max_lines);
-           i++) {
-        (*stages)[step + 1].frac[i] =
-            ((*stages)[0].max_lines +
-             (*stages)[step].frac[gbstep * (port + 1) * (*stages)[0].max_lines /
-                                      num_processors +
-                                  i] +
-             (task_dup - task) * (*stages)[0].max_lines / num_processors) %
-            (*stages)[0].max_lines;
-        (*stages)[step + 1].source[i] = task;
-        (*stages)[step + 1].from_value[(*stages)[step + 1].max_lines *
-                                           (*stages)[step + 1].num_from[i] +
-                                       i] = task_dup;
-        (*stages)[step + 1].from_line[(*stages)[step + 1].max_lines *
-                                          (*stages)[step + 1].num_from[i] +
-                                      i] = (port + 1) * gbstep + i;
-        (*stages)[step + 1].num_from[i]++;
-      }
-    }
-  }
-  step_mid = step;
-  for (step = step_mid; num_ports[step]; step++) {
-    chunk = (*stages)[step].max_lines;
-    for (i = 0; num_ports[i] > 0; i++) {
-    }
-    gbstep = 1;
-    while ((num_ports[i] != 0) && (i < step)) {
-      gbstep *= abs(num_ports[i]) + 1;
-      i++;
-    }
-    for (i = 0; i < chunk; i++) {
-      (*stages)[step + 1].frac[i] = (*stages)[step].frac[i];
-      (*stages)[step + 1].source[i] = (*stages)[step].source[i];
-      (*stages)[step + 1].num_from[i] = 1;
-      (*stages)[step + 1].from_value[i] = task;
-      (*stages)[step + 1].from_line[i] = i;
-    }
-    for (port = 0; port < abs(num_ports[step]); port++) {
-      task_dup = (num_processors + task + (port + 1) * gbstep) % num_processors;
-      for (i = 0; (i < chunk) &&
-                  (chunk * (port + 1) + i < (*stages)[step + 1].max_lines);
-           i++) {
-        (*stages)[step + 1].num_from[chunk * (port + 1) + i] = 1;
-        (*stages)[step + 1].from_value[chunk * (port + 1) + i] =
-            (num_processors + task_dup) % num_processors;
-        //        (*stages)[step+1].from_line[chunk*(port+1)+i] =
-        //        chunk*(port+1)+i;
-        (*stages)[step + 1].from_line[chunk * (port + 1) + i] =
-            chunk * port + i;
-        (*stages)[step + 1].frac[chunk * (port + 1) + i] =
-            ((*stages)[0].max_lines + (*stages)[step].frac[i] +
-             (task_dup - task) * (*stages)[0].max_lines / num_processors) %
-            (*stages)[0].max_lines;
-        if (!allreduce) {
-          (*stages)[step + 1].frac[chunk * (port + 1) + i] =
-              (num_processors * (*stages)[0].max_lines +
-               (*stages)[step].frac[i] +
-               (task_dup - task) * (*stages)[0].max_lines) %
-              (num_processors * (*stages)[0].max_lines);
-        }
-        (*stages)[step + 1].source[chunk * (port + 1) + i] =
-            (num_processors + (*stages)[step].source[i] + task_dup - task) %
-            num_processors;
-      }
-    }
-    for (port = 0; port < abs(num_ports[step]); port++) {
-      im = chunk;
-      if (chunk * (port + 1) + im > (*stages)[step + 1].max_lines - 1) {
-        im = (*stages)[step + 1].max_lines - chunk * (port + 1);
-      }
-      for (i = 0; i < im; i++) {
-        for (j = 0; j < used_max; j++) {
-          used[j] = 1;
-        }
-        for (j = (port + 1) * chunk - 1;
-             (j >= 0) && used[(*stages)[step + 1].frac[j]]; j--) {
-          if ((*stages)[step + 1].frac[j] ==
-              (*stages)[step + 1].frac[chunk * (port + 1) + i]) {
-            (*stages)[step + 1].from_value
-                [(*stages)[step + 1].max_lines *
-                     (*stages)[step + 1].num_from[chunk * (port + 1) + i] +
-                 chunk * (port + 1) + i] = task;
-            (*stages)[step + 1].from_line
-                [(*stages)[step + 1].max_lines *
-                     (*stages)[step + 1].num_from[chunk * (port + 1) + i] +
-                 chunk * (port + 1) + i] = j;
-            (*stages)[step + 1].num_from[chunk * (port + 1) + i]++;
-            used[(*stages)[step + 1].frac[j]] = 0;
+    data_new = (struct data_line **) malloc(*size_level0 * sizeof(struct data_line *));
+    for (j = 0; j < *size_level0; j++) {
+      data_new[j] = (struct data_line *)malloc(size_level1_new[j] * sizeof(struct data_line));
+      for (i = 0; i < (*size_level1)[j]; i++) {
+        for (k = 0; k < fac; k++){
+          data_new[j][i * fac + k].from_max = (*data)[j][i].from_max;
+          data_new[j][i * fac + k].from_node = (int *) malloc(data_new[j][i * fac + k].from_max * sizeof(int));
+          data_new[j][i * fac + k].from_line = (int *) malloc(data_new[j][i * fac + k].from_max * sizeof(int));
+          data_new[j][i * fac + k].to_max = (*data)[j][i].to_max;
+          data_new[j][i * fac + k].to = (int *) malloc(data_new[j][i * fac + k].to_max * sizeof(int));
+          data_new[j][i * fac + k].frac = (*data)[j][i].frac;
+          data_new[j][i * fac + k].source = (*data)[j][i].source;
+          for (l = 0; l < data_new[j][i * fac + k].from_max; l++) {
+            data_new[j][i * fac + k].from_node[l] = (*data)[j][i].from_node[l];
+            if (data_new[j][i * fac + k].from_node[l] >= 0) {
+              data_new[j][i * fac + k].from_node[l] = node_global(data_new[j][i * fac + k].from_node[l], gbstep, igroup, component);
+            }
+            data_new[j][i * fac + k].from_line[l] = (*data)[j][i].from_line[l] * fac + k;
           }
-        }
-      }
-    }
-    for (i = 0; i < used_max; i++) {
-      used[i] = 1;
-    }
-    for (i = (*stages)[step + 1].max_lines - 1; i >= 0; i--) {
-      if (used[(*stages)[step + 1].frac[i]]) {
-        lines_used[i] = 1;
-        used[(*stages)[step + 1].frac[i]] = 0;
-      }
-    }
-  }
-  flag = 1;
-  while (flag) {
-    flag = 0;
-    for (step = step_mid + 1; num_ports[step - 1]; step++) {
-      for (i = 0; i < (*stages)[step].max_lines; i++) {
-        for (k = 0; k < (*stages)[step].num_from[i]; k++) {
-          m = (*stages)[step].from_line[(*stages)[step].max_lines * k + i];
-          if ((k > 0) && (m >= 0) &&
-              ((*stages)[step].from_value[(*stages)[step].max_lines * k + i] ==
-               task)) {
-            if (!lines_used[m]) {
-              flag = 1;
-              lines_used[m] = 1;
+          for (l = 0; l < data_new[j][i * fac + k].to_max; l++) {
+            data_new[j][i * fac + k].to[l] = (*data)[j][i].to[l];
+            if (data_new[j][i * fac + k].to[l] >= 0) {
+              data_new[j][i * fac + k].to[l] = node_global(data_new[j][i * fac + k].to[l], gbstep, igroup, component);
             }
           }
         }
       }
     }
-    if (flag) {
-      flag = update_lines_used(*stages, num_ports, lines_used);
-    }
-  }
-  for (step = step_mid + 1; num_ports[step - 1]; step++) {
-    chunk = (*stages)[step - 1].max_lines;
-    for (port = 0; port < abs(num_ports[step - 1]); port++) {
-      for (i = 0;
-           (i < chunk) && (chunk * (port + 1) + i < (*stages)[step].max_lines);
-           i++) {
-        for (k = 0; k < (*stages)[step].num_from[chunk * (port + 1) + i]; k++) {
-          if ((*stages)[step].from_line[(*stages)[step].max_lines * k +
-                                        chunk * (port + 1) + i] >= 0) {
-            j = l = (*stages)[step].from_line[(*stages)[step].max_lines * k +
-                                              chunk * (port + 1) + i];
-            for (m = 0; m < j; m++) {
-              if (!lines_used[m]) {
-                l--;
-              }
-            }
-            (*stages)[step].from_line[(*stages)[step].max_lines * k +
-                                      chunk * (port + 1) + i] = l;
-          }
-        }
-      }
-    }
-  }
-  if (allreduce != 2) {
-    gbstep = num_processors;
-    for (step = 0; num_ports[step] > 0; step++) {
-      chunk = ((*stages)[step].max_lines - 1) / (num_ports[step] + 1) + 1;
-      gbstep = (gbstep - 1) / (num_ports[step] + 1) + 1;
-      for (i = 0; i < chunk; i++) {
-        (*stages)[step].num_to[i] = 1;
-        (*stages)[step].to_value[i] = task;
-      }
-      for (port = 0; port < num_ports[step]; port++) {
-        for (i = 0; (i < chunk) &&
-                    (i + (port + 1) * chunk < (*stages)[step].max_lines);
-             i++) {
-          (*stages)[step].num_to[i + (port + 1) * chunk] = 1;
-          (*stages)[step].to_value[i + (port + 1) * chunk] =
-              (num_processors + task + (port + 1) * gbstep) % num_processors;
-        }
-      }
-    }
   } else {
-    gbstep = num_processors;
-    for (step = 0; num_ports[step] > 0; step++) {
-      chunk = (((*stages)[step].max_lines /
-                    ((*stages)[0].max_lines / num_processors) -
-                1) /
-                   (num_ports[step] + 1) +
-               1) *
-              ((*stages)[0].max_lines / num_processors);
-      gbstep = (gbstep - 1) / (num_ports[step] + 1) + 1;
-      for (i = 0; i < chunk; i++) {
-        (*stages)[step].num_to[i] = 1;
-        (*stages)[step].to_value[i] = task;
-      }
-      for (port = 0; port < num_ports[step]; port++) {
-        for (i = 0; (i < chunk) &&
-                    (i + (port + 1) * chunk < (*stages)[step].max_lines);
-             i++) {
-          (*stages)[step].num_to[i + (port + 1) * chunk] = 1;
-          (*stages)[step].to_value[i + (port + 1) * chunk] =
-              (num_processors + task + (port + 1) * gbstep) % num_processors;
+    fac = abs(fac);
+    for (i = 0; i < *size_level0; i++) {
+      size_level1_new[i] = (*size_level1)[i] / fac;
+    }
+    data_new = (struct data_line **) malloc(*size_level0 * sizeof(struct data_line *));
+    for (j = 0; j < *size_level0; j++) {
+      data_new[j] = (struct data_line *)malloc(size_level1_new[j] * sizeof(struct data_line));
+      for (i = 0; i < size_level1_new[j]; i++) {
+        data_new[j][i].from_max = (*data)[j][i * fac].from_max;
+        data_new[j][i].from_node = (int *) malloc(data_new[j][i].from_max * sizeof(int));
+        data_new[j][i].from_line = (int *) malloc(data_new[j][i].from_max * sizeof(int));
+        data_new[j][i].to_max = (*data)[j][i * fac].to_max;
+        data_new[j][i].to = (int *) malloc(data_new[j][i].to_max * sizeof(int));
+        data_new[j][i].frac = (*data)[j][i * fac].frac;
+        data_new[j][i].source = (*data)[j][i * fac].source;
+        for (l = 0; l < data_new[j][i].from_max; l++) {
+          data_new[j][i].from_node[l] = (*data)[j][i * fac].from_node[l];
+          data_new[j][i].from_line[l] = (*data)[j][i * fac].from_line[l] / fac;
+        }
+        for (l = 0; l < data_new[j][i].to_max; l++) {
+          data_new[j][i].to[l] = (*data)[j][i * fac].to[l];
         }
       }
     }
   }
-  gbstep = 1;
-  for (; num_ports[step]; step++) {
-    for (i = 0; i < (*stages)[step].max_lines; i++) {
-      (*stages)[step].num_to[i] = 1;
-      (*stages)[step].to_value[i] = task;
-      for (port = 0; port < abs(num_ports[step]); port++) {
-        if ((port + 1) * (*stages)[step].max_lines + i <
-            (*stages)[step + 1].max_lines) {
-          if (lines_used[(port + 1) * (*stages)[step].max_lines + i]) {
-            (*stages)[step].to_value[(*stages)[step].max_lines *
-                                         (*stages)[step].num_to[i] +
-                                     i] =
-                (num_processors + task - (port + 1) * gbstep) % num_processors;
-            (*stages)[step].num_to[i]++;
-          }
-        }
-      }
-    }
-    gbstep *= (abs(num_ports[step]) + 1);
-  }
-  for (i = 0; i < used_max; i++) {
-    used[i] = 1;
-  }
-  for (i = (*stages)[step].max_lines - 1; i >= 0; i--) {
-    (*stages)[step].num_to[i] = 1;
-    (*stages)[step].to_value[i] = task;
-    if (used[(*stages)[step].frac[i]]) {
-      (*stages)[step].to_value[(*stages)[step].max_lines + i] = -1;
-      (*stages)[step].num_to[i]++;
-      used[(*stages)[step].frac[i]] = 0;
-    }
-  }
-  free(used);
-  return 0;
-error:
-  free(used);
-  return ERROR_MALLOC;
+  ext_mpi_delete_algorithm(*size_level0, *size_level1, *data);
+  *size_level1 = size_level1_new;
+  *data = data_new;
 }
 
-int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
-  struct allreduce_data_element *stages = NULL, *stages_in = NULL;
-  struct data_line **data = NULL;
-  struct parameters_block *parameters;
-  int i, j, k, l, *lines_used = NULL, nstep, max_lines;
-  int task, num_nodes, *num_ports = NULL, size_level0 = 0, *size_level1 = NULL;
-  int nbuffer_out = 0, nbuffer_in = 0, allreduce = 1;
+static int gen_core(char *buffer_in, int node, struct parameters_block ***parameters2, int *group_core, int **size_level0_l, int ***size_level1_l, struct data_line ****data_l) {
+  int nbuffer_out = 0, nbuffer_in = 0, num_port,
+      group, ngroups = 0, igroup = -1, num_nodes_start, flag_allgatherv;
+  int i, j, gbstep, component, ports_chunk, num_nodes_l;
+  int *frac_start = NULL, *frac_temp = NULL, fac, nnodes_core = INT_MAX;
+  struct parameters_block *parameters = NULL;
+  char *buffer_in_temp = NULL, *buffer_out_temp = NULL;
+  *group_core = -1;
+  *parameters2 = NULL;
+  *size_level0_l = NULL;
+  *size_level1_l = NULL;
+  *data_l = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  if (parameters->bit_identical) {
-    i = ext_mpi_generate_allreduce_bit(buffer_in, buffer_out);
-    ext_mpi_delete_parameters(parameters);
-    return i;
+  parameters->socket = node;
+  ngroups = get_ngroups(parameters);
+  buffer_in_temp = (char *)malloc(MAX_BUFFER_SIZE);
+  if (!buffer_in_temp)
+    goto error;
+  buffer_out_temp = (char *)malloc(MAX_BUFFER_SIZE);
+  if (!buffer_out_temp)
+    goto error;
+  frac_start = (int *)malloc((parameters->num_sockets + 1) * sizeof(int));
+  if (!frac_start)
+    goto error;
+  frac_temp = (int *)malloc(parameters->num_sockets * sizeof(int));
+  if (!frac_temp)
+    goto error;
+  *parameters2 = (struct parameters_block **) malloc(ngroups * sizeof(struct parameters_block *));
+  *size_level0_l = (int *) malloc(ngroups * sizeof(int));
+  *size_level1_l = (int **) malloc(ngroups * sizeof(int *));
+  *data_l = (struct data_line ***) malloc(ngroups * sizeof(struct data_line **));
+  num_nodes_start = 1;
+  num_port = 0;
+  for (group = 0; group < ngroups; group++) {
+    for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++)
+      ;
+    ports_chunk++;
+    if (parameters->num_ports[num_port] < 0) {
+      num_nodes_start *= abs(parameters->groups[num_port]);
+    }
+    num_port += ports_chunk;
   }
-  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
+  num_port = 0;
+  for (group = 0; group < ngroups; group++) {
+    if (parameters->collective_type == collective_type_reduce_scatter) {
+      gbstep = get_gbstep_reduce_scatter(group, parameters->groups, parameters->num_sockets, &flag_allgatherv);
+    } else {
+      gbstep = get_gbstep(group, parameters->groups, parameters->num_sockets, &flag_allgatherv);
+    }
+    for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++)
+      ;
+    ports_chunk++;
+    i = ext_mpi_read_parameters(buffer_in, &(*parameters2)[group]);
+    if (i < 0)
+      goto error;
+    for (i = 0; i < ports_chunk; i++) {
+      (*parameters2)[group]->num_ports[i] = parameters->num_ports[num_port + i];
+    }
+    (*parameters2)[group]->num_ports[i] = 0;
+    igroup = abs(parameters->groups[num_port]);
+    num_nodes_l = igroup;
+    for (i = 0; i < ports_chunk; i++) {
+      (*parameters2)[group]->groups[i] = num_nodes_l;
+    }
+    (*parameters2)[group]->groups[i - 1] *= -1;
+    (*parameters2)[group]->groups[i] = 0;
+    (*parameters2)[group]->message_sizes_max = num_nodes_l;
+    (*parameters2)[group]->num_sockets = num_nodes_l;
+    (*parameters2)[group]->socket = node_local(parameters->socket, gbstep, igroup, &component);
+    if (flag_allgatherv) {
+      (*parameters2)[group]->collective_type = collective_type_allgatherv;
+    }
+    i = ext_mpi_write_parameters((*parameters2)[group], buffer_in_temp);
+    ext_mpi_write_eof(buffer_in_temp + i, (*parameters2)[group]->ascii_out);
+    ext_mpi_delete_parameters((*parameters2)[group]);
+    if (!parameters->bit_identical) {
+      nbuffer_out += ext_mpi_generate_allreduce_single(buffer_in_temp, buffer_out_temp);
+    } else {
+      nbuffer_out += ext_mpi_generate_allreduce_bit(buffer_in_temp, buffer_out_temp);
+    }
+    i = ext_mpi_read_parameters(buffer_out_temp, &(*parameters2)[group]);
+    if (i <= 0) goto error;
+    i = ext_mpi_read_algorithm(buffer_out_temp + i, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group], (*parameters2)[group]->ascii_in);
+    if (i <= 0) goto error;
+    for (fac = (*size_level1_l)[group][0]; (num_nodes_start % fac) || ((*size_level1_l)[group][0] % fac); fac--);
+    frac_multiply(gbstep, igroup, component, -(*size_level1_l)[group][0]/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
+    frac_multiply(gbstep, igroup, component, num_nodes_start/fac, &(*size_level0_l)[group], &(*size_level1_l)[group], &(*data_l)[group]);
+    num_nodes_start = 0;
+    for (i = 0; i < (*size_level1_l)[group][(*size_level0_l)[group] - 1]; i++){
+      for (j = 0; j < (*data_l)[group][(*size_level0_l)[group] - 1][i].to_max; j++){
+        if ((*data_l)[group][(*size_level0_l)[group] - 1][i].to[j] == -1) {
+          num_nodes_start++;
+        }
+      }
+    }
+    if ((*size_level1_l)[group][0] < nnodes_core) {
+      *group_core = group;
+      nnodes_core = (*size_level1_l)[group][0];
+    }
+    num_port += ports_chunk;
+  }
   if (parameters->collective_type == collective_type_reduce_scatter) {
-    allreduce = 2;
+    *group_core = ngroups - 1;
   }
   if (parameters->collective_type == collective_type_allgatherv) {
-    allreduce = 0;
+    *group_core = 0;
   }
-  if (parameters->collective_type == collective_type_allreduce_group) {
-    allreduce = 2;
+  free(frac_temp);
+  free(frac_start);
+  free(buffer_out_temp);
+  free(buffer_in_temp);
+  ext_mpi_delete_parameters(parameters);
+  return 0;
+error:
+//  ext_mpi_delete_algorithm(size_level0_l, size_level1_l, data_l);
+  free(size_level1_l);
+  free(data_l);
+  free(frac_temp);
+  free(frac_start);
+  free(buffer_out_temp);
+  free(buffer_in_temp);
+  ext_mpi_delete_parameters(parameters);
+  return ERROR_MALLOC;
+}
+
+static void get_node_frac(struct parameters_block *parameters, int node, int group, int group_core, int nlines_core, int *node_translation){
+  int factor = -1, factor2 = 1, num_port, ports_chunk, i;
+  num_port = 0;
+  for (i = 0; i < group_core; i++) {
+    for (ports_chunk = 0; parameters->groups[num_port + ports_chunk] > 0; ports_chunk++);
+    ports_chunk++;
+    factor2 *= abs(parameters->groups[num_port]);
+    num_port += ports_chunk;
   }
-  if (parameters->collective_type == collective_type_allreduce_short) {
-    allreduce = 3;
+  factor = abs(parameters->groups[num_port]);
+  for (i = 0; i < parameters->num_sockets / factor; i++) {
+    node_translation[i] = -1;
   }
-  task = parameters->socket;
-  num_nodes = parameters->num_sockets;
-  for (i=0; parameters->num_ports[i]; i++);
-  num_ports = (int*)malloc((i+1)*sizeof(int));
-  if (!num_ports) goto error;
-  for (i=0; parameters->num_ports[i]; i++){
-    num_ports[i] = -parameters->num_ports[i];
-  }
-  num_ports[i] = 0;
-  i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0, &size_level1, &data,
-                             parameters->ascii_in);
-  if (i == ERROR_MALLOC)
-    goto error;
-  for (nstep = 0; num_ports[nstep]; nstep++)
-    ;
-  if (size_level0) {
-    stages = (struct allreduce_data_element *)malloc(
-        sizeof(struct allreduce_data_element) * (nstep + 1));
-    if (!stages)
-      goto error;
-    for (i = 0; i <= nstep; i++) {
-      stages[i].to_value = NULL;
-      stages[i].num_to = NULL;
-      stages[i].from_line = NULL;
-      stages[i].from_value = NULL;
-      stages[i].num_from = NULL;
-      stages[i].source = NULL;
-      stages[i].frac = NULL;
+  if ((nlines_core > 1) || (parameters->num_sockets / factor2 == 1)) {
+    for (i = 0; i < factor; i++) {
+      node_translation[i] = (i + (node % (parameters->num_sockets / factor)) * factor) % (nlines_core * factor2);
     }
-    stages_in = stages;
-    stages[0].max_lines = size_level1[0];
-    stages[0].frac = (int *)malloc(sizeof(int) * stages[0].max_lines);
-    if (!stages[0].frac)
-      goto error;
-    stages[0].source = (int *)malloc(sizeof(int) * stages[0].max_lines);
-    if (!stages[0].source)
-      goto error;
-    stages[0].num_from = (int *)malloc(sizeof(int) * stages[0].max_lines);
-    if (!stages[0].num_from)
-      goto error;
-    stages[0].from_value = (int *)malloc(sizeof(int) * stages[0].max_lines * 2);
-    if (!stages[0].from_value)
-      goto error;
-    stages[0].from_line = (int *)malloc(sizeof(int) * stages[0].max_lines * 2);
-    if (!stages[0].from_line)
-      goto error;
-    stages[0].num_to = (int *)malloc(sizeof(int) * stages[0].max_lines);
-    if (!stages[0].num_to)
-      goto error;
-    stages[0].to_value = (int *)malloc(sizeof(int) * stages[0].max_lines * 2);
-    if (!stages[0].to_value)
-      goto error;
-    for (i = 0; i < size_level1[0]; i++) {
-      stages[0].frac[i] = data[0][i].frac;
-      stages[0].source[i] = data[0][i].source;
-      stages[0].num_from[i] = 1;
-      stages[0].from_value[i] = -1;
-      stages[0].from_line[i] = -1;
+  } else {
+    for (i = 0; i < factor; i++) {
+      node_translation[i] = ((node % (parameters->num_sockets / factor)) * 1) % (nlines_core * factor2);
     }
-    for (i = 0, max_lines = stages[0].max_lines; i <= nstep; i++) {
-      if (num_ports[i] < 0) {
-        max_lines += max_lines * (abs(num_ports[i]) + 1);
+  }
+}
+
+static void set_frac_recursive(char *buffer_in, struct parameters_block *parameters, int node, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data, int *node_translation_begin, int *node_translation_end) {
+  int node_translation_local[parameters->num_sockets], i, j, k, l, m, *size_level0_l = NULL, **size_level1_l = NULL, group_core_l;
+  struct parameters_block **parameters2_l = NULL;
+  struct data_line ***data_l = NULL;
+  if (group == group_core) {
+    gen_core(buffer_in, node, &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+    get_node_frac(parameters, node, group, group_core, size_level1[group_core][0], node_translation_begin);
+    for (j = 0; j < size_level0[group]; j++) {
+      for (i = 0; i < size_level1[group][j]; i++) {
+        data[group][j][i].frac = node_translation_begin[data_l[group][j][i].frac];
+      }
+    }
+    for (i = j = 0; i < size_level1[group][size_level0[group] - 1]; i++) {
+      for (l = 0; l < data[group][size_level0[group] - 1][i].to_max; l++) {
+        if (data[group][size_level0[group] - 1][i].to[l] == -1) {
+          node_translation_end[j++] = node_translation_begin[data_l[group][size_level0[group] - 1][i].frac];
+        }
+      }
+    }
+  } else if (group < group_core) {
+    gen_core(buffer_in, node, &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+    set_frac_recursive(buffer_in, parameters, node, group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_end);
+    for (i = 0; i < size_level1_l[group][size_level0_l[group] - 1]; i++) {
+      node_translation_begin[i] = data_l[group + 1][0][i].frac;
+    }
+    for (j = size_level0[group] - 2; j >= 0; j--) {
+      for (k = size_level1[group][j + 1]; k < size_level1[group][j]; k += size_level1[group][size_level0[group] - 1]) {
+        for (i = get_ngroups(parameters) - 1; i >= 0; i--) {
+          ext_mpi_delete_algorithm(size_level0_l[i], size_level1_l[i], data_l[i]);
+          ext_mpi_delete_parameters(parameters2_l[i]);
+        }
+        free(data_l);
+        free(size_level1_l);
+        free(size_level0_l);
+        free(parameters2_l);
+        gen_core(buffer_in, data[group][j][k].to[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+        set_frac_recursive(buffer_in, parameters, data[group][j][k].to[0], group + 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_local, node_translation_end); 
+        for (i = 0; i < size_level1_l[group][size_level0_l[group] - 1]; i++) {
+          node_translation_begin[k + i] = data_l[group + 1][0][i].frac;
+        }
+      }
+    }
+    for (j = 0; j < size_level0[group]; j++) {
+      for (i = 0; i < size_level1[group][j]; i++) {
+        data[group][j][i].frac = node_translation_begin[i];
       }
     }
   } else {
-    for (i = 0, max_lines = num_nodes; i <= nstep; i++) {
-      if (num_ports[i] < 0) {
-        max_lines += max_lines * (abs(num_ports[i]) + 1);
+    gen_core(buffer_in, node, &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+    set_frac_recursive(buffer_in, parameters, node, group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_end);
+    for (i = j = 0; i < size_level1_l[group - 1][size_level0_l[group - 1] - 1]; i++) {
+      for (l = 0; l < data[group - 1][size_level0_l[group - 1] - 1][i].to_max; l++) {
+        if (data[group - 1][size_level0_l[group - 1] - 1][i].to[l] == -1) {
+          node_translation_end[j++] = data_l[group - 1][size_level0_l[group - 1] - 1][i].frac;
+        }
+      }
+    }
+    for (m = 0; m < size_level0[group] - 1; m++) {
+      for (k = size_level1[group][m]; k < size_level1[group][m + 1]; k += size_level1[group][0]) {
+        for (i = get_ngroups(parameters) - 1; i >= 0; i--) {
+          ext_mpi_delete_algorithm(size_level0_l[i], size_level1_l[i], data_l[i]);
+          ext_mpi_delete_parameters(parameters2_l[i]);
+        }
+        free(data_l);
+        free(size_level1_l);
+        free(size_level0_l);
+        free(parameters2_l);
+        gen_core(buffer_in, data[group][m + 1][k].from_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+        set_frac_recursive(buffer_in, parameters, data[group][m + 1][k].from_node[0], group - 1, group_core, parameters2_l, size_level0_l, size_level1_l, data_l, node_translation_begin, node_translation_local);
+        for (i = j = 0; i < size_level1_l[group - 1][size_level0_l[group - 1] - 1]; i++) {
+          for (l = 0; l < data[group - 1][size_level0_l[group - 1] - 1][i].to_max; l++) {
+            if (data[group - 1][size_level0_l[group - 1] - 1][i].to[l] == -1) {
+              node_translation_end[k + j++] = data_l[group - 1][size_level0_l[group - 1] - 1][i].frac;
+            }
+          }
+        }
+      }
+    }
+    for (j = 0; j < size_level0[group]; j++) {
+      for (i = 0; i < size_level1[group][j]; i++) {
+        data[group][j][i].frac = node_translation_end[i];
       }
     }
   }
-  lines_used = (int *)malloc(max_lines * sizeof(int));
-  if (!lines_used)
-    return ERROR_MALLOC;
-  if (allreduce) {
-    for (i = 0; i < max_lines; i++) {
-      lines_used[i] = 0;
+  for (group = get_ngroups(parameters) - 1; group >= 0; group--) {
+    ext_mpi_delete_algorithm(size_level0_l[group], size_level1_l[group], data_l[group]);
+    ext_mpi_delete_parameters(parameters2_l[group]);
+  }
+  free(data_l);
+  free(size_level1_l);
+  free(size_level0_l);
+  free(parameters2_l);
+}
+
+static void adjust_line_numbers_allgatherv(int node, int size_level0, int *size_level1, struct data_line **data){
+  int max_rank, stage, rank, line, i;
+  for (stage = 0; stage < size_level0; stage++) {
+    max_rank = -1;
+    for (i = 0; i < size_level1[stage]; i++) {
+      if (data[stage][i].from_node[0] > max_rank) {
+        max_rank = data[stage][i].from_node[0];
+      }
     }
-  } else {
-    for (i = 0; i < max_lines; i++) {
-      lines_used[i] = 1;
+    for (rank = 0; rank <= max_rank; rank++) {
+      line = 0;
+      for (i = 0; i < size_level1[stage]; i++) {
+        if (data[stage][i].from_node[0] != node) {
+          if (data[stage][i].from_node[0] == rank) {
+            data[stage][i].from_line[0] = line++;
+          }
+        }
+      }
     }
   }
-  i = allreduce_init(&stages, num_nodes, num_ports, lines_used, task,
-                     allreduce);
+}
+
+static void set_frac_recursive_allgatherv(char *buffer_in, struct parameters_block *parameters, int node, int group_max, int stage_max, int *size_level0, int **size_level1, struct data_line ***data) {
+  int i, j, *size_level0_l = NULL, **size_level1_l = NULL, group_core_l, group, stage;
+  struct parameters_block **parameters2_l = NULL;
+  struct data_line ***data_l = NULL;
+  for (i = 0; i <= group_max; i++) {
+    adjust_line_numbers_allgatherv(node, size_level0[i], size_level1[i], data[i]);
+  }
+  for (group = group_max; group >= 0; group--) {
+    if (group == group_max) {
+      i = stage_max;
+    } else {
+      i = size_level0[group] - 1;
+    }
+    for (stage = i; stage >= 0; stage--) {
+      if ((group == 0) && (stage == 0)) {
+        for (i = 0; i < size_level1[group][stage]; i++) {
+          data[group][stage][i].frac = node;
+        }
+      } else if ((stage == 1) && (group > 0)) {
+        for (i = 0; i < size_level1[group][stage]; i++) {
+          if (data[group][stage][i].from_node[0] >= 0) {
+            gen_core(buffer_in, data[group][stage][i].from_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+            set_frac_recursive_allgatherv(buffer_in, parameters, data[group][stage][i].from_node[0], group - 1, size_level0[group - 1] - 1, size_level0_l, size_level1_l, data_l);
+            data[group][stage][i].frac = data_l[group - 1][size_level0[group - 1] - 1][data[group][stage][i].from_line[0]].frac;
+            for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
+              ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
+              ext_mpi_delete_parameters(parameters2_l[j]);
+            }
+            free(data_l);
+            free(size_level1_l);
+            free(size_level0_l);
+            free(parameters2_l);
+          }
+        }
+      } else {
+        for (i = 0; i < size_level1[group][stage]; i++) {
+          if (data[group][stage][i].from_node[0] >= 0) {
+            gen_core(buffer_in, data[group][stage][i].from_node[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+            set_frac_recursive_allgatherv(buffer_in, parameters, data[group][stage][i].from_node[0], group, stage - 1, size_level0_l, size_level1_l, data_l);
+            data[group][stage][i].frac = data_l[group][stage - 1][data[group][stage][i].from_line[0]].frac;
+            for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
+              ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
+              ext_mpi_delete_parameters(parameters2_l[j]);
+            }
+            free(data_l);
+            free(size_level1_l);
+            free(size_level0_l);
+            free(parameters2_l);
+          }
+        }
+      }
+    }
+  }
+}
+
+static void set_frac_recursive_reduce_scatter(char *buffer_in, struct parameters_block *parameters, int node, int group_min, int stage_min, int *size_level0, int **size_level1, struct data_line ***data) {
+  int i, j, *size_level0_l = NULL, **size_level1_l = NULL, group_core_l, group, stage, ngroups;
+  struct parameters_block **parameters2_l = NULL;
+  struct data_line ***data_l = NULL;
+  ngroups = get_ngroups(parameters);
+  for (group = group_min; group < ngroups; group++) {
+    if (group == group_min) {
+      i = stage_min;
+    } else {
+      i = 1;
+    }
+    for (stage = i; stage < size_level0[group]; stage++) {
+      if ((group == ngroups - 1) && (stage == size_level0[group] - 1)) {
+        for (i = 0; i < size_level1[group][stage]; i++) {
+          data[group][stage][i].frac = node;
+        }
+      } else if (stage == size_level0[group] - 1) {
+        for (i = 0; i < size_level1[group][stage]; i++) {
+          if (data[group + 1][0][i].to[0] >= 0) {
+            gen_core(buffer_in, data[group + 1][0][i].to[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+            set_frac_recursive_reduce_scatter(buffer_in, parameters, data[group + 1][0][i].to[0], group + 1, 1, size_level0_l, size_level1_l, data_l);
+            data[group][stage][i].frac = data_l[group + 1][1][i % size_level1_l[group + 1][1]].frac;
+            for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
+              ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
+              ext_mpi_delete_parameters(parameters2_l[j]);
+            }
+            free(data_l);
+            free(size_level1_l);
+            free(size_level0_l);
+            free(parameters2_l);
+          }
+        }
+      } else {
+        for (i = 0; i < size_level1[group][stage]; i++) {
+          if (data[group][stage][i].to[0] >= 0) {
+            gen_core(buffer_in, data[group][stage][i].to[0], &parameters2_l, &group_core_l, &size_level0_l, &size_level1_l, &data_l);
+            set_frac_recursive_reduce_scatter(buffer_in, parameters, data[group][stage][i].to[0], group, stage + 1, size_level0_l, size_level1_l, data_l);
+            data[group][stage][i].frac = data_l[group][stage + 1][i % size_level1_l[group][stage + 1]].frac;
+            for (j = get_ngroups(parameters) - 1; j >= 0; j--) {
+              ext_mpi_delete_algorithm(size_level0_l[j], size_level1_l[j], data_l[j]);
+              ext_mpi_delete_parameters(parameters2_l[j]);
+            }
+            free(data_l);
+            free(size_level1_l);
+            free(size_level0_l);
+            free(parameters2_l);
+          }
+        }
+      }
+    }
+  }
+}
+
+static void set_frac(char *buffer_in, struct parameters_block *parameters, int group, int group_core, struct parameters_block **parameters2, int *size_level0, int **size_level1, struct data_line ***data){
+  int node_translation_begin[parameters->num_sockets], node_translation_end[parameters->num_sockets];
+  if (parameters->collective_type == collective_type_reduce_scatter) {
+    set_frac_recursive_reduce_scatter(buffer_in, parameters, parameters->socket, group, 0, size_level0, size_level1, data);
+  } else if (parameters->collective_type == collective_type_allgatherv) {
+    set_frac_recursive_allgatherv(buffer_in, parameters, parameters->socket, group, size_level0[group] - 1, size_level0, size_level1, data);
+  } else {
+    set_frac_recursive(buffer_in, parameters, parameters->socket, group, group_core, parameters2, size_level0, size_level1, data, node_translation_begin, node_translation_end);
+  }
+}
+
+static void merge_groups(struct parameters_block *parameters, int group_core, int *size_level0_l, int **size_level1_l, struct data_line ***data_l, int *size_level0, int **size_level1, struct data_line ***data) {
+  int ngroups, group, shift = 0, i, j, k, l, m, n, flag, temp, *ptemp;
+  ngroups = get_ngroups(parameters);
+  *size_level0 = 0;
+  for (group = 0; group < ngroups; group++) {
+    if (group == 0) {
+      *size_level0 += size_level0_l[group];
+    } else {
+      *size_level0 += size_level0_l[group] - 1;
+    }
+  }
+  *size_level1 = (int *) malloc(*size_level0 * sizeof(int));
+  *data = (struct data_line **) malloc(*size_level0 * sizeof(struct data_line *));
+  j = 0;
+  for (group = 0; group < ngroups; group++) {
+    if (group == 0) {
+      i = 0;
+    } else {
+      i = 1;
+      shift += size_level1_l[group - 1][size_level0_l[group - 1] - 1] - size_level1_l[group][0];
+    }
+    for (; i < size_level0_l[group]; i++) {
+      (*size_level1)[j] = size_level1_l[group][i] + shift;
+      (*data)[j] = (struct data_line *) malloc((*size_level1)[j] * sizeof(struct data_line));
+      for (k = 0; k < shift; k++) {
+        (*data)[j][k].source = -2;
+        (*data)[j][k].frac = -2;
+        (*data)[j][k].to_max = 1;
+        (*data)[j][k].to = (int *) malloc(sizeof(int));
+        (*data)[j][k].to[0] = parameters->socket;
+        (*data)[j][k].from_max = 1;
+        (*data)[j][k].from_node = (int *) malloc(sizeof(int));
+        (*data)[j][k].from_line = (int *) malloc(sizeof(int));
+        (*data)[j][k].from_node[0] = parameters->socket;
+        (*data)[j][k].from_line[0] = k;
+      }
+      for (k = 0; k < size_level1_l[group][i]; k++) {
+        (*data)[j][k + shift].source = data_l[group][i][k].source;
+        (*data)[j][k + shift].frac = data_l[group][i][k].frac;
+        (*data)[j][k + shift].to_max = data_l[group][i][k].to_max;
+        (*data)[j][k + shift].from_max = data_l[group][i][k].from_max;
+        (*data)[j][k + shift].to = (int*) malloc((*data)[j][k + shift].to_max*sizeof(int));
+        (*data)[j][k + shift].from_node = (int*) malloc((*data)[j][k + shift].from_max*sizeof(int));
+        (*data)[j][k + shift].from_line = (int*) malloc((*data)[j][k + shift].from_max*sizeof(int));
+        for (m = 0; m < (*data)[j][k + shift].to_max; m++){
+          (*data)[j][k + shift].to[m] = data_l[group][i][k].to[m];
+        }
+        for (m = 0; m < (*data)[j][k + shift].from_max; m++){
+          (*data)[j][k + shift].from_node[m] = data_l[group][i][k].from_node[m];
+          (*data)[j][k + shift].from_line[m] = data_l[group][i][k].from_line[m];
+        }
+      }
+      if ((group > 0) && ((*size_level1)[j - 1] < (*size_level1)[j])) {
+        for (k = 0; k < (*size_level1)[j - 1]; k++) {
+          (*data)[j][k].frac = (*data)[j - 1][k].frac;
+        }
+      }
+      for (k = shift; k < (*size_level1)[j]; k++) {
+        for (l = 0; l < (*data)[j][k].from_max; l++) {
+          if ((*data)[j][k].from_node[l] == parameters->socket) {
+            (*data)[j][k].from_line[l] += shift;
+          }
+        }
+      }
+      if ((group > 0) && (shift > 0)) {
+        for (n = 0; n < (*size_level1)[j]; n++) {
+	  flag = 1;
+          for (l = 0; flag && (l < (*data)[j][n].from_max); l++) {
+            if (((*data)[j][n].from_node[l] == parameters->socket) && ((*data)[j][n].from_line[l] != n) && ((*data)[j][n].from_line[l] < size_level1_l[group - 1][size_level0_l[group - 1] - 1] + shift)) {
+              for (k = 0; flag && (k < (*size_level1)[j - 1]); k++) {
+                for (m = 0; flag && (m < (*data)[j - 1][k].to_max); m++) {
+	          if (((*data)[j - 1][k].to[m] == -1) && ((*data)[j - 1][k].frac == (*data)[j][n].frac)) {
+                    (*data)[j][n].from_line[l] = k;
+		    flag = 0;
+		  }
+		}
+              }
+            }
+          }
+        }
+      }
+      j++;
+    }
+  }
+  j = 0;
+  for (group = 0; group < ngroups; group++) {
+    if (group == 0) {
+      i = 0;
+    } else {
+      i = 1;
+    }
+    for (; i < size_level0_l[group]; i++) {
+      if ((i == size_level0_l[group] - 1) && (group < ngroups - 1)) {
+        for (k = l = 0; k < (*size_level1)[j]; k++) {
+          for (m = (*data)[j][k].to_max - 1; m >= 0; m--) {
+            if ((*data)[j][k].to[m] == -1) {
+              (*data)[j][k].to_max = data_l[group + 1][0][l].to_max;
+              free((*data)[j][k].to);
+              (*data)[j][k].to = (int *) malloc((*data)[j][k].to_max*sizeof(int));
+              for (m = 0; m < (*data)[j][k].to_max; m++) {
+                (*data)[j][k].to[m] = data_l[group + 1][0][l].to[m];
+              }
+              l++;
+              m = -1;
+            }
+          }
+        }
+      }
+      if ((group > group_core)) {
+        l = (*size_level1)[j]-size_level1_l[group][size_level0_l[group] - 1];
+	if (l >= 0) {
+          for (k = 0; k < size_level1_l[group_core][size_level0_l[group_core] - 1]; k++) {
+            for (m = 0; m < data_l[group_core][size_level0_l[group_core] - 1][k].to_max; m++){
+              if (data_l[group_core][size_level0_l[group_core] - 1][k].to[m] == -1){
+                temp = (*data)[j][k].to_max; (*data)[j][k].to_max = (*data)[j][l].to_max; (*data)[j][l].to_max = temp;
+                ptemp = (*data)[j][k].to; (*data)[j][k].to = (*data)[j][l].to; (*data)[j][l].to = ptemp;
+                l++;
+              }
+	    }
+          }
+        }
+      }
+      j++;
+    }
+  }
+}
+
+int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
+  int nbuffer_out = 0, nbuffer_in = 0,
+      group, ngroups = 0, i, k, *size_level0_l = NULL, **size_level1_l = NULL,
+      size_level0 = 0, *size_level1 = NULL, group_core = -1;
+  struct parameters_block *parameters = NULL, **parameters2 = NULL;
+  struct data_line ***data_l = NULL, **data = NULL;
+  nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  if (size_level0) {
-    free(stages_in[0].to_value);
-    free(stages_in[0].num_to);
-    free(stages_in[0].from_line);
-    free(stages_in[0].from_value);
-    free(stages_in[0].num_from);
-    free(stages_in[0].source);
-    free(stages_in[0].frac);
-    free(stages_in);
+  ngroups = get_ngroups(parameters);
+  gen_core(buffer_in, parameters->socket, &parameters2, &group_core, &size_level0_l, &size_level1_l, &data_l);
+//  if (parameters->collective_type == collective_type_reduce_scatter) {
+//    for (group = ngroups - 1; group >= 0; group--) {
+//      set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
+//    }
+//  } else {
+  for (group = 0; group <= group_core; group++) {
+    set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
   }
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
-  size_level0 = nstep + 1;
-  size_level1 = (int *)malloc(sizeof(int) * size_level0);
-  if (!size_level1)
-    goto error;
-  data = (struct data_line **)malloc(sizeof(struct data_line *) * size_level0);
-  if (!data)
-    goto error;
-  for (i = 0; i < size_level0; i++) {
-    data[i] = NULL;
+  for (group = ngroups - 1; group > group_core; group--) {
+    set_frac(buffer_in, parameters, group, group_core, parameters2, size_level0_l, size_level1_l, data_l);
   }
-  for (i = 0; i < size_level0; i++) {
-    size_level1[i] = 0;
-    for (j = 0; j < stages[i].max_lines; j++) {
-      if (lines_used[j] || (i == 0) || (num_ports[i - 1] > 0)) {
-        size_level1[i]++;
-      }
-    }
-    data[i] =
-        (struct data_line *)malloc(sizeof(struct data_line) * size_level1[i]);
-    if (!data[i])
-      goto error;
-    for (j = 0; j < size_level1[i]; j++) {
-      data[i][j].to = NULL;
-      data[i][j].from_node = NULL;
-      data[i][j].from_line = NULL;
-    }
-    k = 0;
-    for (j = 0; j < stages[i].max_lines; j++) {
-      if (lines_used[j] || (i == 0) || (num_ports[i - 1] > 0)) {
-        data[i][k].frac = stages[i].frac[j];
-        data[i][k].source = stages[i].source[j];
-        data[i][k].to_max = stages[i].num_to[j];
-        data[i][k].from_max = stages[i].num_from[j];
-        data[i][k].to = (int *)malloc(sizeof(int) * data[i][k].to_max);
-        if (!data[i][k].to)
-          goto error;
-        data[i][k].from_node = (int *)malloc(sizeof(int) * data[i][k].from_max);
-        if (!data[i][k].from_node)
-          goto error;
-        data[i][k].from_line = (int *)malloc(sizeof(int) * data[i][k].from_max);
-        if (!data[i][k].from_line)
-          goto error;
-        for (l = 0; l < data[i][k].to_max; l++) {
-          data[i][k].to[l] = stages[i].to_value[l * stages[i].max_lines + j];
+//  }
+  merge_groups(parameters, group_core, size_level0_l, size_level1_l, data_l, &size_level0, &size_level1, &data);
+  if ((parameters->collective_type == collective_type_allreduce) || (parameters->collective_type == collective_type_allreduce_group)) {
+    k = parameters->num_sockets / size_level1[0];
+//    parameters->message_sizes_max /= k;
+    for (i = 0; i < parameters->num_sockets; i++){
+      if (i % k == 0) {
+        parameters->message_sizes[i / k] = parameters->message_sizes[i];
+        if (i != i / k) {
+          parameters->message_sizes[i] = 0;
         }
-        for (l = 0; l < data[i][k].from_max; l++) {
-          data[i][k].from_node[l] =
-              stages[i].from_value[l * stages[i].max_lines + j];
-          data[i][k].from_line[l] =
-              stages[i].from_line[l * stages[i].max_lines + j];
-        }
-        k++;
-      }
-    }
-  }
-  for (i = 0; i < size_level0; i++) {
-    for (j = 0; j < size_level1[i]; j++) {
-      for (k = 0; k < data[i][j].from_max; k++) {
-        if ((data[i][j].from_node[k] == task) &&
-            (data[i][j].from_line[k] > j)) {
-          data[i][j].from_line[k] = j;
+      } else {
+        parameters->message_sizes[i / k] += parameters->message_sizes[i];
+        if (i != i / k) {
+          parameters->message_sizes[i] = 0;
         }
       }
     }
   }
-  nbuffer_out +=
-      ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
-                              parameters->ascii_out);
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_out += ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out, parameters->ascii_out);
+  for (group = 0; group < ngroups; group++) {
+//    nbuffer_out += ext_mpi_write_parameters(parameters2[group], buffer_out + nbuffer_out);
+    ext_mpi_delete_parameters(parameters2[group]);
+//    nbuffer_out += ext_mpi_write_algorithm(size_level0_l[group], size_level1_l[group], data_l[group], buffer_out + nbuffer_out, parameters->ascii_out);
+    ext_mpi_delete_algorithm(size_level0_l[group], size_level1_l[group], data_l[group]);
+  }
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  allreduce_done(stages, num_ports);
-  free(num_ports);
-  free(lines_used);
+  free(data_l);
+  free(size_level1_l);
+  free(size_level0_l);
+  free(parameters2);
+  ext_mpi_delete_algorithm(size_level0, size_level1, data);
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
-  allreduce_done(stages, num_ports);
-  free(num_ports);
-  free(lines_used);
+//  ext_mpi_delete_algorithm(size_level0_l, size_level1_l, data_l);
+  free(size_level1_l);
+  free(data_l);
   ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }

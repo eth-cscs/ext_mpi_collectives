@@ -4,11 +4,11 @@
 
 int main(int argc, char *argv[]) {
   int i, j;
-  printf("%s\n", " PARAMETER NODE 0");
-  printf("%s\n", " PARAMETER NUM_NODES 8");
-  printf("%s\n", " PARAMETER NODE_RANK 2");
-  printf("%s\n", " PARAMETER NODE_ROW_SIZE 4");
-  printf("%s\n", " PARAMETER NODE_COLUMN_SIZE 1");
+  printf("%s\n", " PARAMETER SOCKET 0");
+  printf("%s\n", " PARAMETER NUM_SOCKETS 8");
+  printf("%s\n", " PARAMETER SOCKET_RANK 2");
+  printf("%s\n", " PARAMETER SOCKET_ROW_SIZE 4");
+  printf("%s\n", " PARAMETER SOCKET_COLUMN_SIZE 1");
   printf("%s\n", " PARAMETER NUM_PORTS 1");
   printf("%s", " PARAMETER MESSAGE_SIZE");
   for (i = 0; i < 8; i++) {

@@ -86,6 +86,7 @@ struct parameters_block {
   int in_place;
   int ascii_in, ascii_out;
   int bit_identical;
+  int not_recursive;
   int locmem_max;
   int shmem_max;
   int *shmem_buffer_offset;

@@ -22,11 +22,11 @@ int main(int argc, char *argv[]) {
     msizes[i] *= 8;
   }
   printf("%s\n", " PARAMETER COLLECTIVE_TYPE REDUCE_SCATTER");
-  printf("%s\n", " PARAMETER NODE 0");
-  printf("%s\n", " PARAMETER NUM_NODES 8");
-  printf("%s\n", " PARAMETER NODE_RANK 0");
-  printf("%s\n", " PARAMETER NODE_ROW_SIZE 4");
-  printf("%s\n", " PARAMETER NODE_COLUMN_SIZE 1");
+  printf("%s\n", " PARAMETER SOCKET 0");
+  printf("%s\n", " PARAMETER NUM_SOCKETS 8");
+  printf("%s\n", " PARAMETER SOCKET_RANK 0");
+  printf("%s\n", " PARAMETER SOCKET_ROW_SIZE 4");
+  printf("%s\n", " PARAMETER SOCKET_COLUMN_SIZE 1");
   printf("%s", " PARAMETER COUNTS");
   for (i = 0; i < 4; i++) {
     printf(" %d", counts[i]);

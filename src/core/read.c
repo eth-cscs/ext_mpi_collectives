@@ -189,6 +189,7 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->data_type = data_type_char;
   (*parameters)->verbose = 0;
   (*parameters)->bit_identical = 0;
+  (*parameters)->not_recursive = 0;
   (*parameters)->ascii_out = 0;
   (*parameters)->locmem_max = -1;
   (*parameters)->shmem_max = -1;
@@ -228,6 +229,9 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
         }
         if (strcmp(string2, "BIT_IDENTICAL") == 0) {
           (*parameters)->bit_identical = 1;
+        }
+        if (strcmp(string2, "NOT_RECURSIVE") == 0) {
+          (*parameters)->not_recursive = 1;
         }
         if (strcmp(string2, "ROOT") == 0) {
           (*parameters)->root = integer1;
@@ -554,6 +558,10 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
   if (parameters->bit_identical) {
     nbuffer_out +=
         sprintf(buffer_out + nbuffer_out, " PARAMETER BIT_IDENTICAL\n");
+  }
+  if (parameters->not_recursive) {
+    nbuffer_out +=
+        sprintf(buffer_out + nbuffer_out, " PARAMETER NOT_RECURSIVE\n");
   }
   if (parameters->in_place) {
     nbuffer_out +=

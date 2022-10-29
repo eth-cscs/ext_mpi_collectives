@@ -10,8 +10,6 @@
 #include <unistd.h>
 #endif
 #include "allreduce.h"
-#include "allreduce_groups.h"
-#include "allreduce_recursive.h"
 #include "alltoall.h"
 #include "backward_interpreter.h"
 #include "buffer_offset.h"
@@ -1048,7 +1046,7 @@ allreduce_short = 0;
                         " PARAMETER COLLECTIVE_TYPE ALLREDUCE_SHORT\n");
   } else {
     nbuffer1 += sprintf(buffer1 + nbuffer1,
-                        " PARAMETER COLLECTIVE_TYPE ALLREDUCE_GROUP\n");
+                        " PARAMETER COLLECTIVE_TYPE ALLREDUCE\n");
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
@@ -1122,16 +1120,8 @@ allreduce_short = 0;
 buffer_temp = buffer1;
 buffer1 = buffer2;
 buffer2 = buffer_temp;
-  if (recursive) {
-    if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
-      goto error;
-  } else if (!allreduce_short) {
-    if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
-      goto error;
-  } else {
-    if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
-      goto error;
-  }
+  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+    goto error;
 //  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
 //    goto error;
 buffer_temp = buffer1;
@@ -1423,13 +1413,8 @@ int EXT_MPI_Gatherv_init_native(
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (recursive) {
-    if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
-      goto error;
-  } else {
-    if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
-      goto error;
-  }
+  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+    goto error;
   if (j <= 1) {
     if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
       goto error;
@@ -1679,13 +1664,8 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  if (recursive) {
-    if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
-      goto error;
-  } else {
-    if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
-      goto error;
-  }
+  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+    goto error;
   if (j <= 1) {
     if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
       goto error;
@@ -1902,7 +1882,7 @@ int EXT_MPI_Reduce_scatter_init_native(
 #endif
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_allreduce_groups(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
     goto error;
   if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
     goto error;
