@@ -676,12 +676,11 @@ error:
 int ext_mpi_read_stage_line(char *string_in, struct data_line *data) {
   char string_stage[100], string_frac[100], string_to[100];
   int stage, frac;
-  if (sscanf(string_in, "%99s %d %99s %d %99s", string_stage, &stage,
-             string_frac, &frac, string_to) != 7) {
+  if (sscanf(string_in, "%99s %d %99s %d", string_stage, &stage,
+             string_frac, &frac) != 6) {
     return ERROR_SYNTAX;
   }
-  if (strcmp(string_stage, "STAGE") || strcmp(string_frac, "FRAC") ||
-      strcmp(string_to, "SENDTO")) {
+  if (strcmp(string_stage, "STAGE") || strcmp(string_frac, "FRAC")) {
     return ERROR_SYNTAX;
   }
   data->frac = frac;
@@ -689,23 +688,41 @@ int ext_mpi_read_stage_line(char *string_in, struct data_line *data) {
     return ERROR_SYNTAX;
   }
   string_in = strstr(string_in, "RECVFROM ");
-  if (!string_in) {
-    return ERROR_SYNTAX;
+  if (string_in) {
+    data->recvfrom_max = read_int_tuple_series(string_in + strlen("RECVFROM "),
+                                               &data->recvfrom_node, &data->recvfrom_line);
+    if (data->recvfrom_max < 0) {
+      return data->recvfrom_max;
+    }
+  } else {
+    data->recvfrom_max = 0;
+    data->recvfrom_node = NULL;
+    data->recvfrom_line = NULL;
   }
-  data->recvfrom_max = read_int_tuple_series(string_in + strlen("RECVFROM "),
-                                             &data->recvfrom_node, &data->recvfrom_line);
-  if (data->recvfrom_max < 0) {
-    return data->recvfrom_max;
+  string_in = strstr(string_in, "REDUCEFROM ");
+  if (string_in) {
+    data->reducefrom_max = read_int_series(string_in + strlen("REDUCEFROM "), &data->reducefrom);
+    if (data->reducefrom_max < 0) {
+      free(data->recvfrom_node);
+      free(data->recvfrom_line);
+      return data->reducefrom_max;
+    }
+  } else {
+    data->reducefrom_max = 0;
+    data->reducefrom = NULL;
   }
   string_in = strstr(string_in, "SENDTO ");
   if (!string_in) {
-    return ERROR_SYNTAX;
+    data->sendto_max = read_int_series(string_in + strlen("SENDTO "), &data->sendto);
+    if (data->sendto_max < 0) {
+      free(data->recvfrom_node);
+      free(data->recvfrom_line);
+      free(data->reducefrom);
+      return data->sendto_max;
+    }
+  } else {
+    data->sendto_max = 0;
   }
-  data->sendto_max = read_int_series(string_in + strlen("SENDTO "), &data->sendto);
-  if (data->sendto_max < 0)
-    free(data->recvfrom_node);
-    free(data->recvfrom_line);
-    return (data->sendto_max);
   return 0;
 }
 
@@ -755,6 +772,12 @@ int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
         memcpy((*data)[i][j].sendto, buffer_in + nbuffer_in,
                sizeof(int) * (*data)[i][j].sendto_max);
         nbuffer_in += sizeof(int) * (*data)[i][j].sendto_max;
+        (*data)[i][j].reducefrom = (int *)malloc(sizeof(int) * (*data)[i][j].reducefrom_max);
+        if (!(*data)[i][j].reducefrom)
+          goto error;
+        memcpy((*data)[i][j].reducefrom, buffer_in + nbuffer_in,
+               sizeof(int) * (*data)[i][j].reducefrom_max);
+        nbuffer_in += sizeof(int) * (*data)[i][j].reducefrom_max;
         (*data)[i][j].recvfrom_node =
             (int *)malloc(sizeof(int) * (*data)[i][j].recvfrom_max);
         if (!(*data)[i][j].recvfrom_node)
@@ -869,6 +892,9 @@ int ext_mpi_write_algorithm(int size_level0, int *size_level1, struct data_line 
         memcpy(buffer_out + nbuffer_out, data[i][j].sendto,
                sizeof(int) * data[i][j].sendto_max);
         nbuffer_out += sizeof(int) * data[i][j].sendto_max;
+        memcpy(buffer_out + nbuffer_out, data[i][j].reducefrom,
+               sizeof(int) * data[i][j].reducefrom_max);
+        nbuffer_out += sizeof(int) * data[i][j].reducefrom_max;
         memcpy(buffer_out + nbuffer_out, data[i][j].recvfrom_node,
                sizeof(int) * data[i][j].recvfrom_max);
         nbuffer_out += sizeof(int) * data[i][j].recvfrom_max;
@@ -881,17 +907,29 @@ int ext_mpi_write_algorithm(int size_level0, int *size_level1, struct data_line 
     for (i = 0; i < size_level0; i++) {
       for (j = 0; j < size_level1[i]; j++) {
         nbuffer_out +=
-            sprintf(buffer_out + nbuffer_out, " STAGE %d FRAC %d RECVFROM",
+            sprintf(buffer_out + nbuffer_out, " STAGE %d FRAC %d",
                     i, data[i][j].frac);
-        for (k = 0; k < data[i][j].recvfrom_max; k++) {
-          nbuffer_out +=
-              sprintf(buffer_out + nbuffer_out, " %d|%d",
-                      data[i][j].recvfrom_node[k], data[i][j].recvfrom_line[k]);
+        if (data[i][j].recvfrom_max > 0) {
+          nbuffer_out += sprintf(buffer_out + nbuffer_out, " RECVFROM");
+          for (k = 0; k < data[i][j].recvfrom_max; k++) {
+            nbuffer_out +=
+                sprintf(buffer_out + nbuffer_out, " %d|%d",
+                        data[i][j].recvfrom_node[k], data[i][j].recvfrom_line[k]);
+          }
         }
-        nbuffer_out += sprintf(buffer_out + nbuffer_out, " SENDTO");
-        for (k = 0; k < data[i][j].sendto_max; k++) {
-          nbuffer_out +=
-              sprintf(buffer_out + nbuffer_out, " %d", data[i][j].sendto[k]);
+        if (data[i][j].reducefrom_max > 0) {
+          nbuffer_out += sprintf(buffer_out + nbuffer_out, " REDUCEFROM");
+          for (k = 0; k < data[i][j].reducefrom_max; k++) {
+            nbuffer_out +=
+                sprintf(buffer_out + nbuffer_out, " %d", data[i][j].reducefrom[k]);
+          }
+        }
+        if (data[i][j].sendto_max > 0) {
+          nbuffer_out += sprintf(buffer_out + nbuffer_out, " SENDTO");
+          for (k = 0; k < data[i][j].sendto_max; k++) {
+            nbuffer_out +=
+                sprintf(buffer_out + nbuffer_out, " %d", data[i][j].sendto[k]);
+          }
         }
         nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
       }

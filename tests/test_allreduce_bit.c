@@ -1,4 +1,4 @@
-#include "allreduce_recursive.h"
+#include "allreduce_bit.h"
 #include "read.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
   buffer_in[fread(buffer_in, 1, MAX_BUFFER_SIZE, stdin)] = 0;
   if (argc > 1)
     ext_mpi_switch_to_ascii(buffer_in);
-  nbuffer_out = ext_mpi_generate_allreduce_recursive(buffer_in, buffer_out);
+  nbuffer_out = ext_mpi_generate_allreduce_bit(buffer_in, buffer_out);
   fwrite(buffer_out, 1, nbuffer_out, stdout);
   free(buffer_out);
   free(buffer_in);
