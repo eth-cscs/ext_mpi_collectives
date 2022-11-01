@@ -29,9 +29,39 @@
   return flag;
 }*/
 
+static int get_size_level1b(int num_sockets, int *num_ports, int step, int flag) {
+  int ret = 1, min = num_sockets, i;
+  if (flag) {
+    for (i = 0; i < step; i++) {
+      if (num_ports[i] < 0) {
+        min = (min - 1) / (-num_ports[i] + 1) + 1;
+      } else {
+        ret *= num_ports[i + 1] + 1;
+      }
+    }
+    if (num_ports[step] > 0) {
+      for (step = 0; num_ports[step] < 0; step++);
+      ret *= num_ports[step] + 1;
+    }
+    if (ret > num_sockets) {
+      ret = num_sockets;
+    }
+    return min * ret;
+  } else {
+    for (i = 0; i < step; i++) {
+      if (num_ports[i] < 0) {
+        min = (min - 1) / (-num_ports[i] + 1) + 1;
+      } else {
+        ret *= num_ports[i] + 1;
+      }
+    }
+    return min * ret;
+  }
+}
+
 static int allreduce_init(int *size_level0, int **size_level1, struct data_line ***data,
                           int num_sockets, int *num_ports, int task, int allreduce) {
-  int gbstep, i, j, k, l, m, step, task_dup, step_mid, flag, line, line2, *size_level1b,
+  int gbstep, i, j, k, l, m, step, flag, line, line2, *size_level1b,
       *used = NULL, used_max;
   for (step = 0; num_ports[step]; step++);
   *size_level0 = 0;
@@ -39,7 +69,7 @@ static int allreduce_init(int *size_level0, int **size_level1, struct data_line 
   size_level1b = (int*)malloc(sizeof(int)*(2*step+1));
   *data = (struct data_line**)malloc(sizeof(struct data_line*)*(2*step+1));
   (*data)[*size_level0] = (struct data_line*)malloc(sizeof(struct data_line)*num_sockets*abs(num_ports[0]));
-  size_level1b[*size_level0] = (*size_level1)[*size_level0] = num_sockets;
+  size_level1b[*size_level0] = (*size_level1)[*size_level0] = get_size_level1b(num_sockets, num_ports, 0, 1);
   for (line = 0; line < size_level1b[*size_level0]; line++) {
     (*data)[*size_level0][line].frac = (line + task) % num_sockets;
     (*data)[*size_level0][line].recvfrom_max = 1;
@@ -52,11 +82,11 @@ static int allreduce_init(int *size_level0, int **size_level1, struct data_line 
     (*data)[*size_level0][line].reducefrom_max = 0;
     (*data)[*size_level0][line].reducefrom = NULL;
   }
-  for (step = 0, gbstep = 1; num_ports[step] < 0; gbstep*=abs(num_ports[step]) + 1, step++) {
+  for (step = 0, gbstep = (num_sockets - 1) / (-num_ports[step] + 1) + 1; num_ports[step] < 0; gbstep = (gbstep - 1) / (-num_ports[step] + 1) + 1, step++) {
     if (step >= 1) {
       (*size_level0)++;
       (*data)[*size_level0] = (struct data_line*)malloc(sizeof(struct data_line)*size_level1b[*size_level0 - 1]*abs(num_ports[step]));
-      size_level1b[*size_level0] = (*size_level1)[*size_level0] = (size_level1b[*size_level0 - 1]  - 1) / (abs(num_ports[step - 1]) + 1) + 1;
+      size_level1b[*size_level0] = (*size_level1)[*size_level0] = get_size_level1b(num_sockets, num_ports, step, 1);
       for (line = 0; line < size_level1b[*size_level0]; line++) {
         (*data)[*size_level0][line].frac = (*data)[*size_level0 - 1][line].frac;
         (*data)[*size_level0][line].sendto_max = 0;
@@ -113,11 +143,53 @@ static int allreduce_init(int *size_level0, int **size_level1, struct data_line 
       }
     }
   }
+  for (gbstep = 1; num_ports[step]; gbstep *= num_ports[step] + 1, step++) {
+    (*size_level0)++;
+    size_level1b[*size_level0] = (*size_level1)[*size_level0] = get_size_level1b(num_sockets, num_ports, step, 1);
+    (*data)[*size_level0] = (struct data_line*)malloc(sizeof(struct data_line)*size_level1b[*size_level0]);
+    l = get_size_level1b(num_sockets, num_ports, step, 0);
+    for (line = 0; line < l; line++) {
+      (*data)[*size_level0][line].frac = (*data)[*size_level0 - 1][line].frac;
+      if (line < size_level1b[*size_level0] - l) {
+        (*data)[*size_level0][line].sendto_max = num_ports[step];
+        (*data)[*size_level0][line].sendto = (int*)malloc(sizeof(int)*(*data)[*size_level0][line].sendto_max);
+        for (i = 0; i < (*data)[*size_level0][line].sendto_max; i++) {
+          (*data)[*size_level0][line].sendto[i] = (task + (i + 1) * gbstep) % num_sockets;
+        }
+      } else {
+        (*data)[*size_level0][line].sendto_max = 0;
+        (*data)[*size_level0][line].sendto = NULL;
+      }
+      (*data)[*size_level0][line].recvfrom_max = 0;
+      (*data)[*size_level0][line].recvfrom_node = NULL;
+      (*data)[*size_level0][line].recvfrom_line = NULL;
+      (*data)[*size_level0][line].reducefrom_max = 0;
+      (*data)[*size_level0][line].reducefrom = NULL;
+    }
+    m = size_level1b[*size_level0] - l;
+    for (i = 1, line = l; i < num_ports[step] + 1; i++) {
+      k = m / num_ports[step];
+      if (line < m % num_ports[step]) k++;
+      for (j = 0; j < k; j++) {
+        (*data)[*size_level0][line].frac = ((*data)[*size_level0 - 1][j].frac + num_sockets + i * gbstep) % num_sockets;
+        (*data)[*size_level0][line].sendto_max = 0;
+        (*data)[*size_level0][line].sendto = NULL;
+        (*data)[*size_level0][line].recvfrom_max = 1;
+        (*data)[*size_level0][line].recvfrom_node = (int *)malloc(sizeof(int)*(*data)[*size_level0][line].recvfrom_max);
+        (*data)[*size_level0][line].recvfrom_line = (int *)malloc(sizeof(int)*(*data)[*size_level0][line].recvfrom_max);
+        (*data)[*size_level0][line].recvfrom_node[0] = (task + num_sockets - i * gbstep) % num_sockets;
+        (*data)[*size_level0][line].recvfrom_line[0] = j;
+        (*data)[*size_level0][line].reducefrom_max = 0;
+        (*data)[*size_level0][line].reducefrom = NULL;
+        line++;
+      }
+    }
+  }
   (*size_level0)++;
   free(size_level1b);
   return 0;
 error:
-  free(used);
+  free(size_level1b);
   return ERROR_MALLOC;
 }
 

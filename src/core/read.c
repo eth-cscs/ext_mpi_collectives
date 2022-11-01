@@ -730,6 +730,7 @@ void ext_mpi_delete_stage_line(struct data_line data) {
   free(data.sendto);
   free(data.recvfrom_node);
   free(data.recvfrom_line);
+  free(data.reducefrom);
 }
 
 int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
