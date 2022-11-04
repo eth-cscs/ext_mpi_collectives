@@ -674,10 +674,10 @@ error:
 }
 
 int ext_mpi_read_stage_line(char *string_in, struct data_line *data) {
-  char string_stage[100], string_frac[100], string_to[100];
+  char string_stage[100], string_frac[100], string_to[100], *string_temp;
   int stage, frac;
   if (sscanf(string_in, "%99s %d %99s %d", string_stage, &stage,
-             string_frac, &frac) != 6) {
+             string_frac, &frac) != 4) {
     return ERROR_SYNTAX;
   }
   if (strcmp(string_stage, "STAGE") || strcmp(string_frac, "FRAC")) {
@@ -687,41 +687,39 @@ int ext_mpi_read_stage_line(char *string_in, struct data_line *data) {
   if (!string_in) {
     return ERROR_SYNTAX;
   }
-  string_in = strstr(string_in, "RECVFROM ");
-  if (string_in) {
-    data->recvfrom_max = read_int_tuple_series(string_in + strlen("RECVFROM "),
+  data->recvfrom_max = 0;
+  data->recvfrom_node = NULL;
+  data->recvfrom_line = NULL;
+  data->sendto_max = 0;
+  data->sendto = NULL;
+  data->reducefrom_max = 0;
+  data->reducefrom = NULL;
+  string_temp = strstr(string_in, "RECVFROM ");
+  if (string_temp) {
+    data->recvfrom_max = read_int_tuple_series(string_temp + strlen("RECVFROM "),
                                                &data->recvfrom_node, &data->recvfrom_line);
     if (data->recvfrom_max < 0) {
       return data->recvfrom_max;
     }
-  } else {
-    data->recvfrom_max = 0;
-    data->recvfrom_node = NULL;
-    data->recvfrom_line = NULL;
   }
-  string_in = strstr(string_in, "REDUCEFROM ");
-  if (string_in) {
-    data->reducefrom_max = read_int_series(string_in + strlen("REDUCEFROM "), &data->reducefrom);
+  string_temp = strstr(string_in, "REDUCEFROM ");
+  if (string_temp) {
+    data->reducefrom_max = read_int_series(string_temp + strlen("REDUCEFROM "), &data->reducefrom);
     if (data->reducefrom_max < 0) {
       free(data->recvfrom_node);
       free(data->recvfrom_line);
       return data->reducefrom_max;
     }
-  } else {
-    data->reducefrom_max = 0;
-    data->reducefrom = NULL;
   }
-  string_in = strstr(string_in, "SENDTO ");
-  if (!string_in) {
-    data->sendto_max = read_int_series(string_in + strlen("SENDTO "), &data->sendto);
+  string_temp = strstr(string_in, "SENDTO ");
+  if (string_temp) {
+    data->sendto_max = read_int_series(string_temp + strlen("SENDTO "), &data->sendto);
     if (data->sendto_max < 0) {
       free(data->recvfrom_node);
       free(data->recvfrom_line);
       free(data->reducefrom);
       return data->sendto_max;
     }
-  } else {
-    data->sendto_max = 0;
   }
   return 0;
 }
