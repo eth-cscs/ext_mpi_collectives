@@ -7,16 +7,16 @@
 
 #define RADIX 7
 
-static int copyin(struct parameters_block *parameters, struct data_line **data, int size_level0, int *size_level1, int type_size, int num_tasks, int my_task, int block_offset, char *buffer_out){
+static int copyin(struct parameters_block *parameters, struct data_algorithm data, int type_size, int num_tasks, int my_task, int block_offset, char *buffer_out){
   struct line_memcpy_reduce data_memcpy_reduce;
-  int nbuffer_out=0, remote_offsets[size_level1[0]+1], total_message_size=0, my_message_size, my_message_offset, i, j, k, start_copy, stop_copy, add, add2, size;
+  int nbuffer_out=0, remote_offsets[data.blocks[0].num_lines+1], total_message_size=0, my_message_size, my_message_offset, i, j, k, start_copy, stop_copy, add, add2, size;
   enum eassembler_type op_type;
-  for (i = 0; i < size_level1[0]; i++) {
+  for (i = 0; i < data.blocks[0].num_lines; i++) {
     total_message_size+=parameters->message_sizes[i];
   }
   remote_offsets[0]=0;
-  for (i=0; i<size_level1[0]; i++){
-    remote_offsets[i+1]=remote_offsets[i]+parameters->message_sizes[data[0][i].frac];
+  for (i=0; i<data.blocks[0].num_lines; i++){
+    remote_offsets[i+1]=remote_offsets[i]+parameters->message_sizes[data.blocks[0].lines[i].frac];
   }
   for (i=0; i<num_tasks; i++){
     my_message_size = (total_message_size/type_size)/num_tasks;
@@ -29,8 +29,8 @@ static int copyin(struct parameters_block *parameters, struct data_line **data, 
     }
     my_message_size*=type_size;
     my_message_offset*=type_size;
-    for (j=0; j<size_level1[0]; j++){
-      for (k=0; data[0][k].frac!=j; k++);
+    for (j=0; j<data.blocks[0].num_lines; j++){
+      for (k=0; data.blocks[0].lines[k].frac!=j; k++);
       if ((remote_offsets[j+1]>=my_message_offset)&&(remote_offsets[j]<my_message_offset+my_message_size)){
         if (remote_offsets[j]<my_message_offset){
           start_copy=my_message_offset;
@@ -71,10 +71,10 @@ static int copyin(struct parameters_block *parameters, struct data_line **data, 
   return nbuffer_out;
 }
 
-static int reduce(struct parameters_block *parameters, struct data_line **data, int size_level0, int *size_level1, int type_size, int num_tasks, int my_task, int num_blocks, int *block_offsets, char *buffer_out){
+static int reduce(struct parameters_block *parameters, struct data_algorithm data, int type_size, int num_tasks, int my_task, int num_blocks, int *block_offsets, char *buffer_out){
   struct line_memcpy_reduce data_memcpy_reduce;
   int nbuffer_out=0, total_message_size=0, my_message_size, my_message_offset, i, j, add, add2, size;
-  for (i = 0; i < size_level1[0]; i++) {
+  for (i = 0; i < data.blocks[0].num_lines; i++) {
     total_message_size+=parameters->message_sizes[i];
   }
   for (i=0; i<num_tasks; i++){
@@ -120,8 +120,10 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       k, m, copy_method = 0, total_message_size=0;
   int size_level0 = 0, *size_level1 = NULL, collective_type = 1;
   int barriers_size, step, substep, add_local, size_local, type_size = 1, tsize;
-  struct data_line **data = NULL;
+  struct data_algorithm data;
   struct parameters_block *parameters;
+  data.num_blocks = 0;
+  data.blocks = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
@@ -165,17 +167,14 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   if (!moffsets)
     goto error;
   node_size = node_row_size * node_column_size;
-  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0,
-                                           &size_level1, &data, parameters->ascii_in);
+  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
   if (i <= 0) {
     printf("error reading algorithm reduce_copyin\n");
     exit(2);
   }
-  nbuffer_out +=
-      ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
-                      parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
   displs = (int *)malloc((counts_max + 1) * sizeof(int));
   if (!displs)
     goto error;
@@ -261,8 +260,8 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           add = moffsets[num_nodes] * lrank_row + ldispls[lrank_column];
         }
         for (i = 0; i < size_level1[0]; i++) {
-          size = mcounts[data[0][i].frac];
-          add2 = moffsets[data[0][i].frac];
+          size = mcounts[data.blocks[0].lines[i].frac];
+          add2 = moffsets[data.blocks[0].lines[i].frac];
           if (size) {
             data_memcpy_reduce.type = ememcpy;
             data_memcpy_reduce.buffer_type1 = eshmemo;
@@ -366,8 +365,8 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         if ((k < 1) || ((node_size / counts_max) % size_level1[0] != 0)) {
           add = ldispls[lrank_column];
           for (i = 0; i < size_level1[0]; i++) {
-            size = mcounts[data[0][i].frac];
-            add2 = moffsets[data[0][i].frac];
+            size = mcounts[data.blocks[0].lines[i].frac];
+            add2 = moffsets[data.blocks[0].lines[i].frac];
             if ((node_size / counts_max + i - lrank_row) %
                     (node_size / counts_max) ==
                 0) {
@@ -391,9 +390,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             nbuffer_out += ext_mpi_write_assembler_line(
                 buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
             add = ldispls[lrank_column];
-            for (j = 0; j < size_level1[0]; j++) {
-              size = mcounts[data[0][j].frac];
-              add2 = moffsets[data[0][j].frac];
+            for (j = 0; j < data.blocks[0].num_lines; j++) {
+              size = mcounts[data.blocks[0].lines[j].frac];
+              add2 = moffsets[data.blocks[0].lines[j].frac];
               if ((node_size / counts_max + j - lrank_row) %
                       (node_size / counts_max) ==
                   i) {
@@ -416,9 +415,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
         } else {
           add = ldispls[lrank_column];
-          for (i = 0; i < size_level1[0]; i++) {
-            size = mcounts[data[0][i].frac];
-            add2 = moffsets[data[0][i].frac];
+          for (i = 0; i < data.blocks[0].num_lines; i++) {
+            size = mcounts[data.blocks[0].lines[i].frac];
+            add2 = moffsets[data.blocks[0].lines[i].frac];
             for (m = 0; m < k; m++) {
               size_local = (size / type_size / k) * type_size;
               add_local = size_local * m;
@@ -454,9 +453,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             nbuffer_out += ext_mpi_write_assembler_line(
                 buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
             add = ldispls[lrank_column];
-            for (j = 0; j < size_level1[0]; j++) {
-              size = mcounts[data[0][j].frac];
-              add2 = moffsets[data[0][j].frac];
+            for (j = 0; j < data.blocks[0].num_lines; j++) {
+              size = mcounts[data.blocks[0].lines[j].frac];
+              add2 = moffsets[data.blocks[0].lines[j].frac];
               for (m = 0; m < k; m++) {
                 size_local = (size / type_size / k) * type_size;
                 add_local = size_local * m;
@@ -501,9 +500,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           } else {
             add = moffsets[num_nodes] * (lrank_row - node_row_size / 2) + ldispls[lrank_column];
           }
-          for (i = 0; i < size_level1[0]; i++) {
-            size = mcounts[data[0][i].frac];
-            add2 = moffsets[data[0][i].frac];
+          for (i = 0; i < data.blocks[0].num_lines; i++) {
+            size = mcounts[data.blocks[0].lines[i].frac];
+            add2 = moffsets[data.blocks[0].lines[i].frac];
             if (size) {
               data_memcpy_reduce.type = ememcpy;
               data_memcpy_reduce.buffer_type1 = eshmemo;
@@ -529,9 +528,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           } else {
             add = moffsets[num_nodes] * lrank_row + ldispls[lrank_column];
           }
-          for (i = 0; i < size_level1[0]; i++) {
-            size = mcounts[data[0][i].frac];
-            add2 = moffsets[data[0][i].frac];
+          for (i = 0; i < data.blocks[0].num_lines; i++) {
+            size = mcounts[data.blocks[0].lines[i].frac];
+            add2 = moffsets[data.blocks[0].lines[i].frac];
             if (size) {
               data_memcpy_reduce.type = ereduce;
               data_memcpy_reduce.buffer_type1 = eshmemo;
@@ -602,12 +601,12 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       case 3:
 	tsize = 8;
 	for (i = 0; i < size_level1[0]; i++) {
-	  tsize += mcounts[data[0][i].frac];
+	  tsize += mcounts[data.blocks[0].lines[i].frac];
 	}
         add = node_rank * CACHE_LINE_SIZE + CACHE_LINE_SIZE - tsize;
-        for (i = 0; i < size_level1[0]; i++) {
-          size = mcounts[data[0][i].frac];
-          add2 = moffsets[data[0][i].frac];
+        for (i = 0; i < data.blocks[0].num_lines; i++) {
+          size = mcounts[data.blocks[0].lines[i].frac];
+          add2 = moffsets[data.blocks[0].lines[i].frac];
           if (size) {
             data_memcpy_reduce.type = esmemcpy;
             data_memcpy_reduce.buffer_type1 = eshmemo;
@@ -635,8 +634,8 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               add = 0;
               j = 0;
             }
-            for (i = 0; i < size_level1[0]; i++) {
-              size = mcounts[data[0][i].frac];
+            for (i = 0; i < data.blocks[0].num_lines; i++) {
+              size = mcounts[data.blocks[0].lines[i].frac];
               if (size) {
                 data_memcpy_reduce.type = esmemcpy;
                 data_memcpy_reduce.buffer_type1 = eshmemo;
@@ -664,7 +663,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
             if (node_rank + step < node_size) {
               for (i = 0; i < size_level1[0]; i++) {
-                size = mcounts[data[0][i].frac];
+                size = mcounts[data.blocks[0].lines[i].frac];
                 if (size) {
                   data_memcpy_reduce.type = esreduce;
                   data_memcpy_reduce.buffer_type1 = eshmemo;
@@ -705,13 +704,13 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         break;
       case 4:
-        nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, parameters->socket_row_size, lrank_row, 0, buffer_out+nbuffer_out);
+        nbuffer_out += copyin(parameters, data, type_size, parameters->socket_row_size, lrank_row, 0, buffer_out+nbuffer_out);
 /*        nbuffer_out += copyin(parameters, data, size_level0, size_level1, type_size, 2, lrank_row%2, lrank_row/2, buffer_out+nbuffer_out);
         block_offsets=(int*)malloc(2*sizeof(int));
         for (i=2; i<parameters->node_row_size; i*=2){
           block_offsets[0]=(lrank_row/2/i)*i;
           block_offsets[1]=(lrank_row/2/i)*i+i/2;
-          nbuffer_out += reduce(parameters, data, size_level0, size_level1, type_size, i*2, lrank_row%(i*2), 2, block_offsets, buffer_out+nbuffer_out);
+          nbuffer_out += reduce(parameters, data, type_size, i*2, lrank_row%(i*2), 2, block_offsets, buffer_out+nbuffer_out);
           nbuffer_out += write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         }
         free(block_offsets);*/
@@ -742,9 +741,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         } else {
           add = moffsets[num_nodes] * lrank_row + ldispls[lrank_column];
         }
-        for (i = 0; i < size_level1[0]; i++) {
-          size = mcounts[data[0][i].frac];
-          add2 = moffsets[data[0][i].frac];
+        for (i = 0; i < data.blocks[0].num_lines; i++) {
+          size = mcounts[data.blocks[0].lines[i].frac];
+          add2 = moffsets[data.blocks[0].lines[i].frac];
           if (size) {
             nbuffer_out +=
                 sprintf(buffer_out + nbuffer_out,
@@ -820,9 +819,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         } else {
           add = moffsets[num_nodes] * lrank_row + ldispls[lrank_column];
         }
-        for (i = 0; i < size_level1[0]; i++) {
-          size = mcounts[data[0][i].frac];
-          add2 = moffsets[data[0][i].frac];
+        for (i = 0; i < data.blocks[0].num_lines; i++) {
+          size = mcounts[data.blocks[0].lines[i].frac];
+          add2 = moffsets[data.blocks[0].lines[i].frac];
           if (size) {
             nbuffer_out +=
                 sprintf(buffer_out + nbuffer_out,
@@ -896,9 +895,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         }
         if (lrank_row == 0) {
           add = ldispls[lrank_column];
-          for (i = 0; i < size_level1[0]; i++) {
-            size = mcounts[data[0][i].frac];
-            add2 = moffsets[data[0][i].frac];
+          for (i = 0; i < data.blocks[0].num_lines; i++) {
+            size = mcounts[data.blocks[0].lines[i].frac];
+            add2 = moffsets[data.blocks[0].lines[i].frac];
             if (size) {
               nbuffer_out += sprintf(buffer_out + nbuffer_out,
                                      " MEMCPY SHMEM+ %d SENDBUF+ %d %d\n", add,
@@ -910,9 +909,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER\n");
         if (lrank_row != 0) {
           add = ldispls[lrank_column];
-          for (i = 0; i < size_level1[0]; i++) {
-            size = mcounts[data[0][i].frac];
-            add2 = moffsets[data[0][i].frac];
+          for (i = 0; i < data.blocks[0].num_lines; i++) {
+            size = mcounts[data.blocks[0].lines[i].frac];
+            add2 = moffsets[data.blocks[0].lines[i].frac];
             if (size) {
               nbuffer_out += sprintf(buffer_out + nbuffer_out,
                                      " ATOMICADD SHMEM+ %d SENDBUF+ %d %d\n",
@@ -932,9 +931,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         } else {
           add = moffsets[num_nodes] * lrank_row + ldispls[lrank_column];
         }
-        for (i = 0; i < size_level1[0]; i++) {
-          size = mcounts[data[0][i].frac];
-          add2 = moffsets[data[0][i].frac];
+        for (i = 0; i < data.blocks[0].num_lines; i++) {
+          size = mcounts[data.blocks[0].lines[i].frac];
+          add2 = moffsets[data.blocks[0].lines[i].frac];
           if (size) {
             nbuffer_out +=
                 sprintf(buffer_out + nbuffer_out,
@@ -986,14 +985,14 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   } else {
     add = iodispls[node_rank];
     k = 1;
-    for (i = 0; (i < size_level1[0]) && k; i++) {
-      for (j = 0; j < data[0][i].recvfrom_max; j++){
-        if (data[0][i].recvfrom_node[j] == -1){
+    for (i = 0; (i < data.blocks[0].num_lines) && k; i++) {
+      for (j = 0; j < data.blocks[0].lines[i].recvfrom_max; j++){
+        if (data.blocks[0].lines[i].recvfrom_node[j] == -1){
           k = 0;
         }
       }
       if (k){
-        size = mcounts[data[0][i].frac];
+        size = mcounts[data.blocks[0].lines[i].frac];
         add += size;
       }
     }
@@ -1015,7 +1014,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
     nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   }
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
   free(iodispls);
@@ -1024,7 +1023,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
   free(iodispls);

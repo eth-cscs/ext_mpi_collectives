@@ -9,11 +9,12 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
   int *nodes_recv = NULL, *nodes_send = NULL, node_rank, node_row_size = 1,
       node_column_size = 1, node_size;
   int node, num_nodes;
-  int nbuffer_out = 0, nbuffer_in = 0, i, j, k, l, size_level0 = 0,
-      *size_level1 = NULL, size_level0_org = 0, *size_level1_org = NULL;
-  struct data_line **data = NULL, **data_org = NULL;
+  int nbuffer_out = 0, nbuffer_in = 0, i, j, k, l;
+  struct data_algorithm data, data_org;
   struct parameters_block *parameters;
   int *rank_perm = NULL, *rank_back_perm = NULL, msizes_max = -1;
+  data.num_blocks = data_org.num_blocks = 0;
+  data.blocks = data_org.blocks = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
@@ -47,69 +48,67 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
   nodes_send = (int *)malloc(sizeof(int) * num_nodes);
   if (!nodes_send)
     goto error;
-  i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0_org, &size_level1_org,
-                     &data_org, parameters->ascii_in);
+  i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data_org, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
   if (i <= 0) {
     printf("error reading algorithm raw_code_tasks_node\n");
     exit(2);
   }
-  i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0, &size_level1, &data,
-                             parameters->ascii_in);
+  i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
   if (i <= 0) {
     printf("error reading algorithm raw_code_tasks_node\n");
     exit(2);
   }
-  for (i = 0; i < size_level0; i++) {
+  for (i = 0; i < data.num_blocks; i++) {
     for (j = 0; j < num_nodes; j++) {
       nodes_recv[j] = nodes_send[j] = -1;
     }
-    for (j = 0; j < size_level1[i]; j++) {
-      for (k = 0; k < data[i][j].recvfrom_max; k++) {
-        if (data[i][j].recvfrom_node[k] <= -10) {
-          data[i][j].recvfrom_node[k] = -10 - data[i][j].recvfrom_node[k];
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+        if (data.blocks[i].lines[j].recvfrom_node[k] <= -10) {
+          data.blocks[i].lines[j].recvfrom_node[k] = -10 - data.blocks[i].lines[j].recvfrom_node[k];
         }
       }
-      for (k = 0; k < data[i][j].sendto_max; k++) {
-        if (data[i][j].sendto[k] <= -10) {
-          data[i][j].sendto[k] = -10 - data[i][j].sendto[k];
+      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+        if (data.blocks[i].lines[j].sendto[k] <= -10) {
+          data.blocks[i].lines[j].sendto[k] = -10 - data.blocks[i].lines[j].sendto[k];
         }
       }
     }
-    for (j = 0; j < size_level1[i]; j++) {
-      for (k = 0; k < data[i][j].recvfrom_max; k++) {
-        if (data[i][j].recvfrom_node[k] >= 0) {
-          nodes_recv[(+rank_perm[data[i][j].recvfrom_node[k]] - rank_perm[node] +
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+        if (data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+          nodes_recv[(+rank_perm[data.blocks[i].lines[j].recvfrom_node[k]] - rank_perm[node] +
                       num_nodes) %
-                     num_nodes] = (+rank_perm[data[i][j].recvfrom_node[k]] -
+                     num_nodes] = (+rank_perm[data.blocks[i].lines[j].recvfrom_node[k]] -
                                    rank_perm[node] + num_nodes) %
                                   num_nodes;
         }
-        if (data[i][j].recvfrom_node[k] <= -10) {
-          nodes_recv[(+rank_perm[10 - data[i][j].recvfrom_node[k]] -
+        if (data.blocks[i].lines[j].recvfrom_node[k] <= -10) {
+          nodes_recv[(+rank_perm[10 - data.blocks[i].lines[j].recvfrom_node[k]] -
                       rank_perm[node] + num_nodes) %
-                     num_nodes] = (+rank_perm[10 - data[i][j].recvfrom_node[k]] -
+                     num_nodes] = (+rank_perm[10 - data.blocks[i].lines[j].recvfrom_node[k]] -
                                    rank_perm[node] + num_nodes) %
                                   num_nodes;
         }
       }
-      for (k = 0; k < data[i][j].sendto_max; k++) {
-        if (data[i][j].sendto[k] >= 0) {
-          nodes_send[(-rank_perm[data[i][j].sendto[k]] + rank_perm[node] +
+      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+        if (data.blocks[i].lines[j].sendto[k] >= 0) {
+          nodes_send[(-rank_perm[data.blocks[i].lines[j].sendto[k]] + rank_perm[node] +
                       num_nodes) %
                      num_nodes] =
-              (-rank_perm[data[i][j].sendto[k]] + rank_perm[node] + num_nodes) %
+              (-rank_perm[data.blocks[i].lines[j].sendto[k]] + rank_perm[node] + num_nodes) %
               num_nodes;
         }
       }
-      for (k = 0; k < data[i][j].sendto_max; k++) {
-        if (data[i][j].sendto[k] <= -10) {
-          nodes_send[(-rank_perm[10 - data[i][j].sendto[k]] + rank_perm[node] +
+      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+        if (data.blocks[i].lines[j].sendto[k] <= -10) {
+          nodes_send[(-rank_perm[10 - data.blocks[i].lines[j].sendto[k]] + rank_perm[node] +
                       num_nodes) %
-                     num_nodes] = (-rank_perm[10 - data[i][j].sendto[k]] +
+                     num_nodes] = (-rank_perm[10 - data.blocks[i].lines[j].sendto[k]] +
                                    rank_perm[node] + num_nodes) %
                                   num_nodes;
         }
@@ -139,23 +138,23 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
         k++;
       }
     }
-    for (j = 0; j < size_level1[i]; j++) {
-      for (k = 0; k < data[i][j].recvfrom_max; k++) {
-        if (data[i][j].recvfrom_node[k] >= 0) {
-          l = nodes_recv[(+rank_perm[data[i][j].recvfrom_node[k]] -
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+        if (data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+          l = nodes_recv[(+rank_perm[data.blocks[i].lines[j].recvfrom_node[k]] -
                           rank_perm[node] + num_nodes) %
                          num_nodes];
           if (l >= 0) {
-            data[i][j].recvfrom_node[k] =
+            data.blocks[i].lines[j].recvfrom_node[k] =
                 (+l + rank_perm[node] * node_size + num_nodes * node_size) %
                     (num_nodes * node_size) +
                 node_rank;
-            data[i][j].recvfrom_node[k] =
-                rank_back_perm[data[i][j].recvfrom_node[k] / node_size] *
+            data.blocks[i].lines[j].recvfrom_node[k] =
+                rank_back_perm[data.blocks[i].lines[j].recvfrom_node[k] / node_size] *
                     node_size +
-                data[i][j].recvfrom_node[k] % node_size;
+                data.blocks[i].lines[j].recvfrom_node[k] % node_size;
           } else {
-            data[i][j].recvfrom_node[k] =
+            data.blocks[i].lines[j].recvfrom_node[k] =
                 -(rank_back_perm[((-l - 10 + rank_perm[node] * node_size +
                                    num_nodes * node_size) %
                                   (num_nodes * node_size)) /
@@ -164,25 +163,25 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
                 10 - node_rank;
           }
         }
-        if (data_org[i][j].recvfrom_node[k] <= -10) {
-          data[i][j].recvfrom_node[k] = 2000000000;
+        if (data_org.blocks[i].lines[j].recvfrom_node[k] <= -10) {
+          data.blocks[i].lines[j].recvfrom_node[k] = 2000000000;
         }
       }
-      for (k = 0; k < data[i][j].sendto_max; k++) {
-        if (data[i][j].sendto[k] >= 0) {
-          l = nodes_send[(-rank_perm[data[i][j].sendto[k]] + rank_perm[node] +
+      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+        if (data.blocks[i].lines[j].sendto[k] >= 0) {
+          l = nodes_send[(-rank_perm[data.blocks[i].lines[j].sendto[k]] + rank_perm[node] +
                           num_nodes) %
                          num_nodes];
           if (l >= 0) {
-            data[i][j].sendto[k] =
+            data.blocks[i].lines[j].sendto[k] =
                 (-l + rank_perm[node] * node_size + num_nodes * node_size) %
                     (num_nodes * node_size) +
                 node_rank;
-            data[i][j].sendto[k] =
-                rank_back_perm[data[i][j].sendto[k] / node_size] * node_size +
-                data[i][j].sendto[k] % node_size;
+            data.blocks[i].lines[j].sendto[k] =
+                rank_back_perm[data.blocks[i].lines[j].sendto[k] / node_size] * node_size +
+                data.blocks[i].lines[j].sendto[k] % node_size;
           } else {
-            data[i][j].sendto[k] =
+            data.blocks[i].lines[j].sendto[k] =
                 -(rank_back_perm[((+l + 10 + rank_perm[node] * node_size +
                                    num_nodes * node_size) %
                                   (num_nodes * node_size)) /
@@ -191,34 +190,34 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
                 10 - node_rank;
           }
         }
-        if (data_org[i][j].sendto[k] <= -10) {
-          data[i][j].sendto[k] = 2000000000;
+        if (data_org.blocks[i].lines[j].sendto[k] <= -10) {
+          data.blocks[i].lines[j].sendto[k] = 2000000000;
         }
       }
-      for (k = 0; k < data[i][j].recvfrom_max; k++) {
-        if (data[i][j].recvfrom_node[k] == 2000000000) {
-          if (data[i][j].recvfrom_max == 1) {
-            data[i][j].recvfrom_node[k] = node * node_size + node_rank;
-            data[i][j].recvfrom_line[k] = j;
+      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+        if (data.blocks[i].lines[j].recvfrom_node[k] == 2000000000) {
+          if (data.blocks[i].lines[j].recvfrom_max == 1) {
+            data.blocks[i].lines[j].recvfrom_node[k] = node * node_size + node_rank;
+            data.blocks[i].lines[j].recvfrom_line[k] = j;
           } else {
-            for (l = k; l < data[i][j].recvfrom_max - 1; l++) {
-              data[i][j].recvfrom_node[l] = data[i][j].recvfrom_node[l + 1];
-              data[i][j].recvfrom_line[l] = data[i][j].recvfrom_line[l + 1];
+            for (l = k; l < data.blocks[i].lines[j].recvfrom_max - 1; l++) {
+              data.blocks[i].lines[j].recvfrom_node[l] = data.blocks[i].lines[j].recvfrom_node[l + 1];
+              data.blocks[i].lines[j].recvfrom_line[l] = data.blocks[i].lines[j].recvfrom_line[l + 1];
             }
-            data[i][j].recvfrom_max--;
+            data.blocks[i].lines[j].recvfrom_max--;
             k--;
           }
         }
       }
-      for (k = 0; k < data[i][j].sendto_max; k++) {
-        if (data[i][j].sendto[k] == 2000000000) {
-          if (data[i][j].sendto_max == 1) {
-            data[i][j].sendto[k] = node * node_size + node_rank;
+      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+        if (data.blocks[i].lines[j].sendto[k] == 2000000000) {
+          if (data.blocks[i].lines[j].sendto_max == 1) {
+            data.blocks[i].lines[j].sendto[k] = node * node_size + node_rank;
           } else {
-            for (l = k; l < data[i][j].sendto_max - 1; l++) {
-              data[i][j].sendto[l] = data[i][j].sendto[l + 1];
+            for (l = k; l < data.blocks[i].lines[j].sendto_max - 1; l++) {
+              data.blocks[i].lines[j].sendto[l] = data.blocks[i].lines[j].sendto[l + 1];
             }
-            data[i][j].sendto_max--;
+            data.blocks[i].lines[j].sendto_max--;
             k--;
           }
         }
@@ -226,11 +225,10 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
     }
   }
   nbuffer_out +=
-      ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
-                              parameters->ascii_out);
+      ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
-  ext_mpi_delete_algorithm(size_level0_org, size_level1_org, data_org);
+  ext_mpi_delete_algorithm(data);
+  ext_mpi_delete_algorithm(data_org);
   free(rank_back_perm);
   free(rank_perm);
   parameters->rank_perm = NULL;
@@ -240,8 +238,8 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
   free(nodes_recv);
   return nbuffer_out;
 error:
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
-  ext_mpi_delete_algorithm(size_level0_org, size_level1_org, data_org);
+  ext_mpi_delete_algorithm(data);
+  ext_mpi_delete_algorithm(data_org);
   free(rank_back_perm);
   free(rank_perm);
   if (parameters) {
