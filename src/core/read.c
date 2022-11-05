@@ -673,8 +673,8 @@ error:
   return ERROR_MALLOC;
 }
 
-int ext_mpi_read_stage_line(char *string_in, struct data_line *data) {
-  char string_stage[100], string_frac[100], string_to[100], *string_temp;
+int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
+  char string_stage[100], string_frac[100], *string_temp;
   int stage, frac;
   if (sscanf(string_in, "%99s %d %99s %d", string_stage, &stage,
              string_frac, &frac) != 4) {
@@ -724,83 +724,72 @@ int ext_mpi_read_stage_line(char *string_in, struct data_line *data) {
   return 0;
 }
 
-void ext_mpi_delete_stage_line(struct data_line data) {
+void ext_mpi_delete_stage_line(struct data_algorithm_line data) {
   free(data.sendto);
   free(data.recvfrom_node);
   free(data.recvfrom_line);
   free(data.reducefrom);
 }
 
-int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
-                           struct data_line ***data, int ascii_in) {
+int ext_mpi_read_algorithm(char *buffer_in, struct data_algorithm *data, int ascii_in) {
   char *line = NULL;
   int nbuffer_in = 0, stage, flag, i, j, stage_old, err;
   enum eassembler_type estring1;
-  *size_level1 = NULL;
-  *data = NULL;
+  data->num_blocks = 0;
+  data->blocks = NULL;
   line = (char *)malloc(100000);
   if (!line)
     goto error;
   if (!ascii_in) {
-    memcpy(size_level0, buffer_in + nbuffer_in, sizeof(*size_level0));
-    nbuffer_in += sizeof(*size_level0);
-    *size_level1 = (int *)malloc(sizeof(int) * (*size_level0));
-    if (!(*size_level1))
+    memcpy(&data->num_blocks, buffer_in + nbuffer_in, sizeof(data->num_blocks));
+    nbuffer_in += sizeof(data->num_blocks);
+    data->blocks = (struct data_algorithm_block*)malloc(sizeof(struct data_algorithm_block) * data->num_blocks);
+    if (!data->blocks)
       goto error;
-    memcpy(*size_level1, buffer_in + nbuffer_in, sizeof(int) * (*size_level0));
-    nbuffer_in += sizeof(int) * (*size_level0);
-    *data = (struct data_line **)malloc(sizeof(struct data_line *) *
-                                        (*size_level0));
-    if (!*data)
-      goto error;
-    for (i = 0; i < *size_level0; i++) {
-      (*data)[i] = NULL;
-    }
-    for (i = 0; i < *size_level0; i++) {
-      (*data)[i] = (struct data_line *)malloc((*size_level1)[i] *
-                                              sizeof(struct data_line));
-      if (!(*data)[i])
-        goto error;
-      for (j = 0; j < (*size_level1)[i]; j++) {
-        memcpy(&(*data)[i][j], buffer_in + nbuffer_in,
-               sizeof(struct data_line));
-        nbuffer_in += sizeof(struct data_line);
-        (*data)[i][j].sendto = (int *)malloc(sizeof(int) * (*data)[i][j].sendto_max);
-        if (!(*data)[i][j].sendto)
+    for (i = 0; i < data->num_blocks; i++) {
+      memcpy(&data->blocks[i].num_lines, buffer_in + nbuffer_in, sizeof(data->blocks[i].num_lines));
+      nbuffer_in += sizeof(data->blocks[i].num_lines);
+      for (j = 0; j < data->blocks[i].num_lines; j++) {
+        data->blocks[i].lines = (struct data_algorithm_line *)malloc(data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
+        if (!data->blocks[i].lines)
           goto error;
-        memcpy((*data)[i][j].sendto, buffer_in + nbuffer_in,
-               sizeof(int) * (*data)[i][j].sendto_max);
-        nbuffer_in += sizeof(int) * (*data)[i][j].sendto_max;
-        (*data)[i][j].reducefrom = (int *)malloc(sizeof(int) * (*data)[i][j].reducefrom_max);
-        if (!(*data)[i][j].reducefrom)
+        memset(data->blocks[i].lines, 0, data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
+        memcpy(&data->blocks[i].lines[j].sendto_max, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].sendto_max));
+        nbuffer_in += sizeof(data->blocks[i].lines[j].sendto_max);
+        memcpy(&data->blocks[i].lines[j].recvfrom_max, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].recvfrom_max));
+        nbuffer_in += sizeof(data->blocks[i].lines[j].recvfrom_max);
+        memcpy(&data->blocks[i].lines[j].reducefrom_max, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].reducefrom_max));
+        nbuffer_in += sizeof(data->blocks[i].lines[j].reducefrom_max);
+        data->blocks[i].lines[j].sendto = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].sendto_max);
+        if (!data->blocks[i].lines[j].sendto)
           goto error;
-        memcpy((*data)[i][j].reducefrom, buffer_in + nbuffer_in,
-               sizeof(int) * (*data)[i][j].reducefrom_max);
-        nbuffer_in += sizeof(int) * (*data)[i][j].reducefrom_max;
-        (*data)[i][j].recvfrom_node =
-            (int *)malloc(sizeof(int) * (*data)[i][j].recvfrom_max);
-        if (!(*data)[i][j].recvfrom_node)
+        memcpy(data->blocks[i].lines[j].sendto, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].sendto_max);
+        nbuffer_in += sizeof(int) * data->blocks[i].lines[j].sendto_max;
+        data->blocks[i].lines[j].reducefrom = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].reducefrom_max);
+        if (!data->blocks[i].lines[j].reducefrom)
           goto error;
-        memcpy((*data)[i][j].recvfrom_node, buffer_in + nbuffer_in,
-               sizeof(int) * (*data)[i][j].recvfrom_max);
-        nbuffer_in += sizeof(int) * (*data)[i][j].recvfrom_max;
-        (*data)[i][j].recvfrom_line =
-            (int *)malloc(sizeof(int) * (*data)[i][j].recvfrom_max);
-        if (!(*data)[i][j].recvfrom_line)
+        memcpy(data->blocks[i].lines[j].reducefrom, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].reducefrom_max);
+        nbuffer_in += sizeof(int) * data->blocks[i].lines[j].reducefrom_max;
+        data->blocks[i].lines[j].recvfrom_node = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
+        if (!data->blocks[i].lines[j].recvfrom_node)
           goto error;
-        memcpy((*data)[i][j].recvfrom_line, buffer_in + nbuffer_in,
-               sizeof(int) * (*data)[i][j].recvfrom_max);
-        nbuffer_in += sizeof(int) * (*data)[i][j].recvfrom_max;
+        memcpy(data->blocks[i].lines[j].recvfrom_node, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
+        nbuffer_in += sizeof(int) * data->blocks[i].lines[j].recvfrom_max;
+        data->blocks[i].lines[j].recvfrom_line = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
+        if (!data->blocks[i].lines[j].recvfrom_line)
+          goto error;
+        memcpy(data->blocks[i].lines[j].recvfrom_line, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
+        nbuffer_in += sizeof(int) * data->blocks[i].lines[j].recvfrom_max;
       }
     }
   } else {
-    *size_level0 = -1;
+    data->num_blocks = -1;
     do {
       nbuffer_in += flag = read_single_line(buffer_in + nbuffer_in, line);
       if (flag && (ext_mpi_read_assembler_line(line, 1, "sd", &estring1, &stage) >= 0)) {
         if (estring1 == estage) {
-          if (stage > *size_level0) {
-            *size_level0 = stage;
+          if (stage > data->num_blocks) {
+            data->num_blocks = stage;
           }
         } else {
           if (estring1 != enop) {
@@ -809,26 +798,15 @@ int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
         }
       }
     } while (flag);
-    (*size_level0)++;
-    *size_level1 = (int *)malloc(sizeof(int) * (*size_level0));
-    if (!*size_level1)
-      goto error;
-    *data = (struct data_line **)malloc(sizeof(struct data_line *) *
-                                        (*size_level0));
-    for (i = 0; i < *size_level0; i++) {
-      (*data)[i] = NULL;
-    }
-    if (!*data)
-      goto error;
-    for (i = 0; i < *size_level0; i++) {
-      (*size_level1)[i] = 0;
-    }
+    data->num_blocks++;
+    data->blocks = (struct data_algorithm_block*)malloc(sizeof(struct data_algorithm_block) * data->num_blocks);
+    memset(data->blocks, 0, sizeof(struct data_algorithm_block) * data->num_blocks);
     nbuffer_in = 0;
     do {
       nbuffer_in += flag = read_single_line(buffer_in + nbuffer_in, line);
       if (flag && (ext_mpi_read_assembler_line(line, 1, "sd", &estring1, &stage) >= 0)) {
         if (estring1 == estage) {
-          ((*size_level1)[stage])++;
+          (data->blocks[stage].num_lines)++;
         } else {
           if (estring1 != enop) {
             flag = 0;
@@ -836,10 +814,9 @@ int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
         }
       }
     } while (flag);
-    for (i = 0; i < *size_level0; i++) {
-      (*data)[i] = (struct data_line *)malloc((*size_level1)[i] *
-                                              sizeof(struct data_line));
-      if (!(*data)[i])
+    for (i = 0; i < data->num_blocks; i++) {
+      data->blocks[i].lines = (struct data_algorithm_line *)malloc(data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
+      if (!data->blocks[i].lines)
         goto error;
     }
     nbuffer_in = 0;
@@ -852,7 +829,7 @@ int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
             i = 0;
             stage_old = stage;
           }
-          err = ext_mpi_read_stage_line(line, &(*data)[stage][i]);
+          err = ext_mpi_read_stage_line(line, &data->blocks[stage].lines[i]);
           if (err < 0)
             return err;
           i++;
@@ -868,66 +845,58 @@ int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
   free(line);
   return nbuffer_in;
 error:
-  ext_mpi_delete_algorithm(*size_level0, *size_level1, *data);
-  *size_level0 = 0;
-  *size_level1 = NULL;
-  *data = NULL;
+  ext_mpi_delete_algorithm(*data);
+  data->num_blocks = 0;
+  data->blocks = NULL;
   free(line);
   return ERROR_MALLOC;
 }
 
-int ext_mpi_write_algorithm(int size_level0, int *size_level1, struct data_line **data,
-                            char *buffer_out, int ascii_out) {
+int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int ascii_out) {
   int nbuffer_out = 0, i, j, k;
   if (!ascii_out) {
-    memcpy(buffer_out + nbuffer_out, &size_level0, sizeof(size_level0));
-    nbuffer_out += sizeof(size_level0);
-    memcpy(buffer_out + nbuffer_out, size_level1, sizeof(int) * size_level0);
-    nbuffer_out += sizeof(int) * size_level0;
-    for (i = 0; i < size_level0; i++) {
-      for (j = 0; j < size_level1[i]; j++) {
-        memcpy(buffer_out + nbuffer_out, &data[i][j], sizeof(struct data_line));
-        nbuffer_out += sizeof(struct data_line);
-        memcpy(buffer_out + nbuffer_out, data[i][j].sendto,
-               sizeof(int) * data[i][j].sendto_max);
-        nbuffer_out += sizeof(int) * data[i][j].sendto_max;
-        memcpy(buffer_out + nbuffer_out, data[i][j].reducefrom,
-               sizeof(int) * data[i][j].reducefrom_max);
-        nbuffer_out += sizeof(int) * data[i][j].reducefrom_max;
-        memcpy(buffer_out + nbuffer_out, data[i][j].recvfrom_node,
-               sizeof(int) * data[i][j].recvfrom_max);
-        nbuffer_out += sizeof(int) * data[i][j].recvfrom_max;
-        memcpy(buffer_out + nbuffer_out, data[i][j].recvfrom_line,
-               sizeof(int) * data[i][j].recvfrom_max);
-        nbuffer_out += sizeof(int) * data[i][j].recvfrom_max;
+    memcpy(buffer_out + nbuffer_out, &data.num_blocks, sizeof(data.num_blocks));
+    nbuffer_out += sizeof(data.num_blocks);
+    for (i = 0; i < data.num_blocks; i++) {
+      memcpy(buffer_out + nbuffer_out, &data.blocks[i].num_lines, sizeof(data.blocks[i].num_lines));
+      nbuffer_out += sizeof(data.blocks[i].num_lines);
+      for (j = 0; j < data.blocks[i].num_lines; j++) {
+        memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].sendto_max, sizeof(data.blocks[i].lines[j].sendto_max));
+        nbuffer_out += sizeof(data.blocks[i].lines[j].sendto_max);
+        memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].recvfrom_max, sizeof(data.blocks[i].lines[j].recvfrom_max));
+        nbuffer_out += sizeof(data.blocks[i].lines[j].recvfrom_max);
+        memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].reducefrom_max, sizeof(data.blocks[i].lines[j].reducefrom_max));
+        nbuffer_out += sizeof(data.blocks[i].lines[j].reducefrom_max);
+        memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].sendto, sizeof(int) * data.blocks[i].lines[j].sendto_max);
+        nbuffer_out += sizeof(int) * data.blocks[i].lines[j].sendto_max;
+        memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].recvfrom_node, sizeof(int) * data.blocks[i].lines[j].recvfrom_max);
+        nbuffer_out += sizeof(int) * data.blocks[i].lines[j].recvfrom_max;
+        memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].recvfrom_line, sizeof(int) * data.blocks[i].lines[j].recvfrom_max);
+        nbuffer_out += sizeof(int) * data.blocks[i].lines[j].recvfrom_max;
+        memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].reducefrom, sizeof(int) * data.blocks[i].lines[j].reducefrom_max);
+        nbuffer_out += sizeof(int) * data.blocks[i].lines[j].reducefrom_max;
       }
     }
   } else {
-    for (i = 0; i < size_level0; i++) {
-      for (j = 0; j < size_level1[i]; j++) {
-        nbuffer_out +=
-            sprintf(buffer_out + nbuffer_out, " STAGE %d FRAC %d",
-                    i, data[i][j].frac);
-        if (data[i][j].recvfrom_max > 0) {
+    for (i = 0; i < data.num_blocks; i++) {
+      for (j = 0; j < data.blocks[i].num_lines; j++) {
+        nbuffer_out += sprintf(buffer_out + nbuffer_out, " STAGE %d FRAC %d", i, data.blocks[i].lines[j].frac);
+        if (data.blocks[i].lines[j].recvfrom_max > 0) {
           nbuffer_out += sprintf(buffer_out + nbuffer_out, " RECVFROM");
-          for (k = 0; k < data[i][j].recvfrom_max; k++) {
-            nbuffer_out +=
-                sprintf(buffer_out + nbuffer_out, " %d|%d",
-                        data[i][j].recvfrom_node[k], data[i][j].recvfrom_line[k]);
+          for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+            nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d|%d", data.blocks[i].lines[j].recvfrom_node[k], data.blocks[i].lines[j].recvfrom_line[k]);
           }
         }
-        if (data[i][j].reducefrom_max > 0) {
+        if (data.blocks[i].lines[j].reducefrom_max > 0) {
           nbuffer_out += sprintf(buffer_out + nbuffer_out, " REDUCEFROM");
-          for (k = 0; k < data[i][j].reducefrom_max; k++) {
-            nbuffer_out +=
-                sprintf(buffer_out + nbuffer_out, " %d", data[i][j].reducefrom[k]);
+          for (k = 0; k < data.blocks[i].lines[j].reducefrom_max; k++) {
+            nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].reducefrom[k]);
           }
         }
-        if (data[i][j].sendto_max > 0) {
+        if (data.blocks[i].lines[j].sendto_max > 0) {
           nbuffer_out += sprintf(buffer_out + nbuffer_out, " SENDTO");
-          for (k = 0; k < data[i][j].sendto_max; k++) {
-            nbuffer_out +=
-                sprintf(buffer_out + nbuffer_out, " %d", data[i][j].sendto[k]);
+          for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+            nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].sendto[k]);
           }
         }
         nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
@@ -938,21 +907,19 @@ int ext_mpi_write_algorithm(int size_level0, int *size_level1, struct data_line 
   return nbuffer_out;
 }
 
-void ext_mpi_delete_algorithm(int size_level0, int *size_level1,
-                              struct data_line **data) {
+void ext_mpi_delete_algorithm(struct data_algorithm data) {
   int i, j;
-  for (i = 0; i < size_level0; i++) {
-    if (data) {
-      if (data[i]) {
-        for (j = 0; j < size_level1[i]; j++) {
-          ext_mpi_delete_stage_line(data[i][j]);
-        }
-      }
-      free(data[i]);
+  for (i = 0; i < data.num_blocks; i++) {
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      ext_mpi_delete_stage_line(data.blocks[i].lines[j]);
+    }
+    if (data.blocks[i].num_lines) {
+      free(data.blocks[i].lines);
     }
   }
-  free(data);
-  free(size_level1);
+  if (data.num_blocks) {
+    free(data.blocks);
+  }
 }
 
 static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,

@@ -96,7 +96,7 @@ struct parameters_block {
   int on_gpu;
 };
 
-struct data_line {
+struct data_algorithm_line {
   int frac;
   int sendto_max;
   int *sendto;
@@ -105,6 +105,16 @@ struct data_line {
   int *recvfrom_line;
   int reducefrom_max;
   int *reducefrom;
+};
+
+struct data_algorithm_block {
+  int num_lines;
+  struct data_algorithm_line *lines;
+};
+
+struct data_algorithm {
+  int num_blocks;
+  struct data_algorithm_block *blocks;
 };
 
 struct line_irecv_isend {
@@ -132,18 +142,12 @@ struct line_memcpy_reduce {
   int size;
 };
 
-int ext_mpi_read_parameters(char *buffer_in,
-                            struct parameters_block **parameters);
-int ext_mpi_write_parameters(struct parameters_block *parameters,
-                             char *buffer_out);
+int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameters);
+int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_out);
 int ext_mpi_delete_parameters(struct parameters_block *parameters);
-int ext_mpi_read_algorithm(char *buffer_in, int *size_level0, int **size_level1,
-                           struct data_line ***data, int ascii_in);
-int ext_mpi_write_algorithm(int size_level0, int *size_level1,
-                            struct data_line **data, char *buffer_out,
-                            int ascii_out);
-void ext_mpi_delete_algorithm(int size_level0, int *size_level1,
-                              struct data_line **data);
+int ext_mpi_read_algorithm(char *buffer_in, struct data_algorithm *data, int ascii_in);
+int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int ascii_out);
+void ext_mpi_delete_algorithm(struct data_algorithm data);
 int ext_mpi_read_line(char *buffer_in, char *line, int ascii);
 int ext_mpi_write_line(char *buffer_out, char *line, int ascii);
 int ext_mpi_write_eof(char *buffer_out, int ascii);
