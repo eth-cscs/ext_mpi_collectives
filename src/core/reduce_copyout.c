@@ -30,7 +30,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
       *lcounts = NULL, *ldispls = NULL, lrank_column;
   int nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i, j,
       k, allreduce = 1, flag;
-  int size_level0 = 0, *size_level1 = NULL, type_size = 1;
+  int type_size = 1;
   struct data_algorithm data;
   struct parameters_block *parameters;
   char cline[1000];
@@ -137,7 +137,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
          parameters->socket * parameters->socket_row_size +
              parameters->socket_rank % parameters->socket_row_size)) {
       add2 = 0;
-      for (i = 0; i < size_level1[size_level0 - 1]; i++) {
+      for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
         k = 0;
         for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
           if (data.blocks[data.num_blocks - 1].lines[i].sendto[j] == -1) {

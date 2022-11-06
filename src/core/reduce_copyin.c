@@ -118,7 +118,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       *lcounts = NULL, *ldispls = NULL, lrank_row, lrank_column;
   int nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i, j,
       k, m, copy_method = 0, total_message_size=0;
-  int size_level0 = 0, *size_level1 = NULL, collective_type = 1;
+  int collective_type = 1;
   int barriers_size, step, substep, add_local, size_local, type_size = 1, tsize;
   struct data_algorithm data;
   struct parameters_block *parameters;
@@ -212,7 +212,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   for (i = 0; i < num_nodes; i++) {
     moffsets[i + 1] = moffsets[i] + mcounts[i];
   }
-  if ((size_level1[0] == 1) && (collective_type == 0)) {
+  if ((data.blocks[0].num_lines == 1) && (collective_type == 0)) {
     for (i = 0; i < num_nodes; i++) {
       moffsets[i] = moffsets[num_nodes];
     }
@@ -259,7 +259,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         } else {
           add = moffsets[num_nodes] * lrank_row + ldispls[lrank_column];
         }
-        for (i = 0; i < size_level1[0]; i++) {
+        for (i = 0; i < data.blocks[0].num_lines; i++) {
           size = mcounts[data.blocks[0].lines[i].frac];
           add2 = moffsets[data.blocks[0].lines[i].frac];
           if (size) {
@@ -361,10 +361,10 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         //          printf("copyin not implemented\n");
         //          exit(2);
         //        }
-        k = (node_size / counts_max) / size_level1[0];
-        if ((k < 1) || ((node_size / counts_max) % size_level1[0] != 0)) {
+        k = (node_size / counts_max) / data.blocks[0].num_lines;
+        if ((k < 1) || ((node_size / counts_max) % data.blocks[0].num_lines != 0)) {
           add = ldispls[lrank_column];
-          for (i = 0; i < size_level1[0]; i++) {
+          for (i = 0; i < data.blocks[0].num_lines; i++) {
             size = mcounts[data.blocks[0].lines[i].frac];
             add2 = moffsets[data.blocks[0].lines[i].frac];
             if ((node_size / counts_max + i - lrank_row) %
@@ -427,10 +427,10 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               } else {
                 add_local += ((size / type_size) % k) * type_size;
               }
-              if ((lrank_row < k * size_level1[0]) &&
+              if ((lrank_row < k * data.blocks[0].num_lines) &&
                   ((node_size / counts_max + m - lrank_row % k) % k == 0) &&
                   ((node_size / counts_max + i - lrank_row / k) %
-                       size_level1[0] ==
+                       data.blocks[0].num_lines ==
                    0)) {
                 if (size_local) {
                   data_memcpy_reduce.type = ememcpy;
@@ -465,11 +465,11 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
                 } else {
                   add_local += ((size / type_size) % k) * type_size;
                 }
-                if ((lrank_row < k * size_level1[0]) &&
+                if ((lrank_row < k * data.blocks[0].num_lines) &&
                     ((node_size / counts_max + m - lrank_row % k) % k ==
                      i % k) &&
                     ((node_size / counts_max + j - lrank_row / k) %
-                         size_level1[0] ==
+                         data.blocks[0].num_lines ==
                      i / k)) {
                   if (size_local) {
                     data_memcpy_reduce.type = ereduce;
@@ -600,7 +600,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         break;
       case 3:
 	tsize = 8;
-	for (i = 0; i < size_level1[0]; i++) {
+	for (i = 0; i < data.blocks[0].num_lines; i++) {
 	  tsize += mcounts[data.blocks[0].lines[i].frac];
 	}
         add = node_rank * CACHE_LINE_SIZE + CACHE_LINE_SIZE - tsize;
@@ -662,7 +662,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
               j = 0;
             }
             if (node_rank + step < node_size) {
-              for (i = 0; i < size_level1[0]; i++) {
+              for (i = 0; i < data.blocks[0].num_lines; i++) {
                 size = mcounts[data.blocks[0].lines[i].frac];
                 if (size) {
                   data_memcpy_reduce.type = esreduce;
@@ -714,7 +714,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           nbuffer_out += write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         }
         free(block_offsets);*/
-        for (i = 0; i < size_level1[0]; i++) {
+        for (i = 0; i < data.blocks[0].num_lines; i++) {
           total_message_size+=parameters->message_sizes[i];
         }
         add=add2=total_message_size*(parameters->socket_row_size/2-1);
