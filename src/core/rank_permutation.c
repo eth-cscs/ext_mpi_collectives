@@ -157,11 +157,12 @@ error:
 
 int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out) {
   int num_nodes, flag, msizes_max = 0, *msizes = NULL, *rank_perm = NULL;
-  int nbuffer_out = 0, nbuffer_in = 0, i, j, k, size_level0 = 0,
-      *size_level1 = NULL;
-  struct data_line **data = NULL;
+  int nbuffer_out = 0, nbuffer_in = 0, i, j, k;
+  struct data_algorithm data;
   struct parameters_block *parameters;
   char line[1000];
+  data.num_blocks = 0;
+  data.blocks = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
@@ -183,30 +184,28 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
   }
   free(msizes);
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
-  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0,
-                                           &size_level1, &data, parameters->ascii_in);
+  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i <= 0) {
     printf("error reading algorithm rank_permutation\n");
     exit(2);
   }
-  for (i = 0; i < size_level0; i++) {
-    for (j = 0; j < size_level1[i]; j++) {
-      data[i][j].frac = rank_perm[data[i][j].frac];
-      for (k = 0; k < data[i][j].sendto_max; k++) {
-        if (data[i][j].sendto[k] >= 0) {
-          data[i][j].sendto[k] = rank_perm[data[i][j].sendto[k]];
+  for (i = 0; i < data.num_blocks; i++) {
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      data.blocks[i].lines[j].frac = rank_perm[data.blocks[i].lines[j].frac];
+      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+        if (data.blocks[i].lines[j].sendto[k] >= 0) {
+          data.blocks[i].lines[j].sendto[k] = rank_perm[data.blocks[i].lines[j].sendto[k]];
         }
       }
-      for (k = 0; k < data[i][j].recvfrom_max; k++) {
-        if (data[i][j].recvfrom_node[k] >= 0) {
-          data[i][j].recvfrom_node[k] = rank_perm[data[i][j].recvfrom_node[k]];
+      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+        if (data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+          data.blocks[i].lines[j].recvfrom_node[k] = rank_perm[data.blocks[i].lines[j].recvfrom_node[k]];
         }
       }
     }
   }
   nbuffer_out +=
-      ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
-                              parameters->ascii_out);
+      ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
   do {
     nbuffer_in += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
@@ -216,11 +215,11 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
     }
   } while (flag);
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }

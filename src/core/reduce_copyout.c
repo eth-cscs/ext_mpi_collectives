@@ -31,9 +31,11 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i, j,
       k, allreduce = 1, flag;
   int size_level0 = 0, *size_level1 = NULL, type_size = 1;
-  struct data_line **data = NULL;
+  struct data_algorithm data;
   struct parameters_block *parameters;
   char cline[1000];
+  data.num_blocks = 0;
+  data.blocks = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
@@ -74,8 +76,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   if (!moffsets)
     goto error;
   node_size = node_row_size * node_column_size;
-  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0,
-                                           &size_level1, &data, parameters->ascii_in);
+  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
   if (i <= 0) {
@@ -138,15 +139,15 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
       add2 = 0;
       for (i = 0; i < size_level1[size_level0 - 1]; i++) {
         k = 0;
-        for (j = 0; j < data[size_level0 - 1][i].sendto_max; j++) {
-          if (data[size_level0 - 1][i].sendto[j] == -1) {
+        for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
+          if (data.blocks[data.num_blocks - 1].lines[i].sendto[j] == -1) {
             k = 1;
           }
         }
         if (k) {
           if ((size = overlapp(ldispls[lrank_column], ldispls[lrank_column + 1],
-                               moffsets[data[size_level0 - 1][i].frac],
-                               moffsets[data[size_level0 - 1][i].frac + 1],
+                               moffsets[data.blocks[data.num_blocks - 1].lines[i].frac],
+                               moffsets[data.blocks[data.num_blocks - 1].lines[i].frac + 1],
                                &add))) {
             data_memcpy_reduce.type = ememcpy;
             data_memcpy_reduce.buffer_type1 = erecvbufp;
@@ -160,7 +161,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
             nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
           }
         }
-        add2 += mcounts[data[size_level0 - 1][i].frac];
+        add2 += mcounts[data.blocks[data.num_blocks - 1].lines[i].frac];
       }
     }
   } else {
@@ -182,7 +183,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   }
   nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", ereturn);
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
   free(iodispls);
@@ -191,7 +192,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
   free(iodispls);
