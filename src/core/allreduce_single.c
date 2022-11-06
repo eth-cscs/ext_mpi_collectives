@@ -77,6 +77,7 @@ static int allgather_core(struct data_algorithm *data, int num_sockets, int *num
     data->blocks[data->num_blocks].num_lines = data->blocks[data->num_blocks - 1].num_lines * (num_ports[step] + 1);
     if (data->blocks[data->num_blocks - 1].num_lines > num_sockets) data->blocks[data->num_blocks - 1].num_lines = num_sockets;
     data->blocks[data->num_blocks].lines = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line)*data->blocks[data->num_blocks].num_lines);
+    memset(data->blocks[data->num_blocks].lines, 0, sizeof(struct data_algorithm_line)*data->blocks[data->num_blocks].num_lines);
     for (line = 0; line < data->blocks[data->num_blocks].num_lines; line++) {
       l = gbstep;
       if (l > data->blocks[data->num_blocks].num_lines - gbstep) l = data->blocks[data->num_blocks].num_lines - gbstep;
@@ -180,6 +181,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
     for (gbstep = 1; num_ports[step]; gbstep *= num_ports[step] + 1, step++) {
       size_level1b[data->num_blocks] = data->blocks[data->num_blocks].num_lines = get_size_level1b(num_sockets, num_ports, step, 1);
       data->blocks[data->num_blocks].lines = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
+      memset(data->blocks[data->num_blocks].lines, 0, sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
       l = size_level1b[data->num_blocks] - get_size_level1b(num_sockets, num_ports, step, 0);
       i = l / num_ports[step];
       j = l % num_ports[step];
@@ -227,6 +229,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
     }
     size_level1b[data->num_blocks] = data->blocks[data->num_blocks].num_lines = data->blocks[data->num_blocks - 1].num_lines;
     data->blocks[data->num_blocks].lines = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
+    memset(data->blocks[data->num_blocks].lines, 0, sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
     for (line = 0; line < size_level1b[data->num_blocks]; line++) {
       data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
     }
