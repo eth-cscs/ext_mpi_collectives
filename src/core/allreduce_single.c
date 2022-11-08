@@ -72,10 +72,11 @@ static int allgather_core(struct data_algorithm *data, int num_sockets, int *num
   data->blocks[data->num_blocks].lines[0].recvfrom_node = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[0].recvfrom_max);
   data->blocks[data->num_blocks].lines[0].recvfrom_line = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[0].recvfrom_max);
   data->blocks[data->num_blocks].lines[0].recvfrom_node[0] = -1;
+  data->blocks[data->num_blocks].lines[0].recvfrom_line[0] = 0;
   data->num_blocks++;
   for (step = 0, gbstep = 1; num_ports[step]; gbstep *= num_ports[step] + 1, step++) {
     data->blocks[data->num_blocks].num_lines = data->blocks[data->num_blocks - 1].num_lines * (num_ports[step] + 1);
-    if (data->blocks[data->num_blocks - 1].num_lines > num_sockets) data->blocks[data->num_blocks - 1].num_lines = num_sockets;
+    if (data->blocks[data->num_blocks].num_lines > num_sockets) data->blocks[data->num_blocks].num_lines = num_sockets;
     data->blocks[data->num_blocks].lines = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line)*data->blocks[data->num_blocks].num_lines);
     memset(data->blocks[data->num_blocks].lines, 0, sizeof(struct data_algorithm_line)*data->blocks[data->num_blocks].num_lines);
     for (line = 0; line < data->blocks[data->num_blocks].num_lines; line++) {
@@ -96,8 +97,6 @@ static int allgather_core(struct data_algorithm *data, int num_sockets, int *num
         data->blocks[data->num_blocks].lines[line].recvfrom_line[0] = line % gbstep;
       }
       data->blocks[data->num_blocks].lines[line].frac = (task + line) % num_sockets;
-      data->blocks[data->num_blocks].lines[line].reducefrom_max = 0;
-      data->blocks[data->num_blocks].lines[line].reducefrom = NULL;
     }
     data->num_blocks++;
   }
