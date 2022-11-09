@@ -110,7 +110,7 @@ static int socket_global(int socket_local, int gbstep, int factor, int component
   }
 }
 
-static void revise_partners(int num_sockets, int fac, int component, struct data_algorithm *data) {
+static void revise_partners(int step, int num_sockets, int fac, int component, struct data_algorithm *data) {
   int i, j, k;
   for (i = 0; i < data->num_blocks; i++) {
     for (j = 0; j < data->blocks[i].num_lines; j++) {
@@ -120,33 +120,43 @@ static void revise_partners(int num_sockets, int fac, int component, struct data
       for (k = 0; k < data->blocks[i].lines[j].recvfrom_max; k++) {
         data->blocks[i].lines[j].recvfrom_node[k] = socket_global(data->blocks[i].lines[j].recvfrom_node[k], num_sockets / fac, fac, component);
       }
+      if (step == 0) {
+        data->blocks[i].lines[j].frac = socket_global(data->blocks[i].lines[j].frac, num_sockets / fac, fac, component);
+      }
     }
   }
 }
 
-static int expand_frac(struct parameters_block *parameters, int socket, int num_sockets, int step, int *fracs) {
-  int num_frac, i;
+static int expand_frac(struct parameters_block *parameters, int socket, int num_sockets, int step, int *num_fracs, int *fracs) {
+  int num_frac, i, j;
   int num_ports[100], group[100];
   if (step == 0) {
     get_num_ports_group(parameters, step, num_ports, group);
+    *num_fracs = abs(group[0]);
     for (num_frac = 0; num_frac < abs(group[0]); num_frac++) {
-      fracs[num_frac] = (num_frac + socket) % num_sockets;
+      fracs[num_frac] = ((num_frac + socket) * parameters->num_sockets / abs(group[0])) % parameters->num_sockets;
     }
   } else if (step < 0) {
-    get_num_ports_group(parameters, step + 1, num_ports, group);
+    get_num_ports_group(parameters, step, num_ports, group);
+    num_frac = 0;
     for (i = 0; i < abs(group[0]); i++) {
-      expand_frac(parameters, (i + socket) % abs(group[0]), abs(group[0]), step + 1, fracs + i * abs(group[0]));
+      expand_frac(parameters, (i + socket) % abs(group[0]), abs(group[0]), step + 1, &j, fracs + num_frac);
+      num_frac += j;
     }
+    *num_fracs *= abs(group[0]);
   } else {
-    get_num_ports_group(parameters, step - 1, num_ports, group);
+    get_num_ports_group(parameters, step, num_ports, group);
+    num_frac = 0;
     for (i = 0; i < abs(group[0]); i++) {
-      expand_frac(parameters, (i + socket) % abs(group[0]), abs(group[0]), step - 1, fracs + i * abs(group[0]));
+      expand_frac(parameters, (i + socket) % abs(group[0]), abs(group[0]), step - 1, &j, fracs + num_frac);
+      num_frac += j;
     }
+    *num_fracs *= abs(group[0]);
   }
   return num_frac;
 }
 
-static void frac_multiply(int fac, struct data_algorithm *data){
+static void frac_multiply(int fac, int *fracs, struct data_algorithm *data){
   struct data_algorithm data_new;
   int i, j, k, l;
   data_new.num_blocks = data->num_blocks;
@@ -162,7 +172,6 @@ static void frac_multiply(int fac, struct data_algorithm *data){
         data_new.blocks[j].lines[i * fac + k].recvfrom_line = (int *) malloc(data_new.blocks[j].lines[i * fac + k].recvfrom_max * sizeof(int));
         data_new.blocks[j].lines[i * fac + k].sendto_max = data->blocks[j].lines[i].sendto_max;
         data_new.blocks[j].lines[i * fac + k].sendto = (int *) malloc(data_new.blocks[j].lines[i * fac + k].sendto_max * sizeof(int));
-        data_new.blocks[j].lines[i * fac + k].frac = data->blocks[j].lines[i].frac;
         data_new.blocks[j].lines[i * fac + k].reducefrom_max = data->blocks[j].lines[i].reducefrom_max;
         data_new.blocks[j].lines[i * fac + k].reducefrom = (int *) malloc(data_new.blocks[j].lines[i * fac + k].reducefrom_max * sizeof(int));
         for (l = 0; l < data_new.blocks[j].lines[i * fac + k].recvfrom_max; l++) {
@@ -175,6 +184,7 @@ static void frac_multiply(int fac, struct data_algorithm *data){
         for (l = 0; l < data_new.blocks[j].lines[i * fac + k].reducefrom_max; l++) {
           data_new.blocks[j].lines[i * fac + k].reducefrom[l] = data->blocks[j].lines[i].reducefrom[l] * fac + k;
         }
+        data_new.blocks[j].lines[i * fac + k].frac = fracs[data->blocks[j].lines[i].frac * fac + k];
       }
     }
   }
@@ -183,8 +193,8 @@ static void frac_multiply(int fac, struct data_algorithm *data){
 }
 
 int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
-  int nbuffer_out = 0, nbuffer_in = 0, ngroups[3], i, j, k,
-      nbuffer_out_temp, nbuffer_in_temp, component, fac, fac_middle;
+  int nbuffer_out = 0, nbuffer_in = 0, ngroups[3], i, j, k, *fracs,
+      nbuffer_out_temp, nbuffer_in_temp, component, fac, fac_middle, dummy;
   struct parameters_block *parameters = NULL, *parameters_l = NULL;
   struct data_algorithm data, *data_l;
   char *buffer_in_temp, *buffer_out_temp;
@@ -197,6 +207,7 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
   ngroups[0] = get_ngroups(parameters, -1);
   ngroups[1] = get_ngroups(parameters, 0);
   ngroups[2] = get_ngroups(parameters, 1);
+  fracs = (int *)malloc(sizeof(int) * parameters->num_sockets);
   data_l = (struct data_algorithm*)malloc(sizeof(struct data_algorithm)*(ngroups[0]+ngroups[1]+ngroups[2]));
   ext_mpi_read_parameters(buffer_in, &parameters_l);
   fac = fac_middle = 1;
@@ -212,7 +223,7 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
     ext_mpi_delete_parameters(parameters_l); parameters_l = NULL;
     nbuffer_out_temp += ext_mpi_read_parameters(buffer_out_temp + nbuffer_out_temp, &parameters_l);
     nbuffer_out_temp += ext_mpi_read_algorithm(buffer_out_temp + nbuffer_out_temp, &data_l[ngroups[0]], parameters_l->ascii_in);
-    revise_partners(parameters->num_sockets, fac, component, &data_l[ngroups[0]]);
+    revise_partners(0, parameters->num_sockets, fac, component, &data_l[ngroups[0]]);
   }
   for (i = 0; i < ngroups[0]; i++) {
     nbuffer_out_temp = nbuffer_in_temp = 0;
@@ -226,9 +237,10 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
     nbuffer_out_temp += ext_mpi_read_parameters(buffer_out_temp + nbuffer_out_temp, &parameters_l);
     nbuffer_out_temp += ext_mpi_read_algorithm(buffer_out_temp + nbuffer_out_temp, &data_l[ngroups[0] - 1 - i], parameters_l->ascii_in);
     get_num_ports_group(parameters, -i - 1, num_ports, group);
-    frac_multiply(fac, &data_l[ngroups[0] - 1 - i]);
+    expand_frac(parameters, parameters_l->socket, parameters_l->num_sockets, -i - 1, &dummy, fracs);
+    frac_multiply(fac, fracs, &data_l[ngroups[0] - 1 - i]);
     fac *= abs(group[0]);
-    revise_partners(parameters->num_sockets, fac, component, &data_l[ngroups[0] - 1 - i]);
+    revise_partners(-i - 1, parameters->num_sockets, fac, component, &data_l[ngroups[0] - 1 - i]);
   }
   fac = fac_middle;
   for (i = 0; i < ngroups[2]; i++) {
@@ -244,9 +256,10 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
     nbuffer_out_temp += ext_mpi_read_parameters(buffer_out_temp + nbuffer_out_temp, &parameters_l);
     nbuffer_out_temp += ext_mpi_read_algorithm(buffer_out_temp + nbuffer_out_temp, &data_l[ngroups[0] + ngroups[1] + i], parameters_l->ascii_in);
     get_num_ports_group(parameters, i + 1, num_ports, group);
-    frac_multiply(fac, &data_l[ngroups[0] + ngroups[1] + i]);
+    expand_frac(parameters, parameters_l->socket, parameters_l->num_sockets, i + 1, &dummy, fracs);
+    frac_multiply(fac, fracs, &data_l[ngroups[0] + ngroups[1] + i]);
     fac *= abs(group[0]);
-    revise_partners(parameters->num_sockets, fac, component, &data_l[ngroups[0] + ngroups[1] + i]);
+    revise_partners(i + 1, parameters->num_sockets, fac, component, &data_l[ngroups[0] + ngroups[1] + i]);
   }
   data.num_blocks = 0;
   for (i = 0; i < ngroups[0]+ngroups[1]+ngroups[2]; i++) {
@@ -267,6 +280,7 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
     ext_mpi_delete_algorithm(data_l[i]);
   }
   free(data_l);
+  free(fracs);
   ext_mpi_delete_parameters(parameters);
   free(buffer_out_temp);
   free(buffer_in_temp);
