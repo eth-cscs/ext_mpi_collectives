@@ -749,37 +749,51 @@ int ext_mpi_read_algorithm(char *buffer_in, struct data_algorithm *data, int asc
     for (i = 0; i < data->num_blocks; i++) {
       memcpy(&data->blocks[i].num_lines, buffer_in + nbuffer_in, sizeof(data->blocks[i].num_lines));
       nbuffer_in += sizeof(data->blocks[i].num_lines);
+      data->blocks[i].lines = (struct data_algorithm_line *)malloc(data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
+      if (!data->blocks[i].lines)
+        goto error;
+      memset(data->blocks[i].lines, 0, data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
       for (j = 0; j < data->blocks[i].num_lines; j++) {
-        data->blocks[i].lines = (struct data_algorithm_line *)malloc(data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
-        if (!data->blocks[i].lines)
-          goto error;
-        memset(data->blocks[i].lines, 0, data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
+        memcpy(&data->blocks[i].lines[j].frac, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].frac));
+        nbuffer_in += sizeof(data->blocks[i].lines[j].frac);
         memcpy(&data->blocks[i].lines[j].sendto_max, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].sendto_max));
         nbuffer_in += sizeof(data->blocks[i].lines[j].sendto_max);
         memcpy(&data->blocks[i].lines[j].recvfrom_max, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].recvfrom_max));
         nbuffer_in += sizeof(data->blocks[i].lines[j].recvfrom_max);
         memcpy(&data->blocks[i].lines[j].reducefrom_max, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].reducefrom_max));
         nbuffer_in += sizeof(data->blocks[i].lines[j].reducefrom_max);
-        data->blocks[i].lines[j].sendto = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].sendto_max);
-        if (!data->blocks[i].lines[j].sendto)
-          goto error;
-        memcpy(data->blocks[i].lines[j].sendto, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].sendto_max);
-        nbuffer_in += sizeof(int) * data->blocks[i].lines[j].sendto_max;
-        data->blocks[i].lines[j].reducefrom = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].reducefrom_max);
-        if (!data->blocks[i].lines[j].reducefrom)
-          goto error;
-        memcpy(data->blocks[i].lines[j].reducefrom, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].reducefrom_max);
-        nbuffer_in += sizeof(int) * data->blocks[i].lines[j].reducefrom_max;
-        data->blocks[i].lines[j].recvfrom_node = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
-        if (!data->blocks[i].lines[j].recvfrom_node)
-          goto error;
-        memcpy(data->blocks[i].lines[j].recvfrom_node, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
-        nbuffer_in += sizeof(int) * data->blocks[i].lines[j].recvfrom_max;
-        data->blocks[i].lines[j].recvfrom_line = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
-        if (!data->blocks[i].lines[j].recvfrom_line)
-          goto error;
-        memcpy(data->blocks[i].lines[j].recvfrom_line, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
-        nbuffer_in += sizeof(int) * data->blocks[i].lines[j].recvfrom_max;
+        if (data->blocks[i].lines[j].sendto_max > 0) {
+          data->blocks[i].lines[j].sendto = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].sendto_max);
+          if (!data->blocks[i].lines[j].sendto)
+            goto error;
+          memcpy(data->blocks[i].lines[j].sendto, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].sendto_max);
+          nbuffer_in += sizeof(int) * data->blocks[i].lines[j].sendto_max;
+        } else {
+          data->blocks[i].lines[j].sendto = NULL;
+        }
+        if (data->blocks[i].lines[j].recvfrom_max > 0) {
+          data->blocks[i].lines[j].recvfrom_node = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
+          if (!data->blocks[i].lines[j].recvfrom_node)
+            goto error;
+          memcpy(data->blocks[i].lines[j].recvfrom_node, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
+          nbuffer_in += sizeof(int) * data->blocks[i].lines[j].recvfrom_max;
+          data->blocks[i].lines[j].recvfrom_line = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
+          if (!data->blocks[i].lines[j].recvfrom_line)
+            goto error;
+          memcpy(data->blocks[i].lines[j].recvfrom_line, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
+          nbuffer_in += sizeof(int) * data->blocks[i].lines[j].recvfrom_max;
+        } else {
+          data->blocks[i].lines[j].recvfrom_node = data->blocks[i].lines[j].recvfrom_line = NULL;
+        }
+        if (data->blocks[i].lines[j].reducefrom_max > 0) {
+          data->blocks[i].lines[j].reducefrom = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].reducefrom_max);
+          if (!data->blocks[i].lines[j].reducefrom)
+            goto error;
+          memcpy(data->blocks[i].lines[j].reducefrom, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].reducefrom_max);
+          nbuffer_in += sizeof(int) * data->blocks[i].lines[j].reducefrom_max;
+        } else {
+          data->blocks[i].lines[j].reducefrom = NULL;
+        }
       }
     }
   } else {
@@ -861,6 +875,8 @@ int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int as
       memcpy(buffer_out + nbuffer_out, &data.blocks[i].num_lines, sizeof(data.blocks[i].num_lines));
       nbuffer_out += sizeof(data.blocks[i].num_lines);
       for (j = 0; j < data.blocks[i].num_lines; j++) {
+        memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].frac, sizeof(data.blocks[i].lines[j].frac));
+        nbuffer_out += sizeof(data.blocks[i].lines[j].frac);
         memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].sendto_max, sizeof(data.blocks[i].lines[j].sendto_max));
         nbuffer_out += sizeof(data.blocks[i].lines[j].sendto_max);
         memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].recvfrom_max, sizeof(data.blocks[i].lines[j].recvfrom_max));
