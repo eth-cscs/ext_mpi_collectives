@@ -163,24 +163,22 @@ static int get_num_fracs(struct parameters_block *parameters, int step) {
 }
 
 static int expand_frac(struct parameters_block *parameters, int socket, int step, int *fracs) {
-  int num_frac, num_fracs, i;
+  int components[2], num_frac, num_fracs, i, j;
   int num_ports[100], group[100];
   get_num_ports_group(parameters, step, num_ports, group);
   if (step == 0) {
     for (num_frac = 0; num_frac < abs(group[0]); num_frac++) {
-//      fracs[num_frac] = (((num_frac + socket / (parameters->num_sockets / abs(group[0]))) % abs(group[0])) * (parameters->num_sockets / abs(group[0])) + socket) % parameters->num_sockets;
       fracs[num_frac] = (((num_frac + socket / (parameters->num_sockets / abs(group[0]))) % abs(group[0])) * (parameters->num_sockets / abs(group[0])) + socket) % parameters->num_sockets;
     }
   } else {
     num_fracs = get_num_fracs(parameters, step) / abs(group[0]);
     num_frac = 0;
+    j = socket_local(parameters, socket, step, components);
     for (i = 0; i < abs(group[0]); i++) {
       if (step < 0) {
-//        expand_frac(parameters, (i * num_fracs + socket) % parameters->num_sockets, step + 1, fracs + num_frac);
-        expand_frac(parameters, (i * num_fracs + socket) % (num_fracs * abs(group[0])), step + 1, fracs + num_frac);
+        expand_frac(parameters, socket_global(parameters, (i + j) % abs(group[0]), step, components), step + 1, fracs + num_frac);
       } else {
-//        expand_frac(parameters, (i * num_fracs + socket) % parameters->num_sockets, step - 1, fracs + num_frac);
-        expand_frac(parameters, (i * num_fracs + socket) % (num_fracs * abs(group[0])), step - 1, fracs + num_frac);
+        expand_frac(parameters, socket_global(parameters, (i + j) % abs(group[0]), step, components), step - 1, fracs + num_frac);
       }
       num_frac += num_fracs;
     }
