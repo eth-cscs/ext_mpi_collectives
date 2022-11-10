@@ -209,7 +209,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
           data->blocks[data->num_blocks].lines[line].sendto_max = num_ports[step];
           data->blocks[data->num_blocks].lines[line].sendto = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].sendto_max);
           for (i = 0; i < data->blocks[data->num_blocks].lines[line].sendto_max; i++) {
-            data->blocks[data->num_blocks].lines[line].sendto[i] = (task + (i + 1) * gbstep) % num_sockets;
+            data->blocks[data->num_blocks].lines[line].sendto[i] = (num_sockets + task - (i + 1) * gbstep) % num_sockets;
           }
           data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
         } else if (data->blocks[data->num_blocks].lines[line].frac <= -10) {
@@ -220,7 +220,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
           data->blocks[data->num_blocks].lines[line].recvfrom_max = 1;
           data->blocks[data->num_blocks].lines[line].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
           data->blocks[data->num_blocks].lines[line].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
-          data->blocks[data->num_blocks].lines[line].recvfrom_node[0] = (task + num_sockets - data->blocks[data->num_blocks].lines[line].frac * gbstep) % num_sockets;
+          data->blocks[data->num_blocks].lines[line].recvfrom_node[0] = (num_sockets + task + data->blocks[data->num_blocks].lines[line].frac * gbstep) % num_sockets;
           data->blocks[data->num_blocks].lines[line].recvfrom_line[0] = j;
           data->blocks[data->num_blocks].lines[line].frac = (data->blocks[data->num_blocks - 1].lines[j].frac + num_sockets + data->blocks[data->num_blocks].lines[line].frac * gbstep) % num_sockets;
         } else {

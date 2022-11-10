@@ -1139,6 +1139,7 @@ buffer2 = buffer_temp;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
+  if (my_cores_per_node_row * my_cores_per_node_column > 1) {
 #ifdef GPU_ENABLED
   if (!ext_mpi_gpu_is_device_pointer(recvbuf)) {
 #endif
@@ -1150,6 +1151,11 @@ buffer2 = buffer_temp;
       goto error;
   }
 #endif
+  } else {
+    buffer_temp = buffer1;
+    buffer1 = buffer2;
+    buffer2 = buffer_temp;
+  }
   if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
     goto error;
   if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
@@ -1168,11 +1174,13 @@ buffer2 = buffer_temp;
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column) < 0)
-    goto error;
-  buffer_temp = buffer2;
-  buffer2 = buffer1;
-  buffer1 = buffer_temp;
+  if (ext_mpi_num_sockets_per_node > 1) {
+    if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
   if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
     goto error;
   if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
