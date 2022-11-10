@@ -238,14 +238,18 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
   struct data_algorithm data, *data_l;
   char *buffer_in_temp, *buffer_out_temp;
   int num_ports[100], group[100];
-  buffer_in_temp = (char *)malloc(1000000);
-  buffer_out_temp = (char *)malloc(1000000);
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   ngroups[0] = get_ngroups(parameters, -1);
   ngroups[1] = get_ngroups(parameters, 0);
   ngroups[2] = get_ngroups(parameters, 1);
+  if (ngroups[0]+ngroups[1]+ngroups[2] == 1) {
+    ext_mpi_delete_parameters(parameters);
+    return ext_mpi_generate_allreduce_single(buffer_in, buffer_out);
+  }
+  buffer_in_temp = (char *)malloc(1000000);
+  buffer_out_temp = (char *)malloc(1000000);
   fracs = (int *)malloc(sizeof(int) * parameters->num_sockets);
   data_l = (struct data_algorithm*)malloc(sizeof(struct data_algorithm)*(ngroups[0]+ngroups[1]+ngroups[2]));
   ext_mpi_read_parameters(buffer_in, &parameters_l);
@@ -310,6 +314,20 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
   for (i = k = 0; i < ngroups[0]+ngroups[1]+ngroups[2]; i++) {
     for (j = 0; j < data_l[i].num_blocks; j++) {
       data.blocks[k++] = data_l[i].blocks[j];
+    }
+  }
+  for (i = 1; i < data.num_blocks - 1; i++) {
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      if (data.blocks[i].lines[j].sendto_max > 0 && data.blocks[i].lines[j].sendto[0] == -1) {
+        free(data.blocks[i].lines[j].sendto);
+        data.blocks[i].lines[j].sendto = NULL;
+        data.blocks[i].lines[j].sendto_max = 0;
+      }
+      if (data.blocks[i].lines[j].recvfrom_max > 0 && data.blocks[i].lines[j].recvfrom_node[0] == -1) {
+        free(data.blocks[i].lines[j].recvfrom_node);
+        data.blocks[i].lines[j].recvfrom_node = NULL;
+        data.blocks[i].lines[j].recvfrom_max = 0;
+      }
     }
   }
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
