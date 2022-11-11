@@ -8,7 +8,7 @@
 #include <string.h>
 
 static int get_ngroups(struct parameters_block *parameters, int dire) {
-  int ngroups = 0, group, ports;
+  int ngroups = 0, group, ports, fac = 1;
   switch (dire) {
     case 0:
       for (group = 0; parameters->groups[group]; group++) {
@@ -30,12 +30,23 @@ static int get_ngroups(struct parameters_block *parameters, int dire) {
     case 1:
       for (ports = 0; parameters->num_ports[ports] < 0; ports++)
         ;
-      for (group = ports; parameters->groups[group]; group++) {
+      for (group = ports - 1; group >= 0; group--) {
         if (parameters->groups[group] < 0) {
-          ngroups++;
+          fac *= abs(parameters->groups[group]);
         }
       }
-      ngroups--;
+      for (ports = 0; parameters->num_ports[ports]; ports++)
+        ;
+      for (group = ports - 1; group >= 0; group--) {
+        if (parameters->groups[group] < 0) {
+          fac /= abs(parameters->groups[group]);
+          if (fac >= 1) {
+            ngroups++;
+          } else {
+            break;
+          }
+        }
+      }
       break;
   }
   return ngroups;
@@ -46,43 +57,38 @@ static int get_num_ports_group(struct parameters_block *parameters, int step, in
   if (parameters->num_ports[0] == 0) {
     return 0;
   }
-  for (ports_group = 0; parameters->num_ports[ports_group] < 0; ports_group++)
-    ;
-  ports_group--;
   if (step == 0) {
-    step++;
-    ngroups = get_ngroups(parameters, 0);
-    if (ports_group < 0 || ngroups <= 0) {
-      return 0;
-    }
-    if (parameters->groups[ports_group] < 0) {
-      return 0;
-    }
-    for (i = 0; i < step; i++) {
-      for (ports_group--; ports_group >= 0 && parameters->groups[ports_group] > 0; ports_group--)
+    if (get_ngroups(parameters, 0) <= 0) return 0;
+    for (ngroups = get_ngroups(parameters, -1), ports_group = 0; ngroups > 0; ngroups--) {
+      for (; parameters->groups[ports_group] > 0; ports_group++)
         ;
+      ports_group++;
     }
   } else if (step < 0) {
-    step *= -1;
     ngroups = get_ngroups(parameters, -1);
-    if (ports_group < 0 || step > ngroups) {
+    if (-step > ngroups) {
       return 0;
     }
-    for (i = 0; i <= step; i++) {
-      for (ports_group--; ports_group >= 0 && parameters->groups[ports_group] > 0; ports_group--)
+    for (i = ports_group = 0; i < ngroups + step; i++) {
+      for (; parameters->groups[ports_group] > 0; ports_group++)
         ;
+      ports_group++;
     }
   } else {
     ngroups = get_ngroups(parameters, 1);
     if (step > ngroups) {
       return 0;
     }
-    for (i = 0; i < step; i++) {
-      for (ports_group++; parameters->groups[ports_group] > 0; ports_group++)
+    for (ports_group = 0; parameters->groups[ports_group]; ports_group++)
+      ;
+    for (i = 0, ports_group--; i <= ngroups - step; i++) {
+      ports_group--;
+      for (; parameters->groups[ports_group] > 0; ports_group--)
         ;
     }
+    ports_group++;
   }
-  for (ports_group++; parameters->groups[ports_group] > 0; ports_group++, length++) {
+  for (; parameters->groups[ports_group] > 0; ports_group++, length++) {
     num_ports[length] = parameters->num_ports[ports_group];
     group[length] = parameters->groups[ports_group];
   }
