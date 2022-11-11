@@ -425,11 +425,11 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
   nbuffer_out += ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   ext_mpi_delete_parameters(parameters_l);
-  free(data.blocks);
   for (i = 0; i < ngroups[0]+ngroups[1]+ngroups[2]; i++) {
-    ext_mpi_delete_algorithm(data_l[i]);
+    free(data_l[i].blocks);
   }
   free(data_l);
+  ext_mpi_delete_algorithm(data);
   free(fracs);
   ext_mpi_delete_parameters(parameters);
   free(buffer_out_temp);
