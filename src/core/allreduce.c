@@ -58,7 +58,12 @@ static int get_num_ports_group(struct parameters_block *parameters, int step, in
     return 0;
   }
   if (step == 0) {
-    if (get_ngroups(parameters, 0) <= 0) return 0;
+    if (get_ngroups(parameters, 0) <= 0) {
+      num_ports[0] = INT_MAX;
+      group[0] = 1;
+      num_ports[1] = group[1] = 0;
+      return 0;
+    }
     for (ngroups = get_ngroups(parameters, -1), ports_group = 0; ngroups > 0; ngroups--) {
       for (; parameters->groups[ports_group] > 0; ports_group++)
         ;
