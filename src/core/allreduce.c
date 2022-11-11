@@ -60,7 +60,7 @@ static int get_num_ports_group(struct parameters_block *parameters, int step, in
   if (step == 0) {
     if (get_ngroups(parameters, 0) <= 0) {
       num_ports[0] = INT_MAX;
-      group[0] = 1;
+      group[0] = -1;
       num_ports[1] = group[1] = 0;
       return 0;
     }
@@ -242,6 +242,77 @@ static void revise_frac(int num_sockets, struct data_algorithm *data) {
   }
 }
 
+static int chancel_copyin_copyout(struct data_algorithm *data) {
+  int i, j, flag, ret = 1;
+  for (i = 1; i < data->num_blocks - 1; i++) {
+    flag = 1;
+    for (j = 0; j < data->blocks[i].num_lines; j++) {
+      if (data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) {
+        if (data->blocks[i].num_lines != data->blocks[i + 1].num_lines) {
+          ret = flag = 0;
+        } else if (!(data->blocks[i + 1].lines[j].recvfrom_max > 0 && data->blocks[i + 1].lines[j].recvfrom_node[0] == -1)) {
+          ret = flag = 0;
+        } else if (data->blocks[i].lines[j].frac != data->blocks[i + 1].lines[j].frac) {
+          ret = flag = 0;
+        }
+      }
+    }
+    if (flag) {
+      for (j = 0; j < data->blocks[i].num_lines; j++) {
+        if (data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) {
+          free(data->blocks[i].lines[j].sendto);
+          data->blocks[i].lines[j].sendto = NULL;
+          data->blocks[i].lines[j].sendto_max = 0;
+        }
+        if (data->blocks[i].lines[j].recvfrom_max > 0 && data->blocks[i].lines[j].recvfrom_node[0] == -1) {
+          free(data->blocks[i].lines[j].recvfrom_node);
+          free(data->blocks[i].lines[j].recvfrom_line);
+          data->blocks[i].lines[j].recvfrom_node = NULL;
+          data->blocks[i].lines[j].recvfrom_line = NULL;
+          data->blocks[i].lines[j].recvfrom_max = 0;
+        }
+      }
+    } else {
+      i++;
+    }
+  }
+  return ret;
+}
+
+static void add_lines(struct data_algorithm *data) {
+  struct data_algorithm_line *lines_new;
+  int block = -1, i, j, k;
+  for (i = 1; block < 0 && i < data->num_blocks - 1; i++) {
+    for (j = 0; block < 0 && j < data->blocks[i].num_lines; j++) {
+      if (data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) {
+        block = i;
+      }
+    }
+  }
+  for (i = block + 1; i < data->num_blocks; i++) {
+    lines_new = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line) * (data->blocks[i].num_lines + data->blocks[block].num_lines));
+    memset(lines_new, 0, sizeof(struct data_algorithm_line) * data->blocks[block].num_lines);
+    memcpy(&lines_new[data->blocks[block].num_lines], data->blocks[i].lines, data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
+/*    for (j = 0; j < data->blocks[block].num_lines; j++) {
+      lines_new[j].frac = data->blocks[block].lines[j].frac;
+    }
+    for (j = 0; j < data->blocks[i].num_lines; j++) {
+      for (k = 0; k < lines_new[j + data->blocks[block].num_lines].recvfrom_max; k++) {
+        lines_new[j + data->blocks[block].num_lines].recvfrom_line[k] += data->blocks[block].num_lines;
+      }
+      for (k = 0; k < lines_new[j + data->blocks[block].num_lines].reducefrom_max; k++) {
+        lines_new[j + data->blocks[block].num_lines].reducefrom[k] += data->blocks[block].num_lines;
+      }
+      if (lines_new[j + data->blocks[block].num_lines].copyfrom_is) {
+        lines_new[j + data->blocks[block].num_lines].copyfrom += data->blocks[block].num_lines;
+      }
+    }*/
+    data->blocks[i].num_lines += data->blocks[block].num_lines;
+    free(data->blocks[i].lines);
+    data->blocks[i].lines = lines_new;
+  }
+}
+
 int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, ngroups[3], i, j, k, *fracs,
       nbuffer_out_temp, nbuffer_in_temp, components[2], fac, fac_middle;
@@ -327,19 +398,8 @@ int ext_mpi_generate_allreduce(char *buffer_in, char *buffer_out) {
       data.blocks[k++] = data_l[i].blocks[j];
     }
   }
-  for (i = 1; i < data.num_blocks - 1; i++) {
-    for (j = 0; j < data.blocks[i].num_lines; j++) {
-      if (data.blocks[i].lines[j].sendto_max > 0 && data.blocks[i].lines[j].sendto[0] == -1) {
-        free(data.blocks[i].lines[j].sendto);
-        data.blocks[i].lines[j].sendto = NULL;
-        data.blocks[i].lines[j].sendto_max = 0;
-      }
-      if (data.blocks[i].lines[j].recvfrom_max > 0 && data.blocks[i].lines[j].recvfrom_node[0] == -1) {
-        free(data.blocks[i].lines[j].recvfrom_node);
-        data.blocks[i].lines[j].recvfrom_node = NULL;
-        data.blocks[i].lines[j].recvfrom_max = 0;
-      }
-    }
+  if (!chancel_copyin_copyout(&data)) {
+    add_lines(&data);
   }
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   nbuffer_out += ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
