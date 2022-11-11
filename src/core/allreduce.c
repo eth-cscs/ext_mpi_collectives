@@ -292,7 +292,7 @@ static void add_lines(struct data_algorithm *data) {
   for (i = block + 1; i < data->num_blocks; i++) {
     lines_new = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line) * (data->blocks[i].num_lines + data->blocks[block].num_lines));
     memset(lines_new, 0, sizeof(struct data_algorithm_line) * data->blocks[block].num_lines);
-    memcpy(&lines_new[data->blocks[block].num_lines], data->blocks[block].lines, data->blocks[block].num_lines * sizeof(struct data_algorithm_line));
+    memcpy(lines_new + data->blocks[block].num_lines, data->blocks[i].lines, data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
     for (j = 0; j < data->blocks[block].num_lines; j++) {
       lines_new[j].frac = data->blocks[block].lines[j].frac;
     }
