@@ -105,6 +105,8 @@ struct data_algorithm_line {
   int *recvfrom_line;
   int reducefrom_max;
   int *reducefrom;
+  int copyfrom_is;
+  int copyfrom;
 };
 
 struct data_algorithm_block {

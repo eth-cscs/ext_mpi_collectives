@@ -694,6 +694,8 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
   data->sendto = NULL;
   data->reducefrom_max = 0;
   data->reducefrom = NULL;
+  data->copyfrom_is = 0;
+  data->copyfrom = 0;
   string_temp = strstr(string_in, "RECVFROM ");
   if (string_temp) {
     data->recvfrom_max = read_int_tuple_series(string_temp + strlen("RECVFROM "),
@@ -719,6 +721,17 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
       free(data->recvfrom_line);
       free(data->reducefrom);
       return data->sendto_max;
+    }
+  }
+  string_temp = strstr(string_in, "COPYFROM ");
+  if (string_temp) {
+    data->copyfrom_is = sscanf(string_temp + strlen("COPYFROM "), "%d", &data->copyfrom);
+    if (data->copyfrom_is < 0) {
+      free(data->recvfrom_node);
+      free(data->recvfrom_line);
+      free(data->reducefrom);
+      free(data->sendto);
+      return data->copyfrom_is;
     }
   }
   return 0;
@@ -762,6 +775,8 @@ int ext_mpi_read_algorithm(char *buffer_in, struct data_algorithm *data, int asc
         nbuffer_in += sizeof(data->blocks[i].lines[j].recvfrom_max);
         memcpy(&data->blocks[i].lines[j].reducefrom_max, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].reducefrom_max));
         nbuffer_in += sizeof(data->blocks[i].lines[j].reducefrom_max);
+        memcpy(&data->blocks[i].lines[j].copyfrom_is, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].copyfrom_is));
+        nbuffer_in += sizeof(data->blocks[i].lines[j].copyfrom_is);
         if (data->blocks[i].lines[j].sendto_max > 0) {
           data->blocks[i].lines[j].sendto = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].sendto_max);
           if (!data->blocks[i].lines[j].sendto)
@@ -793,6 +808,10 @@ int ext_mpi_read_algorithm(char *buffer_in, struct data_algorithm *data, int asc
           nbuffer_in += sizeof(int) * data->blocks[i].lines[j].reducefrom_max;
         } else {
           data->blocks[i].lines[j].reducefrom = NULL;
+        }
+        if (data->blocks[i].lines[j].copyfrom_is) {
+          memcpy(&data->blocks[i].lines[j].copyfrom, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].copyfrom));
+          nbuffer_in += sizeof(data->blocks[i].lines[j].copyfrom);
         }
       }
     }
@@ -883,6 +902,8 @@ int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int as
         nbuffer_out += sizeof(data.blocks[i].lines[j].recvfrom_max);
         memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].reducefrom_max, sizeof(data.blocks[i].lines[j].reducefrom_max));
         nbuffer_out += sizeof(data.blocks[i].lines[j].reducefrom_max);
+        memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].copyfrom_is, sizeof(data.blocks[i].lines[j].copyfrom_is));
+        nbuffer_out += sizeof(data.blocks[i].lines[j].copyfrom_is);
         memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].sendto, sizeof(int) * data.blocks[i].lines[j].sendto_max);
         nbuffer_out += sizeof(int) * data.blocks[i].lines[j].sendto_max;
         memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].recvfrom_node, sizeof(int) * data.blocks[i].lines[j].recvfrom_max);
@@ -891,6 +912,8 @@ int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int as
         nbuffer_out += sizeof(int) * data.blocks[i].lines[j].recvfrom_max;
         memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].reducefrom, sizeof(int) * data.blocks[i].lines[j].reducefrom_max);
         nbuffer_out += sizeof(int) * data.blocks[i].lines[j].reducefrom_max;
+        memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].copyfrom, sizeof(int) * data.blocks[i].lines[j].copyfrom_is);
+        nbuffer_out += sizeof(int) * data.blocks[i].lines[j].copyfrom_is;
       }
     }
   } else {
@@ -914,6 +937,10 @@ int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int as
           for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
             nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].sendto[k]);
           }
+        }
+        if (data.blocks[i].lines[j].copyfrom_is > 0) {
+          nbuffer_out += sprintf(buffer_out + nbuffer_out, " COPYFROM");
+          nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].copyfrom);
         }
         nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
       }
