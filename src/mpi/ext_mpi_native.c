@@ -30,7 +30,7 @@
 #include "raw_code_merge.h"
 #include "raw_code_tasks_node.h"
 #include "raw_code_tasks_node_master.h"
-#include "read.h"
+#include "read_write.h"
 #include "reduce_copyin.h"
 #include "reduce_copyout.h"
 #include "use_recvbuf.h"
@@ -742,8 +742,16 @@ int EXT_MPI_Done_native(int handle) {
   shmem_size = header->barrier_shmem_size;
   shmemid = header->shmemid;
   locmem = header->locmem;
-  shmem_comm_node_row = header->comm_row;
-  shmem_comm_node_column = header->comm_column;
+  if ((MPI_Comm *)(comm_code[handle] + header->size_to_return)) {
+    shmem_comm_node_row = *((MPI_Comm *)(comm_code[handle] + header->size_to_return));
+  } else {
+    shmem_comm_node_row = MPI_COMM_NULL;
+  }
+  if ((MPI_Comm *)(comm_code[handle] + header->size_to_return + sizeof(MPI_Comm))) {
+    shmem_comm_node_column = *((MPI_Comm *)(comm_code[handle] + header->size_to_return) + sizeof(MPI_Comm));
+  } else {
+    shmem_comm_node_column = MPI_COMM_NULL;
+  }
   ext_mpi_node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
 #ifdef GPU_ENABLED
   if (header->shmem_gpu) {
@@ -767,8 +775,16 @@ int EXT_MPI_Done_native(int handle) {
     shmem_size = header->barrier_shmem_size;
     shmemid = header->shmemid;
     locmem = header->locmem;
-    shmem_comm_node_row2 = header->comm_row;
-    shmem_comm_node_column2 = header->comm_column;
+    if ((MPI_Comm *)(comm_code[handle] + header->size_to_return)) {
+      shmem_comm_node_row2 = *((MPI_Comm *)(comm_code[handle] + header->size_to_return));
+    } else {
+      shmem_comm_node_row2 = MPI_COMM_NULL;
+    }
+    if ((MPI_Comm *)(comm_code[handle] + header->size_to_return + sizeof(MPI_Comm))) {
+      shmem_comm_node_column2 = *((MPI_Comm *)(comm_code[handle] + header->size_to_return) + sizeof(MPI_Comm));
+    } else {
+      shmem_comm_node_column2 = MPI_COMM_NULL;
+    }
     ext_mpi_node_barrier_mpi(handle + 1, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
 #ifdef GPU_ENABLED
     if (header->shmem_gpu) {
@@ -884,7 +900,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   code_size = ext_mpi_generate_byte_code(
       shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
       my_size_shared_buf, barriers_size, locmem, reduction_op, global_ranks, NULL,
-      shmem_comm_node_row, my_cores_per_node_row, shmem_comm_node_column,
+      sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, &shmem_comm_node_column,
       my_cores_per_node_column, shmem_gpu, &gpu_byte_code_counter, tag);
   if (code_size < 0)
     goto error;
@@ -894,8 +910,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (ext_mpi_generate_byte_code(
           shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
           (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
-          global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
-          shmem_comm_node_column, my_cores_per_node_column,
+          global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
+          &shmem_comm_node_column, my_cores_per_node_column,
           shmem_gpu, &gpu_byte_code_counter, tag) < 0)
     goto error;
   if (alt) {
@@ -922,8 +938,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     if (ext_mpi_generate_byte_code(
             shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
             (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
-            global_ranks, ip, shmem_comm_node_row, my_cores_per_node_row,
-            shmem_comm_node_column, my_cores_per_node_column,
+            global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
+            &shmem_comm_node_column, my_cores_per_node_column,
             shmem_gpu, &gpu_byte_code_counter, tag) < 0)
       goto error;
   } else {

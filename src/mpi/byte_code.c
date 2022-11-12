@@ -1,6 +1,6 @@
 #include "byte_code.h"
 #include "constants.h"
-#include "read.h"
+#include "read_write.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -294,8 +294,8 @@ int ext_mpi_generate_byte_code(char **shmem,
                                char *buffer_in, char *sendbuf, char *recvbuf,
                                int my_size_shared_buf, int barriers_size, char *locmem,
                                int reduction_op, int *global_ranks,
-                               char *code_out, MPI_Comm comm_row,
-                               int node_num_cores_row, MPI_Comm comm_column,
+                               char *code_out, int size_comm, int size_request, void *comm_row,
+                               int node_num_cores_row, void *comm_column,
                                int node_num_cores_column,
                                char **shmem_gpu, int *gpu_byte_code_counter, int tag) {
   struct line_memcpy_reduce data_memcpy_reduce;
@@ -355,8 +355,6 @@ int ext_mpi_generate_byte_code(char **shmem,
       shmem = header->shmem = header->shmem_gpu;
     }
 #endif
-    header->comm_row = comm_row;
-    header->comm_column = comm_column;
     header->node_num_cores_row = node_num_cores_row;
     header->node_num_cores_column = node_num_cores_column;
     header->num_cores = num_cores;
@@ -488,7 +486,7 @@ int ext_mpi_generate_byte_code(char **shmem,
       }
       code_put_int(&ip, integer2, isdryrun);
       code_put_int(&ip, global_ranks[integer3], isdryrun);
-      code_put_pointer(&ip, locmem + sizeof(MPI_Request) * integer4, isdryrun);
+      code_put_pointer(&ip, locmem + size_request * integer4, isdryrun);
     }
     if (estring1 == enode_barrier) {
       code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
@@ -651,6 +649,23 @@ int ext_mpi_generate_byte_code(char **shmem,
   }
   free(gpu_byte_code);
 #endif
+  header->size_to_return = ip - code_out;
+  if (code_out) {
+    if (comm_row) {
+      memcpy(ip, comm_row, size_comm);
+    } else {
+      memset(ip, 0, size_comm);
+    }
+  }
+  ip += size_comm;
+  if (code_out) {
+    if (comm_column) {
+      memcpy(ip, comm_column, size_comm);
+    } else {
+      memset(ip, 0, size_comm);
+    }
+  }
+  ip += size_comm;
   return (ip - code_out);
 #ifdef GPU_ENABLED
 error:

@@ -20,7 +20,7 @@
 #include "raw_code_merge.h"
 #include "raw_code_tasks_node.h"
 #include "raw_code_tasks_node_master.h"
-#include "read.h"
+#include "read_write.h"
 #include "reduce_copyin.h"
 #include "reduce_copyout.h"
 #include "byte_code.h"
@@ -216,8 +216,8 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
       (int *)malloc(sizeof(int) * my_mpi_size_row * my_cores_per_node_column);
   code_size = ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, (char *)sendbuf,
                                          (char *)recvbuf, 0, 0, NULL, reduction_op,
-                                         global_ranks, NULL, MPI_COMM_NULL, 1,
-                                         MPI_COMM_NULL, 1, NULL, &gpu_byte_code_counter, 0);
+                                         global_ranks, NULL, sizeof(MPI_Comm), sizeof(MPI_Request), NULL, 1,
+                                         NULL, 1, NULL, &gpu_byte_code_counter, 0);
   if (code_size < 0)
     goto error;
   ip = *code_address = (char *)malloc(code_size);
@@ -225,7 +225,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
     goto error;
   if (ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, (char *)sendbuf, (char *)recvbuf,
                                  0, 0, NULL, reduction_op, global_ranks, ip,
-                                 MPI_COMM_NULL, 1, MPI_COMM_NULL, 1,
+                                 sizeof(MPI_Comm), sizeof(MPI_Request), NULL, 1, NULL, 1,
                                  NULL, &gpu_byte_code_counter, 0) < 0)
     goto error;
   free(global_ranks);

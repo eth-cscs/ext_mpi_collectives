@@ -1,6 +1,6 @@
 #include "clean_barriers.h"
 #include "constants.h"
-#include "read.h"
+#include "read_write.h"
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>

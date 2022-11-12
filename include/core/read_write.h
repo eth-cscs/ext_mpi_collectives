@@ -1,6 +1,6 @@
-#ifndef EXT_MPI_READ_H_
+#ifndef EXT_MPI_READ_WRITE_H_
 
-#define EXT_MPI_READ_H_
+#define EXT_MPI_READ_WRITE_H_
 
 #define MAX_BUFFER_SIZE 100000000
 //#define CACHE_LINE_SIZE 64

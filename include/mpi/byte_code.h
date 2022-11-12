@@ -2,13 +2,12 @@
 
 #define EXT_MPI_BYTE_CODE_H_
 
-#include <mpi.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct header_byte_code {
+  int size_to_return;
   char barrier_counter_socket;
   char barrier_counter_node;
   char *barrier_shmem_socket;
@@ -17,8 +16,6 @@ struct header_byte_code {
   int *shmemid;
   char *locmem;
   char **shmem;
-  MPI_Comm comm_row;
-  MPI_Comm comm_column;
   int node_num_cores_row;
   int node_num_cores_column;
   int num_cores;
@@ -36,8 +33,8 @@ int ext_mpi_generate_byte_code(char **shmem,
                                char *buffer_in, char *sendbuf, char *recvbuf,
                                int my_size_shared_buf, int barriers_size, char *locmem,
                                int reduction_op, int *global_ranks,
-                               char *code_out, MPI_Comm comm_row,
-                               int node_num_cores_row, MPI_Comm comm_column,
+                               char *code_out, int size_comm, int size_request, void *comm_row,
+                               int node_num_cores_row, void *comm_column,
                                int node_num_cores_column,
                                char **shmem_gpu, int *gpu_byte_code_counter, int tag);
 

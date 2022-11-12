@@ -19,8 +19,16 @@ void ext_mpi_node_barrier_mpi(int handle, MPI_Comm shmem_comm_node_row,
   struct header_byte_code *header;
   if (handle >= 0) {
     header = (struct header_byte_code *)comm_code[handle];
-    shmem_comm_node_row = header->comm_row;
-    shmem_comm_node_column = header->comm_column;
+    if (comm_code[handle]+header->size_to_return) {
+      shmem_comm_node_row = *((MPI_Comm *)(comm_code[handle]+header->size_to_return));
+    } else {
+      shmem_comm_node_row = MPI_COMM_NULL;
+    }
+    if (comm_code[handle]+header->size_to_return+sizeof(MPI_Comm)) {
+      shmem_comm_node_column = *((MPI_Comm *)(comm_code[handle]+header->size_to_return+sizeof(MPI_Comm)));
+    } else {
+      shmem_comm_node_column = MPI_COMM_NULL;
+    }
   }
   if (shmem_comm_node_row != MPI_COMM_NULL) {
     MPI_Barrier(shmem_comm_node_row);

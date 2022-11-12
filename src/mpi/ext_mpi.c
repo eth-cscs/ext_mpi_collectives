@@ -6,7 +6,7 @@
 #include "ext_mpi.h"
 #include "constants.h"
 #include "ext_mpi_native.h"
-#include "read.h"
+#include "read_write.h"
 #include "read_bench.h"
 #include "cost_simple_recursive.h"
 #include "cost_estimation.h"
