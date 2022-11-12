@@ -303,7 +303,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-      ascii, blocking, num_cores, socket_rank, node_sockets, i;
+      ascii, num_cores, socket_rank, node_sockets, i;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
@@ -318,7 +318,6 @@ int ext_mpi_generate_byte_code(char **shmem,
 #ifdef GPU_ENABLED
   on_gpu = parameters->on_gpu;
 #endif
-  blocking = parameters->blocking;
   num_cores = parameters->socket_row_size*parameters->socket_column_size;
   socket_rank = parameters->socket_rank;
   node_sockets = parameters->node_sockets;
@@ -503,16 +502,7 @@ int ext_mpi_generate_byte_code(char **shmem,
           code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
         }
 #endif
-        if (blocking){
-          code_put_char(&ip, OPCODE_BSOCKETBARRIER, isdryrun);
-        } else {
-          code_put_char(&ip, OPCODE_SOCKETBARRIER, isdryrun);
-        }
-      }
-    }
-    if (estring1 == esocket_cycl_barrier) {
-      if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_CYCL_SOCKETBARRIER, isdryrun);
+        code_put_char(&ip, OPCODE_SOCKETBARRIER, isdryrun);
       }
     }
     if (estring1 == enext_socket_barrier) {

@@ -350,19 +350,9 @@ int ext_mpi_simulate_native(char *ip) {
       printf("MPI_Waitany %d %p\n", i1, p1);
 #endif
       break;
-    case OPCODE_BSOCKETBARRIER:
-#ifdef VERBOSE_PRINT
-      printf("bsocket_barrier\n");
-#endif
-      break;
     case OPCODE_SOCKETBARRIER:
 #ifdef VERBOSE_PRINT
       printf("socket_barrier\n");
-#endif
-      break;
-    case OPCODE_CYCL_SOCKETBARRIER:
-#ifdef VERBOSE_PRINT
-      printf("node_cycl_barrier\n");
 #endif
       break;
     case OPCODE_SET_SOCKETBARRIER:
@@ -547,11 +537,7 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
         count = 0e0;
       }
       break;
-    case OPCODE_BSOCKETBARRIER:
-      break;
     case OPCODE_SOCKETBARRIER:
-      break;
-    case OPCODE_CYCL_SOCKETBARRIER:
       break;
     case OPCODE_SET_SOCKETBARRIER:
       i1 = code_get_int(&ip);

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #ifndef MMAP
 #include <sys/shm.h>
 #else
@@ -182,52 +183,46 @@ static void unset_mem(volatile char *shmem){
   while (!__sync_bool_compare_and_swap(shmem, 1, 0));
 }
 
-static void node_barrier(volatile char **shmem, char *barrier_count, int socket_rank, int num_cores, int node_sockets) {
-  int barriers_size, step;
-  for (barriers_size = 0, step = 1; step < node_sockets; barriers_size++, step <<= 1) {
-    shmem[0][(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] = *barrier_count;
-    while ((unsigned char)(shmem[step][(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] - *barrier_count) > 1)
+static void node_barrier(volatile char **shmem, int *barrier_count, int socket_rank, int node_sockets) {
+  int step;
+  for (step = 1; step < node_sockets; step <<= 1) {
+    ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
+    while ((unsigned int)(((volatile int*)(shmem[step]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
       ;
+    (*barrier_count)++;
   }
-  (*barrier_count)++;
 }
 
-static int node_barrier_test(volatile char **shmem, char barrier_count, int socket_rank, int num_cores, int node_sockets) {
-  int barriers_size, step;
-  for (barriers_size = 0, step = 1; step < node_sockets; barriers_size++, step <<= 1) {
-    shmem[0][(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] = barrier_count;
-    if ((unsigned char)(shmem[step][(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] - barrier_count) > 1) {
+static int node_barrier_test(volatile char **shmem, int barrier_count, int socket_rank, int node_sockets) {
+  int step;
+  for (step = 1; step < node_sockets; step <<= 1) {
+    ((volatile int*)(shmem[0]))[socket_rank * CACHE_LINE_SIZE] = barrier_count;
+    if ((unsigned int)(((volatile int*)(shmem[step]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX) {
       return 1;
     }
+    barrier_count++;
   }
   return 0;
 }
 
-static void socket_barrier_b(volatile char *shmem, char *barrier_count, int node_rank, int num_cores) {
-  int barriers_size, step;
-  for (barriers_size = 0, step = 1; step < num_cores; barriers_size++, step <<= 1) {
-    while (!__sync_bool_compare_and_swap(&shmem[(barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1], 0, 1));
-    while (!__sync_bool_compare_and_swap(&shmem[(barriers_size * num_cores + (node_rank + step) % num_cores) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1], 1, 0));
-  }
-}
-
-static void socket_barrier(volatile char *shmem, char *barrier_count, int socket_rank, int num_cores) {
-  int barriers_size, step;
-  for (barriers_size = 0, step = 1; step < num_cores; barriers_size++, step <<= 1) {
-    shmem[(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] = *barrier_count;
-    while ((unsigned char)(shmem[(barriers_size * num_cores + (socket_rank + step) % num_cores) * CACHE_LINE_SIZE] - *barrier_count) > 1)
+static void socket_barrier(volatile char *shmem, int *barrier_count, int socket_rank, int num_cores) {
+  int step;
+  for (step = 1; step < num_cores; step <<= 1) {
+    ((volatile int*)shmem)[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
+    while ((unsigned int)(((volatile int*)shmem)[((socket_rank + step) % num_cores) * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
       ;
+    (*barrier_count)++;
   }
-  (*barrier_count)++;
 }
 
-static int socket_barrier_test(volatile char *shmem, char barrier_count, int socket_rank, int num_cores) {
-  int barriers_size, step;
-  for (barriers_size = 0, step = 1; step < num_cores; barriers_size++, step <<= 1) {
-    shmem[(barriers_size * num_cores + socket_rank) * CACHE_LINE_SIZE] = barrier_count;
-    if ((unsigned char)(shmem[(barriers_size * num_cores + (socket_rank + step) % num_cores) * CACHE_LINE_SIZE] - barrier_count) > 1) {
+static int socket_barrier_test(volatile char *shmem, int barrier_count, int socket_rank, int num_cores) {
+  int step;
+  for (step = 1; step < num_cores; step <<= 1) {
+    ((volatile int*)shmem)[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
+    if ((unsigned int)(((volatile int*)shmem)[((socket_rank + step) % num_cores) * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX) {
       return 1;
     }
+    barrier_count++;
   }
   return 0;
 }
@@ -243,7 +238,7 @@ static void socket_barrier_wait(volatile char *shmem, char barrier_count,
     ;
 }
 
-static void socket_barrier_next(volatile char *shmem, char *barrier_count,
+static void socket_barrier_next(volatile char *shmem, int *barrier_count,
                               int node_rank, int num_cores) {
   int barriers_size, step, barriers_size_max, i;
   for (barriers_size = 0, step = 1; step < num_cores;
@@ -259,48 +254,6 @@ static void socket_barrier_next(volatile char *shmem, char *barrier_count,
   if (*barrier_count >= barriers_size * num_cores * NUM_BARRIERS) {
     *barrier_count = 0;
   }
-}
-
-static void socket_cycl_barrier(volatile char *shmem, char *barrier_count,
-                                int node_rank, int num_cores) {
-  int barriers_size, step, barriers_size_max, i;
-  if (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) < 10000) {
-    i = ++(*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))));
-  } else {
-    i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) =
-          *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) - 10000;
-  }
-  if (i < num_cores) {
-    while (((*((volatile int*)(shmem+((*barrier_count + (1 + node_rank) % num_cores) *
-                  CACHE_LINE_SIZE)))) % 10000) < i)
-//printf("aaaa %d %d %d %d\n", ((*((int*)(shmem+((*barrier_count + (1 + node_rank) % num_cores) * CACHE_LINE_SIZE)))) % 10000), i, node_rank, *barrier_count)
-      ;
-  } else {
-    for (barriers_size = 0, step = 1; step <= num_cores;
-         barriers_size++, step <<= 1) ;
-    barriers_size_max = barriers_size;
-    i = (barriers_size_max * num_cores * (NUM_BARRIERS - 1) + *barrier_count) %
-        (barriers_size_max * num_cores * NUM_BARRIERS);
-    for (barriers_size = 0; barriers_size < barriers_size_max; barriers_size++) {
-      *((int*)(shmem+((i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE))) = 0;
-    }
-    *barrier_count += barriers_size * num_cores;
-    if (*barrier_count >= barriers_size * num_cores * NUM_BARRIERS) {
-      *barrier_count = 0;
-    }
-  }
-}
-
-static int socket_cycl_barrier_test(volatile char *shmem, char *barrier_count,
-                                    int node_rank, int num_cores) {
-  int i;
-  if (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) < 10000) {
-    i = (*((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) += 1 + 10000) - 10000;
-  } else {
-    i = *((int*)(shmem+((*barrier_count + node_rank) * CACHE_LINE_SIZE))) - 10000;
-  }
-  return (*((int*)(shmem+((*barrier_count + (1 + node_rank) % num_cores) *
-             CACHE_LINE_SIZE)))) % 10000 >= i;
 }
 
 static void reduce_waitany(void **pointers_to, void **pointers_from, int *sizes, int num_red, int op_reduce){
@@ -547,10 +500,6 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         }
       }
       break;
-    case OPCODE_BSOCKETBARRIER:
-      socket_barrier_b(header->barrier_shmem_socket, &header->barrier_counter_socket,
-                       header->socket_rank, header->num_cores);
-      break;
     case OPCODE_SOCKETBARRIER:
       if (active_wait & 2) {
         socket_barrier(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
@@ -569,30 +518,15 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
     case OPCODE_NODEBARRIER:
       if (active_wait & 2) {
         node_barrier(header->barrier_shmem_node, &header->barrier_counter_node,
-                       header->socket_rank, header->num_cores, header->node_sockets);
+                       header->socket_rank, header->node_sockets);
       } else {
         *ip_exec = ip - 1;
         if (!node_barrier_test(header->barrier_shmem_node, header->barrier_counter_node,
-                                 header->socket_rank, header->num_cores, header->node_sockets)) {
+                                 header->socket_rank, header->node_sockets)) {
           return 0;
         } else {
           node_barrier(header->barrier_shmem_node, &header->barrier_counter_node,
-                         header->socket_rank, header->num_cores, header->node_sockets);
-        }
-      }
-      break;
-    case OPCODE_CYCL_SOCKETBARRIER:
-      if (active_wait & 2) {
-        socket_cycl_barrier(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
-                            header->socket_rank, header->num_cores);
-      } else {
-        *ip_exec = ip - 1;
-        if (!socket_cycl_barrier_test(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
-                                      header->socket_rank, header->num_cores)) {
-          return 0;
-        } else {
-          socket_cycl_barrier(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
-                              header->socket_rank, header->num_cores);
+                         header->socket_rank, header->node_sockets);
         }
       }
       break;

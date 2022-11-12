@@ -197,7 +197,6 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->shmem_buffer_offset_max = 0;
   (*parameters)->root = -1;
   (*parameters)->in_place = 0;
-  (*parameters)->blocking = 0;
   (*parameters)->on_gpu = 0;
   do {
     memset(string1, 0, 100);
@@ -212,9 +211,6 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
       if (strcmp(string1, "PARAMETER") == 0) {
         if (strcmp(string2, "VERBOSE") == 0) {
           (*parameters)->verbose = 1;
-        }
-        if (strcmp(string2, "BLOCKING") == 0) {
-          (*parameters)->blocking = 1;
         }
         if (strcmp(string2, "IN_PLACE") == 0) {
           (*parameters)->in_place = 1;
@@ -566,10 +562,6 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
   if (parameters->in_place) {
     nbuffer_out +=
         sprintf(buffer_out + nbuffer_out, " PARAMETER IN_PLACE\n");
-  }
-  if (parameters->blocking) {
-    nbuffer_out +=
-        sprintf(buffer_out + nbuffer_out, " PARAMETER BLOCKING\n");
   }
 #ifdef GPU_ENABLED
   if (parameters->on_gpu) {

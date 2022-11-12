@@ -8,8 +8,8 @@ extern "C" {
 
 struct header_byte_code {
   int size_to_return;
-  char barrier_counter_socket;
-  char barrier_counter_node;
+  int barrier_counter_socket;
+  int barrier_counter_node;
   char *barrier_shmem_socket;
   int barrier_shmem_size;
   volatile char **barrier_shmem_node;
