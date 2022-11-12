@@ -246,15 +246,13 @@ static int chancel_copyin_copyout(struct data_algorithm *data) {
   int i, j, flag, ret = 1;
   for (i = 1; i < data->num_blocks - 1; i++) {
     flag = 1;
-    for (j = 0; j < data->blocks[i].num_lines; j++) {
-      if (data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) {
-        if (data->blocks[i].num_lines != data->blocks[i + 1].num_lines) {
-          ret = flag = 0;
-        } else if (!(data->blocks[i + 1].lines[j].recvfrom_max > 0 && data->blocks[i + 1].lines[j].recvfrom_node[0] == -1)) {
-          ret = flag = 0;
-        } else if (data->blocks[i].lines[j].frac != data->blocks[i + 1].lines[j].frac) {
-          ret = flag = 0;
-        }
+    for (j = (data->blocks[i].num_lines < data->blocks[i + 1].num_lines ? data->blocks[i].num_lines : data->blocks[i + 1].num_lines) - 1; j >=0 ; j--) {
+      if ((data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) !=
+          (data->blocks[i + 1].lines[j].recvfrom_max > 0 && data->blocks[i + 1].lines[j].recvfrom_node[0] == -1)) {
+        ret = flag = 0;
+      } else if ((data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) &&
+                 (data->blocks[i].lines[j].frac != data->blocks[i + 1].lines[j].frac)) {
+        ret = flag = 0;
       }
     }
     if (flag) {
