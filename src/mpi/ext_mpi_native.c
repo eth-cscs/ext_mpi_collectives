@@ -742,13 +742,13 @@ int EXT_MPI_Done_native(int handle) {
   shmem_size = header->barrier_shmem_size;
   shmemid = header->shmemid;
   locmem = header->locmem;
-  if ((MPI_Comm *)(comm_code[handle] + header->size_to_return)) {
-    shmem_comm_node_row = *((MPI_Comm *)(comm_code[handle] + header->size_to_return));
+  if ((MPI_Comm *)(ip + header->size_to_return)) {
+    shmem_comm_node_row = *((MPI_Comm *)(ip + header->size_to_return));
   } else {
     shmem_comm_node_row = MPI_COMM_NULL;
   }
-  if ((MPI_Comm *)(comm_code[handle] + header->size_to_return + sizeof(MPI_Comm))) {
-    shmem_comm_node_column = *((MPI_Comm *)(comm_code[handle] + header->size_to_return) + sizeof(MPI_Comm));
+  if ((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm))) {
+    shmem_comm_node_column = *((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm)));
   } else {
     shmem_comm_node_column = MPI_COMM_NULL;
   }
@@ -775,13 +775,13 @@ int EXT_MPI_Done_native(int handle) {
     shmem_size = header->barrier_shmem_size;
     shmemid = header->shmemid;
     locmem = header->locmem;
-    if ((MPI_Comm *)(comm_code[handle] + header->size_to_return)) {
-      shmem_comm_node_row2 = *((MPI_Comm *)(comm_code[handle] + header->size_to_return));
+    if ((MPI_Comm *)(ip + header->size_to_return)) {
+      shmem_comm_node_row2 = *((MPI_Comm *)(ip + header->size_to_return));
     } else {
       shmem_comm_node_row2 = MPI_COMM_NULL;
     }
-    if ((MPI_Comm *)(comm_code[handle] + header->size_to_return + sizeof(MPI_Comm))) {
-      shmem_comm_node_column2 = *((MPI_Comm *)(comm_code[handle] + header->size_to_return) + sizeof(MPI_Comm));
+    if ((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm))) {
+      shmem_comm_node_column2 = *((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm)));
     } else {
       shmem_comm_node_column2 = MPI_COMM_NULL;
     }
