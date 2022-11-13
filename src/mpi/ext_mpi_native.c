@@ -766,13 +766,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   locmem = (char *)malloc(locmem_size);
   if (!locmem)
     goto error;
-  for (barriers_size = 0, step = 1;
-       step <= my_cores_per_node_row * my_cores_per_node_column ||
-       step <= node_sockets;
-       barriers_size++, step *= 2)
-    ;
-  barriers_size += 1;
-  barriers_size *= my_cores_per_node_row * my_cores_per_node_column *
+  barriers_size = (node_sockets < my_cores_per_node_row * my_cores_per_node_column? my_cores_per_node_row * my_cores_per_node_column : node_sockets) *
                    (NUM_BARRIERS + 1) * CACHE_LINE_SIZE * sizeof(int);
   barriers_size += NUM_BARRIERS * CACHE_LINE_SIZE * sizeof(int);
   barriers_size = (barriers_size/(CACHE_LINE_SIZE * sizeof(int)) + 1) * (CACHE_LINE_SIZE * sizeof(int));

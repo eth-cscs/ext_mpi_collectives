@@ -387,10 +387,11 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             add += size;
           }
           for (i = 1; i < node_size / counts_max; i++) {
-            nbuffer_out += ext_mpi_write_assembler_line(
+/*            nbuffer_out += ext_mpi_write_assembler_line(
                 buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_barrier, lrank_row % (node_size / counts_max));
             nbuffer_out += ext_mpi_write_assembler_line(
-                buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, (i + lrank_row) % (node_size / counts_max));
+                buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, (i + lrank_row) % (node_size / counts_max));*/
+            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
             add = ldispls[lrank_column];
             for (j = 0; j < data.blocks[0].num_lines; j++) {
               size = mcounts[data.blocks[0].lines[j].frac];
@@ -452,10 +453,11 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             add += size;
           }
           for (i = 1; i < node_size / counts_max; i++) {
-            nbuffer_out += ext_mpi_write_assembler_line(
+/*            nbuffer_out += ext_mpi_write_assembler_line(
                 buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_barrier, lrank_row % (node_size / counts_max));
             nbuffer_out += ext_mpi_write_assembler_line(
-                buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, (i + lrank_row) % (node_size / counts_max));
+                buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, (i + lrank_row) % (node_size / counts_max));*/
+            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
             add = ldispls[lrank_column];
             for (j = 0; j < data.blocks[0].num_lines; j++) {
               size = mcounts[data.blocks[0].lines[j].frac];

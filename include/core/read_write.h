@@ -3,8 +3,8 @@
 #define EXT_MPI_READ_WRITE_H_
 
 #define MAX_BUFFER_SIZE 100000000
-//#define CACHE_LINE_SIZE 64
-#define CACHE_LINE_SIZE 1024
+#define CACHE_LINE_SIZE 64
+//#define CACHE_LINE_SIZE 1024
 
 #ifdef __cplusplus
 extern "C" {
