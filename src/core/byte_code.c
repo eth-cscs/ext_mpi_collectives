@@ -401,13 +401,13 @@ int ext_mpi_generate_byte_code(char **shmem,
     }
     if (estring1 == eset_socket_barrier) {
       if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_SET_SOCKETBARRIER, isdryrun);
+        code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_SET, isdryrun);
         code_put_int(&ip, integer1, isdryrun);
       }
     }
     if (estring1 == ewait_socket_barrier) {
       if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_WAIT_SOCKETBARRIER, isdryrun);
+        code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_WAIT, isdryrun);
         code_put_int(&ip, integer1, isdryrun);
       }
     }
@@ -503,32 +503,6 @@ int ext_mpi_generate_byte_code(char **shmem,
         }
 #endif
         code_put_char(&ip, OPCODE_SOCKETBARRIER, isdryrun);
-      }
-    }
-    if (estring1 == enext_socket_barrier) {
-      if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_NEXT_SOCKETBARRIER, isdryrun);
-      }
-    }
-    if ((estring1 == eset_mem) || (estring1 == eunset_mem)){
-      ext_mpi_read_assembler_line(line, 0, "ssd", &estring1, &estring2, &integer1);
-      if (estring1 == eset_mem){
-        code_put_char(&ip, OPCODE_SET_MEM, isdryrun);
-      }else{
-        code_put_char(&ip, OPCODE_UNSET_MEM, isdryrun);
-      }
-      if (estring2 == esendbufp) {
-        code_put_pointer(&ip, sendbuf + integer1, isdryrun);
-      } else {
-        if (estring2 == erecvbufp) {
-          code_put_pointer(&ip, recvbuf + integer1, isdryrun);
-        } else {
-          if (shmem != NULL) {
-            code_put_pointer(&ip, (void *)(shmem[0] + integer1), isdryrun);
-	  } else {
-            code_put_pointer(&ip, (void *)(NULL + integer1), isdryrun);
-	  }
-        }
       }
     }
     if ((estring1 == ememcpy) || (estring1 == ereduce) ||

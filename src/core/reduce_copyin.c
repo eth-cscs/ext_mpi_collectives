@@ -65,7 +65,7 @@ static int copyin(struct parameters_block *parameters, struct data_algorithm dat
         }
       }
     }
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_cycl_barrier);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   }
   nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   return nbuffer_out;
@@ -388,7 +388,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
           for (i = 1; i < node_size / counts_max; i++) {
             nbuffer_out += ext_mpi_write_assembler_line(
-                buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+                buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_barrier, lrank_row % (node_size / counts_max));
+            nbuffer_out += ext_mpi_write_assembler_line(
+                buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, (i + lrank_row) % (node_size / counts_max));
             add = ldispls[lrank_column];
             for (j = 0; j < data.blocks[0].num_lines; j++) {
               size = mcounts[data.blocks[0].lines[j].frac];
@@ -451,7 +453,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           }
           for (i = 1; i < node_size / counts_max; i++) {
             nbuffer_out += ext_mpi_write_assembler_line(
-                buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+                buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_barrier, lrank_row % (node_size / counts_max));
+            nbuffer_out += ext_mpi_write_assembler_line(
+                buffer_out + nbuffer_out, parameters->ascii_out, "sd", ewait_socket_barrier, (i + lrank_row) % (node_size / counts_max));
             add = ldispls[lrank_column];
             for (j = 0; j < data.blocks[0].num_lines; j++) {
               size = mcounts[data.blocks[0].lines[j].frac];
@@ -490,8 +494,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
           }
         }
-        nbuffer_out += ext_mpi_write_assembler_line(
-            buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sd", eset_socket_barrier, lrank_row);
         break;
       case 2:
         if (lrank_row >= node_row_size / 2){
@@ -578,7 +581,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
             }
           }
         }
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enext_socket_barrier);
         nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         add=add2=0;
         size=moffsets[num_nodes];
@@ -624,8 +626,8 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
           add += size;
         }
         for (barriers_size = 0, step = 1; step < node_size; barriers_size++, step <<= 1) {
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "ssdsdsd", eset_mem, eshmemo, 0, ecpbuffer_offseto, -1, ecp, (barriers_size * node_size + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1);
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "ssdsdsd", eunset_mem, eshmemo, 0, ecpbuffer_offseto, -1, ecp, (barriers_size * node_size + (node_rank + step) % node_size) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1);
+// FIXME          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "ssdsdsd", eset_mem, eshmemo, 0, ecpbuffer_offseto, -1, ecp, (barriers_size * node_size + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1);
+// FIXME          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "ssdsdsd", eunset_mem, eshmemo, 0, ecpbuffer_offseto, -1, ecp, (barriers_size * node_size + (node_rank + step) % node_size) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - 1);
           if (!(node_rank % (step << 1))) {
             add = ((barriers_size + 1) * node_size + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - tsize;
             add2 = (barriers_size * node_size + node_rank) * CACHE_LINE_SIZE + CACHE_LINE_SIZE - tsize;

@@ -971,17 +971,11 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case esocket_barrier:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER");
       break;
-    case esocket_cycl_barrier:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_CYCL_BARRIER");
-      break;
     case eset_socket_barrier:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_SOCKET_BARRIER");
       break;
     case ewait_socket_barrier:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " WAIT_SOCKET_BARRIER");
-      break;
-    case enext_socket_barrier:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " NEXT_SOCKET_BARRIER");
       break;
     case ememcpy:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMCPY");
@@ -1055,12 +1049,6 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case estage:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " STAGE");
       break;
-    case eset_mem:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_MEM");
-      break;
-    case eunset_mem:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " UNSET_MEM");
-      break;
     case estart:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " START");
       break;
@@ -1132,17 +1120,11 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   if (strcmp(cstring1, "SOCKET_BARRIER") == 0) {
     return esocket_barrier;
   }
-  if (strcmp(cstring1, "SOCKET_CYCL_BARRIER") == 0) {
-    return esocket_cycl_barrier;
-  }
   if (strcmp(cstring1, "SET_SOCKET_BARRIER") == 0) {
     return eset_socket_barrier;
   }
   if (strcmp(cstring1, "WAIT_SOCKET_BARRIER") == 0) {
     return ewait_socket_barrier;
-  }
-  if (strcmp(cstring1, "NEXT_SOCKET_BARRIER") == 0) {
-    return enext_socket_barrier;
   }
   if (strcmp(cstring1, "MEMCPY") == 0) {
     return ememcpy;
@@ -1212,12 +1194,6 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   }
   if (strcmp(cstring1, "ATTACHED") == 0) {
     return eattached;
-  }
-  if (strcmp(cstring1, "SET_MEM") == 0) {
-    return eset_mem;
-  }
-  if (strcmp(cstring1, "UNSET_MEM") == 0) {
-    return eunset_mem;
   }
   if (strcmp(cstring1, "START") == 0) {
     return estart;

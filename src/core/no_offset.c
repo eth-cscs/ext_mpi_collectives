@@ -56,13 +56,6 @@ data_memcpy_reduce.type = enop;
             }
           }
           nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
-        } else if (((data_memcpy_reduce.type == eset_mem) || (data_memcpy_reduce.type == eunset_mem)) &&
-                   (ext_mpi_read_assembler_line(line, 0, "ssdsd", &estring1, &estring2, &bo1, &estring3, &o1, 0) >= 0)) {
-          if (bo1 >= 0) {
-            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "ssd", estring1, eshmemo, buffer_offset[bo1] + o1);
-          } else {
-            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "ssd", estring1, eshmemo, parameters->shmem_max + o1);
-          }
         } else {
           nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
         }

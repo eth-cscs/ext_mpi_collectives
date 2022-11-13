@@ -175,14 +175,6 @@ error:
   return ERROR_MALLOC;
 }
 
-static void set_mem(volatile char *shmem){
-  while (!__sync_bool_compare_and_swap(shmem, 0, 1));
-}
-
-static void unset_mem(volatile char *shmem){
-  while (!__sync_bool_compare_and_swap(shmem, 1, 0));
-}
-
 static void node_barrier(volatile char **shmem, int *barrier_count, int socket_rank, int node_sockets) {
   int step;
   for (step = 1; step < node_sockets; step <<= 1) {
@@ -227,33 +219,18 @@ static int socket_barrier_test(volatile char *shmem, int barrier_count, int sock
   return 0;
 }
 
-static void socket_barrier_set(volatile char *shmem, char barrier_count,
-                             int entry) {
-  shmem[(barrier_count + entry) * CACHE_LINE_SIZE] = 1;
+static void socket_barrier_atomic_set(volatile char *shmem, int barrier_count, int entry) {
+  ((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
 }
 
-static void socket_barrier_wait(volatile char *shmem, char barrier_count,
-                              int entry) {
-  while (!shmem[(barrier_count + entry) * CACHE_LINE_SIZE])
+static void socket_barrier_atomic_wait(volatile char *shmem, int *barrier_count, int entry) {
+  while ((unsigned int)(((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
     ;
+  (*barrier_count)++;
 }
 
-static void socket_barrier_next(volatile char *shmem, int *barrier_count,
-                              int node_rank, int num_cores) {
-  int barriers_size, step, barriers_size_max, i;
-  for (barriers_size = 0, step = 1; step < num_cores;
-       barriers_size++, step <<= 1) ;
-  barriers_size_max = barriers_size;
-  i = (barriers_size_max * num_cores * (NUM_BARRIERS - 1) + *barrier_count) %
-      (barriers_size_max * num_cores * NUM_BARRIERS);
-  for (barriers_size = 0; barriers_size < barriers_size_max; barriers_size++) {
-//    shmem[(i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE] = 0;
-    *((int*)(shmem+((i + barriers_size * num_cores + node_rank) * CACHE_LINE_SIZE))) = 0;
-  }
-  *barrier_count += barriers_size * num_cores;
-  if (*barrier_count >= barriers_size * num_cores * NUM_BARRIERS) {
-    *barrier_count = 0;
-  }
+static int socket_barrier_atomic_test(volatile char *shmem, int barrier_count, int entry) {
+  return (unsigned int)(((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX;
 }
 
 static void reduce_waitany(void **pointers_to, void **pointers_from, int *sizes, int num_red, int op_reduce){
@@ -530,23 +507,21 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         }
       }
       break;
-    case OPCODE_SET_SOCKETBARRIER:
+    case OPCODE_SOCKETBARRIER_ATOMIC_SET:
+      socket_barrier_atomic_set(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket, code_get_int(&ip));
+      break;
+    case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
       i1 = code_get_int(&ip);
-      socket_barrier_set(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket, i1);
-      break;
-    case OPCODE_WAIT_SOCKETBARRIER:
-      i1 = code_get_int(&ip);
-      socket_barrier_wait(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket, i1);
-      break;
-    case OPCODE_NEXT_SOCKETBARRIER:
-      socket_barrier_next(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
-                        header->socket_rank, header->num_cores);
-      break;
-    case OPCODE_SET_MEM:
-      set_mem(code_get_pointer(&ip));
-      break;
-    case OPCODE_UNSET_MEM:
-      unset_mem(code_get_pointer(&ip));
+      if (active_wait & 2) {
+        socket_barrier_atomic_wait(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket, i1);
+      } else {
+        *ip_exec = ip - 1 - sizeof(int);
+        if (!socket_barrier_atomic_test(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket, i1)) {
+          return 0;
+        } else {
+          socket_barrier_atomic_wait(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket, i1);
+        }
+      }
       break;
     case OPCODE_REDUCE:
       instruction2 = code_get_char(&ip);
