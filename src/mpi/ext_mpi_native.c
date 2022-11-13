@@ -188,7 +188,7 @@ static void node_barrier(volatile char **shmem, int *barrier_count, int socket_r
 static int node_barrier_test(volatile char **shmem, int barrier_count, int socket_rank, int node_sockets) {
   int step;
   for (step = 1; step < node_sockets; step <<= 1) {
-    ((volatile int*)(shmem[0]))[socket_rank * CACHE_LINE_SIZE] = barrier_count;
+    ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
     if ((unsigned int)(((volatile int*)(shmem[step]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX) {
       return 1;
     }
@@ -773,9 +773,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     ;
   barriers_size += 1;
   barriers_size *= my_cores_per_node_row * my_cores_per_node_column *
-                   (NUM_BARRIERS + 1) * CACHE_LINE_SIZE;
-  barriers_size += NUM_BARRIERS * CACHE_LINE_SIZE;
-  barriers_size = (barriers_size/CACHE_LINE_SIZE + 1) * CACHE_LINE_SIZE;
+                   (NUM_BARRIERS + 1) * CACHE_LINE_SIZE * sizeof(int);
+  barriers_size += NUM_BARRIERS * CACHE_LINE_SIZE * sizeof(int);
+  barriers_size = (barriers_size/(CACHE_LINE_SIZE * sizeof(int)) + 1) * (CACHE_LINE_SIZE * sizeof(int));
   shmem_size = my_size_shared_buf + barriers_size * 4;
   if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
                                   comm_row, my_cores_per_node_row, comm_column,
