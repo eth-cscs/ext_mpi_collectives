@@ -294,10 +294,10 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       add += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
     }
     for (n = add = 0; n < data.blocks[m].num_lines; n++) {
-      if (data.blocks[m].lines[n].copyfrom_is) {
+      for (i = 0; i < data.blocks[m].lines[n].copyreducefrom_max; i++) {
         size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
         add2 = 0;
-        for (k = 0; k < data.blocks[m].lines[n].copyfrom; k++) {
+        for (k = 0; k < data.blocks[m].lines[n].copyreducefrom[i]; k++) {
           add2 += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[k].frac);
         }
         data_memcpy_reduce.buffer_type1 = eshmemo;
@@ -311,10 +311,18 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         data_memcpy_reduce.offset_number2 = 0;
         data_memcpy_reduce.offset2 = add2;
         data_memcpy_reduce.size = size;
-        if (node_rank == 0) {
-          data_memcpy_reduce.type = ememcpy;
-        } else {
-          data_memcpy_reduce.type = ememcp_;
+	if (i == 0) {
+          if (node_rank == 0) {
+            data_memcpy_reduce.type = ememcpy;
+          } else {
+            data_memcpy_reduce.type = ememcp_;
+          }
+	} else {
+          if (node_rank == 0) {
+            data_memcpy_reduce.type = ereduce;
+          } else {
+            data_memcpy_reduce.type = ereduc_;
+          }
         }
         nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
       }

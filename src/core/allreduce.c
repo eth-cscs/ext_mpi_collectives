@@ -301,8 +301,8 @@ static void add_lines(struct data_algorithm *data) {
       for (k = 0; k < lines_new[j + data->blocks[block].num_lines].reducefrom_max; k++) {
         lines_new[j + data->blocks[block].num_lines].reducefrom[k] += data->blocks[block].num_lines;
       }
-      if (lines_new[j + data->blocks[block].num_lines].copyfrom_is) {
-        lines_new[j + data->blocks[block].num_lines].copyfrom += data->blocks[block].num_lines;
+      for (k = 0; k < lines_new[j + data->blocks[block].num_lines].copyreducefrom_max; k++) {
+        lines_new[j + data->blocks[block].num_lines].copyreducefrom[k] += data->blocks[block].num_lines;
       }
     }
     data->blocks[i].num_lines += data->blocks[block].num_lines;
@@ -322,8 +322,9 @@ static void add_lines(struct data_algorithm *data) {
             free(data->blocks[block + 1].lines[j].recvfrom_line);
             data->blocks[block + 1].lines[j].recvfrom_line = NULL;
             data->blocks[block + 1].lines[j].recvfrom_max = 0;
-            data->blocks[block + 1].lines[j].copyfrom_is = 1;
-            data->blocks[block + 1].lines[j].copyfrom = i;
+            data->blocks[block + 1].lines[j].copyreducefrom_max = 1;
+	    data->blocks[block + 1].lines[j].copyreducefrom = (int*)malloc(sizeof(int));
+            data->blocks[block + 1].lines[j].copyreducefrom[0] = i;
           }
         }
       }

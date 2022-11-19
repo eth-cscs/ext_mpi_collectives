@@ -100,8 +100,8 @@ struct data_algorithm_line {
   int *recvfrom_line;
   int reducefrom_max;
   int *reducefrom;
-  int copyfrom_is;
-  int copyfrom;
+  int copyreducefrom_max;
+  int *copyreducefrom;
 };
 
 struct data_algorithm_block {
