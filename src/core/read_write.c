@@ -715,9 +715,9 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
       return data->sendto_max;
     }
   }
-  string_temp = strstr(string_in, "COPYREDUCEFROM ");
+  string_temp = strstr(string_in, "COPYreduceFROM ");
   if (string_temp) {
-    data->copyreducefrom_max = read_int_series(string_temp + strlen("COPYREDUCEFROM "), &data->copyreducefrom);
+    data->copyreducefrom_max = read_int_series(string_temp + strlen("COPYreduceFROM "), &data->copyreducefrom);
     if (data->copyreducefrom_max < 0) {
       free(data->recvfrom_node);
       free(data->recvfrom_line);
@@ -937,7 +937,7 @@ int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int as
           }
         }
         if (data.blocks[i].lines[j].copyreducefrom_max > 0) {
-          nbuffer_out += sprintf(buffer_out + nbuffer_out, " COPYREDUCEFROM");
+          nbuffer_out += sprintf(buffer_out + nbuffer_out, " COPYreduceFROM");
           for (k = 0; k < data.blocks[i].lines[j].copyreducefrom_max; k++) {
             nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].copyreducefrom[k]);
           }
