@@ -8,8 +8,7 @@
 int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
                                   MPI_Comm comm_row) {
   int **values = NULL, **recv_values = NULL, max_lines;
-  int nbuffer_out = 0, nbuffer_in = 0, i, j, k, l, size_level0 = 0,
-      *size_level1 = NULL;
+  int nbuffer_out = 0, nbuffer_in = 0, i, j, k, l;
   struct data_algorithm data;
   struct parameters_block *parameters;
   MPI_Request *request = NULL;
@@ -92,13 +91,13 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
   MPI_Allreduce(MPI_IN_PLACE, &j, 1, MPI_INT, MPI_MIN, comm_row);
   if (j < 0)
     goto error;
-  for (i = data.num_blocks - 1; i >= 1; i--) {
+  for (i = data.num_blocks - 1; i >= 0; i--) {
     l = 0;
-    for (j = data.blocks[i - 1].num_lines - 1; j >= 0; j--) {
-      for (k = 0; k < data.blocks[i - 1].lines[j].sendto_max; k++) {
-        if (data.blocks[i - 1].lines[j].sendto[k] != parameters->socket) {
-          MPI_Irecv(&recv_values[j][data.blocks[i - 1].lines[j].sendto[k]], 1, MPI_INT,
-                    data.blocks[i - 1].lines[j].sendto[k] * parameters->socket_row_size +
+    for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
+      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+        if (data.blocks[i].lines[j].sendto[k] != parameters->socket) {
+          MPI_Irecv(&recv_values[j][data.blocks[i].lines[j].sendto[k]], 1, MPI_INT,
+                    data.blocks[i].lines[j].sendto[k] * parameters->socket_row_size +
                         parameters->socket_rank % parameters->socket_row_size,
                     0, comm_row, &request[l++]);
         }
@@ -120,56 +119,71 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
         }
       }
     }
-    for (j = size_level1[i - 1] - 1; j >= 0; j--) {
-      if (j < size_level1[i]) {
-        if (values[i][j]) {
-          values[i - 1][j] = 1;
-        }
-      }
-    }
     MPI_Waitall(l, request, MPI_STATUSES_IGNORE);
-    for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
-      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
-        if (data.blocks[i].lines[j].recvfrom_node[k] != parameters->socket) {
-          if (!values[i][j]) {
-            if (parameters->socket_row_size * parameters->socket_column_size == 1) {
-              if (data.blocks[i].lines[j].recvfrom_max == 1) {
-                data.blocks[i].lines[j].recvfrom_node[k] = parameters->socket;
-                data.blocks[i].lines[j].recvfrom_line[k] = j;
-              } else {
-                for (l = k; l < data.blocks[i].lines[j].recvfrom_max - 1; l++) {
-                  data.blocks[i].lines[j].recvfrom_node[l] = data.blocks[i].lines[j].recvfrom_node[l + 1];
-                  data.blocks[i].lines[j].recvfrom_line[l] = data.blocks[i].lines[j].recvfrom_line[l + 1];
-                }
-                data.blocks[i].lines[j].recvfrom_max--;
-                k--;
-              }
-            } else {
-              data.blocks[i].lines[j].recvfrom_node[k] = -10 - data.blocks[i].lines[j].recvfrom_node[k];
-            }
+    if (i < data.num_blocks - 1) {
+      for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
+        if (j < data.blocks[i + 1].num_lines) {
+          if (values[i + 1][j]) {
+            values[i][j] = 1;
           }
         }
       }
     }
-    for (j = data.blocks[i - 1].num_lines - 1; j >= 0; j--) {
-      for (k = 0; k < data.blocks[i - 1].lines[j].sendto_max; k++) {
-        if (data.blocks[i - 1].lines[j].sendto[k] != parameters->socket) {
-          if (!recv_values[j][data.blocks[i - 1].lines[j].sendto[k]]) {
-            if (parameters->socket_row_size * parameters->socket_column_size == 1) {
-              if (data.blocks[i - 1].lines[j].sendto_max == 1) {
-                data.blocks[i - 1].lines[j].sendto[k] = parameters->socket;
-              } else {
-                for (l = k; l < data.blocks[i - 1].lines[j].sendto_max - 1; l++) {
-                  data.blocks[i - 1].lines[j].sendto[l] = data.blocks[i - 1].lines[j].sendto[l + 1];
-                }
-                data.blocks[i - 1].lines[j].sendto_max--;
-                k--;
-              }
-            } else {
-              data.blocks[i - 1].lines[j].sendto[k] = -10 - data.blocks[i - 1].lines[j].sendto[k];
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      if (!values[i][j]) {
+        if (data.blocks[i].lines[j].sendto_max > 0) {
+          free(data.blocks[i].lines[j].sendto);
+          data.blocks[i].lines[j].sendto = NULL;
+          data.blocks[i].lines[j].sendto_max = 0;
+        }
+        if (data.blocks[i].lines[j].recvfrom_max > 0) {
+          free(data.blocks[i].lines[j].recvfrom_node);
+          free(data.blocks[i].lines[j].recvfrom_line);
+          data.blocks[i].lines[j].recvfrom_node = NULL;
+          data.blocks[i].lines[j].recvfrom_line = NULL;
+          data.blocks[i].lines[j].recvfrom_max = 0;
+        }
+      }
+    }
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      if (!values[i][j]) {
+        if (data.blocks[i].lines[j].reducefrom_max > 0 && data.blocks[i].lines[j].copyreducefrom_max == 0) {
+          data.blocks[i].lines[j].copyreducefrom_max = data.blocks[i].lines[j].reducefrom_max;
+          free(data.blocks[i].lines[j].copyreducefrom);
+          data.blocks[i].lines[j].copyreducefrom = data.blocks[i].lines[j].reducefrom;
+          data.blocks[i].lines[j].reducefrom_max = 0;
+          data.blocks[i].lines[j].reducefrom = NULL;
+          values[i][j] = 1;
+        }
+      }
+      if (values[i][j]) {
+        for (k = 0; k < data.blocks[i].lines[j].reducefrom_max; k++) {
+          if (!values[i][data.blocks[i].lines[j].reducefrom[k]]) {
+            data.blocks[i].lines[j].reducefrom_max--;
+            for (l = k; l < data.blocks[i].lines[j].reducefrom_max; l++) {
+              data.blocks[i].lines[j].reducefrom[l] = data.blocks[i].lines[j].reducefrom[l + 1];
             }
-          } else {
-            values[i - 1][j] = 1;
+            k = -1;
+          }
+        }
+        if (data.blocks[i].lines[j].reducefrom_max == 0) {
+          free(data.blocks[i].lines[j].reducefrom);
+          data.blocks[i].lines[j].reducefrom = NULL;
+        }
+        if (data.blocks[i].lines[j].copyreducefrom_max > 0) {
+          for (k = 0; k < data.blocks[i].lines[j].copyreducefrom_max; k++) {
+            if (!values[i][data.blocks[i].lines[j].copyreducefrom[k]]) {
+              data.blocks[i].lines[j].copyreducefrom_max--;
+              for (l = k; l < data.blocks[i].lines[j].copyreducefrom_max; l++) {
+                data.blocks[i].lines[j].copyreducefrom[l] = data.blocks[i].lines[j].copyreducefrom[l + 1];
+              }
+              k = -1;
+            }
+          }
+          if (data.blocks[i].lines[j].copyreducefrom_max == 0) {
+            free(data.blocks[i].lines[j].copyreducefrom);
+            data.blocks[i].lines[j].copyreducefrom = NULL;
+            values[i][j] = 0;
           }
         }
       }
