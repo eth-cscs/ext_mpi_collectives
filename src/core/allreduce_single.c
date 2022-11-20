@@ -134,7 +134,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
   data->num_blocks++;
   step = 0;
   if (num_ports[step] < 0) {
-    for (gbstep = (num_sockets - 1) / (-num_ports[step] + 1) + 1; num_ports[step] < 0; step++, gbstep = (gbstep - 1) / (-num_ports[step] + 1) + 1) {
+    for (gbstep = (num_sockets - 1) / (abs(num_ports[step]) + 1) + 1; num_ports[step] < 0; step++, gbstep = (gbstep - 1) / (abs(num_ports[step]) + 1) + 1) {
       size_level1b[data->num_blocks] = data->blocks[data->num_blocks].num_lines = get_size_level1b(num_sockets, num_ports, step, 1);
       data->blocks[data->num_blocks].lines = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks - 1]*(-num_ports[step] + 1));
       memset(data->blocks[data->num_blocks].lines, 0, sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks - 1]*(-num_ports[step] + 1));
