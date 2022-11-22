@@ -189,13 +189,13 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
       j = l % num_ports[step];
       for (line = 0; line < size_level1b[data->num_blocks]; line++) {
         if (line < get_size_level1b(num_sockets, num_ports, step, 0) && line >= l) {
-          data->blocks[data->num_blocks].lines[line].frac = -1;
+          data->blocks[data->num_blocks].lines[line].frac = 1;
         } else if (line < get_size_level1b(num_sockets, num_ports, step, 0)) {
-          data->blocks[data->num_blocks].lines[line].frac = task;
+          data->blocks[data->num_blocks].lines[line].frac = 2;
         } else if (line >= (size_level1b[data->num_blocks] - 1) / (num_ports[step] + 1) + 1) {
           for (k = 0; k < num_ports[step]; k++) {
             for (m = 0; m < (k < j ? i + 1 : i) && line < size_level1b[data->num_blocks]; m++) {
-              data->blocks[data->num_blocks].lines[line].frac = -10 - (k + 1);
+              data->blocks[data->num_blocks].lines[line].frac = - (k + 1);
               line++;
             }
           }
@@ -205,26 +205,37 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
         }
       }
       for (line = size_level1b[data->num_blocks] - 1; line >= 0; line--) {
-        if (data->blocks[data->num_blocks].lines[line].frac == task) {
-          data->blocks[data->num_blocks].lines[line].sendto_max = num_ports[step];
-          data->blocks[data->num_blocks].lines[line].sendto = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].sendto_max);
-          for (i = 0; i < data->blocks[data->num_blocks].lines[line].sendto_max; i++) {
-            data->blocks[data->num_blocks].lines[line].sendto[i] = (num_sockets + task - (i + 1) * gbstep) % num_sockets;
-          }
-          data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
-        } else if (data->blocks[data->num_blocks].lines[line].frac <= -10) {
-          for (j = 0; data->blocks[data->num_blocks].lines[line - j].frac == data->blocks[data->num_blocks].lines[line].frac; j++)
-            ;
-          j--;
-          data->blocks[data->num_blocks].lines[line].frac = -data->blocks[data->num_blocks].lines[line].frac - 10;
-          data->blocks[data->num_blocks].lines[line].recvfrom_max = 1;
-          data->blocks[data->num_blocks].lines[line].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
-          data->blocks[data->num_blocks].lines[line].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
-          data->blocks[data->num_blocks].lines[line].recvfrom_node[0] = (num_sockets + task + data->blocks[data->num_blocks].lines[line].frac * gbstep) % num_sockets;
-          data->blocks[data->num_blocks].lines[line].recvfrom_line[0] = j;
-          data->blocks[data->num_blocks].lines[line].frac = (data->blocks[data->num_blocks - 1].lines[j].frac + num_sockets + data->blocks[data->num_blocks].lines[line].frac * gbstep) % num_sockets;
-        } else {
-          data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
+        switch (data->blocks[data->num_blocks].lines[line].frac) {
+	  case 1:
+            data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
+	  break;
+	  case 2:
+            data->blocks[data->num_blocks].lines[line].sendto_max = num_ports[step];
+            data->blocks[data->num_blocks].lines[line].sendto = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].sendto_max);
+            for (i = 0; i < data->blocks[data->num_blocks].lines[line].sendto_max; i++) {
+              data->blocks[data->num_blocks].lines[line].sendto[i] = (num_sockets + task - (i + 1) * gbstep) % num_sockets;
+            }
+            data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
+	  break;
+	  case 3:
+            data->blocks[data->num_blocks].lines[line].sendto_max = num_ports[step] - 1;
+            data->blocks[data->num_blocks].lines[line].sendto = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].sendto_max);
+            for (i = 0; i < data->blocks[data->num_blocks].lines[line].sendto_max; i++) {
+              data->blocks[data->num_blocks].lines[line].sendto[i] = (num_sockets + task - (i + 1) * gbstep) % num_sockets;
+            }
+            data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
+	  break;
+          default:
+            for (j = 0; data->blocks[data->num_blocks].lines[line - j].frac == data->blocks[data->num_blocks].lines[line].frac; j++)
+              ;
+            j--;
+            data->blocks[data->num_blocks].lines[line].frac = -data->blocks[data->num_blocks].lines[line].frac;
+            data->blocks[data->num_blocks].lines[line].recvfrom_max = 1;
+            data->blocks[data->num_blocks].lines[line].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
+            data->blocks[data->num_blocks].lines[line].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
+            data->blocks[data->num_blocks].lines[line].recvfrom_node[0] = (num_sockets + task + data->blocks[data->num_blocks].lines[line].frac * gbstep) % num_sockets;
+            data->blocks[data->num_blocks].lines[line].recvfrom_line[0] = j;
+            data->blocks[data->num_blocks].lines[line].frac = (data->blocks[data->num_blocks - 1].lines[j].frac + num_sockets + data->blocks[data->num_blocks].lines[line].frac * gbstep) % num_sockets;
         }
       }
       data->num_blocks++;
