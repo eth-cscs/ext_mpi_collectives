@@ -141,10 +141,9 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
       for (line = 0; line < size_level1b[data->num_blocks]; line++) {
         data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
       }
-      for (i = line = 0; i < abs(num_ports[step]) + 1; i++) {
-        j = size_level1b[data->num_blocks] / (abs(num_ports[step]) + 1);
-        if (i < size_level1b[data->num_blocks] % (abs(num_ports[step]) + 1)) j++;
-        for (l = 0; l < j; l++) {
+      for (i = line = 0; i < abs(num_ports[step]) + 1 && line < size_level1b[data->num_blocks]; i++) {
+	j = (size_level1b[data->num_blocks] - 1) / (abs(num_ports[step]) + 1) + 1;
+        for (l = 0; l < j && line < size_level1b[data->num_blocks]; l++) {
           if (i > 0) {
             data->blocks[data->num_blocks].lines[line].sendto_max = 1;
             data->blocks[data->num_blocks].lines[line].sendto = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].sendto_max);
