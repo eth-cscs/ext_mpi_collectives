@@ -185,23 +185,17 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
       data->blocks[data->num_blocks].lines = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
       memset(data->blocks[data->num_blocks].lines, 0, sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
       l = size_level1b[data->num_blocks] - get_size_level1b(num_sockets, num_ports, step, 0);
-      i = l / num_ports[step];
-      j = l % num_ports[step];
       for (line = 0; line < size_level1b[data->num_blocks]; line++) {
-        if (line < get_size_level1b(num_sockets, num_ports, step, 0) && line >= l) {
+        if (line < get_size_level1b(num_sockets, num_ports, step, 0) && line >= size_level1b[data->num_blocks] - get_size_level1b(num_sockets, num_ports, step, 0) * num_ports[step] && line < l) {
+          data->blocks[data->num_blocks].lines[line].frac = 3;
+	} else if (line < get_size_level1b(num_sockets, num_ports, step, 0) && line >= l) {
           data->blocks[data->num_blocks].lines[line].frac = 1;
         } else if (line < get_size_level1b(num_sockets, num_ports, step, 0)) {
           data->blocks[data->num_blocks].lines[line].frac = 2;
-        } else if (line >= (size_level1b[data->num_blocks] - 1) / (num_ports[step] + 1) + 1) {
-          for (k = 0; k < num_ports[step]; k++) {
-            for (m = 0; m < (k < j ? i + 1 : i) && line < size_level1b[data->num_blocks]; m++) {
-              data->blocks[data->num_blocks].lines[line].frac = - (k + 1);
-              line++;
-            }
-          }
         } else {
-          printf("logical error in allreduce_core\n");
-          exit(1);
+	  k = line - get_size_level1b(num_sockets, num_ports, step, 0);
+	  k = k / get_size_level1b(num_sockets, num_ports, step, 0);
+          data->blocks[data->num_blocks].lines[line].frac = -k - 1;
         }
       }
       for (line = size_level1b[data->num_blocks] - 1; line >= 0; line--) {
