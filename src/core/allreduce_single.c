@@ -232,34 +232,30 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
         }
       }
       data->num_blocks++;
-    }
-    size_level1b[data->num_blocks] = data->blocks[data->num_blocks].num_lines = data->blocks[data->num_blocks - 1].num_lines;
-    data->blocks[data->num_blocks].lines = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
-    memset(data->blocks[data->num_blocks].lines, 0, sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
-    for (line = 0; line < size_level1b[data->num_blocks]; line++) {
-      data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
-    }
-    for (i = 0; i < num_sockets; i++){
+      size_level1b[data->num_blocks] = data->blocks[data->num_blocks].num_lines = data->blocks[data->num_blocks - 1].num_lines;
+      data->blocks[data->num_blocks].lines = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
+      memset(data->blocks[data->num_blocks].lines, 0, sizeof(struct data_algorithm_line)*size_level1b[data->num_blocks]);
       for (line = 0; line < size_level1b[data->num_blocks]; line++) {
-        if (data->blocks[data->num_blocks].lines[line].frac == i) {
-          for (j = line + 1; j < size_level1b[data->num_blocks]; j++) {
-            if (data->blocks[data->num_blocks].lines[j].frac == i) {
-              data->blocks[data->num_blocks].lines[line].reducefrom_max++;
+        data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
+      }
+      for (i = 0; i < num_sockets; i++){
+        for (line = 0; line < size_level1b[data->num_blocks]; line++) {
+          if (data->blocks[data->num_blocks - 1].lines[line].recvfrom_max == 1 && data->blocks[data->num_blocks].lines[line].frac == i) {
+            for (j = line - 1; j>= 0; j--) {
+              if (data->blocks[data->num_blocks].lines[j].frac == i && (data->blocks[data->num_blocks - 1].lines[j].recvfrom_max != 1 || data->blocks[data->num_blocks - 1].lines[line].recvfrom_node[0] != data->blocks[data->num_blocks - 1].lines[j].recvfrom_node[0])) {
+	        break;
+              }
             }
+	    if (j >= 0) {
+              data->blocks[data->num_blocks].lines[line].reducefrom_max = 1;
+              data->blocks[data->num_blocks].lines[line].reducefrom = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].reducefrom_max);
+              data->blocks[data->num_blocks].lines[line].reducefrom[data->blocks[data->num_blocks].lines[line].reducefrom_max - 1] = j;
+	    }
           }
-          data->blocks[data->num_blocks].lines[line].reducefrom = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].reducefrom_max);
-          data->blocks[data->num_blocks].lines[line].reducefrom_max = 0;
-          for (j = line + 1; j < size_level1b[data->num_blocks]; j++) {
-            if (data->blocks[data->num_blocks].lines[j].frac == i) {
-              data->blocks[data->num_blocks].lines[line].reducefrom[data->blocks[data->num_blocks].lines[line].reducefrom_max] = j;
-              data->blocks[data->num_blocks].lines[line].reducefrom_max++;
-            }
-          }
-          break;
         }
       }
+      data->num_blocks++;
     }
-    data->num_blocks++;
   } else {
     size_level1b[data->num_blocks - 1] = get_size_level1b(num_sockets, num_ports, step, 1);
   }
@@ -270,7 +266,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
     data->blocks[data->num_blocks].lines[line].frac = data->blocks[data->num_blocks - 1].lines[line].frac;
   }
   for (i = 0; i < num_sockets; i++){
-    for (line = 0; line < size_level1b[data->num_blocks]; line++) {
+    for (line = size_level1b[data->num_blocks] - 1; line >= 0; line--) {
       if (data->blocks[data->num_blocks].lines[line].frac == i) {
         data->blocks[data->num_blocks].lines[line].sendto_max = 1;
         data->blocks[data->num_blocks].lines[line].sendto = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].sendto_max);
