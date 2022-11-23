@@ -664,8 +664,8 @@ int EXT_MPI_Done_native(int handle) {
   ext_mpi_node_barrier_mpi(handle, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
 #ifdef GPU_ENABLED
   if (header->shmem_gpu) {
-    ext_mpi_gpu_destroy_shared_memory(header->comm_row, header->node_num_cores_row,
-                                      header->comm_column, header->node_num_cores_column,
+    ext_mpi_gpu_destroy_shared_memory(shmem_comm_node_row, header->node_num_cores_row,
+                                      shmem_comm_node_column, header->node_num_cores_column,
 				      1, header->shmem_gpu);
     header->shmem_gpu = NULL;
   }
@@ -697,8 +697,8 @@ int EXT_MPI_Done_native(int handle) {
     ext_mpi_node_barrier_mpi(handle + 1, MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
 #ifdef GPU_ENABLED
     if (header->shmem_gpu) {
-      ext_mpi_gpu_destroy_shared_memory(header->comm_row, header->node_num_cores_row,
-                                        header->comm_column, header->node_num_cores_column,
+      ext_mpi_gpu_destroy_shared_memory(shmem_comm_node_row2, header->node_num_cores_row,
+                                        shmem_comm_node_column2, header->node_num_cores_column,
 				        1, header->shmem_gpu);
       header->shmem_gpu = NULL;
     }
