@@ -123,7 +123,7 @@ static int allgather_core(struct data_algorithm *data, int num_sockets, int *num
 }
 
 static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num_ports, int task) {
-  int gbstep, i, j, k, l, step, line, line2, *size_level1b, block, *lines_used, lines_deleted;
+  int gbstep, i, j, k, l, step, line, line2, *size_level1b, block, *lines_used, lines_deleted, block_middle;
   for (step = 0; num_ports[step]; step++);
   data->num_blocks = 0;
   size_level1b = (int*)malloc(sizeof(int)*(2*step+2));
@@ -189,6 +189,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
       data->num_blocks++;
     }
   }
+  block_middle = data->num_blocks;
   if (num_ports[step]) {
     for (gbstep = 1; num_ports[step]; gbstep *= num_ports[step] + 1, step++) {
       size_level1b[data->num_blocks] = data->blocks[data->num_blocks].num_lines = get_size_level1b(num_sockets, num_ports, step, 1);
@@ -296,7 +297,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
   free(size_level1b);
   lines_used = (int *)malloc(sizeof(int) * data->blocks[data->num_blocks - 1].num_lines);
   get_lines_used(data, lines_used);
-  for (block = 0; block < data->num_blocks; block++) {
+  for (block = block_middle; block < data->num_blocks; block++) {
     for (line = 0; line < data->blocks[block].num_lines; line++){
       if (lines_used[line] && data->blocks[block].lines[line].sendto_max > 0) {
 	for (i = 0; i < data->blocks[block].lines[line].sendto_max; i++) {
