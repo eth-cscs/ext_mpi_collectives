@@ -73,8 +73,8 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
         }
       }
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto[k] <= -10) {
-          data.blocks[i].lines[j].sendto[k] = -10 - data.blocks[i].lines[j].sendto[k];
+        if (data.blocks[i].lines[j].sendto_node[k] <= -10) {
+          data.blocks[i].lines[j].sendto_node[k] = -10 - data.blocks[i].lines[j].sendto_node[k];
         }
       }
     }
@@ -96,19 +96,19 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
         }
       }
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto[k] >= 0) {
-          nodes_send[(-rank_perm[data.blocks[i].lines[j].sendto[k]] + rank_perm[node] +
+        if (data.blocks[i].lines[j].sendto_node[k] >= 0) {
+          nodes_send[(-rank_perm[data.blocks[i].lines[j].sendto_node[k]] + rank_perm[node] +
                       num_nodes) %
                      num_nodes] =
-              (-rank_perm[data.blocks[i].lines[j].sendto[k]] + rank_perm[node] + num_nodes) %
+              (-rank_perm[data.blocks[i].lines[j].sendto_node[k]] + rank_perm[node] + num_nodes) %
               num_nodes;
         }
       }
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto[k] <= -10) {
-          nodes_send[(-rank_perm[10 - data.blocks[i].lines[j].sendto[k]] + rank_perm[node] +
+        if (data.blocks[i].lines[j].sendto_node[k] <= -10) {
+          nodes_send[(-rank_perm[10 - data.blocks[i].lines[j].sendto_node[k]] + rank_perm[node] +
                       num_nodes) %
-                     num_nodes] = (-rank_perm[10 - data.blocks[i].lines[j].sendto[k]] +
+                     num_nodes] = (-rank_perm[10 - data.blocks[i].lines[j].sendto_node[k]] +
                                    rank_perm[node] + num_nodes) %
                                   num_nodes;
         }
@@ -168,20 +168,20 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
         }
       }
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto[k] >= 0) {
-          l = nodes_send[(-rank_perm[data.blocks[i].lines[j].sendto[k]] + rank_perm[node] +
+        if (data.blocks[i].lines[j].sendto_node[k] >= 0) {
+          l = nodes_send[(-rank_perm[data.blocks[i].lines[j].sendto_node[k]] + rank_perm[node] +
                           num_nodes) %
                          num_nodes];
           if (l >= 0) {
-            data.blocks[i].lines[j].sendto[k] =
+            data.blocks[i].lines[j].sendto_node[k] =
                 (-l + rank_perm[node] * node_size + num_nodes * node_size) %
                     (num_nodes * node_size) +
                 node_rank;
-            data.blocks[i].lines[j].sendto[k] =
-                rank_back_perm[data.blocks[i].lines[j].sendto[k] / node_size] * node_size +
-                data.blocks[i].lines[j].sendto[k] % node_size;
+            data.blocks[i].lines[j].sendto_node[k] =
+                rank_back_perm[data.blocks[i].lines[j].sendto_node[k] / node_size] * node_size +
+                data.blocks[i].lines[j].sendto_node[k] % node_size;
           } else {
-            data.blocks[i].lines[j].sendto[k] =
+            data.blocks[i].lines[j].sendto_node[k] =
                 -(rank_back_perm[((+l + 10 + rank_perm[node] * node_size +
                                    num_nodes * node_size) %
                                   (num_nodes * node_size)) /
@@ -190,8 +190,8 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
                 10 - node_rank;
           }
         }
-        if (data_org.blocks[i].lines[j].sendto[k] <= -10) {
-          data.blocks[i].lines[j].sendto[k] = 2000000000;
+        if (data_org.blocks[i].lines[j].sendto_node[k] <= -10) {
+          data.blocks[i].lines[j].sendto_node[k] = 2000000000;
         }
       }
       for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
@@ -210,12 +210,12 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
         }
       }
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto[k] == 2000000000) {
+        if (data.blocks[i].lines[j].sendto_node[k] == 2000000000) {
           if (data.blocks[i].lines[j].sendto_max == 1) {
-            data.blocks[i].lines[j].sendto[k] = node * node_size + node_rank;
+            data.blocks[i].lines[j].sendto_node[k] = node * node_size + node_rank;
           } else {
             for (l = k; l < data.blocks[i].lines[j].sendto_max - 1; l++) {
-              data.blocks[i].lines[j].sendto[l] = data.blocks[i].lines[j].sendto[l + 1];
+              data.blocks[i].lines[j].sendto_node[l] = data.blocks[i].lines[j].sendto_node[l + 1];
             }
             data.blocks[i].lines[j].sendto_max--;
             k--;

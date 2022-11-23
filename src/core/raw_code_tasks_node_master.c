@@ -56,11 +56,11 @@ int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_ou
   for (i = 0; i < data.num_blocks; i++) {
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto[k] != -1) {
-          if (node_rank == 0 || node == data.blocks[i].lines[j].sendto[k]) {
-            data.blocks[i].lines[j].sendto[k] = data.blocks[i].lines[j].sendto[k] * node_size + node_rank;
+        if (data.blocks[i].lines[j].sendto_node[k] != -1) {
+          if (node_rank == 0 || node == data.blocks[i].lines[j].sendto_node[k]) {
+            data.blocks[i].lines[j].sendto_node[k] = data.blocks[i].lines[j].sendto_node[k] * node_size + node_rank;
           } else {
-            data.blocks[i].lines[j].sendto[k] = -10 - (data.blocks[i].lines[j].sendto[k] * node_size + node_rank);
+            data.blocks[i].lines[j].sendto_node[k] = -10 - (data.blocks[i].lines[j].sendto_node[k] * node_size + node_rank);
           }
         }
       }

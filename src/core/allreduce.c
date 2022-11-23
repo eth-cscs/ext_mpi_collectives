@@ -147,7 +147,7 @@ static void revise_partners(struct parameters_block *parameters, int step, int *
   for (i = 0; i < data->num_blocks; i++) {
     for (j = 0; j < data->blocks[i].num_lines; j++) {
       for (k = 0; k < data->blocks[i].lines[j].sendto_max; k++) {
-        data->blocks[i].lines[j].sendto[k] = socket_global(parameters, data->blocks[i].lines[j].sendto[k], step, components);
+        data->blocks[i].lines[j].sendto_node[k] = socket_global(parameters, data->blocks[i].lines[j].sendto_node[k], step, components);
       }
       for (k = 0; k < data->blocks[i].lines[j].recvfrom_max; k++) {
         data->blocks[i].lines[j].recvfrom_node[k] = socket_global(parameters, data->blocks[i].lines[j].recvfrom_node[k], step, components);
@@ -212,7 +212,8 @@ static void frac_multiply(int fac, int *fracs, struct data_algorithm *data){
         data_new.blocks[j].lines[i * fac + k].recvfrom_node = (int *) malloc(data_new.blocks[j].lines[i * fac + k].recvfrom_max * sizeof(int));
         data_new.blocks[j].lines[i * fac + k].recvfrom_line = (int *) malloc(data_new.blocks[j].lines[i * fac + k].recvfrom_max * sizeof(int));
         data_new.blocks[j].lines[i * fac + k].sendto_max = data->blocks[j].lines[i].sendto_max;
-        data_new.blocks[j].lines[i * fac + k].sendto = (int *) malloc(data_new.blocks[j].lines[i * fac + k].sendto_max * sizeof(int));
+        data_new.blocks[j].lines[i * fac + k].sendto_node = (int *) malloc(data_new.blocks[j].lines[i * fac + k].sendto_max * sizeof(int));
+        data_new.blocks[j].lines[i * fac + k].sendto_line = (int *) malloc(data_new.blocks[j].lines[i * fac + k].sendto_max * sizeof(int));
         data_new.blocks[j].lines[i * fac + k].reducefrom_max = data->blocks[j].lines[i].reducefrom_max;
         data_new.blocks[j].lines[i * fac + k].reducefrom = (int *) malloc(data_new.blocks[j].lines[i * fac + k].reducefrom_max * sizeof(int));
         for (l = 0; l < data_new.blocks[j].lines[i * fac + k].recvfrom_max; l++) {
@@ -220,7 +221,8 @@ static void frac_multiply(int fac, int *fracs, struct data_algorithm *data){
           data_new.blocks[j].lines[i * fac + k].recvfrom_line[l] = data->blocks[j].lines[i].recvfrom_line[l] * fac + k;
         }
         for (l = 0; l < data_new.blocks[j].lines[i * fac + k].sendto_max; l++) {
-          data_new.blocks[j].lines[i * fac + k].sendto[l] = data->blocks[j].lines[i].sendto[l];
+          data_new.blocks[j].lines[i * fac + k].sendto_node[l] = data->blocks[j].lines[i].sendto_node[l];
+          data_new.blocks[j].lines[i * fac + k].sendto_line[l] = data->blocks[j].lines[i].sendto_line[l] + k;
         }
         for (l = 0; l < data_new.blocks[j].lines[i * fac + k].reducefrom_max; l++) {
           data_new.blocks[j].lines[i * fac + k].reducefrom[l] = data->blocks[j].lines[i].reducefrom[l] * fac + k;
@@ -247,19 +249,20 @@ static int chancel_copyin_copyout(struct data_algorithm *data) {
   for (i = 1; i < data->num_blocks - 1; i++) {
     flag = 1;
     for (j = (data->blocks[i].num_lines < data->blocks[i + 1].num_lines ? data->blocks[i].num_lines : data->blocks[i + 1].num_lines) - 1; j >=0 ; j--) {
-      if ((data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) !=
+      if ((data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto_node[0] == -1) !=
           (data->blocks[i + 1].lines[j].recvfrom_max > 0 && data->blocks[i + 1].lines[j].recvfrom_node[0] == -1)) {
         ret = flag = 0;
-      } else if ((data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) &&
+      } else if ((data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto_node[0] == -1) &&
                  (data->blocks[i].lines[j].frac != data->blocks[i + 1].lines[j].frac)) {
         ret = flag = 0;
       }
     }
     if (flag) {
       for (j = 0; j < data->blocks[i].num_lines; j++) {
-        if (data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) {
-          free(data->blocks[i].lines[j].sendto);
-          data->blocks[i].lines[j].sendto = NULL;
+        if (data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto_node[0] == -1) {
+          free(data->blocks[i].lines[j].sendto_node);
+          free(data->blocks[i].lines[j].sendto_line);
+          data->blocks[i].lines[j].sendto_node = data->blocks[i].lines[j].sendto_line = NULL;
           data->blocks[i].lines[j].sendto_max = 0;
         }
         if (data->blocks[i].lines[j].recvfrom_max > 0 && data->blocks[i].lines[j].recvfrom_node[0] == -1) {
@@ -282,7 +285,7 @@ static void add_lines(struct data_algorithm *data) {
   int block = -1, i, j, k;
   for (i = 1; block < 0 && i < data->num_blocks - 1; i++) {
     for (j = 0; block < 0 && j < data->blocks[i].num_lines; j++) {
-      if (data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto[0] == -1) {
+      if (data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto_node[0] == -1) {
         block = i;
       }
     }
@@ -310,12 +313,13 @@ static void add_lines(struct data_algorithm *data) {
     data->blocks[i].lines = lines_new;
   }
   for (i = 0; i < data->blocks[block].num_lines; i++) {
-    if (data->blocks[block].lines[i].sendto_max > 0 && data->blocks[block].lines[i].sendto[0] == -1) {
+    if (data->blocks[block].lines[i].sendto_max > 0 && data->blocks[block].lines[i].sendto_node[0] == -1) {
       for (j = 0; j < data->blocks[block + 1].num_lines; j++) {
         if (data->blocks[block + 1].lines[j].recvfrom_max > 0 && data->blocks[block + 1].lines[j].recvfrom_node[0] == -1) {
           if (data->blocks[block].lines[i].frac == data->blocks[block + 1].lines[j].frac) {
-            free(data->blocks[block].lines[i].sendto);
-            data->blocks[block].lines[i].sendto = NULL;
+            free(data->blocks[block].lines[i].sendto_node);
+            free(data->blocks[block].lines[i].sendto_line);
+            data->blocks[block].lines[i].sendto_node = data->blocks[block].lines[i].sendto_line = NULL;
             data->blocks[block].lines[i].sendto_max = 0;
             free(data->blocks[block + 1].lines[j].recvfrom_node);
             data->blocks[block + 1].lines[j].recvfrom_node = NULL;

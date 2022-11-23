@@ -140,7 +140,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
       for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
         k = 0;
         for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
-          if (data.blocks[data.num_blocks - 1].lines[i].sendto[j] == -1) {
+          if (data.blocks[data.num_blocks - 1].lines[i].sendto_node[j] == -1) {
             k = 1;
           }
         }

@@ -105,7 +105,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
     }
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       if (data.blocks[i].lines[j].sendto_max > 0) {
-        if (data.blocks[i].lines[j].sendto[0] == -1) {
+        if (data.blocks[i].lines[j].sendto_node[0] == -1) {
           values[i][j] = 1;
 	}
       }
@@ -129,9 +129,9 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
     }
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto[k] != parameters->socket) {
+        if (data.blocks[i].lines[j].sendto_node[k] != parameters->socket) {
           MPI_Isend(&values[i][j], 1, MPI_INT,
-                    data.blocks[i].lines[j].sendto[k] * parameters->socket_row_size +
+                    data.blocks[i].lines[j].sendto_node[k] * parameters->socket_row_size +
                         parameters->socket_rank % parameters->socket_row_size,
                     0, comm_row, &request[l++]);
         }
@@ -150,8 +150,9 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       if (!values[i][j]) {
 	if (data.blocks[i].lines[j].sendto_max > 0) {
-	  free(data.blocks[i].lines[j].sendto);
-	  data.blocks[i].lines[j].sendto = NULL;
+	  free(data.blocks[i].lines[j].sendto_node);
+	  free(data.blocks[i].lines[j].sendto_line);
+	  data.blocks[i].lines[j].sendto_node = data.blocks[i].lines[j].sendto_line = NULL;
  	  data.blocks[i].lines[j].sendto_max = 0;
         }
 	if (data.blocks[i].lines[j].recvfrom_max > 0) {

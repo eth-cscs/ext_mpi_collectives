@@ -193,8 +193,8 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       data.blocks[i].lines[j].frac = rank_perm[data.blocks[i].lines[j].frac];
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto[k] >= 0) {
-          data.blocks[i].lines[j].sendto[k] = rank_perm[data.blocks[i].lines[j].sendto[k]];
+        if (data.blocks[i].lines[j].sendto_node[k] >= 0) {
+          data.blocks[i].lines[j].sendto_node[k] = rank_perm[data.blocks[i].lines[j].sendto_node[k]];
         }
       }
       for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {

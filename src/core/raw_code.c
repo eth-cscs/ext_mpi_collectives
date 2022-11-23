@@ -124,7 +124,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       add2 = add = adds = 0;
       for (n = 0; n < data.blocks[m].num_lines; n++) {
         for (j = 0; j < data.blocks[m].lines[n].sendto_max; j++) {
-          if ((data.blocks[m].lines[n].sendto[j] == q) && (q != node)) {
+          if ((data.blocks[m].lines[n].sendto_node[j] == q) && (q != node)) {
             size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
             if (size) {
               data_memcpy_reduce.buffer_type1 = eshmemo;
@@ -147,7 +147,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
             }
             add += size;
           }
-          if ((-data.blocks[m].lines[n].sendto[j] - 10 == q) && (q != node)) {
+          if ((-data.blocks[m].lines[n].sendto_node[j] - 10 == q) && (q != node)) {
             size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
             if (size) {
               data_memcpy_reduce.buffer_type1 = eshmemo;

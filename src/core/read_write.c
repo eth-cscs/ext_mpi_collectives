@@ -683,7 +683,8 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
   data->recvfrom_node = NULL;
   data->recvfrom_line = NULL;
   data->sendto_max = 0;
-  data->sendto = NULL;
+  data->sendto_node = NULL;
+  data->sendto_line = NULL;
   data->reducefrom_max = 0;
   data->reducefrom = NULL;
   data->copyreducefrom_max = 0;
@@ -707,7 +708,8 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
   }
   string_temp = strstr(string_in, "SENDTO ");
   if (string_temp) {
-    data->sendto_max = read_int_series(string_temp + strlen("SENDTO "), &data->sendto);
+    data->sendto_max = read_int_tuple_series(string_temp + strlen("SENDTO "),
+		                             &data->sendto_node, &data->sendto_line);
     if (data->sendto_max < 0) {
       free(data->recvfrom_node);
       free(data->recvfrom_line);
@@ -722,7 +724,8 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
       free(data->recvfrom_node);
       free(data->recvfrom_line);
       free(data->reducefrom);
-      free(data->sendto);
+      free(data->sendto_node);
+      free(data->sendto_line);
       return data->copyreducefrom_max;
     }
   }
@@ -730,7 +733,8 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
 }
 
 void ext_mpi_delete_stage_line(struct data_algorithm_line data) {
-  free(data.sendto);
+  free(data.sendto_node);
+  free(data.sendto_line);
   free(data.recvfrom_node);
   free(data.recvfrom_line);
   free(data.reducefrom);
@@ -771,13 +775,18 @@ int ext_mpi_read_algorithm(char *buffer_in, struct data_algorithm *data, int asc
         memcpy(&data->blocks[i].lines[j].copyreducefrom_max, buffer_in + nbuffer_in, sizeof(data->blocks[i].lines[j].copyreducefrom_max));
         nbuffer_in += sizeof(data->blocks[i].lines[j].copyreducefrom_max);
         if (data->blocks[i].lines[j].sendto_max > 0) {
-          data->blocks[i].lines[j].sendto = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].sendto_max);
-          if (!data->blocks[i].lines[j].sendto)
+          data->blocks[i].lines[j].sendto_node = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].sendto_max);
+          if (!data->blocks[i].lines[j].sendto_node)
             goto error;
-          memcpy(data->blocks[i].lines[j].sendto, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].sendto_max);
+          data->blocks[i].lines[j].sendto_line = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].sendto_max);
+          if (!data->blocks[i].lines[j].sendto_line)
+            goto error;
+          memcpy(data->blocks[i].lines[j].sendto_node, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].sendto_max);
+          nbuffer_in += sizeof(int) * data->blocks[i].lines[j].sendto_max;
+          memcpy(data->blocks[i].lines[j].sendto_line, buffer_in + nbuffer_in, sizeof(int) * data->blocks[i].lines[j].sendto_max);
           nbuffer_in += sizeof(int) * data->blocks[i].lines[j].sendto_max;
         } else {
-          data->blocks[i].lines[j].sendto = NULL;
+          data->blocks[i].lines[j].sendto_node = data->blocks[i].lines[j].sendto_line = NULL;
         }
         if (data->blocks[i].lines[j].recvfrom_max > 0) {
           data->blocks[i].lines[j].recvfrom_node = (int *)malloc(sizeof(int) * data->blocks[i].lines[j].recvfrom_max);
@@ -902,7 +911,9 @@ int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int as
         nbuffer_out += sizeof(data.blocks[i].lines[j].reducefrom_max);
         memcpy(buffer_out + nbuffer_out, &data.blocks[i].lines[j].copyreducefrom_max, sizeof(data.blocks[i].lines[j].copyreducefrom_max));
         nbuffer_out += sizeof(data.blocks[i].lines[j].copyreducefrom_max);
-        memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].sendto, sizeof(int) * data.blocks[i].lines[j].sendto_max);
+        memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].sendto_node, sizeof(int) * data.blocks[i].lines[j].sendto_max);
+        nbuffer_out += sizeof(int) * data.blocks[i].lines[j].sendto_max;
+        memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].sendto_line, sizeof(int) * data.blocks[i].lines[j].sendto_max);
         nbuffer_out += sizeof(int) * data.blocks[i].lines[j].sendto_max;
         memcpy(buffer_out + nbuffer_out, data.blocks[i].lines[j].recvfrom_node, sizeof(int) * data.blocks[i].lines[j].recvfrom_max);
         nbuffer_out += sizeof(int) * data.blocks[i].lines[j].recvfrom_max;
@@ -933,7 +944,7 @@ int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int as
         if (data.blocks[i].lines[j].sendto_max > 0) {
           nbuffer_out += sprintf(buffer_out + nbuffer_out, " SENDTO");
           for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-            nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].sendto[k]);
+            nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d|%d", data.blocks[i].lines[j].sendto_node[k], data.blocks[i].lines[j].sendto_line[k]);
           }
         }
         if (data.blocks[i].lines[j].copyreducefrom_max > 0) {

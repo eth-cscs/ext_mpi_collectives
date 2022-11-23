@@ -53,7 +53,7 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
   }
   for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
     for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
-      if ((data.blocks[data.num_blocks - 1].lines[i].sendto[j] == -1) &&
+      if ((data.blocks[data.num_blocks - 1].lines[i].sendto_node[j] == -1) &&
           (parameters->socket == parameters->root / parameters->socket_row_size)) {
         values[data.num_blocks - 1][i] = 1;
       }
@@ -95,9 +95,9 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
     l = 0;
     for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto[k] != parameters->socket) {
-          MPI_Irecv(&recv_values[j][data.blocks[i].lines[j].sendto[k]], 1, MPI_INT,
-                    data.blocks[i].lines[j].sendto[k] * parameters->socket_row_size +
+        if (data.blocks[i].lines[j].sendto_node[k] != parameters->socket) {
+          MPI_Irecv(&recv_values[j][data.blocks[i].lines[j].sendto_node[k]], 1, MPI_INT,
+                    data.blocks[i].lines[j].sendto_node[k] * parameters->socket_row_size +
                         parameters->socket_rank % parameters->socket_row_size,
                     0, comm_row, &request[l++]);
         }
@@ -132,8 +132,9 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       if (!values[i][j]) {
         if (data.blocks[i].lines[j].sendto_max > 0) {
-          free(data.blocks[i].lines[j].sendto);
-          data.blocks[i].lines[j].sendto = NULL;
+          free(data.blocks[i].lines[j].sendto_node);
+          free(data.blocks[i].lines[j].sendto_line);
+          data.blocks[i].lines[j].sendto_node = data.blocks[i].lines[j].sendto_line = NULL;
           data.blocks[i].lines[j].sendto_max = 0;
         }
         if (data.blocks[i].lines[j].recvfrom_max > 0) {

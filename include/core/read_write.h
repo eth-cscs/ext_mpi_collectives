@@ -94,7 +94,8 @@ struct parameters_block {
 struct data_algorithm_line {
   int frac;
   int sendto_max;
-  int *sendto;
+  int *sendto_node;
+  int *sendto_line;
   int recvfrom_max;
   int *recvfrom_node;
   int *recvfrom_line;
@@ -145,6 +146,7 @@ int ext_mpi_delete_parameters(struct parameters_block *parameters);
 int ext_mpi_read_algorithm(char *buffer_in, struct data_algorithm *data, int ascii_in);
 int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int ascii_out);
 void ext_mpi_delete_algorithm(struct data_algorithm data);
+void ext_mpi_delete_stage_line(struct data_algorithm_line data);
 int ext_mpi_read_line(char *buffer_in, char *line, int ascii);
 int ext_mpi_write_line(char *buffer_out, char *line, int ascii);
 int ext_mpi_write_eof(char *buffer_out, int ascii);
