@@ -1,6 +1,6 @@
 #include "byte_code.h"
 #include "constants.h"
-#include "read.h"
+#include "read_write.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,8 +8,6 @@
 #include "gpu_core.h"
 #include "gpu_shmem.h"
 #endif
-
-#define NUM_BARRIERS 4
 
 #ifdef GPU_ENABLED
 struct mem_addresses {
@@ -124,8 +122,6 @@ static int gpu_add_stream_and_get_stream_number(struct gpu_stream **streams,
     lstreamst->next = lstreams;
   }
   return number;
-error:
-  return ERROR_MALLOC;
 }
 
 static void gpu_delete_streams(struct gpu_stream **streams) {
@@ -293,19 +289,21 @@ static void flush_complete(char **ip, struct gpu_stream **streams,
 }
 #endif
 
-int ext_mpi_generate_byte_code(volatile char *shmem,
-                               int shmem_size, int shmemid,
+int ext_mpi_generate_byte_code(char **shmem,
+                               int shmem_size, int *shmemid,
                                char *buffer_in, char *sendbuf, char *recvbuf,
                                int my_size_shared_buf, int barriers_size, char *locmem,
                                int reduction_op, int *global_ranks,
-                               char *code_out, MPI_Comm comm_row,
-                               int node_num_cores_row, MPI_Comm comm_column,
+                               char *code_out, int size_comm, int size_request, void *comm_row,
+                               int node_num_cores_row, void *comm_column,
                                int node_num_cores_column,
-                               volatile char *shmem_gpu, int *gpu_byte_code_counter, int tag) {
+                               char **shmem_gpu, int *gpu_byte_code_counter, int tag) {
+  struct line_memcpy_reduce data_memcpy_reduce;
+  struct line_irecv_isend data_irecv_isend;
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-                                              ascii, blocking;
+      ascii, num_cores, socket_rank, node_sockets, i;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
@@ -320,15 +318,32 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
 #ifdef GPU_ENABLED
   on_gpu = parameters->on_gpu;
 #endif
-  blocking = parameters->blocking;
+  num_cores = parameters->socket_row_size*parameters->socket_column_size;
+  socket_rank = parameters->socket_rank;
+  node_sockets = parameters->node_sockets;
   ext_mpi_delete_parameters(parameters);
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
     header = &header_temp;
+    header->num_cores = num_cores;
+    header->socket_rank = socket_rank;
+    header->node_sockets = node_sockets;
   } else {
     header = (struct header_byte_code *)ip;
-    header->barrier_counter = 0;
-    header->barrier_shmem = shmem + my_size_shared_buf;
+    header->barrier_counter_socket = 1;
+    header->barrier_counter_node = 1;
+    header->barrier_shmem_node = (volatile char **)malloc(node_sockets*sizeof(char *));
+    if (shmem != NULL) {
+      for (i=0; i<node_sockets; i++) {
+        header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;
+      }
+      header->barrier_shmem_socket = shmem[0] + my_size_shared_buf;
+    } else {
+      for (i=0; i<node_sockets; i++) {
+        header->barrier_shmem_node[i] = NULL + my_size_shared_buf + 2 * barriers_size;
+      }
+      header->barrier_shmem_socket = NULL + my_size_shared_buf;
+    }
     header->barrier_shmem_size = barriers_size;
     header->shmemid = shmemid;
     header->locmem = locmem;
@@ -339,14 +354,11 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
       shmem = header->shmem = header->shmem_gpu;
     }
 #endif
-    header->shmem_size = 0;
-    header->buf_size = 0;
-    header->comm_row = comm_row;
-    header->comm_column = comm_column;
     header->node_num_cores_row = node_num_cores_row;
     header->node_num_cores_column = node_num_cores_column;
-    header->num_cores = 0;
-    header->node_rank = 0;
+    header->num_cores = num_cores;
+    header->socket_rank = socket_rank;
+    header->node_sockets = node_sockets;
     header->tag = tag;
 #ifdef GPU_ENABLED
     header->gpu_byte_code = NULL;
@@ -369,7 +381,7 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
   ip += sizeof(struct header_byte_code);
   while ((integer1 = ext_mpi_read_line(buffer_in, line, ascii)) > 0) {
     buffer_in += integer1;
-    ext_mpi_read_assembler_line_sd(line, &estring1, &integer1, 0);
+    ext_mpi_read_assembler_line(line, 0, "sd", &estring1, &integer1);
 #ifdef NCCL_ENABLED
     if (estring1 == estart) {
       code_put_char(&ip, OPCODE_START, isdryrun);
@@ -387,25 +399,15 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
 #endif
       code_put_char(&ip, OPCODE_RETURN, isdryrun);
     }
-    if (estring1 == eset_num_cores) {
-      header->num_cores = integer1;
-      code_put_char(&ip, OPCODE_SETNUMCORES, isdryrun);
-      code_put_int(&ip, integer1, isdryrun);
-    }
-    if (estring1 == eset_node_rank) {
-      header->node_rank = integer1;
-      code_put_char(&ip, OPCODE_SETNODERANK, isdryrun);
-      code_put_int(&ip, integer1, isdryrun);
-    }
-    if (estring1 == eset_node_barrier) {
+    if (estring1 == eset_socket_barrier) {
       if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_SET_NODEBARRIER, isdryrun);
+        code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_SET, isdryrun);
         code_put_int(&ip, integer1, isdryrun);
       }
     }
-    if (estring1 == ewait_node_barrier) {
+    if (estring1 == ewait_socket_barrier) {
       if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_WAIT_NODEBARRIER, isdryrun);
+        code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_WAIT, isdryrun);
         code_put_int(&ip, integer1, isdryrun);
       }
     }
@@ -431,8 +433,8 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
     }
     if (estring1 == ewaitany) {
       code_put_char(&ip, OPCODE_MPIWAITANY, isdryrun);
-      ext_mpi_read_assembler_line_sddsd(line, &estring1, &integer1,
-                                        &integer2, &estring2, &integer3, 0);
+      ext_mpi_read_assembler_line(line, 0, "sddsd", &estring1, &integer1,
+                                  &integer2, &estring2, &integer3);
       code_put_int(&ip, integer1, isdryrun);
       code_put_int(&ip, integer2, isdryrun);
       code_put_pointer(&ip, header->locmem, isdryrun);
@@ -450,8 +452,13 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
         }
       }
 #endif
-      ext_mpi_read_assembler_line_ssdddd(line, &estring1, &estring2, &integer1,
-                                         &integer2, &integer3, &integer4, 0);
+      ext_mpi_read_irecv_isend(line, &data_irecv_isend);
+      estring1 = data_irecv_isend.type;
+      estring2 = data_irecv_isend.buffer_type;
+      integer1 = data_irecv_isend.offset;
+      integer2 = data_irecv_isend.size;
+      integer3 = data_irecv_isend.partner;
+      integer4 = data_irecv_isend.tag;
       if (estring1 == eisend) {
 #ifdef GPU_ENABLED
         if (on_gpu && (header->num_cores == 1) && isend) {
@@ -469,14 +476,21 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
         if (estring2 == erecvbufp) {
           code_put_pointer(&ip, recvbuf + integer1, isdryrun);
         } else {
-          code_put_pointer(&ip, ((char *)shmem) + integer1, isdryrun);
+	  if (shmem != NULL) {
+            code_put_pointer(&ip, (void *)(shmem[data_irecv_isend.buffer_number] + integer1), isdryrun);
+	  } else {
+            code_put_pointer(&ip, (void *)(NULL + integer1), isdryrun);
+	  }
         }
       }
       code_put_int(&ip, integer2, isdryrun);
       code_put_int(&ip, global_ranks[integer3], isdryrun);
-      code_put_pointer(&ip, locmem + sizeof(MPI_Request) * integer4, isdryrun);
+      code_put_pointer(&ip, locmem + size_request * integer4, isdryrun);
     }
     if (estring1 == enode_barrier) {
+      code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
+    }
+    if (estring1 == esocket_barrier) {
       if (header->num_cores != 1) {
 #ifdef GPU_ENABLED
         if (on_gpu) {
@@ -488,44 +502,18 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
           code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
         }
 #endif
-        if (blocking){
-          code_put_char(&ip, OPCODE_BNODEBARRIER, isdryrun);
-        } else {
-          code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
-        }
-      }
-    }
-    if (estring1 == enode_cycl_barrier) {
-      if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_CYCL_NODEBARRIER, isdryrun);
-      }
-    }
-    if (estring1 == enext_node_barrier) {
-      if (header->num_cores != 1) {
-        code_put_char(&ip, OPCODE_NEXT_NODEBARRIER, isdryrun);
-      }
-    }
-    if ((estring1 == eset_mem) || (estring1 == eunset_mem)){
-      ext_mpi_read_assembler_line_ssd(line, &estring1, &estring2, &integer1, 0);
-      if (estring1 == eset_mem){
-        code_put_char(&ip, OPCODE_SET_MEM, isdryrun);
-      }else{
-        code_put_char(&ip, OPCODE_UNSET_MEM, isdryrun);
-      }
-      if (estring2 == esendbufp) {
-        code_put_pointer(&ip, sendbuf + integer1, isdryrun);
-      } else {
-        if (estring2 == erecvbufp) {
-          code_put_pointer(&ip, recvbuf + integer1, isdryrun);
-        } else {
-          code_put_pointer(&ip, ((char *)shmem) + integer1, isdryrun);
-        }
+        code_put_char(&ip, OPCODE_SOCKETBARRIER, isdryrun);
       }
     }
     if ((estring1 == ememcpy) || (estring1 == ereduce) ||
         (estring1 == esreduce) || (estring1 == esmemcpy)) {
-      ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring1a, &integer1,
-                                         &estring2, &integer2, &integer3, 0);
+      ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
+      estring1 = data_memcpy_reduce.type;
+      estring1a = data_memcpy_reduce.buffer_type1;
+      integer1 = data_memcpy_reduce.offset1;
+      estring2 = data_memcpy_reduce.buffer_type2;
+      integer2 = data_memcpy_reduce.offset2;
+      integer3 = data_memcpy_reduce.size;
 #ifdef GPU_ENABLED
       if (!on_gpu) {
 #endif
@@ -555,7 +543,11 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
           if (estring1a == erecvbufp) {
             code_put_pointer(&ip, recvbuf + integer1, isdryrun);
           } else {
-            code_put_pointer(&ip, ((char *)shmem) + integer1, isdryrun);
+            if (shmem != NULL) {
+              code_put_pointer(&ip, (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1), isdryrun);
+	    } else {
+              code_put_pointer(&ip, (void *)(NULL + integer1), isdryrun);
+	    }
           }
         }
         if (estring2 == esendbufp) {
@@ -564,7 +556,11 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
           if (estring2 == erecvbufp) {
             code_put_pointer(&ip, recvbuf + integer2, isdryrun);
           } else {
-            code_put_pointer(&ip, ((char *)shmem) + integer2, isdryrun);
+            if (shmem != NULL) {
+              code_put_pointer(&ip, (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2), isdryrun);
+	    } else {
+              code_put_pointer(&ip, (void *)(NULL + integer2), isdryrun);
+	    }
           }
         }
         code_put_int(&ip, integer3, isdryrun);
@@ -581,7 +577,11 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
           if (estring1a == erecvbufp) {
             p1 = recvbuf + integer1;
           } else {
-            p1 = ((char *)shmem) + integer1;
+            if (shmem != NULL) {
+              p1 = (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1);
+	    } else {
+              p1 = (void *)(NULL + integer1);
+	    }
           }
         }
         if (estring2 == esendbufp) {
@@ -590,7 +590,11 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
           if (estring2 == erecvbufp) {
             p2 = recvbuf + integer2;
           } else {
-            p2 = ((char *)shmem) + integer2;
+            if (shmem != NULL) {
+              p2 = (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2);
+	    } else {
+              p2 = (void *)(NULL + integer2);
+	    }
           }
         }
         if (gpu_byte_code_add(&streams, p1, p2, integer3, reduce) < 0) {
@@ -609,6 +613,23 @@ int ext_mpi_generate_byte_code(volatile char *shmem,
   }
   free(gpu_byte_code);
 #endif
+  header->size_to_return = ip - code_out;
+  if (code_out) {
+    if (comm_row) {
+      memcpy(ip, comm_row, size_comm);
+    } else {
+      memset(ip, 0, size_comm);
+    }
+  }
+  ip += size_comm;
+  if (code_out) {
+    if (comm_column) {
+      memcpy(ip, comm_column, size_comm);
+    } else {
+      memset(ip, 0, size_comm);
+    }
+  }
+  ip += size_comm;
   return (ip - code_out);
 #ifdef GPU_ENABLED
 error:

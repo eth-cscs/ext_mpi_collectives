@@ -7,30 +7,24 @@
 #define OPCODE_MPIIRECV 2
 #define OPCODE_MPIISEND 3
 #define OPCODE_MPIWAITALL 4
-#define OPCODE_BNODEBARRIER 5
+#define OPCODE_SOCKETBARRIER 5
 #define OPCODE_NODEBARRIER 6
-#define OPCODE_SET_NODEBARRIER 7
-#define OPCODE_WAIT_NODEBARRIER 8
-#define OPCODE_NEXT_NODEBARRIER 9
-#define OPCODE_CYCL_NODEBARRIER 10
-#define OPCODE_SET_MEM 11
-#define OPCODE_UNSET_MEM 12
-#define OPCODE_SETNUMCORES 13
-#define OPCODE_SETNODERANK 14
-#define OPCODE_REDUCE 15
-#define OPCODE_MPISENDRECV 16
-#define OPCODE_MPISEND 17
-#define OPCODE_MPIRECV 18
-#define OPCODE_LOCALMEM 19
-#define OPCODE_MPIWAITANY 20
-#define OPCODE_ATTACHED 21
-#define OPCODE_REDUCE_WAIT 22
+#define OPCODE_SOCKETBARRIER_ATOMIC_SET 7
+#define OPCODE_SOCKETBARRIER_ATOMIC_WAIT 8
+#define OPCODE_REDUCE 9
+#define OPCODE_MPISENDRECV 10
+#define OPCODE_MPISEND 11
+#define OPCODE_MPIRECV 12
+#define OPCODE_LOCALMEM 13
+#define OPCODE_MPIWAITANY 14
+#define OPCODE_ATTACHED 15
+#define OPCODE_REDUCE_WAIT 16
 #ifdef GPU_ENABLED
-#define OPCODE_GPUSYNCHRONIZE 23
-#define OPCODE_GPUKERNEL 24
+#define OPCODE_GPUSYNCHRONIZE 17
+#define OPCODE_GPUKERNEL 18
 #endif
 #ifdef NCCL_ENABLED
-#define OPCODE_START 25
+#define OPCODE_START 19
 #endif
 
 #define OPCODE_REDUCE_SUM_CHAR 0
@@ -43,6 +37,8 @@
 #define ERROR_SHMEM -2
 #define ERROR_SYNTAX -3
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 static void code_put_char(char **code, char c, int isdryrun) {
   if (!isdryrun)
     *((char *)(*code)) = c;
@@ -81,5 +77,5 @@ static void *code_get_pointer(char **code) {
   *code += sizeof(void *);
   return p;
 }
-
+#pragma GCC diagnostic pop
 #endif

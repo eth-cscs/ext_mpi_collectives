@@ -45,12 +45,12 @@ static int prime_factor_decomposition(int number,
 }
 
 static int plain_prime_factors(int number, int *prime_factors) {
-  struct prime_factors primes[number];
+  struct prime_factors factors[number + 1];
   int primes_max, i, j, k;
-  primes_max = prime_factor_decomposition(number, primes);
+  primes_max = prime_factor_decomposition(number, factors);
   for (i = k = 0; i < primes_max; i++) {
-    for (j = 0; j < primes[i].count; j++) {
-      prime_factors[k++] = primes[i].prime;
+    for (j = 0; j < factors[i].count; j++) {
+      prime_factors[k++] = factors[i].prime;
     }
   }
   prime_factors[k] = 0;

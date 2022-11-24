@@ -1,16 +1,16 @@
 #include "move_first_memcpy.h"
 #include "constants.h"
-#include "read.h"
-#include <mpi.h>
+#include "read_write.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 int ext_mpi_generate_move_first_memcpy(char *buffer_in, char *buffer_out) {
-  int nbuffer_out = 0, nbuffer_in = 0, i, flag, flag2 = 0, o1, o2, size, o1_,
-      size_, partner, num_comm;
+  struct line_memcpy_reduce data_memcpy_reduce;
+  struct line_irecv_isend data_irecv_isend;
+  int nbuffer_out = 0, nbuffer_in = 0, i, flag, flag2 = 0;
   char line[1000];
-  enum eassembler_type estring1, estring2, estring3, estring1_, estring2_;
+  enum eassembler_type estring1;
   struct parameters_block *parameters;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
@@ -22,9 +22,8 @@ int ext_mpi_generate_move_first_memcpy(char *buffer_in, char *buffer_out) {
     if (flag) {
       switch (flag2) {
       case 0:
-        if (ext_mpi_read_assembler_line_ssdsdd(line, &estring1, &estring2, &o1,
-                                               &estring3, &o2, &size, 0) >= 0) {
-          if (estring1 != ememcpy) {
+        if (ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce) >= 0) {
+          if (data_memcpy_reduce.type != ememcpy) {
             nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
                                               parameters->ascii_out);
           } else {
@@ -33,22 +32,17 @@ int ext_mpi_generate_move_first_memcpy(char *buffer_in, char *buffer_out) {
         }
         break;
       case 1:
-        if (ext_mpi_read_assembler_line_s(line, &estring1, 0) >= 0) {
+        if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
           if (estring1 == eisend) {
-            ext_mpi_read_assembler_line_ssdddd(line, &estring1_, &estring2_, &o1_,
-                                               &size_, &partner, &num_comm, 0);
-            nbuffer_out += ext_mpi_write_assembler_line_ssdddd(
-                buffer_out + nbuffer_out, estring1_, esendbufp, o1_, size_,
-                partner, num_comm, parameters->ascii_out);
+            ext_mpi_read_irecv_isend(line, &data_irecv_isend);
+            data_irecv_isend.buffer_type = esendbufp;
+            ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
           } else {
             if ((estring1 == ewaitall)||(estring1 == ewaitany)) {
-              nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                  buffer_out + nbuffer_out, ememcpy, estring2, o1, estring3, o2,
-                  size, parameters->ascii_out);
+              nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
               flag2 = 2;
             }
-            nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
-                                              parameters->ascii_out);
+            nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
           }
         }
         break;

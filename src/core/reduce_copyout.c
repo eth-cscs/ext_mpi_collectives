@@ -1,6 +1,6 @@
 #include "reduce_copyout.h"
 #include "constants.h"
-#include "read.h"
+#include "read_write.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,24 +23,27 @@ static int overlapp(int dest_start, int dest_end, int source_start,
 }
 
 int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
+  struct line_memcpy_reduce data_memcpy_reduce;
   int num_nodes = 1, size, add, add2, node_rank, node_row_size = 1,
       node_column_size = 1, node_size, *counts = NULL, counts_max = 0,
       *iocounts = NULL, iocounts_max = 0, *displs = NULL, *iodispls = NULL,
       *lcounts = NULL, *ldispls = NULL, lrank_column;
   int nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i, j,
       k, allreduce = 1, flag;
-  int size_level0 = 0, *size_level1 = NULL, type_size = 1;
-  struct data_line **data = NULL;
+  int type_size = 1;
+  struct data_algorithm data;
   struct parameters_block *parameters;
   char cline[1000];
+  data.num_blocks = 0;
+  data.blocks = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
 //  parameters->node /= (parameters->num_nodes / parameters->message_sizes_max);
 //  parameters->num_nodes = parameters->message_sizes_max;
-  num_nodes = parameters->num_nodes;
-  node_rank = parameters->node_rank;
+  num_nodes = parameters->num_sockets;
+  node_rank = parameters->socket_rank;
   // FIXME
   //  node_row_size=parameters->node_row_size;
   //  node_column_size=parameters->node_column_size;
@@ -73,8 +76,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   if (!moffsets)
     goto error;
   node_size = node_row_size * node_column_size;
-  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0,
-                                           &size_level1, &data, parameters->ascii_in);
+  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
   if (i <= 0) {
@@ -124,36 +126,42 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   for (i = 0; i < num_nodes; i++) {
     moffsets[i + 1] = moffsets[i] + mcounts[i];
   }
-  nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, enode_barrier,
-                                                parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   if (allreduce) {
     if ((parameters->root == -1) ||
         ((parameters->root < 0) &&
          (-10 - parameters->root !=
-          parameters->node * parameters->node_row_size +
-              parameters->node_rank % parameters->node_row_size)) ||
+          parameters->socket * parameters->socket_row_size +
+              parameters->socket_rank % parameters->socket_row_size)) ||
         (parameters->root ==
-         parameters->node * parameters->node_row_size +
-             parameters->node_rank % parameters->node_row_size)) {
+         parameters->socket * parameters->socket_row_size +
+             parameters->socket_rank % parameters->socket_row_size)) {
       add2 = 0;
-      for (i = 0; i < size_level1[size_level0 - 1]; i++) {
+      for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
         k = 0;
-        for (j = 0; j < data[size_level0 - 1][i].to_max; j++) {
-          if (data[size_level0 - 1][i].to[j] == -1) {
+        for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
+          if (data.blocks[data.num_blocks - 1].lines[i].sendto_node[j] == -1) {
             k = 1;
           }
         }
         if (k) {
           if ((size = overlapp(ldispls[lrank_column], ldispls[lrank_column + 1],
-                               moffsets[data[size_level0 - 1][i].frac],
-                               moffsets[data[size_level0 - 1][i].frac + 1],
+                               moffsets[data.blocks[data.num_blocks - 1].lines[i].frac],
+                               moffsets[data.blocks[data.num_blocks - 1].lines[i].frac + 1],
                                &add))) {
-            nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-                buffer_out + nbuffer_out, ememcpy, erecvbufp, add, eshmemp,
-                add2, size, parameters->ascii_out);
+            data_memcpy_reduce.type = ememcpy;
+            data_memcpy_reduce.buffer_type1 = erecvbufp;
+            data_memcpy_reduce.is_offset1 = 0;
+            data_memcpy_reduce.offset1 = add;
+            data_memcpy_reduce.buffer_type2 = eshmemo;
+            data_memcpy_reduce.buffer_number2 = 0;
+            data_memcpy_reduce.is_offset2 = 0;
+            data_memcpy_reduce.offset2 = add2;
+            data_memcpy_reduce.size = size;
+            nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
           }
         }
-        add2 += mcounts[data[size_level0 - 1][i].frac];
+        add2 += mcounts[data.blocks[data.num_blocks - 1].lines[i].frac];
       }
     }
   } else {
@@ -161,15 +169,21 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
     add2 = iodispls[node_rank];
     size = iocounts[node_rank];
     if (size) {
-      nbuffer_out += ext_mpi_write_assembler_line_ssdsdd(
-          buffer_out + nbuffer_out, ememcpy, erecvbufp, add, eshmemp, add2,
-          size, parameters->ascii_out);
+      data_memcpy_reduce.type = ememcpy;
+      data_memcpy_reduce.buffer_type1 = erecvbufp;
+      data_memcpy_reduce.is_offset1 = 0;
+      data_memcpy_reduce.offset1 = add;
+      data_memcpy_reduce.buffer_type2 = eshmemo;
+      data_memcpy_reduce.buffer_number2 = 0;
+      data_memcpy_reduce.is_offset2 = 0;
+      data_memcpy_reduce.offset2 = add2;
+      data_memcpy_reduce.size = size;
+      nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
     }
   }
-  nbuffer_out += ext_mpi_write_assembler_line_s(buffer_out + nbuffer_out, ereturn,
-                                                parameters->ascii_out);
+  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", ereturn);
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
   free(iodispls);
@@ -178,7 +192,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
   free(iodispls);

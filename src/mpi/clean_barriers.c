@@ -1,6 +1,6 @@
 #include "clean_barriers.h"
 #include "constants.h"
-#include "read.h"
+#include "read_write.h"
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,8 +28,8 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   i = 0;
-  if (MPI_Comm_split(comm_row, rank / parameters->node_row_size,
-                     rank % parameters->node_row_size,
+  if (MPI_Comm_split(comm_row, rank / parameters->socket_row_size,
+                     rank % parameters->socket_row_size,
                      &comm_rowl) == MPI_ERR_INTERN)
     i = ERROR_MALLOC;
   if (i < 0)
@@ -37,8 +37,8 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
   if (comm_column != MPI_COMM_NULL) {
     MPI_Comm_rank(comm_column, &rank);
     i = 0;
-    if (MPI_Comm_split(comm_column, rank / parameters->node_column_size,
-                       rank % parameters->node_column_size,
+    if (MPI_Comm_split(comm_column, rank / parameters->socket_column_size,
+                       rank % parameters->socket_column_size,
                        &comm_columnl) == MPI_ERR_INTERN)
       i = ERROR_MALLOC;
     if (i < 0)
@@ -48,10 +48,10 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
     nbuffer_in += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag) {
-      if (ext_mpi_read_assembler_line_sd(line, &estring1, &integer1, 0) != -1) {
+      if (ext_mpi_read_assembler_line(line, 0, "sd", &estring1, &integer1) != -1) {
         if (!((estring1 == enop) ||
               (((estring1 == ewaitall)||(estring1 == ewaitany)) && (integer1 == 0)))) {
-          if (estring1 != enode_barrier) {
+          if (estring1 != esocket_barrier) {
             nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
                                               parameters->ascii_out);
             flag2 = 0;

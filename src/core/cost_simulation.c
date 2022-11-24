@@ -1,10 +1,9 @@
 #include <math.h>
-#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "constants.h"
-#include "read.h"
+#include "read_write.h"
 #include "read_bench.h"
 #include "count_instructions.h"
 #include "ports_groups.h"

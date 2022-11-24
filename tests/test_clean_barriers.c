@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "read.h"
+#include "read_write.h"
 #include "clean_barriers.h"
 
 int main(int argc, char *argv[]) {

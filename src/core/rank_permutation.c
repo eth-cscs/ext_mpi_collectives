@@ -1,6 +1,6 @@
 #include "rank_permutation.h"
 #include "constants.h"
-#include "read.h"
+#include "read_write.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -96,7 +96,7 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  num_nodes = parameters->num_nodes;
+  num_nodes = parameters->num_sockets;
   msizes_max = parameters->message_sizes_max;
   msizes = parameters->message_sizes;
   if (num_nodes != msizes_max) {
@@ -131,7 +131,7 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
   for (i = 0; i < msizes_max; i++) {
     rank_back_perm[rank_perm[i]] = i;
   }
-  parameters->node = rank_back_perm[parameters->node];
+  parameters->socket = rank_back_perm[parameters->socket];
   for (i = 0; i < msizes_max; i++) {
     parameters->message_sizes[i] = msizes[rank_back_perm[i]];
   }
@@ -157,15 +157,16 @@ error:
 
 int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out) {
   int num_nodes, flag, msizes_max = 0, *msizes = NULL, *rank_perm = NULL;
-  int nbuffer_out = 0, nbuffer_in = 0, i, j, k, size_level0 = 0,
-      *size_level1 = NULL;
-  struct data_line **data = NULL;
+  int nbuffer_out = 0, nbuffer_in = 0, i, j, k;
+  struct data_algorithm data;
   struct parameters_block *parameters;
   char line[1000];
+  data.num_blocks = 0;
+  data.blocks = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  num_nodes = parameters->num_nodes;
+  num_nodes = parameters->num_sockets;
   msizes_max = parameters->message_sizes_max;
   msizes = parameters->message_sizes;
   rank_perm = parameters->rank_perm;
@@ -173,7 +174,7 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
     printf("wrong number of message sizes\n");
     exit(2);
   }
-  parameters->node = rank_perm[parameters->node];
+  parameters->socket = rank_perm[parameters->socket];
   parameters->message_sizes =
       (int *)malloc(sizeof(int) * parameters->message_sizes_max);
   if (!parameters->message_sizes)
@@ -183,31 +184,28 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
   }
   free(msizes);
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
-  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &size_level0,
-                                           &size_level1, &data, parameters->ascii_in);
+  nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i <= 0) {
     printf("error reading algorithm rank_permutation\n");
     exit(2);
   }
-  for (i = 0; i < size_level0; i++) {
-    for (j = 0; j < size_level1[i]; j++) {
-      data[i][j].frac = rank_perm[data[i][j].frac];
-      data[i][j].source = rank_perm[data[i][j].source];
-      for (k = 0; k < data[i][j].to_max; k++) {
-        if (data[i][j].to[k] >= 0) {
-          data[i][j].to[k] = rank_perm[data[i][j].to[k]];
+  for (i = 0; i < data.num_blocks; i++) {
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      data.blocks[i].lines[j].frac = rank_perm[data.blocks[i].lines[j].frac];
+      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+        if (data.blocks[i].lines[j].sendto_node[k] >= 0) {
+          data.blocks[i].lines[j].sendto_node[k] = rank_perm[data.blocks[i].lines[j].sendto_node[k]];
         }
       }
-      for (k = 0; k < data[i][j].from_max; k++) {
-        if (data[i][j].from_node[k] >= 0) {
-          data[i][j].from_node[k] = rank_perm[data[i][j].from_node[k]];
+      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+        if (data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+          data.blocks[i].lines[j].recvfrom_node[k] = rank_perm[data.blocks[i].lines[j].recvfrom_node[k]];
         }
       }
     }
   }
   nbuffer_out +=
-      ext_mpi_write_algorithm(size_level0, size_level1, data, buffer_out + nbuffer_out,
-                              parameters->ascii_out);
+      ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
   do {
     nbuffer_in += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
@@ -217,11 +215,11 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
     }
   } while (flag);
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
-  ext_mpi_delete_algorithm(size_level0, size_level1, data);
+  ext_mpi_delete_algorithm(data);
   ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
 }

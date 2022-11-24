@@ -3,7 +3,6 @@
 #include <string.h>
 #include "constants.h"
 #include "allreduce.h"
-#include "allreduce_groups.h"
 #include "alltoall.h"
 #include "backward_interpreter.h"
 #include "buffer_offset.h"
@@ -21,7 +20,7 @@
 #include "raw_code_merge.h"
 #include "raw_code_tasks_node.h"
 #include "raw_code_tasks_node_master.h"
-#include "read.h"
+#include "read_write.h"
 #include "reduce_copyin.h"
 #include "reduce_copyout.h"
 #include "byte_code.h"
@@ -139,14 +138,14 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
     nbuffer1 += sprintf(buffer1 + nbuffer1,
                         " PARAMETER COLLECTIVE_TYPE ALLREDUCE_GROUP\n");
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER NODE_RANK %d\n", my_lrank_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_ROW_SIZE %d\n",
+      sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_ROW_SIZE %d\n",
                       my_cores_per_node_row);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_COLUMN_SIZE %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
                       my_cores_per_node_column);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER COPY_METHOD %d\n", copyin);
@@ -185,7 +184,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   free(msizes);
   msizes = NULL;
   if (!allreduce_short) {
-    if (ext_mpi_generate_allreduce_groups(buffer1, buffer2) < 0)
+    if (ext_mpi_generate_allreduce(buffer1, buffer2) < 0)
       goto error;
   } else {
     if (ext_mpi_generate_allreduce(buffer1, buffer2) < 0)
@@ -217,8 +216,8 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
       (int *)malloc(sizeof(int) * my_mpi_size_row * my_cores_per_node_column);
   code_size = ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, (char *)sendbuf,
                                          (char *)recvbuf, 0, 0, NULL, reduction_op,
-                                         global_ranks, NULL, MPI_COMM_NULL, 1,
-                                         MPI_COMM_NULL, 1, NULL, &gpu_byte_code_counter, 0);
+                                         global_ranks, NULL, sizeof(MPI_Comm), sizeof(MPI_Request), NULL, 1,
+                                         NULL, 1, NULL, &gpu_byte_code_counter, 0);
   if (code_size < 0)
     goto error;
   ip = *code_address = (char *)malloc(code_size);
@@ -226,7 +225,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
     goto error;
   if (ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, (char *)sendbuf, (char *)recvbuf,
                                  0, 0, NULL, reduction_op, global_ranks, ip,
-                                 MPI_COMM_NULL, 1, MPI_COMM_NULL, 1,
+                                 sizeof(MPI_Comm), sizeof(MPI_Request), NULL, 1, NULL, 1,
                                  NULL, &gpu_byte_code_counter, 0) < 0)
     goto error;
   free(global_ranks);
@@ -351,60 +350,21 @@ int ext_mpi_simulate_native(char *ip) {
       printf("MPI_Waitany %d %p\n", i1, p1);
 #endif
       break;
-    case OPCODE_BNODEBARRIER:
+    case OPCODE_SOCKETBARRIER:
 #ifdef VERBOSE_PRINT
-      printf("bnode_barrier\n");
+      printf("socket_barrier\n");
 #endif
       break;
-    case OPCODE_NODEBARRIER:
-#ifdef VERBOSE_PRINT
-      printf("node_barrier\n");
-#endif
-      break;
-    case OPCODE_CYCL_NODEBARRIER:
-#ifdef VERBOSE_PRINT
-      printf("node_cycl_barrier\n");
-#endif
-      break;
-    case OPCODE_SET_NODEBARRIER:
+    case OPCODE_SOCKETBARRIER_ATOMIC_SET:
       i1 = code_get_int(&ip);
 #ifdef VERBOSE_PRINT
-      printf("set_node_barrier %d\n", i1);
+      printf("socket_barrier_atomic_set %d\n", i1);
 #endif
       break;
-    case OPCODE_WAIT_NODEBARRIER:
+    case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
       i1 = code_get_int(&ip);
 #ifdef VERBOSE_PRINT
-      printf("wait_node_barrier %d\n", i1);
-#endif
-      break;
-    case OPCODE_NEXT_NODEBARRIER:
-#ifdef VERBOSE_PRINT
-      printf("next_node_barrier\n");
-#endif
-      break;
-    case OPCODE_SET_MEM:
-      code_get_pointer(&ip);
-#ifdef VERBOSE_PRINT
-      printf("set_mem\n");
-#endif
-      break;
-    case OPCODE_UNSET_MEM:
-      code_get_pointer(&ip);
-#ifdef VERBOSE_PRINT
-      printf("unset_mem\n");
-#endif
-      break;
-    case OPCODE_SETNUMCORES:
-      i1 = code_get_int(&ip);
-#ifdef VERBOSE_PRINT
-      printf("num_cores %d\n", i1);
-#endif
-      break;
-    case OPCODE_SETNODERANK:
-      i1 = code_get_int(&ip);
-#ifdef VERBOSE_PRINT
-      printf("node_rank %d\n", i1);
+      printf("socket_barrier_atomic_wait %d\n", i1);
 #endif
       break;
     case OPCODE_REDUCE:
@@ -560,30 +520,12 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
         count = 0e0;
       }
       break;
-    case OPCODE_BNODEBARRIER:
+    case OPCODE_SOCKETBARRIER:
       break;
-    case OPCODE_NODEBARRIER:
-      break;
-    case OPCODE_CYCL_NODEBARRIER:
-      break;
-    case OPCODE_SET_NODEBARRIER:
+    case OPCODE_SOCKETBARRIER_ATOMIC_SET:
       i1 = code_get_int(&ip);
       break;
-    case OPCODE_WAIT_NODEBARRIER:
-      i1 = code_get_int(&ip);
-      break;
-    case OPCODE_NEXT_NODEBARRIER:
-      break;
-    case OPCODE_SET_MEM:
-      code_get_pointer(&ip);
-      break;
-    case OPCODE_UNSET_MEM:
-      code_get_pointer(&ip);
-      break;
-    case OPCODE_SETNUMCORES:
-      i1 = code_get_int(&ip);
-      break;
-    case OPCODE_SETNODERANK:
+    case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
       i1 = code_get_int(&ip);
       break;
     case OPCODE_REDUCE:
