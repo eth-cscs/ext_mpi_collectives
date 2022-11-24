@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void get_lines_used(struct data_algorithm *data, int *lines_used) {
+static void get_lines_used(struct data_algorithm *data, int block_middle, int *lines_used) {
   int line, flag = 1, block;
   for (line = 0; line < data->blocks[data->num_blocks - 1].num_lines; line++) {
     lines_used[line] = 0;
@@ -17,7 +17,7 @@ static void get_lines_used(struct data_algorithm *data, int *lines_used) {
   }
   while (flag) {
     flag = 0;
-    for (block = data->num_blocks - 2; block >= 0; block--) {
+    for (block = data->num_blocks - 2; block >= block_middle; block--) {
       for (line = data->blocks[block].num_lines - 1; line >= 0; line--) {
 	if (line < data->blocks[data->num_blocks - 1].num_lines && lines_used[line]) {
 	  if (data->blocks[block].lines[line].reducefrom_max > 0 && !lines_used[data->blocks[block].lines[line].reducefrom[0]]) {
@@ -296,7 +296,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
   data->num_blocks++;
   free(size_level1b);
   lines_used = (int *)malloc(sizeof(int) * data->blocks[data->num_blocks - 1].num_lines);
-  get_lines_used(data, lines_used);
+  get_lines_used(data, block_middle, lines_used);
   for (block = block_middle; block < data->num_blocks; block++) {
     for (line = 0; line < data->blocks[block].num_lines; line++){
       if (lines_used[line] && data->blocks[block].lines[line].sendto_max > 0) {
