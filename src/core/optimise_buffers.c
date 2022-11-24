@@ -49,8 +49,9 @@ int ext_mpi_generate_optimise_buffers(char *buffer_in, char *buffer_out) {
                     if (line2_new) {
                       if (ext_mpi_read_irecv_isend(line2, &data_irecv_isend) >= 0) {
 		        if (((data_irecv_isend.type == eisend) || (data_irecv_isend.type == eisen_)) && (data_irecv_isend.buffer_type == eshmemo)){
-                          if ((data_memcpy_reduce.offset1 == data_irecv_isend.offset) && (data_memcpy_reduce.size == data_irecv_isend.size)) {
+                          if ((data_memcpy_reduce.offset1 == data_irecv_isend.offset) && (data_memcpy_reduce.offset_number1 == data_irecv_isend.offset_number) && (data_memcpy_reduce.size == data_irecv_isend.size)) {
                             data_irecv_isend.offset = data_memcpy_reduce.offset2;
+                            data_irecv_isend.offset_number = data_memcpy_reduce.offset_number2;
                             nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
                             nbuffer_in += nline2;
                             flag = 0;
