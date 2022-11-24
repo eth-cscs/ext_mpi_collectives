@@ -106,12 +106,6 @@ int ext_mpi_generate_optimise_buffers2(char *buffer_in, char *buffer_out) {
           }
         }
       }
-    } while (flag3 && !flag_loop);
-    do {
-      nbuffer_in += flag3 = ext_mpi_read_line(buffer_in_loop + nbuffer_in, line, parameters->ascii_in);
-      if (flag3) {
-	nbuffer_out += ext_mpi_write_line(buffer_out_loop + nbuffer_out, line, parameters->ascii_out);
-      }
     } while (flag3);
     nbuffer_out +=
         ext_mpi_write_eof(buffer_out_loop + nbuffer_out, parameters->ascii_out);
