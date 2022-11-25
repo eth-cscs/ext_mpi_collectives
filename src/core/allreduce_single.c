@@ -34,6 +34,65 @@ static void get_lines_used(struct data_algorithm *data, int block_middle, int *l
   }
 }
 
+static void delete_lines(struct data_algorithm *data, int block_middle) {
+  int block, line, lines_deleted, *lines_used, i, j;
+  lines_used = (int *)malloc(sizeof(int) * data->blocks[data->num_blocks - 1].num_lines);
+  get_lines_used(data, block_middle, lines_used);
+  for (block = block_middle; block < data->num_blocks; block++) {
+    if (block < data->num_blocks - 1){
+      for (line = 0; line < data->blocks[block].num_lines; line++){
+        if (lines_used[line] && data->blocks[block].lines[line].sendto_max > 0) {
+	  for (i = 0; i < data->blocks[block].lines[line].sendto_max; i++) {
+            if (!lines_used[data->blocks[block].lines[line].sendto_line[i]]) {
+              data->blocks[block].lines[line].sendto_max--;
+              for (j = i; j < data->blocks[block].lines[line].sendto_max; j++) {
+	        data->blocks[block].lines[line].sendto_node[j] = data->blocks[block].lines[line].sendto_node[j + 1];
+	        data->blocks[block].lines[line].sendto_line[j] = data->blocks[block].lines[line].sendto_line[j + 1];
+	      }
+	      i--;
+	    }
+	  }
+	  if (data->blocks[block].lines[line].sendto_max == 0) {
+	    free(data->blocks[block].lines[line].sendto_node);
+	    free(data->blocks[block].lines[line].sendto_line);
+	    data->blocks[block].lines[line].sendto_node = data->blocks[block].lines[line].sendto_line = NULL;
+	  }
+        }
+      }
+    }
+    lines_deleted = 0;
+    for (line = 0; line < data->blocks[block].num_lines; line++){
+      if (!lines_used[line + lines_deleted]) {
+	ext_mpi_delete_stage_line(data->blocks[block].lines[line]);
+	data->blocks[block].num_lines--;
+	for (i = line; i < data->blocks[block].num_lines; i++) {
+	  data->blocks[block].lines[i] = data->blocks[block].lines[i + 1];
+	}
+	for (i = 0; i < data->blocks[block].num_lines; i++) {
+	  for (j = 0; j < data->blocks[block].lines[i].sendto_max; j++) {
+	    if (data->blocks[block].lines[i].sendto_line[j] > line && data->blocks[block].lines[i].sendto_node[j] >= 0) {
+	      data->blocks[block].lines[i].sendto_line[j]--;
+	    }
+	  }
+	  for (j = 0; j < data->blocks[block].lines[i].recvfrom_max; j++) {
+	    if (data->blocks[block].lines[i].recvfrom_line[j] > line) {
+	      data->blocks[block].lines[i].recvfrom_line[j]--;
+	    }
+	  }
+	  for (j = 0; j < data->blocks[block].lines[i].reducefrom_max; j++) {
+	    if (data->blocks[block].lines[i].reducefrom[j] > line) {
+	      data->blocks[block].lines[i].reducefrom[j]--;
+	    }
+	  }
+        }
+	line--;
+	lines_deleted++;
+      }
+    }
+  }
+  free(lines_used);
+}
+
 static int get_size_level1b(int num_sockets, int *num_ports, int step, int flag) {
   int ret = 1, min = num_sockets, i;
   if (flag) {
@@ -123,7 +182,7 @@ static int allgather_core(struct data_algorithm *data, int num_sockets, int *num
 }
 
 static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num_ports, int task) {
-  int gbstep, i, j, k, l, step, line, line2, *size_level1b, block, *lines_used, lines_deleted, block_middle;
+  int gbstep, i, j, k, l, step, line, line2, *size_level1b, block_middle;
   for (step = 0; num_ports[step]; step++);
   data->num_blocks = 0;
   size_level1b = (int*)malloc(sizeof(int)*(2*step+2));
@@ -296,59 +355,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
   data->num_blocks++;
   free(size_level1b);
   if (block_middle < data->num_blocks - 1) {
-    lines_used = (int *)malloc(sizeof(int) * data->blocks[data->num_blocks - 1].num_lines);
-    get_lines_used(data, block_middle, lines_used);
-    for (block = block_middle; block < data->num_blocks; block++) {
-      for (line = 0; line < data->blocks[block].num_lines; line++){
-        if (lines_used[line] && data->blocks[block].lines[line].sendto_max > 0) {
-	  for (i = 0; i < data->blocks[block].lines[line].sendto_max; i++) {
-            if (!lines_used[data->blocks[block].lines[line].sendto_line[i]]) {
-              data->blocks[block].lines[line].sendto_max--;
-              for (j = i; j < data->blocks[block].lines[line].sendto_max; j++) {
-	        data->blocks[block].lines[line].sendto_node[j] = data->blocks[block].lines[line].sendto_node[j + 1];
-	        data->blocks[block].lines[line].sendto_line[j] = data->blocks[block].lines[line].sendto_line[j + 1];
-	      }
-	      i--;
-	    }
-	  }
-	  if (data->blocks[block].lines[line].sendto_max == 0) {
-	    free(data->blocks[block].lines[line].sendto_node);
-	    free(data->blocks[block].lines[line].sendto_line);
-	    data->blocks[block].lines[line].sendto_node = data->blocks[block].lines[line].sendto_line = NULL;
-	  }
-        }
-      }
-      lines_deleted = 0;
-      for (line = 0; line < data->blocks[block].num_lines; line++){
-        if (!lines_used[line + lines_deleted]) {
-	  ext_mpi_delete_stage_line(data->blocks[block].lines[line]);
-	  data->blocks[block].num_lines--;
-	  for (i = line; i < data->blocks[block].num_lines; i++) {
-	    data->blocks[block].lines[i] = data->blocks[block].lines[i + 1];
-	  }
-	  for (i = 0; i < data->blocks[block].num_lines; i++) {
-	    for (j = 0; j < data->blocks[block].lines[i].sendto_max; j++) {
-	      if (data->blocks[block].lines[i].sendto_line[j] > line) {
-	        data->blocks[block].lines[i].sendto_line[j]--;
-	      }
-	    }
-	    for (j = 0; j < data->blocks[block].lines[i].recvfrom_max; j++) {
-	      if (data->blocks[block].lines[i].recvfrom_line[j] > line) {
-	        data->blocks[block].lines[i].recvfrom_line[j]--;
-	      }
-	    }
-	    for (j = 0; j < data->blocks[block].lines[i].reducefrom_max; j++) {
-	      if (data->blocks[block].lines[i].reducefrom[j] > line) {
-	        data->blocks[block].lines[i].reducefrom[j]--;
-	      }
-	    }
-          }
-	  line--;
-	  lines_deleted++;
-        }
-      }
-    }
-    free(lines_used);
+    delete_lines(data, block_middle);
   }
   return 0;
 error:
