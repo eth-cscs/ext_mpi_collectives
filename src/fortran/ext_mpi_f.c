@@ -16,30 +16,22 @@ void mpi_allreduce_init_f08_(const void *sendbuf, void *recvbuf, int *count, MPI
   if (sendbuf == &MPIR_F08_MPI_IN_PLACE) {
     sendbuf = MPI_IN_PLACE;
   }
-  switch (*datatype) {
-    case MPI_REAL:
-      my_data_type = MPI_FLOAT;
-      break;
-    case MPI_DOUBLE_PRECISION:
-      my_data_type = MPI_DOUBLE;
-      break;
-    case MPI_REAL4:
-      my_data_type = MPI_FLOAT;
-      break;
-    case MPI_REAL8:
-      my_data_type = MPI_DOUBLE;
-      break;
-    case MPI_INTEGER:
-      my_data_type = MPI_INT;
-      break;
-    case MPI_INTEGER4:
-      my_data_type = MPI_INT;
-      break;
-    case MPI_INTEGER8:
-      my_data_type = MPI_LONG_INT;
-      break;
-    default:
-      my_data_type = *datatype;
+  if (*datatype == MPI_REAL) {
+    my_data_type = MPI_FLOAT;
+  } else if (*datatype == MPI_DOUBLE_PRECISION) {
+    my_data_type = MPI_DOUBLE;
+  } else if (*datatype == MPI_REAL4) {
+    my_data_type = MPI_FLOAT;
+  } else if (*datatype == MPI_REAL8) {
+    my_data_type = MPI_DOUBLE;
+  } else if (*datatype == MPI_INTEGER) {
+    my_data_type = MPI_INT;
+  } else if (*datatype == MPI_INTEGER4) {
+    my_data_type = MPI_INT;
+  } else if (*datatype == MPI_INTEGER8) {
+    my_data_type = MPI_LONG_INT;
+  } else {
+    my_data_type = *datatype;
   }
   *ierr = MPI_Allreduce_init(sendbuf, recvbuf, *count, my_data_type, *op, *comm, *info, request);
 }

@@ -7,10 +7,10 @@
 int ext_mpi_generate_no_offset(char *buffer_in, char *buffer_out) {
   struct line_irecv_isend data_irecv_isend;
   struct line_memcpy_reduce data_memcpy_reduce;
-  int nbuffer_out = 0, nbuffer_in = 0, bo1, o1, *buffer_offset, buffer_offset_max, flag;
+  int nbuffer_out = 0, nbuffer_in = 0, *buffer_offset, buffer_offset_max, flag;
   char line[1000];
   struct parameters_block *parameters;
-  enum eassembler_type estring1, estring2, estring3;
+  enum eassembler_type estring1;
   nbuffer_in += ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   buffer_offset_max = parameters->shmem_buffer_offset_max;
   buffer_offset = parameters->shmem_buffer_offset;

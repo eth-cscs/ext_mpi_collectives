@@ -13,6 +13,7 @@ int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_ou
   struct data_algorithm data;
   struct parameters_block *parameters;
   int *rank_perm = NULL, *rank_back_perm = NULL, msizes_max = -1;
+  memset(&data, 0, sizeof(struct data_algorithm));
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
