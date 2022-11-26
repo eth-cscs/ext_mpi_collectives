@@ -1130,15 +1130,15 @@ buffer2 = buffer_temp;
 #ifdef GPU_ENABLED
   }
 #endif
+  if (ext_mpi_clean_barriers(buffer2, buffer1, comm_row, comm_column) < 0)
+    goto error;
   if (alt) {
-    if (ext_mpi_generate_no_first_barrier(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_no_first_barrier(buffer1, buffer2) < 0)
       goto error;
   } else {
-    if (ext_mpi_generate_dummy(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_dummy(buffer1, buffer2) < 0)
       goto error;
   }
-  if (ext_mpi_clean_barriers(buffer1, buffer2, comm_row, comm_column) < 0)
-    goto error;
   if (my_cores_per_node_row*my_cores_per_node_column == 1){
     if (ext_mpi_generate_no_socket_barriers(buffer2, buffer1) < 0)
       goto error;
