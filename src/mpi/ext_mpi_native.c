@@ -776,6 +776,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                                   my_cores_per_node_column, &shmem_size, ext_mpi_num_sockets_per_node,
                                   &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
     goto error_shared;
+  my_size_shared_buf = shmem_size - barriers_size * 4;
   shmem_size -= barriers_size;
 #ifdef GPU_ENABLED
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
@@ -827,6 +828,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                                     my_cores_per_node_column, &shmem_size, ext_mpi_num_sockets_per_node,
                                     &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
       goto error_shared;
+    my_size_shared_buf = shmem_size - barriers_size * 4;
     shmem_size -= barriers_size;
     locmem = (char *)malloc(locmem_size);
     if (!locmem)

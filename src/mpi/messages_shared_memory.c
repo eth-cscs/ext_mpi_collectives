@@ -67,11 +67,11 @@ static int delete_from_list(struct line_list **lines_listed_org, int socket, int
       flag = 1;
       if (estring1 == ewaitall) {
         num_comm = integer1 - ret;
-        if (num_comm) {
+//        if (num_comm) {
           ext_mpi_write_assembler_line(lines_listed_p1->line, 0, "sdsd", ewaitall, num_comm, elocmemp, 0);
-        } else {
-          delete_element(lines_listed_org, &lines_listed_p1);
-        }
+//        } else {
+//          delete_element(lines_listed_org, &lines_listed_p1);
+//        }
       }
       if ((estring1 == eisend) || (estring1 == eirecv) || (estring1 == eisen_) || (estring1 == eirec_)) {
         ext_mpi_read_irecv_isend(lines_listed_p1->line, &data_irecv_isend.data);
@@ -115,7 +115,7 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
   struct line_irecv_isend_list *data_irecv_isend_list_recv = NULL, *data_irecv_isend_list_send = NULL, *data_irecv_isend_list_temp;
   struct line_list *lines_listed, *lines_listed_org;
   enum eassembler_type estring1;
-  int nbuffer_out = 0, integer1, ascii_in, ascii_out, socket, socket_rank, node_sockets, flag, flush, socket_tasks;
+  int nbuffer_out = 0, integer1, ascii_in, ascii_out, socket, socket_rank, node_sockets, flag, flag2, flush, socket_tasks;
   struct parameters_block *parameters;
   buffer_in += ext_mpi_read_parameters(buffer_in, &parameters);
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
@@ -168,7 +168,12 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
         free(data_irecv_isend_list_temp);
       }
       data_irecv_isend_list_recv = NULL;
-      if (flag) {
+      MPI_Allreduce(&flag, &flag2, 1, MPI_INT, MPI_MAX, comm_row);
+      if (flag2) {
+        if (!flag) {
+          ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", enode_barrier);
+          ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", esocket_barrier);
+        }
         ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", enode_barrier);
         ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", esocket_barrier);
       }
