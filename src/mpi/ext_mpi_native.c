@@ -1095,6 +1095,10 @@ buffer2 = buffer_temp;
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
+  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
+    goto error;
+  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
+    goto error;
   if (ext_mpi_num_sockets_per_node > 1) {
     if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column) < 0)
       goto error;
@@ -1102,10 +1106,6 @@ buffer2 = buffer_temp;
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
-    goto error;
-  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
-    goto error;
   if (waitany&&recursive) {
     if (ext_mpi_generate_waitany(buffer2, buffer1) < 0)
       goto error;
