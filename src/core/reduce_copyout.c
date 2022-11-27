@@ -126,7 +126,6 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   for (i = 0; i < num_nodes; i++) {
     moffsets[i + 1] = moffsets[i] + mcounts[i];
   }
-  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   if (allreduce) {
     if ((parameters->root == -1) ||
         ((parameters->root < 0) &&
