@@ -27,10 +27,9 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   int num_nodes = 1, size, add, add2, node_rank, node_row_size = 1,
       node_column_size = 1, node_size, *counts = NULL, counts_max = 0,
       *iocounts = NULL, iocounts_max = 0, *displs = NULL, *iodispls = NULL,
-      *lcounts = NULL, *ldispls = NULL, lrank_column;
-  int nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i, j,
-      k, allreduce = 1, flag;
-  int type_size = 1;
+      *lcounts = NULL, *ldispls = NULL, lrank_column, flag7 = 0,
+      nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i, j,
+      k, allreduce = 1, flag, type_size = 1;
   struct data_algorithm data;
   struct parameters_block *parameters;
   char cline[1000];
@@ -55,6 +54,9 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   counts = parameters->counts;
   iocounts_max = parameters->iocounts_max;
   iocounts = parameters->iocounts;
+  if (parameters->num_sockets == 1 && parameters->message_sizes[0] < CACHE_LINE_SIZE - sizeof(int)) {
+    flag7 = 1;
+  }
   switch (parameters->data_type) {
   case data_type_char:
     type_size = sizeof(char);
@@ -154,8 +156,14 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
             data_memcpy_reduce.offset1 = add;
             data_memcpy_reduce.buffer_type2 = eshmemo;
             data_memcpy_reduce.buffer_number2 = 0;
-            data_memcpy_reduce.is_offset2 = 0;
-            data_memcpy_reduce.offset2 = add2;
+	    if (!flag7) {
+              data_memcpy_reduce.is_offset2 = 0;
+              data_memcpy_reduce.offset2 = add2;
+	    } else {
+              data_memcpy_reduce.is_offset2 = 1;
+              data_memcpy_reduce.offset_number2 = -1;
+              data_memcpy_reduce.offset2 = add2 + sizeof(int);
+	    }
             data_memcpy_reduce.size = size;
             nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
           }

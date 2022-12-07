@@ -53,12 +53,12 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
           (data_memcpy_reduce.type == ememcp_) || (data_memcpy_reduce.type == ereduc_) ||
           (data_memcpy_reduce.type == esmemcpy) || (data_memcpy_reduce.type == esmemcp_) ||
           (data_memcpy_reduce.type == esreduce) || (data_memcpy_reduce.type == esreduc_)) {
-        if (data_memcpy_reduce.is_offset1 && (data_memcpy_reduce.offset1 + data_memcpy_reduce.size > buffer_offset[data_memcpy_reduce.offset_number1])) {
+        if (data_memcpy_reduce.is_offset1 && data_memcpy_reduce.offset_number1 >= 0 && (data_memcpy_reduce.offset1 + data_memcpy_reduce.size > buffer_offset[data_memcpy_reduce.offset_number1])) {
           buffer_offset[data_memcpy_reduce.offset_number1] = data_memcpy_reduce.offset1 + data_memcpy_reduce.size;
         } else if (!data_memcpy_reduce.is_offset1 && (data_memcpy_reduce.offset1 + data_memcpy_reduce.size > shmem_max)) {
           shmem_max = data_memcpy_reduce.offset1 + data_memcpy_reduce.size;
         }
-        if (data_memcpy_reduce.is_offset2 && (data_memcpy_reduce.offset2 + data_memcpy_reduce.size > buffer_offset[data_memcpy_reduce.offset_number2])) {
+        if (data_memcpy_reduce.is_offset2 && data_memcpy_reduce.offset_number2 >= 0 && (data_memcpy_reduce.offset2 + data_memcpy_reduce.size > buffer_offset[data_memcpy_reduce.offset_number2])) {
           buffer_offset[data_memcpy_reduce.offset_number2] = data_memcpy_reduce.offset2 + data_memcpy_reduce.size;
         } else if (!data_memcpy_reduce.is_offset2 && (data_memcpy_reduce.offset2 + data_memcpy_reduce.size > shmem_max)) {
           shmem_max = data_memcpy_reduce.offset2 + data_memcpy_reduce.size;

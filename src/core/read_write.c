@@ -1483,7 +1483,7 @@ int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
           i = ext_mpi_read_assembler_line(line, 0, "ssdsdsdd", &data->type, &data->buffer_type1, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset2, &data->size);
           if ((i < 0) || (estring == ecpbuffer_offseto)) {
             data->is_offset2 = 1;
-            if (ext_mpi_read_assembler_line(line, 0, "ssdsdsdd", &data->type, &data->buffer_type1, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset_number2, &estring, &data->offset2, &data->size) < 0) {
+            if (ext_mpi_read_assembler_line(line, 0, "ssdsdsdsdd", &data->type, &data->buffer_type1, &data->offset1, &data->buffer_type2, &data->buffer_number2, &estring, &data->offset_number2, &estring, &data->offset2, &data->size) < 0) {
               printf(" error reading line in ext_mpi_read_memcpy_reduce 3\n");
               exit(1);
             }
