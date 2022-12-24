@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #ifdef __cplusplus
 #include <cuda_runtime.h>
 #else
@@ -37,6 +38,8 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
   if ((shmemid_gpu == NULL) || (*shmem_gpu == NULL)) {
     exit(14);
   }
+  memset(shmemid_gpu, 0, num_segments * sizeof(struct cudaIpcMemHandle_st));
+  memset(*shmem_gpu, 0, num_segments * sizeof(char *));
   for (i = 0; i < num_segments; i++) {
     if ((my_mpi_rank_row % my_cores_per_node_row == 0) &&
         (my_mpi_rank_column % my_cores_per_node_column == 0)) {
@@ -55,12 +58,12 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
                 my_comm_node_v);
       MPI_Barrier(my_comm_node_v);
     }
-    if ((*shmem_gpu) == NULL) {
+    if ((*shmem_gpu)[i] == NULL) {
       if (cudaIpcOpenMemHandle((void **)&((*shmem_gpu)[i]), shmemid_gpu[i],
                                cudaIpcMemLazyEnablePeerAccess) != 0)
         exit(13);
     }
-    if (shmem_gpu[i] == NULL)
+    if ((*shmem_gpu)[i] == NULL)
       exit(2);
     MPI_Barrier(my_comm_node_h);
     if (comm_column != MPI_COMM_NULL) {

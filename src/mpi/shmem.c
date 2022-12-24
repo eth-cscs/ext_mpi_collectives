@@ -11,6 +11,7 @@
 #endif
 #include "constants.h"
 #include "byte_code.h"
+#include "read_write.h"
 #include "shmem.h"
 #include <mpi.h>
 
@@ -98,6 +99,9 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
     MPI_Comm_size(comm_column, &my_mpi_size_column);
     MPI_Comm_rank(comm_column, &my_mpi_rank_column);
     MPI_Allreduce(MPI_IN_PLACE, size_shared, 1, MPI_INT, MPI_MAX, comm_column);
+    if (*size_shared > 0) {
+      *size_shared = (((*size_shared - 1) / CACHE_LINE_SIZE) + 1) * CACHE_LINE_SIZE;
+    }
   } else {
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;

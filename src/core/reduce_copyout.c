@@ -54,7 +54,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   counts = parameters->counts;
   iocounts_max = parameters->iocounts_max;
   iocounts = parameters->iocounts;
-  if (parameters->num_sockets == 1 && parameters->message_sizes[0] < CACHE_LINE_SIZE - sizeof(int)) {
+  if (parameters->num_sockets == 1 && parameters->message_sizes[0] < CACHE_LINE_SIZE - sizeof(long int)) {
 //    flag7 = 1;
   }
   switch (parameters->data_type) {
@@ -162,7 +162,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
 	    } else {
               data_memcpy_reduce.is_offset2 = 1;
               data_memcpy_reduce.offset_number2 = -1;
-              data_memcpy_reduce.offset2 = add2 + sizeof(int);
+              data_memcpy_reduce.offset2 = add2 + sizeof(long int);
 	    }
             data_memcpy_reduce.size = size;
             nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);

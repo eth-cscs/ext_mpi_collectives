@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #ifdef __cplusplus
 #include <hip/hip_runtime.h>
 #else
@@ -34,6 +35,8 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
   }
   shmemid_gpu = (void *)malloc(num_segments * sizeof(struct hipIpcMemHandle_st));
   *shmem_gpu = (char **)malloc(num_segments * sizeof(char *));
+  memset(shmemid_gpu, 0, num_segments * sizeof(struct hipIpcMemHandle_st));
+  memset(*shmem_gpu, 0, num_segments * sizeof(char *));
   if ((shmemid_gpu == NULL) || (*shmem_gpu == NULL)) {
     exit(14);
   }
@@ -55,12 +58,12 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
                 my_comm_node_v);
       MPI_Barrier(my_comm_node_v);
     }
-    if ((*shmem_gpu) == NULL) {
+    if ((*shmem_gpu)[i] == NULL) {
       if (hipIpcOpenMemHandle((void **)&((*shmem_gpu)[i]), shmemid_gpu[i],
                               hipIpcMemLazyEnablePeerAccess) != 0)
         exit(13);
     }
-    if (shmem_gpu[i] == NULL)
+    if ((*shmem_gpu)[i] == NULL)
       exit(2);
     MPI_Barrier(my_comm_node_h);
     if (comm_column != MPI_COMM_NULL) {
