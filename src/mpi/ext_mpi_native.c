@@ -666,7 +666,7 @@ int EXT_MPI_Done_native(int handle) {
   if (header->shmem_gpu) {
     ext_mpi_gpu_destroy_shared_memory(shmem_comm_node_row, header->node_num_cores_row,
                                       shmem_comm_node_column, header->node_num_cores_column,
-				      1, header->shmem_gpu);
+				      ext_mpi_num_sockets_per_node, header->shmem_gpu);
     header->shmem_gpu = NULL;
   }
   ext_mpi_gpu_free(header->gpu_byte_code);
@@ -699,7 +699,7 @@ int EXT_MPI_Done_native(int handle) {
     if (header->shmem_gpu) {
       ext_mpi_gpu_destroy_shared_memory(shmem_comm_node_row2, header->node_num_cores_row,
                                         shmem_comm_node_column2, header->node_num_cores_column,
-				        1, header->shmem_gpu);
+				        ext_mpi_num_sockets_per_node, header->shmem_gpu);
       header->shmem_gpu = NULL;
     }
     ext_mpi_gpu_free(header->gpu_byte_code);
@@ -780,9 +780,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   shmem_size -= barriers_size;
 #ifdef GPU_ENABLED
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
-    ext_mpi_gpu_setup_shared_memory(shmem_comm_node_row, my_cores_per_node_row,
-                                    shmem_comm_node_column, my_cores_per_node_column,
-                                    shmem_size - barriers_size, 1, &shmem_gpu);
+    ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
+                                    comm_column, my_cores_per_node_column,
+                                    shmem_size - barriers_size, ext_mpi_num_sockets_per_node, &shmem_gpu);
   }
 #endif
   global_ranks =
@@ -835,9 +835,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       goto error;
 #ifdef GPU_ENABLED
     if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
-      ext_mpi_gpu_setup_shared_memory(shmem_comm_node_row, my_cores_per_node_row,
-                                      shmem_comm_node_column, my_cores_per_node_column,
-                                      shmem_size - barriers_size, 1, &shmem_gpu);
+      ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
+                                      comm_column, my_cores_per_node_column,
+                                      shmem_size - barriers_size, ext_mpi_num_sockets_per_node, &shmem_gpu);
     }
 #endif
     if (ext_mpi_generate_byte_code(

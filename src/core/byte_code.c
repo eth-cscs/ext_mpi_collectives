@@ -187,7 +187,7 @@ static void gpu_byte_code_flush1(struct gpu_stream *streams,
                                  char *gpu_byte_code, int gpu_byte_code_counter,
                                  int type_size) {
   long int lcount, max_size;
-  int num_entries, num_streams, num_stream, flag, stream, entry, count, reduce;
+  int num_entries, num_streams, stream, entry, count, reduce;
   void *dest, *src;
   if (gpu_byte_code) {
     gpu_byte_code += gpu_byte_code_counter;
@@ -229,7 +229,6 @@ static void gpu_byte_code_flush1(struct gpu_stream *streams,
 static void gpu_byte_code_flush2(struct gpu_stream **streams,
                                  int *gpu_byte_code_counter) {
   int num_entries, num_streams, jump;
-  void *dest, *src;
   num_streams = gpu_get_num_streams(*streams);
   num_entries = gpu_get_num_entries(*streams);
   if (num_entries) {
@@ -243,8 +242,7 @@ static void gpu_byte_code_flush2(struct gpu_stream **streams,
 
 static int gpu_byte_code_add(struct gpu_stream **streams, void *dest, void *src,
                              int count, int reduce) {
-  long int lcount, max_size;
-  int num_entries, num_streams, num_stream;
+  int num_stream;
   num_stream =
       gpu_add_stream_and_get_stream_number(streams, dest, src, count, reduce);
   if (num_stream < 0) {
