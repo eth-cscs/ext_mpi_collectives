@@ -399,6 +399,16 @@ int ext_mpi_generate_byte_code(char **shmem,
     }
     if (estring1 == eset_socket_barrier) {
       if (header->num_cores != 1) {
+#ifdef GPU_ENABLED
+        if (on_gpu) {
+          if (added) {
+            flush_complete(&ip, &streams, header->gpu_byte_code, gpu_byte_code,
+                           gpu_byte_code_counter, reduction_op, isdryrun);
+            added = 0;
+          }
+          code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
+        }
+#endif
         code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_SET, isdryrun);
         code_put_int(&ip, integer1, isdryrun);
       }
@@ -566,7 +576,7 @@ int ext_mpi_generate_byte_code(char **shmem,
         code_put_int(&ip, integer3, isdryrun);
 #ifdef GPU_ENABLED
       } else {
-        if (estring1 == ememcpy) {
+        if ((estring1 == ememcpy) || (estring1 == esmemcpy)) {
           reduce = 0;
         } else {
           reduce = 1;
