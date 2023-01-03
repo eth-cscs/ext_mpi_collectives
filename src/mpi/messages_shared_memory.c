@@ -154,7 +154,7 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
         data_memcpy_reduce.offset2 = data_irecv_isend_list_recv->data_irecv_isend.data.offset;
         data_memcpy_reduce.size = data_irecv_isend_list_recv->data_irecv_isend.data.size;
         if (data_irecv_isend_list_recv->data_irecv_isend.socket/node_sockets == socket/node_sockets) {
-          data_memcpy_reduce.buffer_number2 = (node_sockets + data_irecv_isend_list_recv->data_irecv_isend.socket - socket) % node_sockets;
+          data_memcpy_reduce.buffer_number2 = (node_sockets - data_irecv_isend_list_recv->data_irecv_isend.socket + socket) % node_sockets;
           if (!flag) {
             ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", esocket_barrier);
             ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", enode_barrier);

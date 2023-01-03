@@ -118,7 +118,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
   *shmemid = (int *)malloc(num_segments * sizeof(int));
   *shmem = (char **)malloc(num_segments * sizeof(char *));
   for (i = 0; i < num_segments; i++) {
-    ii = (i + my_mpi_rank_row / my_cores_per_node_row) % num_segments;
+    ii = (num_segments - i + my_mpi_rank_row / my_cores_per_node_row) % num_segments;
     ext_mpi_node_barrier_mpi(-1, *shmem_comm_node_row, *shmem_comm_node_column, comm_code);
 #ifndef MMAP
     if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments) == i * my_cores_per_node_row) &&

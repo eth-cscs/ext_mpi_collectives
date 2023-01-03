@@ -42,7 +42,7 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
   memset(shmemid_gpu, 0, num_segments * sizeof(struct cudaIpcMemHandle_st));
   memset(*shmem_gpu, 0, num_segments * sizeof(char *));
   for (i = 0; i < num_segments; i++) {
-    ii = (i + my_mpi_rank_row / my_cores_per_node_row) % num_segments;
+    ii = (num_segments - i + my_mpi_rank_row / my_cores_per_node_row) % num_segments;
     if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments) == i * my_cores_per_node_row) &&
         (my_mpi_rank_column % my_cores_per_node_column == 0)) {
       if (cudaMalloc((void *)&((*shmem_gpu)[ii]), size_shared) != 0)
@@ -111,7 +111,7 @@ int ext_mpi_gpu_destroy_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
     return 1;
   }
   for (i = 0; i < num_segments; i++) {
-    ii = (i + my_mpi_rank_row / my_cores_per_node_row) % num_segments;
+    ii = (num_segments - i + my_mpi_rank_row / my_cores_per_node_row) % num_segments;
     if (!((my_mpi_rank_row % (my_cores_per_node_row * num_segments) == i * my_cores_per_node_row) &&
          (my_mpi_rank_column % my_cores_per_node_column == 0))) {
       if (cudaIpcCloseMemHandle((void *)(shmem_gpu[ii])) != 0) {
