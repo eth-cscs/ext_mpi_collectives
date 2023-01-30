@@ -13,6 +13,7 @@
 #include "cost_simulation.h"
 #include "count_instructions.h"
 #include "ports_groups.h"
+#include "cost_copyin_measurement.h"
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #endif
@@ -1163,7 +1164,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_row, int my_cores_per_node_row,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size;
+  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors;
   double d1;
   struct cost_list *p1, *p2;
   struct {
@@ -1173,6 +1174,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Comm_rank(comm_row, &comm_rank_row);
+  copyin_factors = (int*) malloc(sizeof(int) * comm_size_row * 2);
   MPI_Type_size(datatype, &type_size);
   if (sendbuf == MPI_IN_PLACE) {
     sendbuf = recvbuf;
@@ -1372,15 +1374,20 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       free(str);
     }
   }
+  EXT_MPI_Allreduce_measurement(
+      sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
+      comm_column, my_cores_per_node_column, ext_mpi_num_sockets_per_node,
+      my_cores_per_node_row * my_cores_per_node_column, &copyin_method_, copyin_factors);
   *handle = EXT_MPI_Allreduce_init_native(
       sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, copyin_method, alt,
+      my_cores_per_node_row * my_cores_per_node_column, copyin_method_, copyin_factors, alt,
       ext_mpi_bit_identical, !ext_mpi_bit_reproducible, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking);
   if (*handle < 0)
     goto error;
   free(groups);
   free(num_ports);
+  free(copyin_factors);
   return 0;
 error:
   return ERROR_MALLOC;
@@ -1573,7 +1580,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_row, int my_cores_per_node_row,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size;
+  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors;
   double d1;
   char *str;
   struct cost_list *p1, *p2;
@@ -1583,6 +1590,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   } composition;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Comm_rank(comm_row, &comm_rank_row);
+  copyin_factors = (int*) malloc(sizeof(int) * comm_size_row);
   MPI_Type_size(datatype, &type_size);
   if (sendbuf == MPI_IN_PLACE) {
     sendbuf = recvbuf;
@@ -1728,19 +1736,25 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       free(str);
     }
   }
+  EXT_MPI_Allreduce_measurement(
+      sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
+      comm_column, my_cores_per_node_column, ext_mpi_num_sockets_per_node,
+      my_cores_per_node_row * my_cores_per_node_column, &copyin_method_, copyin_factors);
   *handle = EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, my_cores_per_node_row * my_cores_per_node_column, copyin_method, alt,
+      groups, my_cores_per_node_row * my_cores_per_node_column, copyin_method_, copyin_factors, alt,
       0, !ext_mpi_bit_reproducible, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking);
   if (*handle < 0)
     goto error;
   free(groups);
   free(num_ports);
+  free(copyin_factors);
   return 0;
 error:
   free(groups);
   free(num_ports);
+  free(copyin_factors);
   return ERROR_MALLOC;
 }
 
@@ -1883,7 +1897,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
                               int root, MPI_Comm comm_row,
                               int my_cores_per_node_row, MPI_Comm comm_column,
                               int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size;
+  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors;
   double d1;
   char *str;
   struct cost_list *p1, *p2;
@@ -1893,6 +1907,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   } composition;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Comm_rank(comm_row, &comm_rank_row);
+  copyin_factors = (int*) malloc(sizeof(int) * comm_size_row);
   MPI_Type_size(datatype, &type_size);
   message_size = type_size * count;
   if (comm_column != MPI_COMM_NULL) {
@@ -2062,18 +2077,24 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
       free(str);
     }
   }
+  EXT_MPI_Allreduce_measurement(
+      buffer, buffer, count, datatype, MPI_OP_NULL, comm_row, my_cores_per_node_row,
+      comm_column, my_cores_per_node_column, ext_mpi_num_sockets_per_node,
+      my_cores_per_node_row * my_cores_per_node_column, &copyin_method_, copyin_factors);
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, copyin_method, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking);
+      my_cores_per_node_row * my_cores_per_node_column, copyin_method_, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking);
   if (*handle < 0)
     goto error;
   free(groups);
   free(num_ports);
+  free(copyin_factors);
   return 0;
 error:
   free(groups);
   free(num_ports);
+  free(copyin_factors);
   return ERROR_MALLOC;
 }
 

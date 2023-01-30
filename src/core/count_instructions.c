@@ -148,7 +148,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
                       my_cores_per_node_column);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER COPY_METHOD %d\n", copyin);
+      sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_METHOD %d\n", copyin);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COUNTS");
   for (i = 0; i < my_cores_per_node_column; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", counts[i]);

@@ -86,6 +86,7 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
     (*parameters)->num_ports = NULL;
     (*parameters)->groups = NULL;
     (*parameters)->message_sizes = NULL;
+    (*parameters)->copyin_factors = NULL;
     (*parameters)->rank_perm = NULL;
     (*parameters)->iocounts = NULL;
     (*parameters)->shmem_buffer_offset = NULL;
@@ -128,6 +129,16 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
              sizeof(int) * (*parameters)->message_sizes_max);
       (*parameters)->message_sizes[(*parameters)->message_sizes_max] = 0;
       nbuffer_in += sizeof(int) * (*parameters)->message_sizes_max;
+    }
+    if ((*parameters)->copyin_factors_max) {
+      (*parameters)->copyin_factors =
+          (int *)malloc(sizeof(int) * ((*parameters)->copyin_factors_max + 1));
+      if (!(*parameters)->copyin_factors)
+        goto error;
+      memcpy((*parameters)->copyin_factors, buffer_in + nbuffer_in,
+             sizeof(int) * (*parameters)->copyin_factors_max);
+      (*parameters)->copyin_factors[(*parameters)->copyin_factors_max] = 0;
+      nbuffer_in += sizeof(int) * (*parameters)->copyin_factors_max;
     }
     if ((*parameters)->rank_perm_max) {
       (*parameters)->rank_perm =
@@ -185,7 +196,9 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->socket_row_size = 1;
   (*parameters)->socket_column_size = 1;
   (*parameters)->node_sockets = 1;
-  (*parameters)->copy_method = 0;
+  (*parameters)->copyin_method = 0;
+  (*parameters)->copyin_factors = NULL;
+  (*parameters)->copyin_factors_max = 0;
   (*parameters)->data_type = data_type_char;
   (*parameters)->verbose = 0;
   (*parameters)->bit_identical = 0;
@@ -250,8 +263,8 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
         if (strcmp(string2, "NODE_SOCKETS") == 0) {
           (*parameters)->node_sockets = integer1;
         }
-        if (strcmp(string2, "COPY_METHOD") == 0) {
-          (*parameters)->copy_method = integer1;
+        if (strcmp(string2, "COPYIN_METHOD") == 0) {
+          (*parameters)->copyin_method = integer1;
         }
         if (strcmp(string2, "LOCMEM_MAX") == 0) {
           (*parameters)->locmem_max = integer1;
@@ -303,6 +316,17 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
           (*parameters)->message_sizes_max =
               read_int_series(buffer_in_copy, &((*parameters)->message_sizes));
           if ((*parameters)->message_sizes_max < 0)
+            goto error;
+        }
+        if (strcmp(string2, "COPYIN_FACTORS") == 0) {
+          free((*parameters)->copyin_factors);
+          while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
+                 (*buffer_in_copy != '-') && (*buffer_in_copy != '\0')) {
+            buffer_in_copy++;
+          }
+          (*parameters)->copyin_factors_max =
+              read_int_series(buffer_in_copy, &((*parameters)->copyin_factors));
+          if ((*parameters)->copyin_factors_max < 0)
             goto error;
         }
         if (strcmp(string2, "RANK_PERM") == 0) {
@@ -415,6 +439,11 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
              sizeof(int) * parameters->message_sizes_max);
       nbuffer_out += sizeof(int) * parameters->message_sizes_max;
     }
+    if (parameters->copyin_factors_max) {
+      memcpy(buffer_out + nbuffer_out, parameters->copyin_factors,
+             sizeof(int) * parameters->copyin_factors_max);
+      nbuffer_out += sizeof(int) * parameters->copyin_factors_max;
+    }
     if (parameters->rank_perm_max) {
       memcpy(buffer_out + nbuffer_out, parameters->rank_perm,
              sizeof(int) * parameters->rank_perm_max);
@@ -488,8 +517,8 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
       sprintf(buffer_out + nbuffer_out, " PARAMETER NODE_SOCKETS %d\n",
               parameters->node_sockets);
   nbuffer_out +=
-      sprintf(buffer_out + nbuffer_out, " PARAMETER COPY_METHOD %d\n",
-              parameters->copy_method);
+      sprintf(buffer_out + nbuffer_out, " PARAMETER COPYIN_METHOD %d\n",
+              parameters->copyin_method);
   if ((parameters->root >= 0) || (parameters->root <= -10)) {
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER ROOT %d\n",
                            parameters->root);
@@ -512,6 +541,14 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     for (i = 0; i < parameters->message_sizes_max; i++) {
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d",
                              parameters->message_sizes[i]);
+    }
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
+  }
+  if (parameters->copyin_factors_max > 0) {
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER COPYIN_FACTORS");
+    for (i = 0; i < parameters->copyin_factors_max; i++) {
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d",
+                             parameters->copyin_factors[i]);
     }
     nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
   }
@@ -585,6 +622,7 @@ int ext_mpi_delete_parameters(struct parameters_block *parameters) {
   free(parameters->num_ports);
   free(parameters->groups);
   free(parameters->message_sizes);
+  free(parameters->copyin_factors);
   free(parameters);
   return 0;
 }

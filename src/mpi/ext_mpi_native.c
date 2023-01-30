@@ -867,7 +867,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_row, int my_cores_per_node_row,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *num_ports,
-                               int *groups, int num_active_ports, int copyin,
+                               int *groups, int num_active_ports, int copyin, int *copyin_factors,
                                int alt, int bit, int waitany, int recursive, int blocking) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
@@ -981,7 +981,14 @@ allreduce_short = 0;
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_SOCKETS %d\n",
                       ext_mpi_num_sockets_per_node);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER COPY_METHOD %d\n", copyin);
+      sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_METHOD %d\n", copyin);
+  if (copyin_factors) {
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_FACTORS");
+    for (i = 0; copyin_factors[i]; i++) {
+      nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", copyin_factors[i]);
+    }
+    nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
+  }
   if ((root >= 0) || (root <= -10)) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ROOT %d\n", root);
   }
@@ -1173,24 +1180,25 @@ int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *num_ports,
                                   int *groups, int num_active_ports, int copyin,
+                                  int *copyin_factors,
                                   int alt, int bit, int waitany,
                                   int recursive, int blocking) {
   return (EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, -1, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, alt, bit, waitany, recursive, blocking));
+      groups, num_active_ports, copyin, copyin_factors, alt, bit, waitany, recursive, blocking));
 }
 
 int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
                               int root, MPI_Comm comm_row,
                               int my_cores_per_node_row, MPI_Comm comm_column,
                               int my_cores_per_node_column, int *num_ports,
-                              int *groups, int num_active_ports, int copyin,
+                              int *groups, int num_active_ports, int copyin, int *copyin_factors,
                               int alt, int recursive, int blocking) {
   return (EXT_MPI_Reduce_init_native(
       buffer, buffer, count, datatype, MPI_OP_NULL, -10 - root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, alt, 0, 0, recursive, blocking));
+      groups, num_active_ports, copyin, copyin_factors, alt, 0, 0, recursive, blocking));
 }
 
 int EXT_MPI_Gatherv_init_native(
@@ -1536,7 +1544,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
                       ext_mpi_num_sockets_per_node);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ROOT %d\n", root);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER COPY_METHOD %d\n", copyin);
+      sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_METHOD %d\n", copyin);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COUNTS");
   for (i = 0; i < my_cores_per_node_column; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", global_counts[i]);
@@ -1764,7 +1772,7 @@ int EXT_MPI_Reduce_scatter_init_native(
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_SOCKETS %d\n",
                       ext_mpi_num_sockets_per_node);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER COPY_METHOD %d\n", copyin);
+      sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_METHOD %d\n", copyin);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COUNTS");
   for (i = 0; i < my_cores_per_node_column; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", global_counts[i]);

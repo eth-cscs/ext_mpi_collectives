@@ -76,7 +76,9 @@ struct parameters_block {
   int rank_perm_max;
   int *iocounts;
   int iocounts_max;
-  int copy_method;
+  int copyin_method;
+  int *copyin_factors;
+  int copyin_factors_max;
   enum edata_type data_type;
   int verbose;
   int in_place;
