@@ -5,6 +5,7 @@
 #define MAX_BUFFER_SIZE 100000000
 #define CACHE_LINE_SIZE 64
 //#define CACHE_LINE_SIZE 1024
+#define OFFSET_FAST sizeof(long int)
 
 #ifdef __cplusplus
 extern "C" {

@@ -6,8 +6,6 @@
 #include <string.h>
 #include <limits.h>
 
-#define OFFSET_FAST sizeof(long int)
-
 struct memory_layout {
   int size;
   int offset;
