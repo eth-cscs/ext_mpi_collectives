@@ -4,6 +4,8 @@
 #include "read_write.h"
 #include <stdio.h>
 
+extern int ext_mpi_verbose;
+
 static double execution_time(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype,
 	              	     MPI_Op op, MPI_Comm comm_row_, int my_cores_per_node_row, MPI_Comm comm_column_,
 			     int my_cores_per_node_column, int copyin_method, int *copyin_factors) {
@@ -105,17 +107,17 @@ int EXT_MPI_Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
     }
     MPI_Comm_free(&comm_row_);
   }
-  if (mpi_rank_row == 0) {
+  if (mpi_rank_row == 0 && ext_mpi_verbose) {
     printf("# EXT_MPI copyin %d;", *copyin_method);
   }
   for (j = 0; copyin_factors_min[j]; j++) {
     copyin_factors[j] = copyin_factors_min[j];
-    if (mpi_rank_row == 0) {
+    if (mpi_rank_row == 0 && ext_mpi_verbose) {
       printf(" %d", copyin_factors[j]);
     }
   }
   copyin_factors[j] = 0;
-  if (mpi_rank_row == 0) {
+  if (mpi_rank_row == 0 && ext_mpi_verbose) {
     printf("\n");
   }
   return 0;

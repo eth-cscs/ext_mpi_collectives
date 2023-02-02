@@ -25,12 +25,12 @@ int ext_mpi_bit_reproducible = 1;
 int ext_mpi_bit_identical = 0;
 //parameter for minimum computation set
 int ext_mpi_minimum_computation = 0;
+int ext_mpi_verbose = 0;
 
 static int num_tasks_per_socket = 0;
 static int is_initialised = 0;
 static int copyin_method = -1;
 static int alternating = 0;
-static int verbose = 0;
 // FIXME: should be 0 if feature is present
 static int not_recursive = 1;
 static int *fixed_factors_ports = NULL;
@@ -61,16 +61,16 @@ static int read_env() {
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_VERBOSE")) != NULL);
     if (var) {
-      verbose = 1;
+      ext_mpi_verbose = 1;
       printf("# EXT_MPI verbose\n");
     }
   }
-  MPI_Bcast(&verbose, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ext_mpi_verbose, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_COPYIN_METHOD")) != NULL);
     if (var) {
       copyin_method = c[0]-'0';
-      if (verbose) {
+      if (ext_mpi_verbose) {
         printf("# EXT_MPI copy in method %d\n", copyin_method);
       }
     }
@@ -81,13 +81,13 @@ static int read_env() {
     if (var) {
       if (c[0] == '1') {
         alternating = 1;
-        if (verbose) {
+        if (ext_mpi_verbose) {
           printf("# EXT_MPI not alternating\n");
         }
       }
       if (c[0] == '2') {
         alternating = 2;
-        if (verbose) {
+        if (ext_mpi_verbose) {
           printf("# EXT_MPI alternating\n");
         }
       }
@@ -173,7 +173,7 @@ static int get_num_tasks_per_socket(MPI_Comm comm) {
     for (i=0; (!(all_num_cores[i]%j))&&(i<my_mpi_size); i++);
     if (i==my_mpi_size){
       free(all_num_cores);
-      if (verbose&&(my_mpi_rank==0)){
+      if (ext_mpi_verbose&&(my_mpi_rank==0)){
         printf("# EXT_MPI MPI tasks per socket: %d\n", j/ext_mpi_num_sockets_per_node);
       }
       return j/ext_mpi_num_sockets_per_node;
@@ -300,7 +300,7 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
     }
-    if (verbose) {
+    if (ext_mpi_verbose) {
       if (is_rank_zero(comm_row, comm_column)){
         if (group_size==comm_size_row/my_cores_per_node_row){
           printf("# recursive\n");
@@ -554,7 +554,7 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
     }
-    if (verbose) {
+    if (ext_mpi_verbose) {
       if (is_rank_zero(comm_row, comm_column)){
         if (group_size==comm_size_row/my_cores_per_node_row){
           printf("# recursive\n");
@@ -800,7 +800,7 @@ static int reduce_scatter_init_general(
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
     }
-    if (verbose) {
+    if (ext_mpi_verbose) {
       if (is_rank_zero(comm_row, comm_column)){
         if (group_size==comm_size_row/my_cores_per_node_row){
           printf("# recursive\n");
@@ -1049,7 +1049,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     for (i=0; num_ports[i]; i++){
       group_size*=abs(num_ports[i])+1;
     }
-    if (verbose) {
+    if (ext_mpi_verbose) {
       if (is_rank_zero(comm_row, comm_column)){
         if (group_size==comm_size_row/my_cores_per_node_row){
           printf("# recursive\n");
@@ -1362,7 +1362,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       group_size*=abs(num_ports[i])+1;
     }
   }
-  if (verbose) {
+  if (ext_mpi_verbose) {
     if (is_rank_zero(comm_row, comm_column)) {
       if (group_size==comm_size_row/my_cores_per_node_row){
         printf("# recursive\n");
@@ -1724,7 +1724,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   for (i=0; num_ports[i]; i++){
     group_size*=abs(num_ports[i])+1;
   }
-  if (verbose) {
+  if (ext_mpi_verbose) {
     if (is_rank_zero(comm_row, comm_column)){
       if (group_size==comm_size_row/my_cores_per_node_row){
         printf("# recursive\n");
@@ -2065,7 +2065,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   for (i=0; num_ports[i]; i++){
     group_size*=abs(num_ports[i])+1;
   }
-  if (verbose) {
+  if (ext_mpi_verbose) {
     if (is_rank_zero(comm_row, comm_column)){
       if (group_size==comm_size_row/my_cores_per_node_row){
         printf("# recursive\n");
