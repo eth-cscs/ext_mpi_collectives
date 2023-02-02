@@ -107,6 +107,8 @@ int EXT_MPI_Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
     }
     MPI_Comm_free(&comm_row_);
   }
+  MPI_Bcast(copyin_method, 1, MPI_INT, 0, comm_row);
+  MPI_Bcast(copyin_factors_min, my_cores_per_node_row + 1, MPI_INT, 0, comm_row);
   if (mpi_rank_row == 0 && ext_mpi_verbose) {
     printf("# EXT_MPI copyin %d;", *copyin_method);
   }

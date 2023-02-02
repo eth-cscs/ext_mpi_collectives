@@ -1174,7 +1174,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Comm_rank(comm_row, &comm_rank_row);
-  copyin_factors = (int*) malloc(sizeof(int) * comm_size_row * 2);
+  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
   MPI_Type_size(datatype, &type_size);
   if (sendbuf == MPI_IN_PLACE) {
     sendbuf = recvbuf;
@@ -1590,7 +1590,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   } composition;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Comm_rank(comm_row, &comm_rank_row);
-  copyin_factors = (int*) malloc(sizeof(int) * comm_size_row);
+  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
   MPI_Type_size(datatype, &type_size);
   if (sendbuf == MPI_IN_PLACE) {
     sendbuf = recvbuf;
@@ -1907,7 +1907,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   } composition;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Comm_rank(comm_row, &comm_rank_row);
-  copyin_factors = (int*) malloc(sizeof(int) * comm_size_row);
+  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
   MPI_Type_size(datatype, &type_size);
   message_size = type_size * count;
   if (comm_column != MPI_COMM_NULL) {
