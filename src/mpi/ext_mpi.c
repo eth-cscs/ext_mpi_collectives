@@ -1396,6 +1396,25 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, comm_row, &my_cores_per_node_row,
       comm_column, my_cores_per_node_column,
       my_cores_per_node_row * my_cores_per_node_column, &copyin_method_, copyin_factors, &num_sockets_per_node);
+  if (ext_mpi_num_sockets_per_node == 1 && num_sockets_per_node == 2) {
+    num_ports[0] = -1;
+    num_ports[1] = 1;
+    num_ports[2] = 0;
+    groups[0] = -2;
+    groups[1] = -2;
+    groups[2] = 0;
+  } else if (ext_mpi_num_sockets_per_node == 1 && num_sockets_per_node == 4) {
+    num_ports[0] = -1;
+    num_ports[1] = -1;
+    num_ports[2] = 1;
+    num_ports[3] = 1;
+    num_ports[4] = 0;
+    groups[0] = -2;
+    groups[1] = -2;
+    groups[2] = -2;
+    groups[3] = -2;
+    groups[4] = 0;
+  }
   *handle = EXT_MPI_Allreduce_init_native(
       sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
