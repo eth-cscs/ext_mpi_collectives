@@ -301,7 +301,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-      ascii, num_cores, socket_rank, node_sockets, i;
+      ascii, num_cores, socket_rank, num_sockets_per_node, i;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
@@ -318,26 +318,26 @@ int ext_mpi_generate_byte_code(char **shmem,
 #endif
   num_cores = parameters->socket_row_size*parameters->socket_column_size;
   socket_rank = parameters->socket_rank;
-  node_sockets = parameters->node_sockets;
+  num_sockets_per_node = parameters->num_sockets_per_node;
   ext_mpi_delete_parameters(parameters);
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
     header = &header_temp;
     header->num_cores = num_cores;
     header->socket_rank = socket_rank;
-    header->node_sockets = node_sockets;
+    header->num_sockets_per_node = num_sockets_per_node;
   } else {
     header = (struct header_byte_code *)ip;
     header->barrier_counter_socket = 1;
     header->barrier_counter_node = 1;
-    header->barrier_shmem_node = (volatile char **)malloc(node_sockets*sizeof(char *));
+    header->barrier_shmem_node = (volatile char **)malloc(num_sockets_per_node*sizeof(char *));
     if (shmem != NULL) {
-      for (i=0; i<node_sockets; i++) {
+      for (i=0; i<num_sockets_per_node; i++) {
         header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;
       }
       header->barrier_shmem_socket = shmem[0] + my_size_shared_buf;
     } else {
-      for (i=0; i<node_sockets; i++) {
+      for (i=0; i<num_sockets_per_node; i++) {
         header->barrier_shmem_node[i] = NULL + my_size_shared_buf + 2 * barriers_size;
       }
       header->barrier_shmem_socket = NULL + my_size_shared_buf;
@@ -356,7 +356,7 @@ int ext_mpi_generate_byte_code(char **shmem,
     header->node_num_cores_column = node_num_cores_column;
     header->num_cores = num_cores;
     header->socket_rank = socket_rank;
-    header->node_sockets = node_sockets;
+    header->num_sockets_per_node = num_sockets_per_node;
     header->tag = tag;
 #ifdef GPU_ENABLED
     header->gpu_byte_code = NULL;

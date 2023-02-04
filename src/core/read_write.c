@@ -195,7 +195,7 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->socket_rank = 0;
   (*parameters)->socket_row_size = 1;
   (*parameters)->socket_column_size = 1;
-  (*parameters)->node_sockets = 1;
+  (*parameters)->num_sockets_per_node = 1;
   (*parameters)->copyin_method = 0;
   (*parameters)->copyin_factors = NULL;
   (*parameters)->copyin_factors_max = 0;
@@ -261,7 +261,7 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
           (*parameters)->socket_column_size = integer1;
         }
         if (strcmp(string2, "NODE_SOCKETS") == 0) {
-          (*parameters)->node_sockets = integer1;
+          (*parameters)->num_sockets_per_node = integer1;
         }
         if (strcmp(string2, "COPYIN_METHOD") == 0) {
           (*parameters)->copyin_method = integer1;
@@ -515,7 +515,7 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
               parameters->socket_column_size);
   nbuffer_out +=
       sprintf(buffer_out + nbuffer_out, " PARAMETER NODE_SOCKETS %d\n",
-              parameters->node_sockets);
+              parameters->num_sockets_per_node);
   nbuffer_out +=
       sprintf(buffer_out + nbuffer_out, " PARAMETER COPYIN_METHOD %d\n",
               parameters->copyin_method);

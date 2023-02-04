@@ -22,6 +22,7 @@ struct header_byte_code {
   int socket_rank;
   int node_sockets;
   int tag;
+  int num_sockets_per_node;
 #ifdef GPU_ENABLED
   char **shmem_gpu;
   char *gpu_byte_code;

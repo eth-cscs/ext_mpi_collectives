@@ -64,7 +64,7 @@ struct parameters_block {
   int socket_rank;
   int socket_row_size;
   int socket_column_size;
-  int node_sockets;
+  int num_sockets_per_node;
   int *counts;
   int counts_max;
   int *num_ports;
