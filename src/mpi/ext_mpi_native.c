@@ -638,7 +638,7 @@ int EXT_MPI_Wait_native(int handle) {
 int EXT_MPI_Done_native(int handle) {
   char **shmem;
   char *ip, *locmem;
-  int shmem_size, *shmemid, num_sockets_per_node, i;
+  int shmem_size, *shmemid, i;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column, shmem_comm_node_row2,
       shmem_comm_node_column2;
   struct header_byte_code *header;
@@ -649,7 +649,6 @@ int EXT_MPI_Done_native(int handle) {
   shmem_size = header->barrier_shmem_size;
   shmemid = header->shmemid;
   locmem = header->locmem;
-  num_sockets_per_node = header->num_sockets_per_node;
   if ((MPI_Comm *)(ip + header->size_to_return)) {
     shmem_comm_node_row = *((MPI_Comm *)(ip + header->size_to_return));
   } else {
@@ -665,7 +664,7 @@ int EXT_MPI_Done_native(int handle) {
   if (header->shmem_gpu) {
     ext_mpi_gpu_destroy_shared_memory(shmem_comm_node_row, header->node_num_cores_row,
                                       shmem_comm_node_column, header->node_num_cores_column,
-				      num_sockets_per_node, header->shmem_gpu);
+				      header->num_sockets_per_node, header->shmem_gpu);
     header->shmem_gpu = NULL;
   }
   ext_mpi_gpu_free(header->gpu_byte_code);
@@ -698,7 +697,7 @@ int EXT_MPI_Done_native(int handle) {
     if (header->shmem_gpu) {
       ext_mpi_gpu_destroy_shared_memory(shmem_comm_node_row2, header->node_num_cores_row,
                                         shmem_comm_node_column2, header->node_num_cores_column,
-				        num_sockets_per_node, header->shmem_gpu);
+				        header->num_sockets_per_node, header->shmem_gpu);
       header->shmem_gpu = NULL;
     }
     ext_mpi_gpu_free(header->gpu_byte_code);
