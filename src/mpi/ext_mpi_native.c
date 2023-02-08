@@ -38,6 +38,7 @@
 #include "no_socket_barriers.h"
 #include "waitany.h"
 #include "messages_shared_memory.h"
+#include "optimise_multi_socket.h"
 #include "shmem.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
@@ -1113,9 +1114,8 @@ buffer2 = buffer_temp;
   if (num_sockets_per_node > 1) {
     if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column) < 0)
       goto error;
-    buffer_temp = buffer2;
-    buffer2 = buffer1;
-    buffer1 = buffer_temp;
+    if (ext_mpi_generate_optimise_multi_socket(buffer1, buffer2) < 0)
+      goto error;
   }
   if (waitany&&recursive) {
     if (ext_mpi_generate_waitany(buffer2, buffer1) < 0)
