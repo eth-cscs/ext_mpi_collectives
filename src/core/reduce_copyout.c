@@ -54,7 +54,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   counts = parameters->counts;
   iocounts_max = parameters->iocounts_max;
   iocounts = parameters->iocounts;
-  if (!parameters->on_gpu && parameters->num_sockets == 1 && parameters->message_sizes[0] < CACHE_LINE_SIZE - sizeof(long int)) {
+  if (!parameters->on_gpu && parameters->num_sockets == 1 && parameters->message_sizes[0] <= CACHE_LINE_SIZE - OFFSET_FAST) {
     fast = 1;
   }
   switch (parameters->data_type) {

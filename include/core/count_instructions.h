@@ -30,7 +30,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
                                  int mpi_size_row, int my_cores_per_node_row,
                                  int mpi_size_column,
                                  int my_cores_per_node_column, int *num_ports,
-                                 int *groups, int num_active_ports, int copyin,
+                                 int *groups, int num_active_ports,
                                  int bit, char **code_address);
 
 void ext_mpi_get_counters_native(struct ext_mpi_counters_native *var);

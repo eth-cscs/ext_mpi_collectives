@@ -707,11 +707,14 @@ static int reduce_scatter_init_general(
     const void *sendbuf, void *recvbuf, const int *recvcounts, MPI_Datatype datatype,
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *handle) {
-  int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount,
-                     i, alt, group_size;
+  int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount, acount,
+      i, alt, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(datatype, &type_size);
+  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
+  if (!copyin_factors)
+    goto error;
   num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_ports)
     goto error;
@@ -812,20 +815,50 @@ static int reduce_scatter_init_general(
         free(str);
       }
     }
+    acount = 0;
+    for (i = 0; i < comm_size_row; i++) {
+      acount += recvcounts[i];
+    }
+  num_sockets_per_node = ext_mpi_num_sockets_per_node;
+  EXT_MPI_Allreduce_measurement(
+      sendbuf, recvbuf, acount, datatype, op, comm_row, &my_cores_per_node_row,
+      comm_column, my_cores_per_node_column,
+      my_cores_per_node_row * my_cores_per_node_column, &copyin_method_, copyin_factors, &num_sockets_per_node);
+  if (ext_mpi_num_sockets_per_node == 1 && num_sockets_per_node == 2) {
+    num_ports[0] = -1;
+    num_ports[1] = 1;
+    num_ports[2] = 0;
+    groups[0] = -2;
+    groups[1] = -2;
+    groups[2] = 0;
+  } else if (ext_mpi_num_sockets_per_node == 1 && num_sockets_per_node == 4) {
+    num_ports[0] = -1;
+    num_ports[1] = -1;
+    num_ports[2] = 1;
+    num_ports[3] = 1;
+    num_ports[4] = 0;
+    groups[0] = -2;
+    groups[1] = -2;
+    groups[2] = -2;
+    groups[3] = -2;
+    groups[4] = 0;
+  }
     *handle = EXT_MPI_Reduce_scatter_init_native(
         sendbuf, recvbuf, recvcounts, datatype, op, comm_row,
         my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
         groups, my_cores_per_node_row * my_cores_per_node_column,
-        copyin_method, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node);
+        copyin_method_, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node);
     if (*handle < 0)
       goto error;
   }
   free(groups);
   free(num_ports);
+  free(copyin_factors);
   return 0;
 error:
   free(groups);
   free(num_ports);
+  free(copyin_factors);
   return ERROR_MALLOC;
 }
 

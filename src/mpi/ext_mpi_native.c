@@ -1672,7 +1672,7 @@ int EXT_MPI_Reduce_scatter_init_native(
     MPI_Datatype datatype, MPI_Op op, MPI_Comm comm_row,
     int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *groups,
-    int num_active_ports, int copyin, int alt, int recursive, int blocking, int num_sockets_per_node) {
+    int num_active_ports, int copyin, int *copyin_factors, int alt, int recursive, int blocking, int num_sockets_per_node) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
@@ -1770,6 +1770,13 @@ int EXT_MPI_Reduce_scatter_init_native(
                       num_sockets_per_node);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_METHOD %d\n", copyin);
+  if (copyin_factors) {
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_FACTORS");
+    for (i = 0; copyin_factors[i]; i++) {
+      nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", copyin_factors[i]);
+    }
+    nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
+  }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COUNTS");
   for (i = 0; i < my_cores_per_node_column; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", global_counts[i]);

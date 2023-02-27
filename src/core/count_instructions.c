@@ -32,7 +32,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
                                  int mpi_size_row, int my_cores_per_node_row,
                                  int mpi_size_column,
                                  int my_cores_per_node_column, int *num_ports,
-                                 int *groups, int num_active_ports, int copyin,
+                                 int *groups, int num_active_ports,
                                  int bit, char **code_address) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node,
       my_mpi_rank_column, my_lrank_column, my_lrank_node;
@@ -148,7 +148,12 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
                       my_cores_per_node_column);
   nbuffer1 +=
-      sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_METHOD %d\n", copyin);
+      sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_METHOD %d\n", 0);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COPYIN_FACTORS");
+  for (i = 1; i < my_cores_per_node_row * 2; i *= 2) {
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", 2);
+  }
+  nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COUNTS");
   for (i = 0; i < my_cores_per_node_column; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", counts[i]);

@@ -525,7 +525,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       for (i = 0, j = 1; i < num_factors; j *= factors[i++])
         ;
       instance_max = (j - 1) / gbstep;
-      fast = !parameters->on_gpu && parameters->num_sockets == 1 && (moffsets[num_nodes] <= CACHE_LINE_SIZE - OFFSET_FAST);
+      fast = !parameters->on_gpu && parameters->num_sockets == 1 && parameters->message_sizes[0] <= CACHE_LINE_SIZE - OFFSET_FAST;
       if (fast) {
         type_size = moffsets[num_nodes];
       }

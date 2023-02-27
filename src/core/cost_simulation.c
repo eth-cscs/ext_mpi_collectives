@@ -53,7 +53,7 @@ int ext_mpi_cost_simulation(int count, int type_size, int comm_size_row,
         sendbuf, recvbuf, count, type_size,
         comm_size_row / my_cores_per_node_row, my_cores_per_node_row,
         comm_size_column / my_cores_per_node_column, my_cores_per_node_column,
-        num_ports, groups, my_cores_per_node_row * my_cores_per_node_column, 0,
+        num_ports, groups, my_cores_per_node_row * my_cores_per_node_column,
         bit_identical, &code_address) < 0)
       goto error;
     if (ext_mpi_count_native(code_address, counts, num_steps) < 0)
