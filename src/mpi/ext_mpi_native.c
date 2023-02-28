@@ -39,6 +39,7 @@
 #include "waitany.h"
 #include "messages_shared_memory.h"
 #include "optimise_multi_socket.h"
+#include "reduce_scatter_single_node.h"
 #include "shmem.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
@@ -1844,18 +1845,23 @@ int EXT_MPI_Reduce_scatter_init_native(
       goto error;
   }
 #endif
-  if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
-    goto error;
   if (my_mpi_size_row / my_cores_per_node_row > 1) {
-    if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
+      goto error;
+    if (my_mpi_size_row / my_cores_per_node_row > 1) {
+      if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
+        goto error;
+    } else {
+      buffer_temp = buffer2;
+      buffer2 = buffer1;
+      buffer1 = buffer_temp;
+    }
+    if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
       goto error;
   } else {
-    buffer_temp = buffer2;
-    buffer2 = buffer1;
-    buffer1 = buffer_temp;
+    if (ext_mpi_generate_reduce_scatter_single_node(buffer1, buffer2) < 0)
+      goto error;
   }
-  if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
-    goto error;
   if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)

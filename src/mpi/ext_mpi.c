@@ -775,9 +775,9 @@ static int reduce_scatter_init_general(
         rcount += recvcounts[i];
       }
 #ifdef GPU_ENABLED
-      if ((rcount * type_size <= CACHE_LINE_SIZE - 8) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
+      if ((rcount * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
 #else
-      if ((rcount * type_size <= CACHE_LINE_SIZE - 8) && ext_mpi_blocking) {
+      if ((rcount * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && ext_mpi_blocking) {
 #endif
         copyin_method = 3;
       } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
@@ -820,6 +820,7 @@ static int reduce_scatter_init_general(
       acount += recvcounts[i];
     }
   num_sockets_per_node = ext_mpi_num_sockets_per_node;
+  if (comm_size_row > my_cores_per_node_row) {
   EXT_MPI_Allreduce_measurement(
       sendbuf, recvbuf, acount, datatype, op, comm_row, &my_cores_per_node_row,
       comm_column, my_cores_per_node_column,
@@ -843,11 +844,12 @@ static int reduce_scatter_init_general(
     groups[3] = -2;
     groups[4] = 0;
   }
+  }
     *handle = EXT_MPI_Reduce_scatter_init_native(
         sendbuf, recvbuf, recvcounts, datatype, op, comm_row,
         my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
         groups, my_cores_per_node_row * my_cores_per_node_column,
-        copyin_method_, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node);
+        copyin_method_, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, num_sockets_per_node);
     if (*handle < 0)
       goto error;
   }
@@ -1383,9 +1385,9 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   }
   if (copyin_method < 0) {
 #ifdef GPU_ENABLED
-    if ((count * type_size <= CACHE_LINE_SIZE - 8) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
+    if ((count * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
 #else
-    if ((count * type_size <= CACHE_LINE_SIZE - 8) && ext_mpi_blocking) {
+    if ((count * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && ext_mpi_blocking) {
 #endif
       copyin_method = 3;
     } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
@@ -1767,9 +1769,9 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   }
   if (copyin_method < 0) {
 #ifdef GPU_ENABLED
-    if ((count * type_size <= CACHE_LINE_SIZE - 8) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
+    if ((count * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
 #else
-    if ((count * type_size <= CACHE_LINE_SIZE - 8) && ext_mpi_blocking) {
+    if ((count * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && ext_mpi_blocking) {
 #endif
       copyin_method = 3;
     } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
