@@ -708,7 +708,7 @@ static int reduce_scatter_init_general(
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount, acount,
-      i, alt, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node;
+      i, alt, group_size, copyin_method_ = -1, *copyin_factors = NULL, num_sockets_per_node;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(datatype, &type_size);
