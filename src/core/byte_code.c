@@ -349,7 +349,7 @@ int ext_mpi_generate_byte_code(char **shmem,
 #ifdef GPU_ENABLED
     header->shmem_gpu = shmem_gpu;
     if (on_gpu) {
-      shmem = header->shmem = header->shmem_gpu;
+      shmem = header->shmem_gpu;
     }
 #endif
     header->node_num_cores_row = node_num_cores_row;

@@ -820,6 +820,9 @@ static int reduce_scatter_init_general(
       acount += recvcounts[i];
     }
   num_sockets_per_node = ext_mpi_num_sockets_per_node;
+  for (i = 0; i < comm_size_row + 1; i++) {
+    copyin_factors[i] = 0;
+  }
   if (comm_size_row > my_cores_per_node_row) {
   EXT_MPI_Allreduce_measurement(
       sendbuf, recvbuf, acount, datatype, op, comm_row, &my_cores_per_node_row,

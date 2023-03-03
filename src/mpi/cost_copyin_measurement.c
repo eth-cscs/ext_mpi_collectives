@@ -57,7 +57,7 @@ static double execution_time(const void *sendbuf, void *recvbuf, int count, MPI_
   return time;
 }
 
-double Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
+static double allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
                           MPI_Datatype datatype, MPI_Op op,
                           MPI_Comm comm_row, int my_cores_per_node_row,
                           MPI_Comm comm_column, int my_cores_per_node_column,
@@ -122,7 +122,7 @@ double Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
           *copyin_method = 0;
         }
         for (j = 0; copyin_factors[j]; j++) {
-  	copyin_factors_min[j] = copyin_factors[j];
+  	  copyin_factors_min[j] = copyin_factors[j];
         }
         copyin_factors_min[j] = 0;
       }
@@ -153,12 +153,12 @@ int EXT_MPI_Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
   MPI_Comm_rank(comm_row, &mpi_rank_row);
   MPI_Type_size(datatype, &msize);
   msize *= count;
-  time_min = Allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row, comm_column, my_cores_per_node_column, num_active_ports, &copyin_method_min, copyin_factors_min, *num_sockets_per_node);
+  time_min = allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row, comm_column, my_cores_per_node_column, num_active_ports, &copyin_method_min, copyin_factors_min, *num_sockets_per_node);
   num_sockets_per_node_min = 1;
   if (*my_cores_per_node_row == mpi_size_row) num_sockets_per_node_max = 4;
   for (j = 2; j <= num_sockets_per_node_max; j *= 2){
     if (*num_sockets_per_node == 1 && *my_cores_per_node_row % j == 0) {
-      time = Allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row/j, comm_column, my_cores_per_node_column, num_active_ports, copyin_method, copyin_factors, *num_sockets_per_node*j);
+      time = allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row/j, comm_column, my_cores_per_node_column, num_active_ports, copyin_method, copyin_factors, *num_sockets_per_node*j);
       k = time < time_min;
       MPI_Bcast(&k, 1, MPI_INT, 0, comm_row);
       if (k) {
