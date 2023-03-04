@@ -8,8 +8,8 @@
 int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
   struct line_memcpy_reduce data_memcpy_reduce;
   int nbuffer_out = 0, nbuffer_in = 0, nbuffer_in2 = 0, o1,
-      *buffer_offset = NULL, *buffer_offset2 = NULL, buffer_offset_max = 0,
-      locmem_max = 0, flag, i, shmem_max = 0;
+      buffer_offset_max = 0, locmem_max = 0, flag, i;
+  long int *buffer_offset = NULL, *buffer_offset2 = NULL, shmem_max = 0;
   char line[1000];
   struct parameters_block *parameters;
   enum eassembler_type estring1;
@@ -35,10 +35,10 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
     }
   } while (flag > 0);
   buffer_offset_max += 2;
-  buffer_offset = (int *)malloc(sizeof(int) * buffer_offset_max);
+  buffer_offset = (long int *)malloc(sizeof(long int) * buffer_offset_max);
   if (!buffer_offset)
     goto error;
-  buffer_offset2 = (int *)malloc(sizeof(int) * buffer_offset_max);
+  buffer_offset2 = (long int *)malloc(sizeof(long int) * buffer_offset_max);
   if (!buffer_offset2)
     goto error;
   for (i = 0; i < buffer_offset_max; i++) {
@@ -53,15 +53,15 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
           (data_memcpy_reduce.type == ememcp_) || (data_memcpy_reduce.type == ereduc_) ||
           (data_memcpy_reduce.type == esmemcpy) || (data_memcpy_reduce.type == esmemcp_) ||
           (data_memcpy_reduce.type == esreduce) || (data_memcpy_reduce.type == esreduc_)) {
-        if (data_memcpy_reduce.is_offset1 && data_memcpy_reduce.offset_number1 >= 0 && (data_memcpy_reduce.offset1 + data_memcpy_reduce.size > buffer_offset[data_memcpy_reduce.offset_number1])) {
-          buffer_offset[data_memcpy_reduce.offset_number1] = data_memcpy_reduce.offset1 + data_memcpy_reduce.size;
-        } else if (!data_memcpy_reduce.is_offset1 && (data_memcpy_reduce.offset1 + data_memcpy_reduce.size > shmem_max)) {
-          shmem_max = data_memcpy_reduce.offset1 + data_memcpy_reduce.size;
+        if (data_memcpy_reduce.is_offset1 && data_memcpy_reduce.offset_number1 >= 0 && ((long int)data_memcpy_reduce.offset1 + (long int)data_memcpy_reduce.size > buffer_offset[data_memcpy_reduce.offset_number1])) {
+          buffer_offset[data_memcpy_reduce.offset_number1] = (long int)data_memcpy_reduce.offset1 + (long int)data_memcpy_reduce.size;
+        } else if (!data_memcpy_reduce.is_offset1 && ((long int)data_memcpy_reduce.offset1 + (long int)data_memcpy_reduce.size > shmem_max)) {
+          shmem_max = (long int)data_memcpy_reduce.offset1 + (long int)data_memcpy_reduce.size;
         }
-        if (data_memcpy_reduce.is_offset2 && data_memcpy_reduce.offset_number2 >= 0 && (data_memcpy_reduce.offset2 + data_memcpy_reduce.size > buffer_offset[data_memcpy_reduce.offset_number2])) {
-          buffer_offset[data_memcpy_reduce.offset_number2] = data_memcpy_reduce.offset2 + data_memcpy_reduce.size;
-        } else if (!data_memcpy_reduce.is_offset2 && (data_memcpy_reduce.offset2 + data_memcpy_reduce.size > shmem_max)) {
-          shmem_max = data_memcpy_reduce.offset2 + data_memcpy_reduce.size;
+        if (data_memcpy_reduce.is_offset2 && data_memcpy_reduce.offset_number2 >= 0 && ((long int)data_memcpy_reduce.offset2 + (long int)data_memcpy_reduce.size > buffer_offset[data_memcpy_reduce.offset_number2])) {
+          buffer_offset[data_memcpy_reduce.offset_number2] = (long int)data_memcpy_reduce.offset2 + (long int)data_memcpy_reduce.size;
+        } else if (!data_memcpy_reduce.is_offset2 && ((long int)data_memcpy_reduce.offset2 + (long int)data_memcpy_reduce.size > shmem_max)) {
+          shmem_max = (long int)data_memcpy_reduce.offset2 + (long int)data_memcpy_reduce.size;
         }
       }
       if ((data_memcpy_reduce.type == ewaitall) || (data_memcpy_reduce.type == ewaitany)) {
@@ -88,7 +88,15 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
   parameters->locmem_max = locmem_max;
   parameters->shmem_buffer_offset_max = buffer_offset_max;
   free(parameters->shmem_buffer_offset);
-  parameters->shmem_buffer_offset = buffer_offset2;
+  parameters->shmem_buffer_offset = (int*)malloc(sizeof(int) * parameters->shmem_buffer_offset_max);
+  if (!parameters->shmem_buffer_offset)
+    goto error;
+  for (i = 0; i < parameters->shmem_buffer_offset_max; i++) {
+    parameters->shmem_buffer_offset[i] = buffer_offset2[i];
+    if (parameters->shmem_buffer_offset[i] != buffer_offset2[i]) {
+      goto error;
+    }
+  }
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   do {
     nbuffer_in2 += flag =
@@ -99,10 +107,12 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out) {
     }
   } while (flag > 0);
   nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  free(buffer_offset2);
   free(buffer_offset);
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
+  free(buffer_offset2);
   free(buffer_offset);
   ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
