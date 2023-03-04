@@ -289,7 +289,7 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
     if (alternating >= 1) {
       alt = alternating - 1;
     } else {
-      alt = (rcount < 10000000);
+      alt = rcount < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
     }
     if (comm_size_row/my_cores_per_node_row>1){
       group_size=1;
@@ -546,7 +546,7 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
     if (alternating >= 1) {
       alt = alternating - 1;
     } else {
-      alt = (rcount < 10000000);
+      alt = rcount < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
     }
     if (comm_size_row/my_cores_per_node_row>1){
       group_size=1;
@@ -798,7 +798,7 @@ static int reduce_scatter_init_general(
     if (alternating >= 1) {
       alt = alternating - 1;
     } else {
-      alt = (rcount < 10000000);
+      alt = rcount < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
     }
     if (comm_size_row/my_cores_per_node_row>1){
       group_size=1;
@@ -1084,7 +1084,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     if (alternating >= 1) {
       alt = alternating - 1;
     } else {
-      alt = (rcount < 10000000);
+      alt = rcount < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
     }
     if (comm_size_row/my_cores_per_node_row>1){
       group_size=1;
@@ -1416,7 +1416,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   if (alternating >= 1) {
     alt = alternating - 1;
   } else {
-    alt = (count * type_size < 10000000);
+    alt = count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
   }
   if (comm_size_row/my_cores_per_node_row>1){
     group_size=1;
@@ -1800,7 +1800,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   if (alternating >= 1) {
     alt = alternating - 1;
   } else {
-    alt = (count * type_size < 10000000);
+    alt = count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
   }
   if (comm_size_row/my_cores_per_node_row>1){
     group_size=1;
@@ -2142,7 +2142,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   if (alternating >= 1) {
     alt = alternating - 1;
   } else {
-    alt = (count * type_size < 10000000);
+    alt = count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
   }
   if (comm_size_row/my_cores_per_node_row>1){
     group_size=1;
