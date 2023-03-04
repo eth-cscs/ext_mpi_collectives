@@ -8,6 +8,12 @@ void ext_mpi_gpu_malloc(void **p, int size) {
     printf("error in gpu_malloc\n");
     exit(13);
   }
+#ifdef DEBUG
+  if (cudaMemset(*p, -1, size) != cudaSuccess) {
+    printf("error in gpu_malloc\n");
+    exit(13);
+  }
+#endif
 }
 
 void ext_mpi_gpu_free(void *p) {

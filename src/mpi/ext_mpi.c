@@ -913,7 +913,6 @@ int EXT_MPI_Reduce_scatter_init_general(
       ext_mpi_gpu_malloc(&recvbuf_ref, recvcounts[comm_rank_row] * type_size);
       ext_mpi_gpu_malloc(&sendbuf_h, tsize * type_size);
       ext_mpi_gpu_memcpy_hd(sendbuf_h, sendbuf_hh, tsize * type_size);
-      ext_mpi_gpu_memcpy_hd(recvbuf_ref, recvbuf_ref_hh, recvcounts[comm_rank_row] * type_size);
     } else {
 #endif
       recvbuf_ref = malloc(recvcounts[comm_rank_row] * type_size);
