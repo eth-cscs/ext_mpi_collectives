@@ -153,45 +153,51 @@ int EXT_MPI_Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
   MPI_Comm_rank(comm_row, &mpi_rank_row);
   MPI_Type_size(datatype, &msize);
   msize *= count;
-  time_min = allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row, comm_column, my_cores_per_node_column, num_active_ports, &copyin_method_min, copyin_factors_min, *num_sockets_per_node);
-  num_sockets_per_node_min = 1;
-  if (*my_cores_per_node_row == mpi_size_row) num_sockets_per_node_max = 4;
-  for (j = 2; j <= num_sockets_per_node_max; j *= 2){
-    if (*num_sockets_per_node == 1 && *my_cores_per_node_row % j == 0) {
-      time = allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row/j, comm_column, my_cores_per_node_column, num_active_ports, copyin_method, copyin_factors, *num_sockets_per_node*j);
-      k = time < time_min;
-      MPI_Bcast(&k, 1, MPI_INT, 0, comm_row);
-      if (k) {
-        time_min = time;
-        copyin_method_min = *copyin_method;
-        for (i = 0; copyin_factors[i]; i++) {
-	  copyin_factors_min[i] = copyin_factors[i];
+  if (*my_cores_per_node_row * my_cores_per_node_column == 1) {
+    *copyin_method = 0;
+    copyin_factors[0] = 1;
+    copyin_factors[1] = 0;
+  } else {
+    time_min = allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row, comm_column, my_cores_per_node_column, num_active_ports, &copyin_method_min, copyin_factors_min, *num_sockets_per_node);
+    num_sockets_per_node_min = 1;
+    if (*my_cores_per_node_row == mpi_size_row) num_sockets_per_node_max = 4;
+    for (j = 2; j <= num_sockets_per_node_max; j *= 2){
+      if (*num_sockets_per_node == 1 && *my_cores_per_node_row % j == 0) {
+        time = allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row/j, comm_column, my_cores_per_node_column, num_active_ports, copyin_method, copyin_factors, *num_sockets_per_node*j);
+        k = time < time_min;
+        MPI_Bcast(&k, 1, MPI_INT, 0, comm_row);
+        if (k) {
+          time_min = time;
+          copyin_method_min = *copyin_method;
+          for (i = 0; copyin_factors[i]; i++) {
+            copyin_factors_min[i] = copyin_factors[i];
+          }
+          copyin_factors_min[i] = copyin_factors[i];
+          num_sockets_per_node_min = j;
         }
-        copyin_factors_min[i] = copyin_factors[i];
-        num_sockets_per_node_min = j;
       }
     }
-  }
-  MPI_Bcast(&num_sockets_per_node_min, 1, MPI_INT, 0, comm_row);
-  *copyin_method = copyin_method_min;
-  MPI_Bcast(copyin_method, 1, MPI_INT, 0, comm_row);
-  MPI_Bcast(copyin_factors_min, *my_cores_per_node_row + 1, MPI_INT, 0, comm_row);
-  if (mpi_rank_row == 0 && ext_mpi_verbose) {
-    printf("# EXT_MPI copyin %d;", *copyin_method);
-  }
-  for (j = 0; copyin_factors_min[j]; j++) {
-    copyin_factors[j] = copyin_factors_min[j];
+    MPI_Bcast(&num_sockets_per_node_min, 1, MPI_INT, 0, comm_row);
+    *copyin_method = copyin_method_min;
+    MPI_Bcast(copyin_method, 1, MPI_INT, 0, comm_row);
+    MPI_Bcast(copyin_factors_min, *my_cores_per_node_row + 1, MPI_INT, 0, comm_row);
     if (mpi_rank_row == 0 && ext_mpi_verbose) {
-      printf(" %d", copyin_factors[j]);
+      printf("# EXT_MPI copyin %d;", *copyin_method);
     }
-  }
-  copyin_factors[j] = 0;
-  if (mpi_rank_row == 0 && ext_mpi_verbose) {
-    printf("\n");
-  }
-  if (*num_sockets_per_node == 1) {
-    *num_sockets_per_node = num_sockets_per_node_min;
-    *my_cores_per_node_row /= num_sockets_per_node_min;
+    for (j = 0; copyin_factors_min[j]; j++) {
+      copyin_factors[j] = copyin_factors_min[j];
+      if (mpi_rank_row == 0 && ext_mpi_verbose) {
+        printf(" %d", copyin_factors[j]);
+      }
+    }
+    copyin_factors[j] = 0;
+    if (mpi_rank_row == 0 && ext_mpi_verbose) {
+      printf("\n");
+    }
+    if (*num_sockets_per_node == 1) {
+      *num_sockets_per_node = num_sockets_per_node_min;
+      *my_cores_per_node_row /= num_sockets_per_node_min;
+    }
   }
   return 0;
 }

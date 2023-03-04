@@ -239,7 +239,7 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
   if (comm_column != MPI_COMM_NULL) {
     MPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
   }
-  if (scount * type_size <= 25000000) {
+  if (scount * type_size <= 50000000) {
     if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
       if (comm_size_row/my_cores_per_node_row==1){
         group_size = 1;
@@ -318,6 +318,9 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
         my_cores_per_node_row * my_cores_per_node_column, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node);
     if (*handle < 0)
       goto error;
+  } else {
+    printf("very large message sizes not implemented\n");
+    exit(1);
   }
   free(groups);
   free(num_ports);
@@ -495,7 +498,7 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
   if (comm_column != MPI_COMM_NULL) {
     MPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
   }
-  if (scount * type_size <= 25000000) {
+  if (scount * type_size <= 50000000) {
     if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
       if (comm_size_row/my_cores_per_node_row==1){
         group_size = 1;
@@ -572,6 +575,9 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
         my_cores_per_node_row * my_cores_per_node_column, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node);
     if (*handle < 0)
       goto error;
+  } else {
+    printf("very large message sizes not implemented\n");
+    exit(1);
   }
   free(groups);
   free(num_ports);
@@ -730,7 +736,7 @@ static int reduce_scatter_init_general(
   if (comm_column != MPI_COMM_NULL) {
     MPI_Allreduce(MPI_IN_PLACE, &rcount, 1, MPI_INT, MPI_SUM, comm_column);
   }
-  if (rcount * type_size <= 25000000) {
+  if (rcount * type_size <= 50000000) {
     if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
       if (comm_size_row/my_cores_per_node_row==1){
         group_size = 1;
@@ -855,6 +861,9 @@ static int reduce_scatter_init_general(
         copyin_method_, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, num_sockets_per_node);
     if (*handle < 0)
       goto error;
+  } else {
+    printf("very large message sizes not implemented\n");
+    exit(1);
   }
   free(groups);
   free(num_ports);
@@ -1015,7 +1024,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
   if (comm_column != MPI_COMM_NULL) {
     MPI_Allreduce(MPI_IN_PLACE, &rcount, 1, MPI_INT, MPI_SUM, comm_column);
   }
-  if (rcount * type_size <= 25000000) {
+  if (rcount * type_size <= 50000000) {
     if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
       if (comm_size_row/my_cores_per_node_row==1){
         group_size = 1;
@@ -1105,6 +1114,9 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
         my_cores_per_node_row * my_cores_per_node_column, copyin_method, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node);
     if (*handle < 0)
       goto error;
+  } else {
+    printf("very large message sizes not implemented\n");
+    exit(1);
   }
   free(groups);
   free(num_ports);
