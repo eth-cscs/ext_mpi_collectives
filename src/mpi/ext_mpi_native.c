@@ -11,6 +11,7 @@
 #include <unistd.h>
 #endif
 #include "allreduce.h"
+#include "allreduce_recursive.h"
 #include "alltoall.h"
 #include "backward_interpreter.h"
 #include "buffer_offset.h"
@@ -1354,8 +1355,13 @@ int EXT_MPI_Gatherv_init_native(
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
-    goto error;
+  if (!recursive) {
+    if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+      goto error;
+  } else {
+    if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
+      goto error;
+  }
   if (j <= 1) {
     if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
       goto error;
@@ -1406,6 +1412,13 @@ int EXT_MPI_Gatherv_init_native(
 #ifdef GPU_ENABLED
   }
 #endif
+  if (recursive && my_cores_per_node_row * my_cores_per_node_column == 1){
+    if (ext_mpi_generate_use_recvbuf(buffer2, buffer1) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
   if (alt) {
     if (ext_mpi_generate_no_first_barrier(buffer2, buffer1) < 0)
       goto error;

@@ -31,7 +31,7 @@ static int is_initialised = 0;
 static int copyin_method = -1;
 static int alternating = 0;
 // FIXME: should be 0 if feature is present
-static int not_recursive = 1;
+static int not_recursive = 0;
 static int *fixed_factors_ports = NULL;
 static int *fixed_factors_groups = NULL;
 
