@@ -36,6 +36,7 @@
 #include "reduce_copyin.h"
 #include "reduce_copyout.h"
 #include "use_recvbuf.h"
+#include "swap_copyin.h"
 #include "no_socket_barriers.h"
 #include "waitany.h"
 #include "messages_shared_memory.h"
@@ -1430,6 +1431,13 @@ int EXT_MPI_Gatherv_init_native(
     goto error;
   if (my_cores_per_node_row*my_cores_per_node_column == 1){
     if (ext_mpi_generate_no_socket_barriers(buffer2, buffer1) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
+  if (recursive && my_cores_per_node_row * my_cores_per_node_column == 1){
+    if (ext_mpi_generate_swap_copyin(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
     buffer2 = buffer1;
