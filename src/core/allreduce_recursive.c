@@ -75,7 +75,7 @@ static int allgather_core(struct data_algorithm *data, int num_sockets, int *num
 }
 
 static int reduce_scatter_core(struct data_algorithm *data, int num_sockets, int *num_ports, int task) {
-  int gbstep, i, step, line, gbstep_next, lines_base;
+  int gbstep, i, step, line, gbstep_next, lines_base, last_round;
   for (step = 0; num_ports[step]; step++);
   data->num_blocks = 0;
   data->blocks = (struct data_algorithm_block*)malloc(sizeof(struct data_algorithm_block)*(2*step+2));
@@ -101,7 +101,12 @@ static int reduce_scatter_core(struct data_algorithm *data, int num_sockets, int
   for (gbstep = 1, step = 0; num_ports[step]; gbstep *= abs(num_ports[step]) + 1, step++)
     ;
   for (step = 0; num_ports[step]; gbstep /= abs(num_ports[step]) + 1, step++) {
-    data->blocks[data->num_blocks].num_lines = 3 * lines_base;
+    last_round = !num_ports[step + 1];
+    if (!last_round) {
+      data->blocks[data->num_blocks].num_lines = (3 + abs(num_ports[step])) * lines_base;
+    } else {
+      data->blocks[data->num_blocks].num_lines = (2 + abs(num_ports[step])) * lines_base;
+    }
     data->blocks[data->num_blocks].lines = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line)*data->blocks[data->num_blocks].num_lines);
     memset(data->blocks[data->num_blocks].lines, 0, sizeof(struct data_algorithm_line)*data->blocks[data->num_blocks].num_lines);
     for (line = 0; line < data->blocks[data->num_blocks].num_lines; line++) {
@@ -121,12 +126,38 @@ static int reduce_scatter_core(struct data_algorithm *data, int num_sockets, int
         data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
         data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_line[0] = line;
       } else {
-        data->blocks[data->num_blocks].lines[line + 2 * lines_base].recvfrom_max = abs(num_ports[step]);
-        data->blocks[data->num_blocks].lines[line + 2 * lines_base].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].recvfrom_max);
-        data->blocks[data->num_blocks].lines[line + 2 * lines_base].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].recvfrom_max);
-        for (i = 0; i < data->blocks[data->num_blocks].lines[line + 2 * lines_base].recvfrom_max; i++) {
-          data->blocks[data->num_blocks].lines[line + 2 * lines_base].recvfrom_node[i] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
-          data->blocks[data->num_blocks].lines[line + 2 * lines_base].recvfrom_line[i] = line;
+        if (!last_round) {
+          for (i = 0; i < abs(num_ports[step]); i++) {
+	    data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max = 1;
+            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max);
+            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max);
+            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
+            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_line[0] = line;
+          }
+          data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max = abs(num_ports[step]);
+          data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max);
+          for (i = 0; i < data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max; i++) {
+            data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom[i] = line + (3 + i) * lines_base;
+          }
+        } else {
+	  data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_max = 1;
+          data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_max);
+          data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_max);
+          i = abs(num_ports[step]) - 1;
+          data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
+          data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_line[0] = line;
+          for (i = 0; i < abs(num_ports[step]) - 1; i++) {
+	    data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max = 1;
+            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max);
+            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max);
+            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
+            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_line[0] = line;
+          }
+          data->blocks[data->num_blocks].lines[line + lines_base].reducefrom_max = abs(num_ports[step]);
+          data->blocks[data->num_blocks].lines[line + lines_base].reducefrom = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + lines_base].reducefrom_max);
+          for (i = 0; i < data->blocks[data->num_blocks].lines[line + lines_base].reducefrom_max; i++) {
+            data->blocks[data->num_blocks].lines[line + lines_base].reducefrom[i] = line + (2 + i) * lines_base;
+          }
         }
       }
     }
