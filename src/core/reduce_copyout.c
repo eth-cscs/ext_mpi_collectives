@@ -175,6 +175,12 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
     add = 0;
     add2 = iodispls[node_rank];
     size = iocounts[node_rank];
+    for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
+      if (data.blocks[data.num_blocks - 1].lines[i].sendto_max > 0) {
+        break;
+      }
+      add2 += mcounts[data.blocks[data.num_blocks - 1].lines[i].frac];
+    }
     if (size) {
       data_memcpy_reduce.type = ememcpy;
       data_memcpy_reduce.buffer_type1 = erecvbufp;

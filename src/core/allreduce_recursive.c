@@ -115,16 +115,29 @@ static int reduce_scatter_core(struct data_algorithm *data, int num_sockets, int
     gbstep_next = gbstep / (abs(num_ports[step]) + 1);
     for (line = task / gbstep * gbstep; line < task / gbstep * gbstep + gbstep; line++) {
       if (line / gbstep_next != task / gbstep_next) {
-        data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_max = 1;
-        data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_node = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_max);
-        data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_line = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_max);
-	if (line / gbstep_next > task / gbstep_next) {
-	  i = (gbstep + line / gbstep_next - task / gbstep_next - 1) % gbstep;
-	} else {
-	  i = (gbstep + line / gbstep_next - task / gbstep_next) % gbstep - 1;
-	}
-        data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
-        data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_line[0] = line;
+        if (step > 0) {
+          data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_max = 1;
+          data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_node = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_max);
+          data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_line = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_max);
+	  if (line / gbstep_next > task / gbstep_next) {
+	    i = (gbstep + line / gbstep_next - task / gbstep_next - 1) % gbstep;
+	  } else {
+	    i = (gbstep + line / gbstep_next - task / gbstep_next) % gbstep - 1;
+	  }
+          data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
+          data->blocks[data->num_blocks].lines[line + 2 * lines_base].sendto_line[0] = line;
+        } else {
+          data->blocks[data->num_blocks].lines[line].sendto_max = 1;
+          data->blocks[data->num_blocks].lines[line].sendto_node = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].sendto_max);
+          data->blocks[data->num_blocks].lines[line].sendto_line = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].sendto_max);
+	  if (line / gbstep_next > task / gbstep_next) {
+	    i = (gbstep + line / gbstep_next - task / gbstep_next - 1) % gbstep;
+	  } else {
+	    i = (gbstep + line / gbstep_next - task / gbstep_next) % gbstep - 1;
+	  }
+          data->blocks[data->num_blocks].lines[line].sendto_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
+          data->blocks[data->num_blocks].lines[line].sendto_line[0] = line;
+        }
       } else {
         if (!last_round) {
           for (i = 0; i < abs(num_ports[step]); i++) {
@@ -155,8 +168,15 @@ static int reduce_scatter_core(struct data_algorithm *data, int num_sockets, int
           }
           data->blocks[data->num_blocks].lines[line + lines_base].reducefrom_max = abs(num_ports[step]);
           data->blocks[data->num_blocks].lines[line + lines_base].reducefrom = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + lines_base].reducefrom_max);
-          for (i = 0; i < data->blocks[data->num_blocks].lines[line + lines_base].reducefrom_max; i++) {
-            data->blocks[data->num_blocks].lines[line + lines_base].reducefrom[i] = line + (2 + i) * lines_base;
+          if (step > 0) {
+            for (i = 0; i < data->blocks[data->num_blocks].lines[line + lines_base].reducefrom_max; i++) {
+              data->blocks[data->num_blocks].lines[line + lines_base].reducefrom[i] = line + (2 + i) * lines_base;
+            }
+          } else {
+            data->blocks[data->num_blocks].lines[line + lines_base].reducefrom[0] = line;
+            for (i = 1; i < data->blocks[data->num_blocks].lines[line + lines_base].reducefrom_max; i++) {
+              data->blocks[data->num_blocks].lines[line + lines_base].reducefrom[i] = line + (2 + i) * lines_base;
+            }
           }
         }
       }
