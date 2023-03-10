@@ -140,18 +140,34 @@ static int reduce_scatter_core(struct data_algorithm *data, int num_sockets, int
         }
       } else {
         if (!last_round) {
-          for (i = 0; i < abs(num_ports[step]); i++) {
-	    data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max = 1;
-            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max);
-            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max);
-            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
-            data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_line[0] = line;
-          }
-          data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max = abs(num_ports[step]);
-          data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max);
-          for (i = 0; i < data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max; i++) {
-            data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom[i] = line + (3 + i) * lines_base;
-          }
+	  if (step > 0) {
+            for (i = 0; i < abs(num_ports[step]); i++) {
+	      data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max = 1;
+              data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max);
+              data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_max);
+              data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
+              data->blocks[data->num_blocks].lines[line + (3 + i) * lines_base].recvfrom_line[0] = line;
+            }
+            data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max = abs(num_ports[step]);
+            data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max);
+            for (i = 0; i < data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max; i++) {
+              data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom[i] = line + (3 + i) * lines_base;
+            }
+	  } else {
+            for (i = 0; i < abs(num_ports[step]); i++) {
+	      data->blocks[data->num_blocks].lines[line + (2 + i) * lines_base].recvfrom_max = 1;
+              data->blocks[data->num_blocks].lines[line + (2 + i) * lines_base].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (2 + i) * lines_base].recvfrom_max);
+              data->blocks[data->num_blocks].lines[line + (2 + i) * lines_base].recvfrom_line = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + (2 + i) * lines_base].recvfrom_max);
+              data->blocks[data->num_blocks].lines[line + (2 + i) * lines_base].recvfrom_node[0] = (task + gbstep_next * (i + 1)) % gbstep + task / gbstep * gbstep;
+              data->blocks[data->num_blocks].lines[line + (2 + i) * lines_base].recvfrom_line[0] = line;
+            }
+            data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max = abs(num_ports[step]);
+            data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max);
+	    data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom[0] = line;
+            for (i = 1; i < data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom_max; i++) {
+              data->blocks[data->num_blocks].lines[line + 2 * lines_base].reducefrom[i] = line + (2 + i) * lines_base;
+            }
+	  }
         } else {
 	  data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_max = 1;
           data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_node = (int *)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line + lines_base].recvfrom_max);
