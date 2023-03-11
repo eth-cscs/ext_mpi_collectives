@@ -1051,8 +1051,13 @@ allreduce_short = 0;
 buffer_temp = buffer1;
 buffer1 = buffer2;
 buffer2 = buffer_temp;
-  if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
-    goto error;
+  if (!recursive) {
+    if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
+      goto error;
+  } else {
+    if (ext_mpi_generate_allreduce_recursive(buffer2, buffer1) < 0)
+      goto error;
+  }
 //  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
 //    goto error;
 buffer_temp = buffer1;
@@ -1156,6 +1161,13 @@ buffer2 = buffer_temp;
   }
   if (my_cores_per_node_row*my_cores_per_node_column == 1){
     if (ext_mpi_generate_no_socket_barriers(buffer2, buffer1) < 0)
+      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
+  }
+  if (recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
+    if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
     buffer2 = buffer1;
@@ -1925,7 +1937,7 @@ int EXT_MPI_Reduce_scatter_init_native(
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  if (recursive && my_cores_per_node_row*my_cores_per_node_column==1) {
+  if (recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
     if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
