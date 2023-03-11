@@ -35,8 +35,10 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
                 flag = 2;
               } else if ((data_memcpy_reduce.buffer_type1==eshmemo)&&(data_memcpy_reduce.offset1+data_memcpy_reduce.size<=2*buffer_in_size)){
                 data_memcpy_reduce.buffer_type1=erecvbufp;
-                if (!big_recvbuf) {
-                  data_memcpy_reduce.offset1=0;
+                if (big_recvbuf) {
+                  data_memcpy_reduce.offset1 -= buffer_in_size;
+		} else {
+		  data_memcpy_reduce.offset1 = 0;
                 }
                 flag = 2;
               }
@@ -45,8 +47,10 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
                 flag = 2;
               } else if ((data_memcpy_reduce.buffer_type2==eshmemo)&&(data_memcpy_reduce.offset2+data_memcpy_reduce.size<=2*buffer_in_size)){
                 data_memcpy_reduce.buffer_type2=erecvbufp;
-                if (!big_recvbuf) {
-                  data_memcpy_reduce.offset2=0;
+                if (big_recvbuf) {
+                  data_memcpy_reduce.offset2 -= buffer_in_size;
+		} else {
+		  data_memcpy_reduce.offset2 = 0;
                 }
                 flag = 2;
               }
@@ -64,7 +68,9 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
               flag = 0;
             } else if ((data_irecv_isend.buffer_type==eshmemo)&&(data_irecv_isend.offset+data_irecv_isend.size<=2*buffer_in_size)){
               data_irecv_isend.buffer_type=erecvbufp;
-              if (!big_recvbuf) {
+              if (big_recvbuf) {
+                data_irecv_isend.offset -= buffer_in_size;
+	      } else {
                 data_irecv_isend.offset = 0;
               }
               nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);

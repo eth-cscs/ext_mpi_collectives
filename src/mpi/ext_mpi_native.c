@@ -1133,13 +1133,6 @@ buffer2 = buffer_temp;
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  if (recursive&&(my_cores_per_node_row*my_cores_per_node_column==1)){
-    if (ext_mpi_generate_use_recvbuf(buffer2, buffer1) < 0)
-      goto error;
-    buffer_temp = buffer2;
-    buffer2 = buffer1;
-    buffer1 = buffer_temp;
-  }
 #ifdef GPU_ENABLED
   if (!ext_mpi_gpu_is_device_pointer(recvbuf)) {
 #endif
