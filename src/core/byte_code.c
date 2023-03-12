@@ -330,7 +330,7 @@ int ext_mpi_generate_byte_code(char **shmem,
     header = (struct header_byte_code *)ip;
     header->barrier_counter_socket = 1;
     header->barrier_counter_node = 1;
-    header->barrier_shmem_node = (volatile char **)malloc(num_sockets_per_node*sizeof(char *));
+    header->barrier_shmem_node = (char **)malloc(num_sockets_per_node*sizeof(char *));
     if (shmem != NULL) {
       for (i=0; i<num_sockets_per_node; i++) {
         header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;

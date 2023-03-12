@@ -178,7 +178,7 @@ error:
   return ERROR_MALLOC;
 }
 
-static void node_barrier(volatile char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node) {
+static void node_barrier(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node) {
   int step;
   for (step = 1; step < num_sockets_per_node; step <<= 1) {
     ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
@@ -188,7 +188,7 @@ static void node_barrier(volatile char **shmem, int *barrier_count, int socket_r
   }
 }
 
-static int node_barrier_test(volatile char **shmem, int barrier_count, int socket_rank, int num_sockets_per_node) {
+static int node_barrier_test(char **shmem, int barrier_count, int socket_rank, int num_sockets_per_node) {
   int step;
   for (step = 1; step < num_sockets_per_node; step <<= 1) {
     ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
@@ -200,7 +200,7 @@ static int node_barrier_test(volatile char **shmem, int barrier_count, int socke
   return 0;
 }
 
-static void socket_barrier(volatile char *shmem, int *barrier_count, int socket_rank, int num_cores) {
+static void socket_barrier(char *shmem, int *barrier_count, int socket_rank, int num_cores) {
   int step;
   for (step = 1; step < num_cores; step <<= 1) {
     ((volatile int*)shmem)[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
@@ -210,7 +210,7 @@ static void socket_barrier(volatile char *shmem, int *barrier_count, int socket_
   }
 }
 
-static int socket_barrier_test(volatile char *shmem, int barrier_count, int socket_rank, int num_cores) {
+static int socket_barrier_test(char *shmem, int barrier_count, int socket_rank, int num_cores) {
   int step;
   for (step = 1; step < num_cores; step <<= 1) {
     ((volatile int*)shmem)[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
@@ -222,17 +222,17 @@ static int socket_barrier_test(volatile char *shmem, int barrier_count, int sock
   return 0;
 }
 
-static void socket_barrier_atomic_set(volatile char *shmem, int barrier_count, int entry) {
+static void socket_barrier_atomic_set(char *shmem, int barrier_count, int entry) {
   ((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
 }
 
-static void socket_barrier_atomic_wait(volatile char *shmem, int *barrier_count, int entry) {
+static void socket_barrier_atomic_wait(char *shmem, int *barrier_count, int entry) {
   while ((unsigned int)(((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
     ;
   (*barrier_count)++;
 }
 
-static int socket_barrier_atomic_test(volatile char *shmem, int barrier_count, int entry) {
+static int socket_barrier_atomic_test(char *shmem, int barrier_count, int entry) {
   return (unsigned int)(((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX;
 }
 
@@ -276,7 +276,7 @@ static void reduce_waitany(void **pointers_to, void **pointers_from, int *sizes,
             }
 }
 
-static void exec_waitany(int num_wait, int num_red_max, volatile void *p3, char **ip){
+static void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
   void *pointers[num_wait][2][abs(num_red_max)], *pointers_temp[abs(num_red_max)];
   int sizes[num_wait][abs(num_red_max)], num_red[num_wait], done = 0, red_it = 0, count, index, num_waitall, target_index, not_moved, i;
         char op, op_reduce=-1;

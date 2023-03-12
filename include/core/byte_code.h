@@ -12,7 +12,7 @@ struct header_byte_code {
   int barrier_counter_node;
   char *barrier_shmem_socket;
   int barrier_shmem_size;
-  volatile char **barrier_shmem_node;
+  char **barrier_shmem_node;
   int *shmemid;
   char *locmem;
   char **shmem;
