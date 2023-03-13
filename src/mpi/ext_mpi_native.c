@@ -65,6 +65,18 @@ static int is_initialised = 0;
 static MPI_Comm EXT_MPI_COMM_WORLD = MPI_COMM_NULL;
 static int tag_max = 0;
 
+static char *shmem_blocking = NULL;
+static char **comm_code_blocking = NULL;
+static char *shmem_socket_blocking = NULL;
+static int counter_socket_blocking = 1;
+static int socket_rank_blocking = -1;
+static int num_cores_blocking = -1;
+static char **shmem_node_blocking = NULL;
+static int counter_node_blocking = 1;
+static int num_sockets_per_node_blocking = -1;
+static MPI_Comm comm_row_blocking = MPI_COMM_NULL;
+static MPI_Comm comm_column_blocking = MPI_COMM_NULL;
+
 /*static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
   MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (comm_column != MPI_COMM_NULL) {
@@ -1958,9 +1970,192 @@ int EXT_MPI_Init_native() {
   return 0;
 }
 
-int EXT_MPI_Initialized_native() { return (is_initialised); }
+int EXT_MPI_Initialized_native() { return is_initialised; }
 
 int EXT_MPI_Finalize_native() {
   MPI_Comm_free(&EXT_MPI_COMM_WORLD);
+  return 0;
+}
+
+static void recalculate_address(const void *sendbuf, void *recvbuf, int count, void **address) {
+  if ((long int)(*address) < 0xFFFF) {
+    address = (void *)((long int)(address) * count);
+  } else if ((long int)(*address) < 0x1FFFF) {
+    address = (void *)(((long int)(address) - 0xFFFF) * count + sendbuf);
+  } else {
+    address = (void *)(((long int)(address) - 0x1FFFF) * count + recvbuf);
+  }
+}
+
+static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, const void *sendbuf, void *recvbuf, int count) {
+  char instruction, instruction2; //, *r_start, *r_temp, *ipl;
+  void *p1, *p2;
+  int i1, i2;
+#ifdef NCCL_ENABLED
+  static int initialised = 0;
+  static cudaStream_t stream;
+  if (!initialised) {
+    cudaStreamCreate(&stream);
+    initialised = 1;
+  }
+#endif
+  ip += sizeof(struct header_byte_code);
+  do {
+    instruction = code_get_char(&ip);
+    switch (instruction) {
+    case OPCODE_RETURN:
+      break;
+    case OPCODE_MEMCPY:
+      p1 = code_get_pointer(&ip);
+      recalculate_address(sendbuf, recvbuf, count, &p1);
+      p2 = code_get_pointer(&ip);
+      recalculate_address(sendbuf, recvbuf, count, &p2);
+      memcpy((void *)p1, (void *)p2, code_get_int(&ip)*count);
+      break;
+    case OPCODE_MPIIRECV:
+      p1 = code_get_pointer(&ip);
+      recalculate_address(sendbuf, recvbuf, count, &p1);
+      i1 = code_get_int(&ip);
+      i2 = code_get_int(&ip);
+#ifdef NCCL_ENABLED
+      code_get_pointer(&ip);
+      ncclRecv((void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
+#else
+      MPI_Irecv((void *)p1, i1*count, MPI_CHAR, i2, tag, EXT_MPI_COMM_WORLD,
+                (MPI_Request *)code_get_pointer(&ip));
+#endif
+      break;
+    case OPCODE_MPIISEND:
+      p1 = code_get_pointer(&ip);
+      recalculate_address(sendbuf, recvbuf, count, &p1);
+      i1 = code_get_int(&ip);
+      i2 = code_get_int(&ip);
+#ifdef NCCL_ENABLED
+      code_get_pointer(&ip);
+      ncclSend((const void *)p1, i1*count, ncclChar, i2, ext_mpi_nccl_comm, stream);
+#else
+      MPI_Isend((void *)p1, i1*count, MPI_CHAR, i2, tag, EXT_MPI_COMM_WORLD,
+                (MPI_Request *)code_get_pointer(&ip));
+#endif
+      break;
+    case OPCODE_MPIWAITALL:
+#ifdef NCCL_ENABLED
+      i1 = code_get_int(&ip);
+      p1 = code_get_pointer(&ip);
+      ncclGroupEnd();
+      cudaStreamSynchronize(stream);
+#else
+      i1 = code_get_int(&ip);
+      p1 = code_get_pointer(&ip);
+      MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+#endif
+      break;
+    case OPCODE_MPIWAITANY:
+      printf("OPCODE_MPIWAITANY not implemented\n");
+      exit(9);
+      break;
+    case OPCODE_SOCKETBARRIER:
+      socket_barrier(shmem_socket, counter_socket, socket_rank, num_cores);
+      break;
+    case OPCODE_NODEBARRIER:
+      node_barrier(shmem_node, counter_node, socket_rank, num_sockets_per_node);
+      break;
+    case OPCODE_SOCKETBARRIER_ATOMIC_SET:
+      socket_barrier_atomic_set(shmem_socket, *counter_socket, code_get_int(&ip));
+      break;
+    case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
+      i1 = code_get_int(&ip);
+      socket_barrier_atomic_wait(shmem_socket, counter_socket, i1);
+      break;
+    case OPCODE_REDUCE:
+      instruction2 = code_get_char(&ip);
+      p1 = code_get_pointer(&ip);
+      recalculate_address(sendbuf, recvbuf, count, &p1);
+      p2 = code_get_pointer(&ip);
+      recalculate_address(sendbuf, recvbuf, count, &p2);
+      i1 = code_get_int(&ip) * count;
+      switch (instruction2) {
+      case OPCODE_REDUCE_SUM_DOUBLE:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((double *)p1)[i2] += ((double *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_LONG_INT:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((long int *)p1)[i2] += ((long int *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_FLOAT:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((float *)p1)[i2] += ((float *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_INT:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((int *)p1)[i2] += ((int *)p2)[i2];
+        }
+        break;
+      }
+      break;
+    case OPCODE_ATTACHED:
+      break;
+#ifdef GPU_ENABLED
+    case OPCODE_GPUSYNCHRONIZE:
+      ext_mpi_gpu_synchronize();
+      break;
+    case OPCODE_GPUKERNEL:
+      instruction2 = code_get_char(&ip);
+      p1 = code_get_pointer(&ip);
+      ext_mpi_gpu_copy_reduce(instruction2, (void *)p1, code_get_int(&ip));
+      break;
+#endif
+#ifdef NCCL_ENABLED
+    case OPCODE_START:
+      ncclGroupStart();
+      break;
+#endif
+    default:
+      printf("illegal MPI_OPCODE execute\n");
+      exit(1);
+    }
+  } while (instruction != OPCODE_RETURN);
+#ifdef NCCL_ENABLED
+//  cudaStreamDestroy(stream);
+#endif
+  return 0;
+}
+
+int EXT_MPI_Init_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int alt, int bit, int recursive, int blocking, int num_sockets_per_node) {
+  int handle, size_shared = 1024*1024, num_segments = 1, *shmemid, mpi_size, mpi_rank;
+  char **shmem_local;
+  alt = 0;
+  handle = EXT_MPI_Allreduce_init_native((char *)(0xFFFF), (char *)(0x1FFFF), 1, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, alt, bit, 0, recursive, 0, num_sockets_per_node);
+  comm_code_blocking = (char **)malloc(2 * sizeof(char *));
+  ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_segments, &shmemid, &shmem_local, 0, size_shared, &comm_code[handle]);
+  shmem_socket_blocking = shmem_local[0];
+  counter_socket_blocking = 1;
+  MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+  num_cores_blocking = my_cores_per_node;
+  socket_rank_blocking = mpi_rank % num_cores_blocking;
+  ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_segments, &shmemid, &shmem_node_blocking, 0, size_shared, &comm_code[handle]);
+  counter_node_blocking = 1;
+  num_sockets_per_node_blocking = 1;
+
+  size_shared = 1024*1024*1024;
+  ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_segments, &shmemid, &shmem_local, 0, size_shared, &comm_code[handle]);
+  shmem_blocking = shmem_local[0];
+
+  comm_code_blocking[0] = comm_code[handle];
+  comm_code[handle] = 0;
+  if (alt) {
+    comm_code_blocking[1] = comm_code[handle + 1];
+    comm_code[handle + 1] = 0;
+  }
+  return 0;
+}
+
+int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) {
+  exec_blocking(comm_code_blocking[0], 1, shmem_socket_blocking, &counter_socket_blocking, socket_rank_blocking, num_cores_blocking, shmem_node_blocking, &counter_node_blocking, num_sockets_per_node_blocking, sendbuf, recvbuf, count);
   return 0;
 }
