@@ -4,15 +4,19 @@
 #include "ext_mpi.h"
 #include "ext_mpi_interface.h"
 
+int is_initialised = 0;
+
 int MPI_Init(int *argc, char ***argv){
   int ret = PMPI_Init(argc, argv);
-  EXT_MPI_Init();
   ext_mpi_hash_init();
+  EXT_MPI_Init();
+  is_initialised = 1;
   return ret;
 }
 
 int MPI_Finalize(){
   EXT_MPI_Finalize();
+  is_initialised = 0;
   return PMPI_Finalize();
 }
 
@@ -323,6 +327,9 @@ error:
 }
 
 int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
-  return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
-  return EXT_MPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+  if (is_initialised) {
+    return EXT_MPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+  } else {
+    return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+  }
 }
