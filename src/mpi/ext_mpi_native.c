@@ -2005,6 +2005,16 @@ int EXT_MPI_Finalize_native() {
   return 0;
 }
 
+static void normalize_address(int count, void **address) {
+  if ((long int)(*address) < 0xFFFF) {
+    *address = (void *)((long int)(*address) / count);
+  } else if ((long int)(*address) < 0x1FFFF) {
+    *address = (void *)(((long int)(*address) - 0xFFFF) / count + 0xFFFF);
+  } else {
+    *address = (void *)(((long int)(*address) - 0x1FFFF) / count + 0x1FFFF);
+  }
+}
+
 static void recalculate_address(const void *sendbuf, void *recvbuf, int count, void *shmem, void **address) {
   if ((long int)(*address) < 0xFFFF) {
     *address = (void *)((long int)(*address) * count + (long int)(shmem));
@@ -2015,10 +2025,9 @@ static void recalculate_address(const void *sendbuf, void *recvbuf, int count, v
   }
 }
 
-static int normalize_blocking(char *ip, int tag, char *shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, const void *sendbuf, void *recvbuf, int count) {
-  char instruction, instruction2; //, *r_start, *r_temp, *ipl;
+static int normalize_blocking(char *ip, int count) {
+  char instruction;
   void *p1, *p2;
-  int i1, i2;
 #ifdef NCCL_ENABLED
   static int initialised = 0;
   static cudaStream_t stream;
@@ -2035,47 +2044,48 @@ static int normalize_blocking(char *ip, int tag, char *shmem_socket, int *counte
       break;
     case OPCODE_MEMCPY:
       p1 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p1);
+      normalize_address(count, &p1);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
       p2 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p2);
-      memcpy((void *)p1, (void *)p2, code_get_int(&ip)*count);
+      normalize_address(count, &p2);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p2, 0);
+      code_get_int(&ip);
       break;
     case OPCODE_MPIIRECV:
       p1 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p1);
-      i1 = code_get_int(&ip);
-      i2 = code_get_int(&ip);
+      normalize_address(count, &p1);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
+      code_get_int(&ip);
+      code_get_int(&ip);
 #ifdef NCCL_ENABLED
       code_get_pointer(&ip);
-      ncclRecv((void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Irecv((void *)p1, i1*count, MPI_CHAR, i2, tag, EXT_MPI_COMM_WORLD,
-                (MPI_Request *)code_get_pointer(&ip));
+      code_get_pointer(&ip);
 #endif
       break;
     case OPCODE_MPIISEND:
       p1 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p1);
-      i1 = code_get_int(&ip);
-      i2 = code_get_int(&ip);
+      normalize_address(count, &p1);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
+      code_get_int(&ip);
+      code_get_int(&ip);
 #ifdef NCCL_ENABLED
       code_get_pointer(&ip);
-      ncclSend((const void *)p1, i1*count, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Isend((void *)p1, i1*count, MPI_CHAR, i2, tag, EXT_MPI_COMM_WORLD,
-                (MPI_Request *)code_get_pointer(&ip));
+      code_get_pointer(&ip);
 #endif
       break;
     case OPCODE_MPIWAITALL:
 #ifdef NCCL_ENABLED
-      i1 = code_get_int(&ip);
-      p1 = code_get_pointer(&ip);
-      ncclGroupEnd();
-      cudaStreamSynchronize(stream);
+      code_get_int(&ip);
+      code_get_pointer(&ip);
 #else
-      i1 = code_get_int(&ip);
-      p1 = code_get_pointer(&ip);
-      MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+      code_get_int(&ip);
+      code_get_pointer(&ip);
 #endif
       break;
     case OPCODE_MPIWAITANY:
@@ -2083,47 +2093,26 @@ static int normalize_blocking(char *ip, int tag, char *shmem_socket, int *counte
       exit(9);
       break;
     case OPCODE_SOCKETBARRIER:
-      socket_barrier(shmem_socket, counter_socket, socket_rank, num_cores);
       break;
     case OPCODE_NODEBARRIER:
-      node_barrier(shmem_node, counter_node, socket_rank, num_sockets_per_node);
       break;
     case OPCODE_SOCKETBARRIER_ATOMIC_SET:
-      socket_barrier_atomic_set(shmem_socket, *counter_socket, code_get_int(&ip));
+      code_get_int(&ip);
       break;
     case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
-      i1 = code_get_int(&ip);
-      socket_barrier_atomic_wait(shmem_socket, counter_socket, i1);
+      code_get_int(&ip);
       break;
     case OPCODE_REDUCE:
-      instruction2 = code_get_char(&ip);
+      code_get_char(&ip);
       p1 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p1);
+      normalize_address(count, &p1);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
       p2 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p2);
-      i1 = code_get_int(&ip) * count;
-      switch (instruction2) {
-      case OPCODE_REDUCE_SUM_DOUBLE:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((double *)p1)[i2] += ((double *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_LONG_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((long int *)p1)[i2] += ((long int *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_FLOAT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((float *)p1)[i2] += ((float *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((int *)p1)[i2] += ((int *)p2)[i2];
-        }
-        break;
-      }
+      normalize_address(count, &p2);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p2, 0);
+      code_get_int(&ip);
       break;
     case OPCODE_ATTACHED:
       break;
@@ -2139,7 +2128,6 @@ static int normalize_blocking(char *ip, int tag, char *shmem_socket, int *counte
 #endif
 #ifdef NCCL_ENABLED
     case OPCODE_START:
-      ncclGroupStart();
       break;
 #endif
     default:
@@ -2318,6 +2306,7 @@ int EXT_MPI_Init_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MP
     comm_code_blocking[1] = comm_code[handle + 1];
     comm_code[handle + 1] = 0;
   }
+  normalize_blocking(comm_code_blocking[0], 1);
   return 0;
 }
 
