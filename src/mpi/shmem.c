@@ -48,10 +48,10 @@ static void gen_shared_name(MPI_Comm comm_node_row, MPI_Comm comm_node_column,
   int rank_global;
   char name_org[9000];
   MPI_Comm_rank(EXT_MPI_COMM_WORLD, &rank_global);
-  MPI_Allreduce(MPI_IN_PLACE, &rank_global, 1, MPI_INT, MPI_MIN, comm_node_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &rank_global, 1, MPI_INT, MPI_MIN, comm_node_row);
   if (comm_node_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &rank_global, 1, MPI_INT, MPI_MIN,
-                  comm_node_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &rank_global, 1, MPI_INT, MPI_MIN,
+                   comm_node_column);
   }
   strcpy(name_org, name);
   sprintf(name, "%s_%d", name_org, rank_global);
@@ -99,11 +99,11 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
   single_task = my_cores_per_node_row * my_cores_per_node_column == 1 && num_segments == 1;
   MPI_Comm_size(comm_row, &my_mpi_size_row);
   MPI_Comm_rank(comm_row, &my_mpi_rank_row);
-  MPI_Allreduce(MPI_IN_PLACE, size_shared, 1, MPI_INT, MPI_MAX, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, size_shared, 1, MPI_INT, MPI_MAX, comm_row);
   if (comm_column != MPI_COMM_NULL) {
     MPI_Comm_size(comm_column, &my_mpi_size_column);
     MPI_Comm_rank(comm_column, &my_mpi_rank_column);
-    MPI_Allreduce(MPI_IN_PLACE, size_shared, 1, MPI_INT, MPI_MAX, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, size_shared, 1, MPI_INT, MPI_MAX, comm_column);
   } else {
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;

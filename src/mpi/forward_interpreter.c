@@ -15,12 +15,12 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
   data.num_blocks = 0;
   data.blocks = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
-  MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
-  MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (i == ERROR_MALLOC)
     goto error;
   if (i <= 0) {
@@ -31,7 +31,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
   i = 0;
   if (!values)
     i = ERROR_MALLOC;
-  MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (i < 0)
     goto error;
   for (i = 0; i < data.num_blocks; i++) {
@@ -43,7 +43,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
     if (!values[i])
       j = ERROR_MALLOC;
   }
-  MPI_Allreduce(MPI_IN_PLACE, &j, 1, MPI_INT, MPI_MIN, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &j, 1, MPI_INT, MPI_MIN, comm_row);
   if (j < 0)
     goto error;
   for (i = 0; i < data.num_blocks; i++) {
@@ -73,14 +73,14 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
   i = 0;
   if (!request)
     i = ERROR_MALLOC;
-  MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (i < 0)
     goto error;
   recv_values = (int **)malloc(sizeof(int *) * max_lines);
   i = 0;
   if (!recv_values)
     i = ERROR_MALLOC;
-  MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (i < 0)
     goto error;
   for (i = 0; i < max_lines; i++) {
@@ -92,7 +92,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
     if (!recv_values[i])
       j = ERROR_MALLOC;
   }
-  MPI_Allreduce(MPI_IN_PLACE, &j, 1, MPI_INT, MPI_MIN, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &j, 1, MPI_INT, MPI_MIN, comm_row);
   if (j < 0)
     goto error;
   for (i = 0; i < data.num_blocks; i++) {

@@ -168,7 +168,7 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
         free(data_irecv_isend_list_temp);
       }
       data_irecv_isend_list_recv = NULL;
-      MPI_Allreduce(&flag, &flag2, 1, MPI_INT, MPI_MAX, comm_row);
+      PMPI_Allreduce(&flag, &flag2, 1, MPI_INT, MPI_MAX, comm_row);
       if (flag2) {
         if (!flag) {
           ext_mpi_write_assembler_line(new_last_element(&lines_listed_org)->line, 0, "s", enode_barrier);

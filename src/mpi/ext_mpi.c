@@ -215,9 +215,9 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
   groups = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!groups)
     goto error;
-  MPI_Allreduce(&sendcount, &scount, 1, MPI_INT, MPI_MAX, comm_row);
+  PMPI_Allreduce(&sendcount, &scount, 1, MPI_INT, MPI_MAX, comm_row);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
     if (comm_size_row/my_cores_per_node_row==1){
@@ -469,9 +469,9 @@ static int gatherv_init_general(const void *sendbuf, int sendcount,
   groups = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!groups)
     goto error;
-  MPI_Allreduce(&sendcount, &scount, 1, MPI_INT, MPI_MAX, comm_row);
+  PMPI_Allreduce(&sendcount, &scount, 1, MPI_INT, MPI_MAX, comm_row);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
     if (comm_size_row/my_cores_per_node_row==1){
@@ -704,7 +704,7 @@ static int reduce_scatter_init_general(
     }
   }
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &rcount, 1, MPI_INT, MPI_SUM, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &rcount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
     if (comm_size_row/my_cores_per_node_row==1){
@@ -986,7 +986,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     goto error;
   rcount = recvcount;
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &rcount, 1, MPI_INT, MPI_SUM, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &rcount, 1, MPI_INT, MPI_SUM, comm_column);
   }
   if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
     if (comm_size_row/my_cores_per_node_row==1){
@@ -1191,8 +1191,8 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   }
   message_size = type_size * count;
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &message_size, 1, MPI_INT, MPI_SUM,
-                  comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &message_size, 1, MPI_INT, MPI_SUM,
+                   comm_column);
     MPI_Comm_size(comm_column, &comm_size_column);
   } else {
     comm_size_column = 1;
@@ -1301,8 +1301,8 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       ext_mpi_cost_list_counter = 0;
       composition.value = d1;
       composition.rank = comm_rank_row;
-      MPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC,
-                    comm_row);
+      PMPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC,
+                     comm_row);
       d1 = composition.value;
       for (i = 0; num_ports[i]; i++)
         ;
@@ -1500,11 +1500,11 @@ int EXT_MPI_Allreduce_init_general(const void *sendbuf, void *recvbuf, int count
       ext_mpi_gpu_memcpy_hd(recvbuf_ref, recvbuf_hh, count * type_size);
     }
     if (type_size == sizeof(long int)){
-      MPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, comm_row);
+      PMPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, comm_row);
       if (allreduce_init_general(sendbuf_h, recvbuf, count, MPI_LONG, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle)<0)
         goto error;
     }else{
-      MPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_INT, op, comm_row);
+      PMPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_INT, op, comm_row);
       if (allreduce_init_general(sendbuf_h, recvbuf, count, MPI_INT, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle)<0)
         goto error;
     }
@@ -1559,11 +1559,11 @@ int EXT_MPI_Allreduce_init_general(const void *sendbuf, void *recvbuf, int count
       }
     }
     if (type_size == sizeof(long int)){
-      MPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, comm_row);
+      PMPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, comm_row);
       if (allreduce_init_general(sendbuf_h, recvbuf, count, MPI_LONG, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle)<0)
         goto error;
     }else{
-      MPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_INT, op, comm_row);
+      PMPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_INT, op, comm_row);
       if (allreduce_init_general(sendbuf_h, recvbuf, count, MPI_INT, op, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle)<0)
         goto error;
     }
@@ -1648,8 +1648,8 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   }
   message_size = type_size * count;
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &message_size, 1, MPI_INT, MPI_SUM,
-                  comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &message_size, 1, MPI_INT, MPI_SUM,
+                   comm_column);
     MPI_Comm_size(comm_column, &comm_size_column);
   } else {
     comm_size_column = 1;
@@ -1724,8 +1724,8 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       ext_mpi_cost_list_counter = 0;
       composition.value = d1;
       composition.rank = comm_rank_row;
-      MPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC,
-                    comm_row);
+      PMPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC,
+                     comm_row);
       d1 = composition.value;
       for (i = 0; num_ports[i]; i++)
         ;
@@ -1963,8 +1963,8 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   MPI_Type_size(datatype, &type_size);
   message_size = type_size * count;
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &message_size, 1, MPI_INT, MPI_SUM,
-                  comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &message_size, 1, MPI_INT, MPI_SUM,
+                   comm_column);
     MPI_Comm_size(comm_column, &comm_size_column);
   } else {
     comm_size_column = 1;
@@ -2072,8 +2072,8 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
       ext_mpi_cost_list_counter = 0;
       composition.value = d1;
       composition.rank = comm_rank_row;
-      MPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC,
-                    comm_row);
+      PMPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC,
+                     comm_row);
       d1 = composition.value;
       for (i = 0; num_ports[i]; i++)
         ;
@@ -2578,7 +2578,7 @@ int EXT_MPI_Init_blocking() {
       ext_mpi_cost_list_counter = 0;
       composition.value = d1;
       composition.rank = comm_rank_row;
-      MPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC, comm);
+      PMPI_Allreduce(MPI_IN_PLACE, &composition, 1, MPI_DOUBLE_INT, MPI_MINLOC, comm);
       d1 = composition.value;
       for (i = 0; num_ports[i]; i++)
         ;

@@ -78,9 +78,9 @@ static MPI_Comm comm_row_blocking = MPI_COMM_NULL;
 static MPI_Comm comm_column_blocking = MPI_COMM_NULL;
 
 /*static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
-  MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_column);
   }
   return (i);
 }*/
@@ -808,9 +808,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                          my_cores_per_node_column, global_ranks);
   if (comm_row != MPI_COMM_NULL) {
     tag = tag_max;
-    MPI_Allreduce(MPI_IN_PLACE, &tag, 1, MPI_INT, MPI_MAX, comm_row);
+    PMPI_Allreduce(MPI_IN_PLACE, &tag, 1, MPI_INT, MPI_MAX, comm_row);
     if (comm_column != MPI_COMM_NULL) {
-      MPI_Allreduce(MPI_IN_PLACE, &tag, 1, MPI_INT, MPI_MAX, comm_column);
+      PMPI_Allreduce(MPI_IN_PLACE, &tag, 1, MPI_INT, MPI_MAX, comm_column);
     }
     tag_max = tag + 1;
   } else {
@@ -972,8 +972,8 @@ allreduce_short = 0;
   if (!counts)
     goto error;
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(&count, &coarse_count, 1, MPI_INT, MPI_SUM, comm_column);
-    MPI_Allgather(&count, 1, MPI_INT, counts, 1, MPI_INT, comm_column);
+    PMPI_Allreduce(&count, &coarse_count, 1, MPI_INT, MPI_SUM, comm_column);
+    PMPI_Allgather(&count, 1, MPI_INT, counts, 1, MPI_INT, comm_column);
   } else {
     coarse_count = count;
     counts[0] = count;
@@ -1310,13 +1310,13 @@ int EXT_MPI_Gatherv_init_native(
     j += recvcounts[i] * type_size;
   }
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, coarse_counts,
-                  my_mpi_size_row / my_cores_per_node_row, MPI_INT, MPI_SUM,
-                  comm_column);
-    MPI_Allgather(&recvcounts[my_node * my_cores_per_node_row],
-                  my_cores_per_node_row, MPI_INT, local_counts,
-                  my_cores_per_node_row, MPI_INT, comm_column);
-    MPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, coarse_counts,
+                   my_mpi_size_row / my_cores_per_node_row, MPI_INT, MPI_SUM,
+                   comm_column);
+    PMPI_Allgather(&recvcounts[my_node * my_cores_per_node_row],
+                   my_cores_per_node_row, MPI_INT, local_counts,
+                   my_cores_per_node_row, MPI_INT, comm_column);
+    PMPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column);
   } else {
     for (i = 0; i < my_cores_per_node_row; i++) {
       local_counts[i] = recvcounts[my_node * my_cores_per_node_row + i];
@@ -1578,13 +1578,13 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
     j += sendcounts[i] * type_size;
   }
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, coarse_counts,
-                  my_mpi_size_row / my_cores_per_node_row, MPI_INT, MPI_SUM,
-                  comm_column);
-    MPI_Allgather(&sendcounts[my_node * my_cores_per_node_row],
-                  my_cores_per_node_row, MPI_INT, local_counts,
-                  my_cores_per_node_row, MPI_INT, comm_column);
-    MPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, coarse_counts,
+                   my_mpi_size_row / my_cores_per_node_row, MPI_INT, MPI_SUM,
+                   comm_column);
+    PMPI_Allgather(&sendcounts[my_node * my_cores_per_node_row],
+                   my_cores_per_node_row, MPI_INT, local_counts,
+                   my_cores_per_node_row, MPI_INT, comm_column);
+    PMPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column);
   } else {
     for (i = 0; i < my_cores_per_node_row; i++) {
       local_counts[i] = sendcounts[my_node * my_cores_per_node_row + i];
@@ -1807,13 +1807,13 @@ int EXT_MPI_Reduce_scatter_init_native(
     j += recvcounts[i] * type_size;
   }
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, coarse_counts,
-                  my_mpi_size_row / my_cores_per_node_row, MPI_INT, MPI_SUM,
-                  comm_column);
-    MPI_Allgather(&recvcounts[my_node * my_cores_per_node_row],
-                  my_cores_per_node_row, MPI_INT, local_counts,
-                  my_cores_per_node_row, MPI_INT, comm_column);
-    MPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, coarse_counts,
+                   my_mpi_size_row / my_cores_per_node_row, MPI_INT, MPI_SUM,
+                   comm_column);
+    PMPI_Allgather(&recvcounts[my_node * my_cores_per_node_row],
+                   my_cores_per_node_row, MPI_INT, local_counts,
+                   my_cores_per_node_row, MPI_INT, comm_column);
+    PMPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column);
   } else {
     for (i = 0; i < my_cores_per_node_row; i++) {
       local_counts[i] = recvcounts[my_node * my_cores_per_node_row + i];
@@ -2141,7 +2141,7 @@ static int normalize_blocking(char *ip, int count) {
   return 0;
 }
 
-static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, const void *sendbuf, void *recvbuf, int count) {
+static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, void *shmem_blocking, const void *sendbuf, void *recvbuf, int count) {
   char instruction, instruction2; //, *r_start, *r_temp, *ipl;
   void *p1, *p2;
   int i1, i2;
@@ -2161,14 +2161,14 @@ static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_soc
       break;
     case OPCODE_MEMCPY:
       p1 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p1);
+      recalculate_address(sendbuf, recvbuf, count, shmem_blocking, &p1);
       p2 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p2);
+      recalculate_address(sendbuf, recvbuf, count, shmem_blocking, &p2);
       memcpy((void *)p1, (void *)p2, code_get_int(&ip)*count);
       break;
     case OPCODE_MPIIRECV:
       p1 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p1);
+      recalculate_address(sendbuf, recvbuf, count, shmem_blocking, &p1);
       i1 = code_get_int(&ip);
       i2 = code_get_int(&ip);
 #ifdef NCCL_ENABLED
@@ -2181,7 +2181,7 @@ static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_soc
       break;
     case OPCODE_MPIISEND:
       p1 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p1);
+      recalculate_address(sendbuf, recvbuf, count, shmem_blocking, &p1);
       i1 = code_get_int(&ip);
       i2 = code_get_int(&ip);
 #ifdef NCCL_ENABLED
@@ -2224,9 +2224,9 @@ static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_soc
     case OPCODE_REDUCE:
       instruction2 = code_get_char(&ip);
       p1 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p1);
+      recalculate_address(sendbuf, recvbuf, count, shmem_blocking, &p1);
       p2 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_socket, &p2);
+      recalculate_address(sendbuf, recvbuf, count, shmem_blocking, &p2);
       i1 = code_get_int(&ip) * count;
       switch (instruction2) {
       case OPCODE_REDUCE_SUM_DOUBLE:
@@ -2302,15 +2302,19 @@ int EXT_MPI_Init_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MP
 
   comm_code_blocking[0] = comm_code[handle];
   comm_code[handle] = 0;
+  execution_pointer[handle] = NULL;
+  active_wait[handle] = 0;
   if (alt) {
     comm_code_blocking[1] = comm_code[handle + 1];
     comm_code[handle + 1] = 0;
+    execution_pointer[handle + 1] = NULL;
+    active_wait[handle + 1] = 0;
   }
   normalize_blocking(comm_code_blocking[0], 1);
   return 0;
 }
 
 int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) {
-  exec_blocking(comm_code_blocking[0], 1, shmem_socket_blocking, &counter_socket_blocking, socket_rank_blocking, num_cores_blocking, shmem_node_blocking, &counter_node_blocking, num_sockets_per_node_blocking, sendbuf, recvbuf, count);
+  exec_blocking(comm_code_blocking[0], 1, shmem_socket_blocking, &counter_socket_blocking, socket_rank_blocking, num_cores_blocking, shmem_node_blocking, &counter_node_blocking, num_sockets_per_node_blocking, shmem_blocking, sendbuf, recvbuf, count);
   return 0;
 }

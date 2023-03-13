@@ -7,9 +7,9 @@
 #include <string.h>
 
 static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
-  MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_column);
+    PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_column);
   }
   return (i);
 }
@@ -56,10 +56,10 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
                                               parameters->ascii_out);
             flag2 = 0;
           } else {
-            MPI_Allreduce(MPI_IN_PLACE, &flag2, 1, MPI_INT, MPI_MIN, comm_rowl);
+            PMPI_Allreduce(MPI_IN_PLACE, &flag2, 1, MPI_INT, MPI_MIN, comm_rowl);
             if (comm_column != MPI_COMM_NULL) {
-              MPI_Allreduce(MPI_IN_PLACE, &flag2, 1, MPI_INT, MPI_MIN,
-                            comm_columnl);
+              PMPI_Allreduce(MPI_IN_PLACE, &flag2, 1, MPI_INT, MPI_MIN,
+                             comm_columnl);
             }
             if (!flag2) {
               nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
