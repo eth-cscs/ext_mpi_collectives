@@ -2305,13 +2305,19 @@ static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_soc
 }
 
 int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int alt, int bit, int recursive, int blocking, int num_sockets_per_node) {
-  int handle, size_shared = 1024*1024, num_segments = 1, *shmemid, mpi_size, mpi_rank, i = 0, type_size;
+  int handle, size_shared = 1024*1024, num_segments = 1, *shmemid = NULL, mpi_size, mpi_rank, i = 0, type_size;
   char **shmem_local;
+  struct header_byte_code *header;
   alt = 0;
   if (comm_code_blocking == NULL) {
     comm_code_blocking = (char **)malloc(202 * sizeof(char *));
     memset(comm_code_blocking, 0, 202 * sizeof(char *));
     count_blocking = (int *)malloc(100 * sizeof(int));
+    comm_code_blocking[0] = malloc(sizeof(struct header_byte_code) + 2 * sizeof(MPI_Comm));
+    header = (struct header_byte_code *)comm_code_blocking[0];
+    header->size_to_return = sizeof(struct header_byte_code);
+    *((MPI_Comm *)(comm_code_blocking[0]+header->size_to_return)) = comm;
+    *((MPI_Comm *)(comm_code_blocking[0]+header->size_to_return+sizeof(MPI_Comm))) = MPI_COMM_NULL;
     ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_segments, &shmemid, &shmem_local, 0, size_shared, &comm_code_blocking[0]);
     shmem_socket_blocking = shmem_local[0];
     counter_socket_blocking = 1;
