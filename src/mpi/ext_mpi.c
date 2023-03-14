@@ -2689,8 +2689,8 @@ error:
   return ERROR_MALLOC;
 }
 
-int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
-  return EXT_MPI_Allreduce_native(sendbuf, recvbuf, count, datatype, op, comm);
+int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, MPI_Comm comm){
+  return EXT_MPI_Allreduce_native(sendbuf, recvbuf, count, reduction_op, comm);
 }
 
 int EXT_MPI_Init() {

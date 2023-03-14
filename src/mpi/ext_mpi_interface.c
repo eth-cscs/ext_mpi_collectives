@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <mpi.h>
+#include "constants.h"
 #include "hash_table.h"
 #include "ext_mpi.h"
 #include "ext_mpi_interface.h"
@@ -327,8 +328,24 @@ error:
 }
 
 int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
-  if (is_initialised) {
-    return EXT_MPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+  int reduction_op;
+  if (is_initialised && op == MPI_SUM) {
+    if (datatype == MPI_DOUBLE) {
+      reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
+      count *= sizeof(double);
+    } else if (datatype == MPI_LONG) {
+      reduction_op = OPCODE_REDUCE_SUM_LONG_INT;
+      count *= sizeof(long int);
+    } else if (datatype == MPI_FLOAT) {
+      reduction_op = OPCODE_REDUCE_SUM_FLOAT;
+      count *= sizeof(float);
+    } else if (datatype == MPI_INT) {
+      reduction_op = OPCODE_REDUCE_SUM_INT;
+      count *= sizeof(int);
+    } else {
+      return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+    }
+    return EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, comm);
   } else {
     return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
   }
