@@ -2454,7 +2454,7 @@ int EXT_MPI_Init_blocking() {
   int comm_size_row, comm_rank_row, i, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, alt, j;
   double d1;
   struct cost_list *p1, *p2;
-  int counts[] = {1, 4, 16, 64, 256, 2048, 20480, 2048000};
+  int counts[] = {1, 4, 16, 64, 256, 2048, 20480, 40960, 2048000};
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
   MPI_Comm comm = MPI_COMM_WORLD;
@@ -2641,7 +2641,7 @@ alt = 0;
           printf("# recursive\n");
         }
         str = ext_mpi_print_ports_groups(num_ports, groups);
-        printf("# EXT_MPI allreduce parameters %d %d %d %d ports %s\n",
+        printf("# EXT_MPI prep allreduce parameters %d %d %d %d ports %s\n",
                comm_size_row / my_cores_per_node, message_size, 1,
                my_cores_per_node, str);
         free(str);
