@@ -2066,7 +2066,9 @@ static int normalize_blocking(char *ip, int count) {
       normalize_address(count, &p2);
       ip -= sizeof(void *);
       code_put_pointer(&ip, p2, 0);
-      code_get_int(&ip);
+      i1 = code_get_int(&ip) / count;
+      ip -= sizeof(int);
+      code_put_int(&ip, i1, 0);
       break;
     case OPCODE_MPIIRECV:
       p1 = code_get_pointer(&ip);
@@ -2346,7 +2348,6 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
 
 int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int reduction_op, MPI_Comm comm) {
   int i = 0;
-printf("aaaaaaaaaaaaa %d %d %d\n", count_blocking[i], count, i);
   while (count_blocking[i] < count && comm_code_blocking[(i + 1) << 1]) i++;
   exec_blocking(comm_code_blocking[i << 1], 1, shmem_socket_blocking, &counter_socket_blocking, socket_rank_blocking, num_cores_blocking, shmem_node_blocking, &counter_node_blocking, num_sockets_per_node_blocking, shmem_blocking, sendbuf, recvbuf, count, reduction_op);
   return 0;
