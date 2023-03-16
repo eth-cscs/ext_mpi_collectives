@@ -330,17 +330,15 @@ int ext_mpi_generate_byte_code(char **shmem,
     header = (struct header_byte_code *)ip;
     header->barrier_counter_socket = 1;
     header->barrier_counter_node = 1;
-    header->barrier_shmem_node = (char **)malloc(num_sockets_per_node*sizeof(char *));
-    if (shmem != NULL) {
+    if (shmem) {
+      header->barrier_shmem_node = (char **)malloc(num_sockets_per_node*sizeof(char *));
       for (i=0; i<num_sockets_per_node; i++) {
         header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;
       }
       header->barrier_shmem_socket = shmem[0] + my_size_shared_buf;
     } else {
-      for (i=0; i<num_sockets_per_node; i++) {
-        header->barrier_shmem_node[i] = NULL + my_size_shared_buf + 2 * barriers_size;
-      }
-      header->barrier_shmem_socket = NULL + my_size_shared_buf;
+      header->barrier_shmem_node = NULL;
+      header->barrier_shmem_socket = NULL;
     }
     header->barrier_shmem_size = barriers_size;
     header->shmemid = shmemid;
@@ -495,7 +493,7 @@ int ext_mpi_generate_byte_code(char **shmem,
       }
       code_put_int(&ip, integer2, isdryrun);
       code_put_int(&ip, global_ranks[integer3], isdryrun);
-      code_put_pointer(&ip, locmem + size_request * integer4, isdryrun);
+      code_put_pointer(&ip, header->locmem + size_request * integer4, isdryrun);
     }
     if (estring1 == enode_barrier) {
       code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);

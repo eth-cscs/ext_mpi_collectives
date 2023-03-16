@@ -204,6 +204,10 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
 #endif
   }
   ext_mpi_node_barrier_mpi(*shmem_comm_node_row, *shmem_comm_node_column, NULL);
+  MPI_Comm_free(shmem_comm_node_row);
+  if (*shmem_comm_node_column != MPI_COMM_NULL) {
+    MPI_Comm_free(shmem_comm_node_column);
+  }
   return 0;
 error:
   return ERROR_SHMEM;

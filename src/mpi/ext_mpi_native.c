@@ -2332,8 +2332,10 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
     printf("not impl.\n");
     exit(9);
   }
-  comms_blocking[i_comm] = (struct comm_comm_blocking *)malloc(sizeof(struct comm_comm_blocking));
-  memset(comms_blocking[i_comm], 0, sizeof(struct comm_comm_blocking));
+  if (!comms_blocking[i_comm]) {
+    comms_blocking[i_comm] = (struct comm_comm_blocking *)malloc(sizeof(struct comm_comm_blocking));
+    memset(comms_blocking[i_comm], 0, sizeof(struct comm_comm_blocking));
+  }
   if (comms_blocking[i_comm]->comm_code_blocking == NULL) {
     MPI_Comm_size(comm, &comms_blocking[i_comm]->mpi_size_blocking);
     MPI_Comm_rank(comm, &comms_blocking[i_comm]->mpi_rank_blocking);
@@ -2365,7 +2367,7 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
     free(shmem_local);
     free(comms_blocking[i_comm]->comm_code_blocking[0]);
     comms_blocking[i_comm]->comm_code_blocking[0] = NULL;
-    comms_blocking[i_comm]->locmem_blocking = malloc(1024 * 1024);
+    comms_blocking[i_comm]->locmem_blocking = malloc(1024 * sizeof(MPI_Request));
   }
   MPI_Type_size(datatype, &type_size);
   handle = EXT_MPI_Allreduce_init_native((char *)(0xFFFF), (char *)(0x1FFFF), comms_blocking[i_comm]->mpi_size_blocking, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, alt, bit, 0, recursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking);
@@ -2399,14 +2401,14 @@ int EXT_MPI_Release_blocking_native(int i_comm) {
   *loc_shmemid = comms_blocking[i_comm]->shmem_blocking_shmemid;
   loc_shmem = (char **)malloc(1 * sizeof(char *));
   *loc_shmem = comms_blocking[i_comm]->shmem_blocking;
-  ext_mpi_destroy_shared_memory(0, 1, loc_shmemid, loc_shmem, NULL);
+  ext_mpi_destroy_shared_memory(0, 1, loc_shmemid, loc_shmem, (char *)header);
   free(comms_blocking[i_comm]->locmem_blocking);
   loc_shmemid = (int *)malloc(1 * sizeof(int));
   *loc_shmemid = comms_blocking[i_comm]->shmem_socket_blocking_shmemid;
   loc_shmem = (char **)malloc(1 * sizeof(char *));
   *loc_shmem = comms_blocking[i_comm]->shmem_socket_blocking;
-  ext_mpi_destroy_shared_memory(0, 1, loc_shmemid, loc_shmem, NULL);
-  ext_mpi_destroy_shared_memory(0, comms_blocking[i_comm]->shmem_node_blocking_num_segments, comms_blocking[i_comm]->shmem_node_blocking_shmemid, comms_blocking[i_comm]->shmem_node_blocking, NULL);
+  ext_mpi_destroy_shared_memory(0, 1, loc_shmemid, loc_shmem, (char *)header);
+  ext_mpi_destroy_shared_memory(0, comms_blocking[i_comm]->shmem_node_blocking_num_segments, comms_blocking[i_comm]->shmem_node_blocking_shmemid, comms_blocking[i_comm]->shmem_node_blocking, (char *)header);
   free(header);
   for (i = 0; i < 202; i++) {
     free(comms_blocking[i_comm]->comm_code_blocking[i]);
