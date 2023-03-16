@@ -768,7 +768,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                          int my_cores_per_node_row, MPI_Comm comm_column,
                          int my_cores_per_node_column, int alt, int shmem_zero, char *locmem) {
   int i, num_comm_max = -1, my_size_shared_buf = -1, barriers_size,
-         nbuffer_in = 0, tag;
+         nbuffer_in = 0, tag, not_locmem;
   char *ip;
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
   int locmem_size, shmem_size = 0, *shmemid = NULL, num_sockets_per_node = 1;
@@ -777,6 +777,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   int gpu_byte_code_counter = 0;
   char **shmem_gpu = NULL;
   struct parameters_block *parameters;
+  not_locmem = (locmem == NULL);
   handle = get_handle();
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
@@ -787,7 +788,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   num_sockets_per_node = parameters->num_sockets_per_node;
   ext_mpi_delete_parameters(parameters);
   locmem_size = num_comm_max * sizeof(MPI_Request);
-  if (!locmem) {
+  if (not_locmem) {
     locmem = (char *)malloc(locmem_size);
   }
   if (!locmem)
@@ -884,7 +885,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     }
     my_size_shared_buf = shmem_size - barriers_size * 4;
     shmem_size -= barriers_size;
-    locmem = (char *)malloc(locmem_size);
+    if (not_locmem) {
+      locmem = (char *)malloc(locmem_size);
+    }
     if (!locmem)
       goto error;
 #ifdef GPU_ENABLED
@@ -2369,7 +2372,7 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
 
 int EXT_MPI_Release_blocking_native() {
   struct header_byte_code *header;
-  int *loc_shmemid;
+  int *loc_shmemid, i;
   char **loc_shmem;
   header = (struct header_byte_code *)malloc(sizeof(struct header_byte_code) + 2 * sizeof(MPI_Comm));
   header->size_to_return = sizeof(struct header_byte_code);
@@ -2408,6 +2411,11 @@ int EXT_MPI_Release_blocking_native() {
   comm_row_blocking = MPI_COMM_NULL;
   comm_column_blocking = MPI_COMM_NULL;
   free(header);
+  for (i = 0; i < 202; i++) {
+    free(comm_code_blocking[i * 2]);
+    free(comm_code_blocking[i * 2 + 1]);
+  }
+  free(comm_code_blocking);
   return 0;
 }
 

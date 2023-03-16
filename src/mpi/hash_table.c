@@ -91,3 +91,13 @@ int ext_mpi_hash_init(){
   dummyItem->key = MPI_REQUEST_NULL; 
   return 0;
 }
+
+int ext_mpi_hash_done() {
+  int i;
+  for (i = 0; i < SIZE; i++) {
+    free(hashArray[i]);
+  }
+  free(hashArray);
+  free(dummyItem);
+  return 0;
+}

@@ -17,6 +17,7 @@ int MPI_Init(int *argc, char ***argv){
 
 int MPI_Finalize(){
   EXT_MPI_Finalize();
+  ext_mpi_hash_done();
   is_initialised = 0;
   return PMPI_Finalize();
 }

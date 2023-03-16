@@ -15,6 +15,7 @@ int ext_mpi_hash_search(MPI_Request *key);
 void ext_mpi_hash_insert(MPI_Request *key, int data);
 int ext_mpi_hash_delete(MPI_Request *key);
 int ext_mpi_hash_init();
+int ext_mpi_hash_done();
 
 #ifdef __cplusplus
 }
