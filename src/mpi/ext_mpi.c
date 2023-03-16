@@ -2690,7 +2690,7 @@ error:
 }
 
 int EXT_MPI_Finalize_blocking() {
-  EXT_MPI_Release_blocking_native();
+  EXT_MPI_Release_blocking_native(0);
   return 0;
 }
 

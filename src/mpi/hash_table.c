@@ -95,7 +95,9 @@ int ext_mpi_hash_init(){
 int ext_mpi_hash_done() {
   int i;
   for (i = 0; i < SIZE; i++) {
-    free(hashArray[i]);
+    if (hashArray[i] != dummyItem) {
+      free(hashArray[i]);
+    }
   }
   free(hashArray);
   free(dummyItem);
