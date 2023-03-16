@@ -1373,6 +1373,7 @@ int ext_mpi_read_line(char *buffer_in, char *line, int ascii) {
     memcpy(&i, buffer_in, sizeof(int));
     if (i > 99)
       line = NULL;
+    memset(line, -1, 99);
     memcpy(line, buffer_in, i);
     return i;
   } else {
