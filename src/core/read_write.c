@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include "constants.h"
 #include "ports_groups.h"
 #include "read_write.h"
@@ -1259,8 +1260,10 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
 }
 
 static int read_assembler_string_bin(char *buffer_in, int n, enum eassembler_type *string1, int *i){
-  if (buffer_in[(*i)++] != 0)
+  if (buffer_in[(*i)++] != 0) {
+    *string1 = enop;
     return -11;
+  }
   if (*i < n)
     memcpy(string1, buffer_in + *i, sizeof(*string1));
   *i += sizeof(*string1);
@@ -1268,8 +1271,10 @@ static int read_assembler_string_bin(char *buffer_in, int n, enum eassembler_typ
 }
 
 static int read_assembler_integer_bin(char *buffer_in, int n, int *integer1, int *i){
-  if (buffer_in[(*i)++] != 1)
+  if (buffer_in[(*i)++] != 1) {
+    *integer1 = INT_MIN;
     return -11;
+  }
   if (*i < n)
     memcpy(integer1, buffer_in + *i, sizeof(*integer1));
   *i += sizeof(*integer1);
