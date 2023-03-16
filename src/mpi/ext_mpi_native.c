@@ -65,6 +65,8 @@ static int is_initialised = 0;
 static MPI_Comm EXT_MPI_COMM_WORLD = MPI_COMM_NULL;
 static int tag_max = 0;
 
+static int mpi_size_blocking = -1;
+static int mpi_rank_blocking = -1;
 static int *count_blocking = NULL;
 static char *shmem_blocking = NULL;
 static char *locmem_blocking = NULL;
@@ -2162,7 +2164,7 @@ static int normalize_blocking(char *ip, int count) {
   return 0;
 }
 
-static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, void *shmem_blocking, const void *sendbuf, void *recvbuf, int count, int reduction_op) {
+static int exec_blocking(char *ip, MPI_Comm comm, int tag, char *shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, void *shmem_blocking, const void *sendbuf, void *recvbuf, int count, int reduction_op) {
   char instruction;
   void *p1, *p2;
   int i1, i2;
@@ -2196,7 +2198,7 @@ static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_soc
       code_get_pointer(&ip);
       ncclRecv((void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Irecv((void *)p1, i1*count, MPI_CHAR, i2, tag, EXT_MPI_COMM_WORLD,
+      MPI_Irecv((void *)p1, i1*count, MPI_CHAR, i2, tag, comm,
                 (MPI_Request *)code_get_pointer(&ip));
 #endif
       break;
@@ -2209,7 +2211,7 @@ static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_soc
       code_get_pointer(&ip);
       ncclSend((const void *)p1, i1*count, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Isend((void *)p1, i1*count, MPI_CHAR, i2, tag, EXT_MPI_COMM_WORLD,
+      MPI_Isend((void *)p1, i1*count, MPI_CHAR, i2, tag, comm,
                 (MPI_Request *)code_get_pointer(&ip));
 #endif
       break;
@@ -2239,8 +2241,7 @@ static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_soc
       socket_barrier_atomic_set(shmem_socket, *counter_socket, code_get_int(&ip));
       break;
     case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
-      i1 = code_get_int(&ip);
-      socket_barrier_atomic_wait(shmem_socket, counter_socket, i1);
+      socket_barrier_atomic_wait(shmem_socket, counter_socket, code_get_int(&ip));
       break;
     case OPCODE_REDUCE:
       code_get_char(&ip);
@@ -2305,11 +2306,13 @@ static int exec_blocking(char *ip, int tag, char *shmem_socket, int *counter_soc
 }
 
 int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int alt, int bit, int recursive, int blocking, int num_sockets_per_node) {
-  int handle, size_shared = 1024*1024, num_segments = 1, *shmemid = NULL, mpi_size, mpi_rank, i = 0, type_size;
+  int handle, size_shared = 1024*1024, *shmemid = NULL, i = 0, type_size;
   char **shmem_local;
   struct header_byte_code *header;
   alt = 0;
   if (comm_code_blocking == NULL) {
+    MPI_Comm_size(comm, &mpi_size_blocking);
+    MPI_Comm_rank(comm, &mpi_rank_blocking);
     comm_code_blocking = (char **)malloc(202 * sizeof(char *));
     memset(comm_code_blocking, 0, 202 * sizeof(char *));
     count_blocking = (int *)malloc(100 * sizeof(int));
@@ -2318,23 +2321,23 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
     header->size_to_return = sizeof(struct header_byte_code);
     *((MPI_Comm *)(comm_code_blocking[0]+header->size_to_return)) = comm;
     *((MPI_Comm *)(comm_code_blocking[0]+header->size_to_return+sizeof(MPI_Comm))) = MPI_COMM_NULL;
-    ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_segments, &shmemid, &shmem_local, 0, size_shared, &comm_code_blocking[0]);
+    ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_sockets_per_node, &shmemid, &shmem_local, 0, size_shared, &comm_code_blocking[0]);
     shmem_socket_blocking = shmem_local[0];
     counter_socket_blocking = 1;
-    MPI_Comm_size(comm, &mpi_size);
-    MPI_Comm_rank(comm, &mpi_rank);
     num_cores_blocking = my_cores_per_node;
-    socket_rank_blocking = mpi_rank % num_cores_blocking;
-    ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_segments, &shmemid, &shmem_node_blocking, 0, size_shared, &comm_code_blocking[0]);
+    socket_rank_blocking = mpi_rank_blocking % num_cores_blocking;
+    ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_sockets_per_node, &shmemid, &shmem_node_blocking, 0, size_shared, &comm_code_blocking[0]);
     counter_node_blocking = 1;
     num_sockets_per_node_blocking = 1;
     size_shared = 1024 * 1024 * 1024;
-    ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_segments, &shmemid, &shmem_local, 0, size_shared, &comm_code_blocking[0]);
+    ext_mpi_setup_shared_memory(&comm_row_blocking, &comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, num_sockets_per_node, &shmemid, &shmem_local, 0, size_shared, &comm_code_blocking[0]);
     shmem_blocking = shmem_local[0];
+    free(comm_code_blocking[0]);
+    comm_code_blocking[0] = NULL;
     locmem_blocking = malloc(1024 * 1024);
   }
   MPI_Type_size(datatype, &type_size);
-  handle = EXT_MPI_Allreduce_init_native((char *)(0xFFFF), (char *)(0x1FFFF), 1, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, alt, bit, 0, recursive, 0, num_sockets_per_node, 1, locmem_blocking);
+  handle = EXT_MPI_Allreduce_init_native((char *)(0xFFFF), (char *)(0x1FFFF), mpi_size_blocking, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, alt, bit, 0, recursive, 0, num_sockets_per_node, 1, locmem_blocking);
   while (comm_code_blocking[i]) i += 2;
   comm_code_blocking[i] = comm_code[handle];
   comm_code[handle] = 0;
@@ -2355,6 +2358,6 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
 int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int reduction_op, MPI_Comm comm) {
   int i = 0;
   while (count_blocking[i] < count && comm_code_blocking[(i + 1) << 1]) i++;
-  exec_blocking(comm_code_blocking[i << 1], 1, shmem_socket_blocking, &counter_socket_blocking, socket_rank_blocking, num_cores_blocking, shmem_node_blocking, &counter_node_blocking, num_sockets_per_node_blocking, shmem_blocking, sendbuf, recvbuf, count, reduction_op);
+  exec_blocking(comm_code_blocking[i << 1], comm, 1, shmem_socket_blocking, &counter_socket_blocking, socket_rank_blocking, num_cores_blocking, shmem_node_blocking, &counter_node_blocking, num_sockets_per_node_blocking, shmem_blocking, sendbuf, recvbuf, count / mpi_size_blocking, reduction_op);
   return 0;
 }
