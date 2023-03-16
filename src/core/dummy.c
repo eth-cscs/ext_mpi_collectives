@@ -22,5 +22,6 @@ int ext_mpi_generate_dummy(char *buffer_in, char *buffer_out) {
     }
   } while (flag);
   ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+  ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 }

@@ -8,11 +8,11 @@
 extern "C" {
 #endif
 
-void ext_mpi_node_barrier_mpi(int handle, MPI_Comm shmem_comm_node_row,
-                              MPI_Comm shmem_comm_node_column, char **comm_code);
+void ext_mpi_node_barrier_mpi(MPI_Comm shmem_comm_node_row,
+                              MPI_Comm shmem_comm_node_column, char *comm_code);
 
-int ext_mpi_destroy_shared_memory(int handle, int size_shared, int num_segments, int *shmemid,
-                                  char **shmem, char **comm_code);
+int ext_mpi_destroy_shared_memory(int size_shared, int num_segments, int *shmemid,
+                                  char **shmem, char *comm_code);
 
 int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
                                 MPI_Comm *shmem_comm_node_column,

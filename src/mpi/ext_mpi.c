@@ -2454,7 +2454,7 @@ int EXT_MPI_Init_blocking() {
   int comm_size_row, comm_rank_row, i, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, alt, j;
   double d1;
   struct cost_list *p1, *p2;
-  int counts[] = {1, 4, 16, 64, 256, 2048, 20480, 40960, 2048000};
+  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 2048000};
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
   MPI_Comm comm = MPI_COMM_WORLD;
@@ -2689,6 +2689,11 @@ error:
   return ERROR_MALLOC;
 }
 
+int EXT_MPI_Finalize_blocking() {
+  EXT_MPI_Release_blocking_native();
+  return 0;
+}
+
 int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, MPI_Comm comm){
   return EXT_MPI_Allreduce_native(sendbuf, recvbuf, count, reduction_op, comm);
 }
@@ -2708,6 +2713,7 @@ int EXT_MPI_Initialized(int *flag) {
 }
 
 int EXT_MPI_Finalize() {
+  EXT_MPI_Finalize_blocking();
   EXT_MPI_Finalize_native();
   delete_env();
   ext_mpi_delete_bench();
