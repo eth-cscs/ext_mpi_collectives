@@ -501,6 +501,7 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     nbuffer_out += sprintf(buffer_out + nbuffer_out,
                            " PARAMETER COLLECTIVE_TYPE ALLREDUCE_SHORT\n");
     break;
+  default: ;
   }
   nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET %d\n",
                          parameters->socket);

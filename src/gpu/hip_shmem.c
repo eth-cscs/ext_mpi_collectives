@@ -26,11 +26,11 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;
   }
-  MPI_Comm_split(comm, my_mpi_rank_row / (my_cores_per_node_row * num_segments),
-                 my_mpi_rank_row % (my_cores_per_node_row * num_segments), &my_comm_node_h);
+  PMPI_Comm_split(comm, my_mpi_rank_row / (my_cores_per_node_row * num_segments),
+                  my_mpi_rank_row % (my_cores_per_node_row * num_segments), &my_comm_node_h);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_split(comm_column, my_mpi_rank_column / my_cores_per_node_column,
-                   my_mpi_rank_column % my_cores_per_node_column, &my_comm_node_v);
+    PMPI_Comm_split(comm_column, my_mpi_rank_column / my_cores_per_node_column,
+                    my_mpi_rank_column % my_cores_per_node_column, &my_comm_node_v);
   } else {
     my_comm_node_v = MPI_COMM_NULL;
   }
@@ -74,9 +74,9 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
     }
   }
   free(shmemid_gpu);
-  MPI_Comm_free(&my_comm_node_h);
+  PMPI_Comm_free(&my_comm_node_h);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_free(&my_comm_node_v);
+    PMPI_Comm_free(&my_comm_node_v);
   }
   return 0;
 }
@@ -96,17 +96,17 @@ int ext_mpi_gpu_destroy_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;
   }
-  MPI_Comm_split(comm, my_mpi_rank_row / my_cores_per_node_row,
-                 my_mpi_rank_row % my_cores_per_node_row, &my_comm_node_h);
+  PMPI_Comm_split(comm, my_mpi_rank_row / my_cores_per_node_row,
+                  my_mpi_rank_row % my_cores_per_node_row, &my_comm_node_h);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_split(comm_column, my_mpi_rank_column / my_cores_per_node_column,
-                   my_mpi_rank_column % my_cores_per_node_column,
-                   &my_comm_node_v);
+    PMPI_Comm_split(comm_column, my_mpi_rank_column / my_cores_per_node_column,
+                    my_mpi_rank_column % my_cores_per_node_column,
+                    &my_comm_node_v);
   }
   if ((*shmem_gpu) != NULL) {
-    MPI_Comm_free(&my_comm_node_h);
+    PMPI_Comm_free(&my_comm_node_h);
     if (comm_column != MPI_COMM_NULL) {
-      MPI_Comm_free(&my_comm_node_v);
+      PMPI_Comm_free(&my_comm_node_v);
     }
     return 1;
   }
@@ -136,9 +136,9 @@ int ext_mpi_gpu_destroy_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
     }
   }
   free(shmem_gpu);
-  MPI_Comm_free(&my_comm_node_h);
+  PMPI_Comm_free(&my_comm_node_h);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_free(&my_comm_node_v);
+    PMPI_Comm_free(&my_comm_node_v);
   }
   return 0;
 }

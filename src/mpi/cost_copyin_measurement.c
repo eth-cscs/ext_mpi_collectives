@@ -80,10 +80,10 @@ static double allreduce_measurement(const void *sendbuf, void *recvbuf, int coun
 #ifdef GPU_ENABLED
   on_gpu = ext_mpi_gpu_is_device_pointer(recvbuf);
 #endif
-  MPI_Comm_split(comm_row, mpi_rank_row/(my_cores_per_node_row*num_sockets_per_node), mpi_rank_row%(my_cores_per_node_row*num_sockets_per_node), &comm_row_);
+  PMPI_Comm_split(comm_row, mpi_rank_row/(my_cores_per_node_row*num_sockets_per_node), mpi_rank_row%(my_cores_per_node_row*num_sockets_per_node), &comm_row_);
   if (comm_column != MPI_COMM_NULL) {
     MPI_Comm_rank(comm_column, &mpi_rank_column);
-    MPI_Comm_split(comm_column, mpi_rank_column/my_cores_per_node_column, mpi_rank_column%my_cores_per_node_column, &comm_column_);
+    PMPI_Comm_split(comm_column, mpi_rank_column/my_cores_per_node_column, mpi_rank_column%my_cores_per_node_column, &comm_column_);
   } else {
     comm_column_ = MPI_COMM_NULL;
   }
@@ -135,9 +135,9 @@ static double allreduce_measurement(const void *sendbuf, void *recvbuf, int coun
     }
   }
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_free(&comm_column_);
+    PMPI_Comm_free(&comm_column_);
   }
-  MPI_Comm_free(&comm_row_);
+  PMPI_Comm_free(&comm_row_);
   MPI_Bcast(copyin_method, 1, MPI_INT, 0, comm_row);
   MPI_Bcast(copyin_factors_min, my_cores_per_node_row + 1, MPI_INT, 0, comm_row);
   for (j = 0; copyin_factors_min[j]; j++) {

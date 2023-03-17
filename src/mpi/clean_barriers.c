@@ -28,18 +28,18 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   i = 0;
-  if (MPI_Comm_split(comm_row, rank / parameters->socket_row_size,
-                     rank % parameters->socket_row_size,
-                     &comm_rowl) == MPI_ERR_INTERN)
+  if (PMPI_Comm_split(comm_row, rank / parameters->socket_row_size,
+                      rank % parameters->socket_row_size,
+                      &comm_rowl) == MPI_ERR_INTERN)
     i = ERROR_MALLOC;
   if (i < 0)
     goto error;
   if (comm_column != MPI_COMM_NULL) {
     MPI_Comm_rank(comm_column, &rank);
     i = 0;
-    if (MPI_Comm_split(comm_column, rank / parameters->socket_column_size,
-                       rank % parameters->socket_column_size,
-                       &comm_columnl) == MPI_ERR_INTERN)
+    if (PMPI_Comm_split(comm_column, rank / parameters->socket_column_size,
+                        rank % parameters->socket_column_size,
+                        &comm_columnl) == MPI_ERR_INTERN)
       i = ERROR_MALLOC;
     if (i < 0)
       goto error;
@@ -73,19 +73,19 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
   } while (flag);
   ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   if (comm_columnl != MPI_COMM_NULL) {
-    MPI_Comm_free(&comm_columnl);
+    PMPI_Comm_free(&comm_columnl);
   }
   if (comm_rowl != MPI_COMM_NULL) {
-    MPI_Comm_free(&comm_rowl);
+    PMPI_Comm_free(&comm_rowl);
   }
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
 error:
   if (comm_columnl != MPI_COMM_NULL) {
-    MPI_Comm_free(&comm_columnl);
+    PMPI_Comm_free(&comm_columnl);
   }
   if (comm_rowl != MPI_COMM_NULL) {
-    MPI_Comm_free(&comm_rowl);
+    PMPI_Comm_free(&comm_rowl);
   }
   ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;

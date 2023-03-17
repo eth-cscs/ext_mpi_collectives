@@ -137,7 +137,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
         }
       }
     }
-    MPI_Waitall(l, request, MPI_STATUSES_IGNORE);
+    PMPI_Waitall(l, request, MPI_STATUSES_IGNORE);
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
         if (data.blocks[i].lines[j].recvfrom_node[k] != parameters->socket) {

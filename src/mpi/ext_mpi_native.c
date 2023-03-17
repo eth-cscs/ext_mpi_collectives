@@ -113,10 +113,10 @@ static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
   if (comm_column != MPI_COMM_NULL) {
     MPI_Comm_size(comm_column, &my_mpi_size_column);
     MPI_Comm_rank(comm_column, &my_mpi_rank_column);
-    if (MPI_Comm_split(comm_column,
-                       my_mpi_rank_column / my_cores_per_node_column,
-                       my_mpi_rank_column % my_cores_per_node_column,
-                       &my_comm_node) == MPI_ERR_INTERN)
+    if (PMPI_Comm_split(comm_column,
+                        my_mpi_rank_column / my_cores_per_node_column,
+                        my_mpi_rank_column % my_cores_per_node_column,
+                        &my_comm_node) == MPI_ERR_INTERN)
       goto error;
     MPI_Comm_rank(EXT_MPI_COMM_WORLD, &grank);
     lglobal_ranks = (int *)malloc(sizeof(int) * my_cores_per_node_column);
@@ -126,7 +126,7 @@ static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Bcast(lglobal_ranks, my_cores_per_node_column, MPI_INT, 0,
               my_comm_node);
     MPI_Barrier(my_comm_node);
-    MPI_Comm_free(&my_comm_node);
+    PMPI_Comm_free(&my_comm_node);
     MPI_Gather(lglobal_ranks, my_cores_per_node_column, MPI_INT, global_ranks,
                my_cores_per_node_column, MPI_INT, 0, comm_row);
     free(lglobal_ranks);
@@ -472,16 +472,16 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       if (active_wait & 2) {
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
-        MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+        PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
       } else {
         *ip_exec = ip - 1;
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
-        MPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
+        PMPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
         if (!i2) {
           return (0);
         } else {
-          MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+          PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
         }
       }
 #endif
@@ -501,11 +501,11 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
         *ip_exec = ip - 1;
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
-        MPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
+        PMPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
         if (!i2) {
           return 0;
         } else {
-          MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+          PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
         }
       }
       break;
@@ -749,17 +749,17 @@ int EXT_MPI_Done_native(int handle) {
     }
   }
   if (shmem_comm_node_row != MPI_COMM_NULL) {
-    MPI_Comm_free(&shmem_comm_node_row);
+    PMPI_Comm_free(&shmem_comm_node_row);
   }
   if (shmem_comm_node_column != MPI_COMM_NULL) {
-    MPI_Comm_free(&shmem_comm_node_column);
+    PMPI_Comm_free(&shmem_comm_node_column);
   }
   if (ip) {
     if (shmem_comm_node_row2 != MPI_COMM_NULL) {
-      MPI_Comm_free(&shmem_comm_node_row2);
+      PMPI_Comm_free(&shmem_comm_node_row2);
     }
     if (shmem_comm_node_column2 != MPI_COMM_NULL) {
-      MPI_Comm_free(&shmem_comm_node_column2);
+      PMPI_Comm_free(&shmem_comm_node_column2);
     }
   }
   free(active_wait);
@@ -2025,7 +2025,7 @@ error:
 }
 
 int EXT_MPI_Init_native() {
-  MPI_Comm_dup(MPI_COMM_WORLD, &EXT_MPI_COMM_WORLD);
+  PMPI_Comm_dup(MPI_COMM_WORLD, &EXT_MPI_COMM_WORLD);
   is_initialised = 1;
   return 0;
 }
@@ -2033,7 +2033,7 @@ int EXT_MPI_Init_native() {
 int EXT_MPI_Initialized_native() { return is_initialised; }
 
 int EXT_MPI_Finalize_native() {
-  MPI_Comm_free(&EXT_MPI_COMM_WORLD);
+  PMPI_Comm_free(&EXT_MPI_COMM_WORLD);
   return 0;
 }
 
@@ -2240,7 +2240,7 @@ static int exec_blocking(char *ip, MPI_Comm comm, int tag, char *shmem_socket, i
 #else
       i1 = code_get_int(&ip);
       p1 = code_get_pointer(&ip);
-      MPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+      PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
 #endif
       break;
     case OPCODE_MPIWAITANY:
@@ -2355,7 +2355,7 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
     memset(comms_blocking[i_comm], 0, sizeof(struct comm_comm_blocking));
   }
   if (!comms_blocking[i_comm]->comm_code_allreduce_blocking && !comms_blocking[i_comm]->comm_code_reduce_scatter_block_blocking && !comms_blocking[i_comm]->comm_code_allgather_blocking) {
-    MPI_Comm_dup(comm, &comms_blocking[i_comm]->comm_blocking);
+    PMPI_Comm_dup(comm, &comms_blocking[i_comm]->comm_blocking);
     MPI_Comm_size(comms_blocking[i_comm]->comm_blocking, &comms_blocking[i_comm]->mpi_size_blocking);
     MPI_Comm_rank(comms_blocking[i_comm]->comm_blocking, &comms_blocking[i_comm]->mpi_rank_blocking);
     comms_blocking[i_comm]->comm_code_allreduce_blocking = (char **)malloc(202 * sizeof(char *));
@@ -2437,7 +2437,7 @@ int EXT_MPI_Release_blocking_native(int i_comm) {
   free(comms_blocking[i_comm]->comm_code_allreduce_blocking);
   free(comms_blocking[i_comm]->comm_code_reduce_scatter_block_blocking);
   free(comms_blocking[i_comm]->comm_code_allgather_blocking);
-  MPI_Comm_free(&comms_blocking[i_comm]->comm_blocking);
+  PMPI_Comm_free(&comms_blocking[i_comm]->comm_blocking);
   free(comms_blocking[i_comm]);
   comms_blocking[i_comm] = NULL;
   if (i_comm == 0) {

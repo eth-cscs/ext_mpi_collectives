@@ -401,6 +401,11 @@ int MPI_Comm_split(MPI_Comm comm, int color, int key, MPI_Comm *newcomm) {
   return PMPI_Comm_split(comm, color, key, newcomm);
 }
 
+int MPI_Comm_split_type(MPI_Comm comm, int split_type, int key, MPI_Info info, MPI_Comm *newcomm) {
+  add_comm_to_blocking(&comm);
+  return PMPI_Comm_split_type(comm, split_type, key, info, newcomm);
+}
+
 int MPI_Comm_free(MPI_Comm *comm) {
   remove_comm_from_blocking(comm);
   return PMPI_Comm_free(comm);

@@ -150,18 +150,15 @@ static int delete_env() {
 static int get_num_tasks_per_socket(MPI_Comm comm) {
   int my_mpi_size = -1, my_mpi_rank = -1, num_cores = -1, *all_num_cores, i, j;
   MPI_Comm comm_node;
-  MPI_Info info;
   if (num_tasks_per_socket > 0) {
     return num_tasks_per_socket;
   }
   MPI_Comm_size(comm, &my_mpi_size);
   MPI_Comm_rank(comm, &my_mpi_rank);
-  MPI_Info_create(&info);
-  MPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, my_mpi_rank, info,
-                      &comm_node);
-  MPI_Info_free(&info);
+  PMPI_Comm_split_type(comm, MPI_COMM_TYPE_SHARED, my_mpi_rank, MPI_INFO_NULL,
+                       &comm_node);
   MPI_Comm_size(comm_node, &num_cores);
-  MPI_Comm_free(&comm_node);
+  PMPI_Comm_free(&comm_node);
   all_num_cores = (int*)malloc((my_mpi_size+1)*sizeof(int));
   for (i=0; i<my_mpi_size+1; i++) {
     all_num_cores[i] = 0;

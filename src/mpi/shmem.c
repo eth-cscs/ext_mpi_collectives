@@ -111,12 +111,12 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
   if (*size_shared > 0) {
     *size_shared = (((*size_shared - 1) / CACHE_LINE_SIZE) + 1) * CACHE_LINE_SIZE;
   }
-  MPI_Comm_split(comm_row, my_mpi_rank_row / (my_cores_per_node_row * num_segments),
-                 my_mpi_rank_row % (my_cores_per_node_row * num_segments), shmem_comm_node_row);
+  PMPI_Comm_split(comm_row, my_mpi_rank_row / (my_cores_per_node_row * num_segments),
+                  my_mpi_rank_row % (my_cores_per_node_row * num_segments), shmem_comm_node_row);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_split(comm_column, my_mpi_rank_column / my_cores_per_node_column,
-                   my_mpi_rank_column % my_cores_per_node_column,
-                   shmem_comm_node_column);
+    PMPI_Comm_split(comm_column, my_mpi_rank_column / my_cores_per_node_column,
+                    my_mpi_rank_column % my_cores_per_node_column,
+                    shmem_comm_node_column);
   } else {
     *shmem_comm_node_column = MPI_COMM_NULL;
   }
@@ -204,9 +204,9 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
 #endif
   }
   ext_mpi_node_barrier_mpi(*shmem_comm_node_row, *shmem_comm_node_column, NULL);
-  MPI_Comm_free(shmem_comm_node_row);
+  PMPI_Comm_free(shmem_comm_node_row);
   if (*shmem_comm_node_column != MPI_COMM_NULL) {
-    MPI_Comm_free(shmem_comm_node_column);
+    PMPI_Comm_free(shmem_comm_node_column);
   }
   return 0;
 error:

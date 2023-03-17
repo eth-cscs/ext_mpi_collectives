@@ -119,7 +119,7 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
         }
       }
     }
-    MPI_Waitall(l, request, MPI_STATUSES_IGNORE);
+    PMPI_Waitall(l, request, MPI_STATUSES_IGNORE);
     if (i < data.num_blocks - 1) {
       for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
         if (j < data.blocks[i + 1].num_lines) {
