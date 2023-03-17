@@ -2450,15 +2450,14 @@ int EXT_MPI_Done(int handle) {
   }
 }
 
-int EXT_MPI_Init_blocking() {
+int EXT_MPI_Init_blocking_comm(MPI_Comm comm, int i_comm) {
   int comm_size_row, comm_rank_row, i, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, alt, j;
   double d1;
   struct cost_list *p1, *p2;
   int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 2048000};
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
-  MPI_Comm comm = MPI_COMM_WORLD;
-  int my_cores_per_node = get_num_tasks_per_socket(MPI_COMM_WORLD);
+  int my_cores_per_node = get_num_tasks_per_socket(comm);
   char *sendbuf = malloc(1024 * 1024 * 1024);
   char *recvbuf = malloc(1024 * 1024 * 1024);
   struct {
@@ -2671,7 +2670,7 @@ alt = 0;
       groups[3] = -2;
       groups[4] = 0;
     }
-    if (EXT_MPI_Add_blocking_native(counts[j], MPI_LONG, MPI_SUM, MPI_COMM_WORLD, my_cores_per_node, num_ports, groups, copyin_method_, copyin_factors, 0, 0, (group_size==comm_size_row/my_cores_per_node) && !not_recursive, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce) < 0)
+    if (EXT_MPI_Add_blocking_native(counts[j], MPI_LONG, MPI_SUM, comm, my_cores_per_node, num_ports, groups, copyin_method_, copyin_factors, 0, 0, (group_size==comm_size_row/my_cores_per_node) && !not_recursive, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, i_comm) < 0)
       goto error;
   }
   free(groups);
@@ -2689,20 +2688,19 @@ error:
   return ERROR_MALLOC;
 }
 
-int EXT_MPI_Finalize_blocking() {
-  EXT_MPI_Release_blocking_native(0);
+int EXT_MPI_Finalize_blocking_comm(int i_comm) {
+  EXT_MPI_Release_blocking_native(i_comm);
   return 0;
 }
 
-int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, MPI_Comm comm){
-  return EXT_MPI_Allreduce_native(sendbuf, recvbuf, count, reduction_op, comm);
+int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, int i_comm){
+  return EXT_MPI_Allreduce_native(sendbuf, recvbuf, count, reduction_op, i_comm);
 }
 
 int EXT_MPI_Init() {
   ext_mpi_read_bench();
   read_env();
   EXT_MPI_Init_native();
-  EXT_MPI_Init_blocking();
   is_initialised = 1;
   return 0;
 }
@@ -2713,7 +2711,6 @@ int EXT_MPI_Initialized(int *flag) {
 }
 
 int EXT_MPI_Finalize() {
-  EXT_MPI_Finalize_blocking();
   EXT_MPI_Finalize_native();
   delete_env();
   ext_mpi_delete_bench();

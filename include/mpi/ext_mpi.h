@@ -101,7 +101,10 @@ int EXT_MPI_Progress();
 int EXT_MPI_Wait(int handle);
 int EXT_MPI_Done(int handle);
 
-int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, MPI_Comm comm);
+int EXT_MPI_Init_blocking_comm(MPI_Comm comm, int i_comm);
+int EXT_MPI_Finalize_blocking_comm(int i_comm);
+
+int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, int i_comm);
 
 #ifdef __cplusplus
 }

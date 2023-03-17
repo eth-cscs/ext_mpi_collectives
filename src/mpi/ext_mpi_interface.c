@@ -11,11 +11,13 @@ int MPI_Init(int *argc, char ***argv){
   int ret = PMPI_Init(argc, argv);
   ext_mpi_hash_init();
   EXT_MPI_Init();
+  EXT_MPI_Init_blocking_comm(MPI_COMM_WORLD, 0);
   is_initialised = 1;
   return ret;
 }
 
 int MPI_Finalize(){
+  EXT_MPI_Finalize_blocking_comm(0);
   EXT_MPI_Finalize();
   ext_mpi_hash_done();
   is_initialised = 0;
@@ -346,7 +348,7 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
     } else {
       return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
     }
-    return EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, comm);
+    return EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, 0);
   } else {
     return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
   }
