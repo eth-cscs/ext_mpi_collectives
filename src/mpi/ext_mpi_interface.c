@@ -2,16 +2,26 @@
 #include <mpi.h>
 #include "constants.h"
 #include "hash_table.h"
+#include "hash_table_blocking.h"
 #include "ext_mpi.h"
 #include "ext_mpi_interface.h"
 
-int is_initialised = 0;
+static int is_initialised = 0;
+static int comms_blocking[100];
 
 int MPI_Init(int *argc, char ***argv){
+  int i;
+  MPI_Comm comm = MPI_COMM_WORLD;
   int ret = PMPI_Init(argc, argv);
   ext_mpi_hash_init();
+  ext_mpi_hash_init_blocking();
+  ext_mpi_hash_insert_blocking(&comm, 0);
   EXT_MPI_Init();
   EXT_MPI_Init_blocking_comm(MPI_COMM_WORLD, 0);
+  for (i = 0; i < sizeof(comms_blocking)/sizeof(int); i++) {
+    comms_blocking[i] = 0;
+  }
+  comms_blocking[0] = 1;
   is_initialised = 1;
   return ret;
 }
@@ -19,6 +29,7 @@ int MPI_Init(int *argc, char ***argv){
 int MPI_Finalize(){
   EXT_MPI_Finalize_blocking_comm(0);
   EXT_MPI_Finalize();
+  ext_mpi_hash_done_blocking();
   ext_mpi_hash_done();
   is_initialised = 0;
   return PMPI_Finalize();
@@ -331,7 +342,7 @@ error:
 }
 
 int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
-  int reduction_op;
+  int reduction_op, i;
   if (is_initialised && op == MPI_SUM) {
     if (datatype == MPI_DOUBLE) {
       reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
@@ -348,8 +359,49 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
     } else {
       return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
     }
-    return EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, 0);
+    i = ext_mpi_hash_search_blocking(&comm);
+    if (i >= 0) {
+      return EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, i);
+    } else {
+      return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+    }
   } else {
     return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
   }
+}
+
+static int add_comm_to_blocking(MPI_Comm *comm){
+  int i = 0;
+  while (comms_blocking[i]) i++;
+  comms_blocking[i] = 1;
+  ext_mpi_hash_insert_blocking(comm, i);
+  EXT_MPI_Init_blocking_comm(*comm, 0);
+  return 0;
+}
+
+static int remove_comm_from_blocking(MPI_Comm *comm){
+  int i = ext_mpi_hash_search_blocking(comm);
+  ext_mpi_hash_delete_blocking(comm);
+  comms_blocking[i] = 0;
+  return 0;
+}
+
+int MPI_Comm_dup(MPI_Comm comm, MPI_Comm *newcomm) {
+  add_comm_to_blocking(&comm);
+  return PMPI_Comm_dup(comm, newcomm);
+}
+
+int MPI_Comm_create(MPI_Comm comm, MPI_Group group, MPI_Comm *newcomm) {
+  add_comm_to_blocking(&comm);
+  return PMPI_Comm_create(comm, group, newcomm);
+}
+
+int MPI_Comm_split(MPI_Comm comm, int color, int key, MPI_Comm *newcomm) {
+  add_comm_to_blocking(&comm);
+  return PMPI_Comm_split(comm, color, key, newcomm);
+}
+
+int MPI_Comm_free(MPI_Comm *comm) {
+  remove_comm_from_blocking(comm);
+  return PMPI_Comm_free(comm);
 }

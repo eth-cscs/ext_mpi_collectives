@@ -2355,8 +2355,9 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
     memset(comms_blocking[i_comm], 0, sizeof(struct comm_comm_blocking));
   }
   if (!comms_blocking[i_comm]->comm_code_allreduce_blocking && !comms_blocking[i_comm]->comm_code_reduce_scatter_block_blocking && !comms_blocking[i_comm]->comm_code_allgather_blocking) {
-    MPI_Comm_size(comm, &comms_blocking[i_comm]->mpi_size_blocking);
-    MPI_Comm_rank(comm, &comms_blocking[i_comm]->mpi_rank_blocking);
+    MPI_Comm_dup(comm, &comms_blocking[i_comm]->comm_blocking);
+    MPI_Comm_size(comms_blocking[i_comm]->comm_blocking, &comms_blocking[i_comm]->mpi_size_blocking);
+    MPI_Comm_rank(comms_blocking[i_comm]->comm_blocking, &comms_blocking[i_comm]->mpi_rank_blocking);
     comms_blocking[i_comm]->comm_code_allreduce_blocking = (char **)malloc(202 * sizeof(char *));
     memset(comms_blocking[i_comm]->comm_code_allreduce_blocking, 0, 202 * sizeof(char *));
     comms_blocking[i_comm]->count_allreduce_blocking = (int *)malloc(100 * sizeof(int));
@@ -2371,7 +2372,7 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
     header->size_to_return = sizeof(struct header_byte_code);
     *((MPI_Comm *)(comm_code_temp+header->size_to_return)) = comm;
     *((MPI_Comm *)(comm_code_temp+header->size_to_return+sizeof(MPI_Comm))) = MPI_COMM_NULL;
-    ext_mpi_setup_shared_memory(&comms_blocking[i_comm]->comm_row_blocking, &comms_blocking[i_comm]->comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &loc_shmemid, &shmem_local, 0, size_shared, &comm_code_temp);
+    ext_mpi_setup_shared_memory(&comms_blocking[i_comm]->comm_row_blocking, &comms_blocking[i_comm]->comm_column_blocking, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &loc_shmemid, &shmem_local, 0, size_shared, &comm_code_temp);
     comms_blocking[i_comm]->shmem_socket_blocking_shmemid = loc_shmemid[0];
     free(loc_shmemid);
     comms_blocking[i_comm]->shmem_socket_blocking = shmem_local[0];
@@ -2380,18 +2381,17 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
     comms_blocking[i_comm]->num_cores_blocking = my_cores_per_node;
     comms_blocking[i_comm]->socket_rank_blocking = comms_blocking[i_comm]->mpi_rank_blocking % comms_blocking[i_comm]->num_cores_blocking;
     comms_blocking[i_comm]->shmem_node_blocking_num_segments = num_sockets_per_node;
-    ext_mpi_setup_shared_memory(&comms_blocking[i_comm]->comm_row_blocking, &comms_blocking[i_comm]->comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, comms_blocking[i_comm]->shmem_node_blocking_num_segments, &comms_blocking[i_comm]->shmem_node_blocking_shmemid, &comms_blocking[i_comm]->shmem_node_blocking, 0, size_shared, &comm_code_temp);
+    ext_mpi_setup_shared_memory(&comms_blocking[i_comm]->comm_row_blocking, &comms_blocking[i_comm]->comm_column_blocking, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, comms_blocking[i_comm]->shmem_node_blocking_num_segments, &comms_blocking[i_comm]->shmem_node_blocking_shmemid, &comms_blocking[i_comm]->shmem_node_blocking, 0, size_shared, &comm_code_temp);
     comms_blocking[i_comm]->counter_node_blocking = 1;
     comms_blocking[i_comm]->num_sockets_per_node_blocking = 1;
     size_shared = 1024 * 1024 * 1024;
-    ext_mpi_setup_shared_memory(&comms_blocking[i_comm]->comm_row_blocking, &comms_blocking[i_comm]->comm_column_blocking, comm, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &loc_shmemid, &shmem_local, 0, size_shared, &comm_code_temp);
+    ext_mpi_setup_shared_memory(&comms_blocking[i_comm]->comm_row_blocking, &comms_blocking[i_comm]->comm_column_blocking, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &loc_shmemid, &shmem_local, 0, size_shared, &comm_code_temp);
     comms_blocking[i_comm]->shmem_blocking_shmemid = loc_shmemid[0];
     free(loc_shmemid);
     comms_blocking[i_comm]->shmem_blocking = shmem_local[0];
     free(shmem_local);
     free(comm_code_temp);
     comms_blocking[i_comm]->locmem_blocking = malloc(1024 * sizeof(MPI_Request));
-    comms_blocking[i_comm]->comm_blocking = comm;
   }
   switch (collective_type) {
     case collective_type_allreduce:
@@ -2437,6 +2437,7 @@ int EXT_MPI_Release_blocking_native(int i_comm) {
   free(comms_blocking[i_comm]->comm_code_allreduce_blocking);
   free(comms_blocking[i_comm]->comm_code_reduce_scatter_block_blocking);
   free(comms_blocking[i_comm]->comm_code_allgather_blocking);
+  MPI_Comm_free(&comms_blocking[i_comm]->comm_blocking);
   free(comms_blocking[i_comm]);
   comms_blocking[i_comm] = NULL;
   if (i_comm == 0) {
