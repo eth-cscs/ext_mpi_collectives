@@ -2343,10 +2343,10 @@ static int add_blocking_member(int count, MPI_Datatype datatype, int handle, cha
 
 int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int alt, int bit, int recursive, int blocking, int num_sockets_per_node, enum ecollective_type collective_type, int i_comm) {
   int handle, size_shared = 1024*1024, *loc_shmemid;
-  char **shmem_local, *comm_code_temp;;
+  char **shmem_local, *comm_code_temp;
   struct header_byte_code *header;
   alt = 0;
-  if (comms_blocking == NULL) {
+  if (!comms_blocking) {
     comms_blocking = (struct comm_comm_blocking **)malloc(1000 * sizeof(struct comm_comm_blocking *));
     memset(comms_blocking, 0, 1000 * sizeof(struct comm_comm_blocking *));
   }

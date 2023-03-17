@@ -375,7 +375,7 @@ static int add_comm_to_blocking(MPI_Comm *comm){
   while (comms_blocking[i]) i++;
   comms_blocking[i] = 1;
   ext_mpi_hash_insert_blocking(comm, i);
-  EXT_MPI_Init_blocking_comm(*comm, 0);
+  EXT_MPI_Init_blocking_comm(*comm, i);
   return 0;
 }
 
@@ -387,23 +387,31 @@ static int remove_comm_from_blocking(MPI_Comm *comm){
 }
 
 int MPI_Comm_dup(MPI_Comm comm, MPI_Comm *newcomm) {
-  add_comm_to_blocking(&comm);
-  return PMPI_Comm_dup(comm, newcomm);
+  int ret;
+  ret = PMPI_Comm_dup(comm, newcomm);
+  add_comm_to_blocking(newcomm);
+  return ret;
 }
 
 int MPI_Comm_create(MPI_Comm comm, MPI_Group group, MPI_Comm *newcomm) {
-  add_comm_to_blocking(&comm);
-  return PMPI_Comm_create(comm, group, newcomm);
+  int ret;
+  ret = PMPI_Comm_create(comm, group, newcomm);
+  add_comm_to_blocking(newcomm);
+  return ret;
 }
 
 int MPI_Comm_split(MPI_Comm comm, int color, int key, MPI_Comm *newcomm) {
-  add_comm_to_blocking(&comm);
-  return PMPI_Comm_split(comm, color, key, newcomm);
+  int ret;
+  ret = PMPI_Comm_split(comm, color, key, newcomm);
+  add_comm_to_blocking(newcomm);
+  return ret;
 }
 
 int MPI_Comm_split_type(MPI_Comm comm, int split_type, int key, MPI_Info info, MPI_Comm *newcomm) {
-  add_comm_to_blocking(&comm);
-  return PMPI_Comm_split_type(comm, split_type, key, info, newcomm);
+  int ret;
+  ret = PMPI_Comm_split_type(comm, split_type, key, info, newcomm);
+  add_comm_to_blocking(newcomm);
+  return ret;
 }
 
 int MPI_Comm_free(MPI_Comm *comm) {
