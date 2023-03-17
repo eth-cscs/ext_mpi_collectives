@@ -16,7 +16,9 @@ enum ecollective_type {
   collective_type_reduce_scatter,
   collective_type_allreduce,
   collective_type_allreduce_group,
-  collective_type_allreduce_short
+  collective_type_allreduce_short,
+  collective_type_allgather,
+  collective_type_reduce_scatter_block
 };
 enum edata_type {
   data_type_char,

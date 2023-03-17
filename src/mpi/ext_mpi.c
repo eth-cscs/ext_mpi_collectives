@@ -2671,7 +2671,7 @@ alt = 0;
       groups[3] = -2;
       groups[4] = 0;
     }
-    if (EXT_MPI_Add_blocking_native(counts[j], MPI_LONG, MPI_SUM, MPI_COMM_WORLD, my_cores_per_node, num_ports, groups, copyin_method_, copyin_factors, 0, 0, (group_size==comm_size_row/my_cores_per_node) && !not_recursive, ext_mpi_blocking, num_sockets_per_node) < 0)
+    if (EXT_MPI_Add_blocking_native(counts[j], MPI_LONG, MPI_SUM, MPI_COMM_WORLD, my_cores_per_node, num_ports, groups, copyin_method_, copyin_factors, 0, 0, (group_size==comm_size_row/my_cores_per_node) && !not_recursive, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce) < 0)
       goto error;
   }
   free(groups);
