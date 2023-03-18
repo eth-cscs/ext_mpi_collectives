@@ -342,26 +342,26 @@ error:
 }
 
 int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
-  int reduction_op, i;
+  int reduction_op, lcount, i;
   if (is_initialised && op == MPI_SUM) {
     if (datatype == MPI_DOUBLE) {
       reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
-      count *= sizeof(double);
+      lcount = count * sizeof(double);
     } else if (datatype == MPI_LONG) {
       reduction_op = OPCODE_REDUCE_SUM_LONG_INT;
-      count *= sizeof(long int);
+      lcount = count * sizeof(long int);
     } else if (datatype == MPI_FLOAT) {
       reduction_op = OPCODE_REDUCE_SUM_FLOAT;
-      count *= sizeof(float);
+      lcount = count * sizeof(float);
     } else if (datatype == MPI_INT) {
       reduction_op = OPCODE_REDUCE_SUM_INT;
-      count *= sizeof(int);
+      lcount = count * sizeof(int);
     } else {
       return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
     }
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
-      return EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, i);
+      return EXT_MPI_Allreduce(sendbuf, recvbuf, lcount, reduction_op, i);
     } else {
       return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
     }
@@ -371,26 +371,26 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
 }
 
 int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
-  int reduction_op, i;
+  int reduction_op, lcount, i;
   if (is_initialised && op == MPI_SUM) {
     if (datatype == MPI_DOUBLE) {
       reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
-      recvcount *= sizeof(double);
+      lcount = recvcount * sizeof(double);
     } else if (datatype == MPI_LONG) {
       reduction_op = OPCODE_REDUCE_SUM_LONG_INT;
-      recvcount *= sizeof(long int);
+      lcount = recvcount * sizeof(long int);
     } else if (datatype == MPI_FLOAT) {
       reduction_op = OPCODE_REDUCE_SUM_FLOAT;
-      recvcount *= sizeof(float);
+      lcount = recvcount * sizeof(float);
     } else if (datatype == MPI_INT) {
       reduction_op = OPCODE_REDUCE_SUM_INT;
-      recvcount *= sizeof(int);
+      lcount = recvcount * sizeof(int);
     } else {
       return PMPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, datatype, op, comm);
     }
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
-      return EXT_MPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, reduction_op, i);
+      return EXT_MPI_Reduce_scatter_block(sendbuf, recvbuf, lcount, reduction_op, i);
     } else {
       return PMPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, datatype, op, comm);
     }
@@ -400,11 +400,12 @@ int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, 
 }
 
 int MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm){
-  int i;
+  int type_size, i;
   if (is_initialised) {
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
-      return EXT_MPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, i);
+      MPI_Type_size(sendtype, &type_size);
+      return EXT_MPI_Allgather(sendbuf, type_size * sendcount, sendtype, recvbuf, type_size * recvcount, recvtype, comm, i);
     } else {
       return PMPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
     }

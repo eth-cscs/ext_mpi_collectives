@@ -2482,7 +2482,7 @@ int EXT_MPI_Reduce_scatter_block_native(const void *sendbuf, void *recvbuf, int 
   int i = 0;
   comms_blocking_ = comms_blocking[i_comm];
   while (comms_blocking_->count_allreduce_blocking[i] < recvcount && comms_blocking_->comm_code_allreduce_blocking[(i + 1) << 1]) i++;
-  exec_blocking(comms_blocking_->comm_code_reduce_scatter_block_blocking[i << 1], comms_blocking_->comm_blocking, 1, comms_blocking_->shmem_socket_blocking, &comms_blocking_->counter_socket_blocking, comms_blocking_->socket_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->shmem_node_blocking, &comms_blocking_->counter_node_blocking, comms_blocking_->num_sockets_per_node_blocking, comms_blocking_->shmem_blocking, sendbuf, recvbuf, recvcount / comms_blocking_->mpi_size_blocking, reduction_op);
+  exec_blocking(comms_blocking_->comm_code_reduce_scatter_block_blocking[i << 1], comms_blocking_->comm_blocking, 1, comms_blocking_->shmem_socket_blocking, &comms_blocking_->counter_socket_blocking, comms_blocking_->socket_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->shmem_node_blocking, &comms_blocking_->counter_node_blocking, comms_blocking_->num_sockets_per_node_blocking, comms_blocking_->shmem_blocking, sendbuf, recvbuf, recvcount, reduction_op);
   return 0;
 }
 
@@ -2491,6 +2491,6 @@ int EXT_MPI_Allgather_native(const void *sendbuf, int sendcount, MPI_Datatype se
   int i = 0;
   comms_blocking_ = comms_blocking[i_comm];
   while (comms_blocking_->count_allreduce_blocking[i] < sendcount && comms_blocking_->comm_code_allreduce_blocking[(i + 1) << 1]) i++;
-  exec_blocking(comms_blocking_->comm_code_allgather_blocking[i << 1], comms_blocking_->comm_blocking, 1, comms_blocking_->shmem_socket_blocking, &comms_blocking_->counter_socket_blocking, comms_blocking_->socket_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->shmem_node_blocking, &comms_blocking_->counter_node_blocking, comms_blocking_->num_sockets_per_node_blocking, comms_blocking_->shmem_blocking, sendbuf, recvbuf, sendcount / comms_blocking_->mpi_size_blocking, -1);
+  exec_blocking(comms_blocking_->comm_code_allgather_blocking[i << 1], comms_blocking_->comm_blocking, 1, comms_blocking_->shmem_socket_blocking, &comms_blocking_->counter_socket_blocking, comms_blocking_->socket_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->shmem_node_blocking, &comms_blocking_->counter_node_blocking, comms_blocking_->num_sockets_per_node_blocking, comms_blocking_->shmem_blocking, sendbuf, recvbuf, sendcount, -1);
   return 0;
 }
