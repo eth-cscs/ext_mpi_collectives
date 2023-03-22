@@ -1,4 +1,4 @@
-//FIXME #include "allreduce_short.h"
+#include "allreduce_short.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -13,6 +13,6 @@ int main(int argc, char *argv[]) {
       nbuffer_out += sprintf(buffer_in + nbuffer_out, "%s", line_return);
     }
   }
-//FIXME ext_mpi_generate_allreduce_short(buffer_in, buffer_out);
+  ext_mpi_generate_allreduce_short(buffer_in, buffer_out);
   printf("%s", buffer_out);
 }
