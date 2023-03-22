@@ -92,7 +92,7 @@ static int reduce_scatter_core(struct data_algorithm *data, int num_sockets, int
     data->blocks[data->num_blocks].lines[line].recvfrom_node = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
     data->blocks[data->num_blocks].lines[line].recvfrom_line = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
     data->blocks[data->num_blocks].lines[line].recvfrom_node[0] = -1;
-    data->blocks[data->num_blocks].lines[line].recvfrom_line[0] = 0;
+    data->blocks[data->num_blocks].lines[line].recvfrom_line[0] = line;
   }
   for (line = lines_base; line < lines_base * 2; line++) {
     data->blocks[data->num_blocks].lines[line].frac = line - lines_base;
@@ -239,7 +239,7 @@ static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num
     data->blocks[data->num_blocks].lines[line].recvfrom_node = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
     data->blocks[data->num_blocks].lines[line].recvfrom_line = (int*)malloc(sizeof(int)*data->blocks[data->num_blocks].lines[line].recvfrom_max);
     data->blocks[data->num_blocks].lines[line].recvfrom_node[0] = -1;
-    data->blocks[data->num_blocks].lines[line].recvfrom_line[0] = 0;
+    data->blocks[data->num_blocks].lines[line].recvfrom_line[0] = line;
   }
   for (line = lines_base; line < lines_base * 2; line++) {
     data->blocks[data->num_blocks].lines[line].frac = line - lines_base;
