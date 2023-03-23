@@ -382,9 +382,11 @@ int ext_mpi_generate_allreduce_short(char *buffer_in, char *buffer_out) {
       exit(1);
     }
   }
-  parameters->message_sizes_max /= fac_middle;
-  for (i = 0; i < parameters->message_sizes_max; i++) {
-    parameters->message_sizes[i] *= fac_middle;
+  if (!(parameters->message_sizes_max < parameters->num_sockets)) {
+    parameters->message_sizes_max /= fac_middle;
+    for (i = 0; i < parameters->message_sizes_max; i++) {
+      parameters->message_sizes[i] *= fac_middle;
+    }
   }
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   nbuffer_out += ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
