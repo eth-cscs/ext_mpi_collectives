@@ -290,62 +290,6 @@ static int chancel_copyin_copyout(struct data_algorithm *data) {
   return ret;
 }
 
-static void add_lines(struct data_algorithm *data) {
-  struct data_algorithm_line *lines_new;
-  int block = -1, i, j, k;
-  for (i = 1; block < 0 && i < data->num_blocks - 1; i++) {
-    for (j = 0; block < 0 && j < data->blocks[i].num_lines; j++) {
-      if (data->blocks[i].lines[j].sendto_max > 0 && data->blocks[i].lines[j].sendto_node[0] == -1) {
-        block = i;
-      }
-    }
-  }
-  for (i = block + 1; i < data->num_blocks; i++) {
-    lines_new = (struct data_algorithm_line*)malloc(sizeof(struct data_algorithm_line) * (data->blocks[i].num_lines + data->blocks[block].num_lines));
-    memset(lines_new, 0, sizeof(struct data_algorithm_line) * data->blocks[block].num_lines);
-    memcpy(lines_new + data->blocks[block].num_lines, data->blocks[i].lines, data->blocks[i].num_lines * sizeof(struct data_algorithm_line));
-    for (j = 0; j < data->blocks[block].num_lines; j++) {
-      lines_new[j].frac = data->blocks[block].lines[j].frac;
-    }
-    for (j = 0; j < data->blocks[i].num_lines; j++) {
-      for (k = 0; k < lines_new[j + data->blocks[block].num_lines].recvfrom_max; k++) {
-        lines_new[j + data->blocks[block].num_lines].recvfrom_line[k] += data->blocks[block].num_lines;
-      }
-      for (k = 0; k < lines_new[j + data->blocks[block].num_lines].reducefrom_max; k++) {
-        lines_new[j + data->blocks[block].num_lines].reducefrom[k] += data->blocks[block].num_lines;
-      }
-      for (k = 0; k < lines_new[j + data->blocks[block].num_lines].copyreducefrom_max; k++) {
-        lines_new[j + data->blocks[block].num_lines].copyreducefrom[k] += data->blocks[block].num_lines;
-      }
-    }
-    data->blocks[i].num_lines += data->blocks[block].num_lines;
-    free(data->blocks[i].lines);
-    data->blocks[i].lines = lines_new;
-  }
-  for (i = 0; i < data->blocks[block].num_lines; i++) {
-    if (data->blocks[block].lines[i].sendto_max > 0 && data->blocks[block].lines[i].sendto_node[0] == -1) {
-      for (j = 0; j < data->blocks[block + 1].num_lines; j++) {
-        if (data->blocks[block + 1].lines[j].recvfrom_max > 0 && data->blocks[block + 1].lines[j].recvfrom_node[0] == -1) {
-          if (data->blocks[block].lines[i].frac == data->blocks[block + 1].lines[j].frac) {
-            free(data->blocks[block].lines[i].sendto_node);
-            free(data->blocks[block].lines[i].sendto_line);
-            data->blocks[block].lines[i].sendto_node = data->blocks[block].lines[i].sendto_line = NULL;
-            data->blocks[block].lines[i].sendto_max = 0;
-            free(data->blocks[block + 1].lines[j].recvfrom_node);
-            data->blocks[block + 1].lines[j].recvfrom_node = NULL;
-            free(data->blocks[block + 1].lines[j].recvfrom_line);
-            data->blocks[block + 1].lines[j].recvfrom_line = NULL;
-            data->blocks[block + 1].lines[j].recvfrom_max = 0;
-            data->blocks[block + 1].lines[j].copyreducefrom_max = 1;
-	    data->blocks[block + 1].lines[j].copyreducefrom = (int*)malloc(sizeof(int));
-            data->blocks[block + 1].lines[j].copyreducefrom[0] = i;
-          }
-        }
-      }
-    }
-  }
-}
-
 int ext_mpi_generate_allreduce_short(char *buffer_in, char *buffer_out) {
   int nbuffer_out = 0, nbuffer_in = 0, ngroups[3], i, j, k, *fracs,
       nbuffer_out_temp, nbuffer_in_temp, components[2], fac, fac_middle;
@@ -431,9 +375,7 @@ int ext_mpi_generate_allreduce_short(char *buffer_in, char *buffer_out) {
       data.blocks[k++] = data_l[i].blocks[j];
     }
   }
-  if (!chancel_copyin_copyout(&data)) {
-    add_lines(&data);
-  }
+  chancel_copyin_copyout(&data);
   for (i = 1; i < parameters->message_sizes_max; i++) {
     if (parameters->message_sizes[0] != parameters->message_sizes[i]) {
       printf("only equal message sizes are supported for short algorithm\n");

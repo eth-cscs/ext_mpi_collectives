@@ -12,6 +12,7 @@
 #endif
 #include "allreduce.h"
 #include "allreduce_recursive.h"
+#include "allreduce_short.h"
 #include "alltoall.h"
 #include "backward_interpreter.h"
 #include "buffer_offset.h"

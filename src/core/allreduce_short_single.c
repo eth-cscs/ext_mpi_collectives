@@ -268,6 +268,14 @@ int ext_mpi_generate_allreduce_short_single(char *buffer_in, char *buffer_out) {
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
+  for (i = 1; i < parameters->message_sizes_max; i++) {
+    if (parameters->message_sizes[0] != parameters->message_sizes[i]) {
+      printf("only equal message sizes are supported for short single algorithm\n");
+      exit(1);
+    }
+  }
+  parameters->message_sizes[0] *= parameters->message_sizes_max;
+  parameters->message_sizes_max = 1;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   if (parameters->collective_type == collective_type_allgatherv) {
     printf("ext_mpi_generate_allreduce_short not implemented\n");
