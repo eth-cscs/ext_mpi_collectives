@@ -164,7 +164,7 @@ static int get_num_tasks_per_socket(MPI_Comm comm) {
     all_num_cores[i] = 0;
   }
   if (!all_num_cores) goto error;
-  MPI_Allgather(&num_cores, 1, MPI_INT, all_num_cores, 1, MPI_INT, comm);
+  PMPI_Allgather(&num_cores, 1, MPI_INT, all_num_cores, 1, MPI_INT, comm);
   for (j=all_num_cores[0]; j>=1; j--){
     for (i=0; (!(all_num_cores[i]%j))&&(i<my_mpi_size); i++);
     if (i==my_mpi_size){

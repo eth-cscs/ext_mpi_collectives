@@ -16,7 +16,6 @@ int MPI_Init(int *argc, char ***argv){
   MPI_Comm comm = MPI_COMM_WORLD;
   int ret = PMPI_Init(argc, argv);
   ext_mpi_hash_init();
-  ext_mpi_hash_init_blocking();
   EXT_MPI_Init();
   PMPI_Comm_rank(MPI_COMM_WORLD, &mpi_comm_rank);
   if (mpi_comm_rank == 0) {
@@ -31,6 +30,7 @@ int MPI_Init(int *argc, char ***argv){
   }
   MPI_Bcast(&is_blocking, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (is_blocking) {
+    ext_mpi_hash_init_blocking();
     ext_mpi_hash_insert_blocking(&comm, 0);
     EXT_MPI_Init_blocking_comm(MPI_COMM_WORLD, 0);
     for (i = 0; i < sizeof(comms_blocking)/sizeof(int); i++) {
