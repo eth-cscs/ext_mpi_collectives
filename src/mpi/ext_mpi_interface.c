@@ -359,26 +359,22 @@ error:
 }
 
 int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
-  int reduction_op, lcount, i;
+  int reduction_op, i;
   if (is_blocking && op == MPI_SUM) {
     if (datatype == MPI_DOUBLE) {
       reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
-      lcount = count * sizeof(double);
     } else if (datatype == MPI_LONG) {
       reduction_op = OPCODE_REDUCE_SUM_LONG_INT;
-      lcount = count * sizeof(long int);
     } else if (datatype == MPI_FLOAT) {
       reduction_op = OPCODE_REDUCE_SUM_FLOAT;
-      lcount = count * sizeof(float);
     } else if (datatype == MPI_INT) {
       reduction_op = OPCODE_REDUCE_SUM_INT;
-      lcount = count * sizeof(int);
     } else {
       return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
     }
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
-      return EXT_MPI_Allreduce(sendbuf, recvbuf, lcount, reduction_op, i);
+      return EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, i);
     } else {
       return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
     }
