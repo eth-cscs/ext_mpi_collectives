@@ -2443,8 +2443,8 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
       }
     break;
     case collective_type_reduce_scatter_block:
-      recvcounts = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking / comms_blocking[i_comm]->num_cores_blocking * sizeof(int));
-      for (i = 0; i < comms_blocking[i_comm]->mpi_size_blocking / comms_blocking[i_comm]->num_cores_blocking; i++) {
+      recvcounts = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
+      for (i = 0; i < comms_blocking[i_comm]->mpi_size_blocking; i++) {
         recvcounts[i] = 1;
       }
       handle = EXT_MPI_Reduce_scatter_init_native((char *)(0xFFFF), (char *)(0x1FFFF), recvcounts, datatype, op, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking);
@@ -2452,9 +2452,9 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
       free(recvcounts);
     break;
     case collective_type_allgather:
-      recvcounts = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking / comms_blocking[i_comm]->num_cores_blocking * sizeof(int));
-      displs = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking / comms_blocking[i_comm]->num_cores_blocking * sizeof(int));
-      for (i = 0; i < comms_blocking[i_comm]->mpi_size_blocking / comms_blocking[i_comm]->num_cores_blocking; i++) {
+      recvcounts = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
+      displs = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
+      for (i = 0; i < comms_blocking[i_comm]->mpi_size_blocking; i++) {
         recvcounts[i] = 1;
         displs[i] = i;
       }
