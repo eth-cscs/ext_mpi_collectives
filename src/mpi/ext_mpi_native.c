@@ -1140,6 +1140,8 @@ buffer2 = buffer_temp;
   if (padding_factor) {
     ext_mpi_read_parameters(buffer1, &parameters);
     *padding_factor = parameters->message_sizes_max;
+//    *padding_factor *= copyin_factors[0];
+    *padding_factor *= parameters->socket_row_size;
     ext_mpi_delete_parameters(parameters);
   }
 //  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
@@ -2293,31 +2295,31 @@ static int exec_blocking(char *ip, MPI_Comm comm, int tag, char *shmem_socket, i
     case OPCODE_REDUCE:
       code_get_char(&ip);
       p1 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_blocking, &p1);
       p2 = code_get_pointer(&ip);
-      recalculate_address(sendbuf, recvbuf, count, shmem_blocking, &p2);
-      i1 = code_get_int(&ip);
+      i1 = code_get_int(&ip) * count;
+      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p1, &i1);
+      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p2, &i1);
       switch (reduction_op) {
       case OPCODE_REDUCE_SUM_DOUBLE:
-        i1 = i1 * count / sizeof(double);
+        i1 /= sizeof(double);
         for (i2 = 0; i2 < i1; i2++) {
           ((double *)p1)[i2] += ((double *)p2)[i2];
         }
         break;
       case OPCODE_REDUCE_SUM_LONG_INT:
-        i1 = i1 * count / sizeof(long int);
+        i1 /= sizeof(long int);
         for (i2 = 0; i2 < i1; i2++) {
           ((long int *)p1)[i2] += ((long int *)p2)[i2];
         }
         break;
       case OPCODE_REDUCE_SUM_FLOAT:
-        i1 = i1 * count / sizeof(float);
+        i1 /= sizeof(float);
         for (i2 = 0; i2 < i1; i2++) {
           ((float *)p1)[i2] += ((float *)p2)[i2];
         }
         break;
       case OPCODE_REDUCE_SUM_INT:
-        i1 = i1 * count / sizeof(int);
+        i1 /= sizeof(int);
         for (i2 = 0; i2 < i1; i2++) {
           ((int *)p1)[i2] += ((int *)p2)[i2];
         }
@@ -2429,17 +2431,17 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
   }
   switch (collective_type) {
     case collective_type_allreduce:
-      handle = EXT_MPI_Allreduce_init_native((char *)(0xFFFF), (char *)(0x1FFFF), comms_blocking[i_comm]->mpi_size_blocking / comms_blocking[i_comm]->num_cores_blocking, datatype, op, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 1, bit, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor);
+      handle = EXT_MPI_Allreduce_init_native((char *)(0xFFFF), (char *)(0x1FFFF), comms_blocking[i_comm]->mpi_size_blocking, datatype, op, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 1, bit, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor);
       if (!recursive) {
         for (i = 0; comms_blocking[i_comm]->comm_code_allreduce_blocking[i]; i++)
 	  ;
 	comms_blocking[i_comm]->padding_factor_allreduce_blocking[i] = padding_factor;
-        add_blocking_member(count, datatype, handle, comms_blocking[i_comm]->comm_code_allreduce_blocking, comms_blocking[i_comm]->count_allreduce_blocking, (comms_blocking[i_comm]->mpi_size_blocking / comms_blocking[i_comm]->num_cores_blocking) / padding_factor);
+        add_blocking_member(count, datatype, handle, comms_blocking[i_comm]->comm_code_allreduce_blocking, comms_blocking[i_comm]->count_allreduce_blocking, comms_blocking[i_comm]->mpi_size_blocking / padding_factor);
       } else {
         for (i = 0; comms_blocking[i_comm]->comm_code_allreduce_recursive_blocking[i]; i++)
 	  ;
 	comms_blocking[i_comm]->padding_factor_allreduce_recursive_blocking[i] = padding_factor;
-        add_blocking_member(count, datatype, handle, comms_blocking[i_comm]->comm_code_allreduce_recursive_blocking, comms_blocking[i_comm]->count_allreduce_blocking, (comms_blocking[i_comm]->mpi_size_blocking / comms_blocking[i_comm]->num_cores_blocking) / padding_factor);
+        add_blocking_member(count, datatype, handle, comms_blocking[i_comm]->comm_code_allreduce_recursive_blocking, comms_blocking[i_comm]->count_allreduce_blocking, comms_blocking[i_comm]->mpi_size_blocking / padding_factor);
       }
     break;
     case collective_type_reduce_scatter_block:
