@@ -2423,7 +2423,7 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
   int comm_size_row, comm_rank_row, i, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, j;
   double d1;
   struct cost_list *p1, *p2;
-  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 2048000};
+  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 1048576, 2097152};
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
   int my_cores_per_node = get_num_tasks_per_socket(comm);
@@ -2623,7 +2623,7 @@ static int init_blocking_comm_reduce_scatter_block(MPI_Comm comm, int i_comm) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, type_size,
       i, group_size, copyin_method_ = -1, *copyin_factors = NULL, num_sockets_per_node, j;
   char *str;
-  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 2048000};
+  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 1048576, 2097152};
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
   int my_cores_per_node = get_num_tasks_per_socket(comm);
@@ -2729,7 +2729,7 @@ static int init_blocking_comm_allgather(MPI_Comm comm, int i_comm) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, type_size,
       i, group_size, num_sockets_per_node, j;
   char *str;
-  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 2048000};
+  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 1048576, 2097152};
   MPI_Datatype datatype = MPI_LONG;
   int my_cores_per_node = get_num_tasks_per_socket(comm);
   MPI_Comm_size(comm, &comm_size_row);
