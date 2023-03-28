@@ -89,3 +89,22 @@ int ext_mpi_factor_sqrt(int number) {
   }
   return (factors[0]);
 }
+
+int ext_mpi_greatest_common_divisor(int divisor1, int divisor2) {
+  int num_primes1, num_primes2, primes1[divisor1 + 1], primes2[divisor2 + 1], result, i, j;
+  num_primes1 = ext_mpi_plain_prime_factors(divisor1, primes1);
+  num_primes2 = ext_mpi_plain_prime_factors(divisor2, primes2);
+  for (i = 0; i < num_primes1; i++) {
+    for (j = 0; j < num_primes2; j++) {
+      if (primes1[i] == primes2[j]) {
+        primes1[i] = 1;
+        primes2[j] = 1;
+      }
+    }
+  }
+  result = divisor2;
+  for (i = 0; i < num_primes1; i++) {
+    result *= primes1[i];
+  }
+  return result;
+}

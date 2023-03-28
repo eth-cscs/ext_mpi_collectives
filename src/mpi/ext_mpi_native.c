@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
+#include "prime_factors.h"
 #include "allreduce.h"
 #include "allreduce_recursive.h"
 #include "allreduce_short.h"
@@ -1139,9 +1140,7 @@ buffer2 = buffer_temp;
   }
   if (padding_factor) {
     ext_mpi_read_parameters(buffer1, &parameters);
-    *padding_factor = parameters->message_sizes_max;
-//    *padding_factor *= copyin_factors[0];
-    *padding_factor *= parameters->socket_row_size;
+    *padding_factor = ext_mpi_greatest_common_divisor(parameters->message_sizes_max, parameters->socket_row_size);
     ext_mpi_delete_parameters(parameters);
   }
 //  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
