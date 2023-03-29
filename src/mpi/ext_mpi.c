@@ -2594,6 +2594,7 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
       }
     }
     num_sockets_per_node = ext_mpi_num_sockets_per_node;
+    if (num_sockets_per_node == 1) num_sockets_per_node = -1;
     EXT_MPI_Allreduce_measurement(
         sendbuf, recvbuf, counts[j], datatype, op, comm, &my_cores_per_node,
         MPI_COMM_NULL, 1,
@@ -2702,6 +2703,7 @@ static int init_blocking_comm_reduce_scatter_block(MPI_Comm comm, int i_comm) {
     for (i = 0; i < comm_size_row + 1; i++) {
       copyin_factors[i] = 0;
     }
+    if (num_sockets_per_node == 1) num_sockets_per_node = -1;
     EXT_MPI_Allreduce_measurement(
         sendbuf, recvbuf, counts[j], datatype, op, comm, &my_cores_per_node,
         MPI_COMM_NULL, 1,
