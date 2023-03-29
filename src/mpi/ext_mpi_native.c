@@ -816,7 +816,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (shmem_zero) {
     shmem = malloc(sizeof(char *) * 8);
     for (i = 0; i < 8; i++) {
-      shmem[i] = (char *)(((long int)i) * 0xFFFF);
+      shmem[i] = (char *)(((long int)i) << 24);
     }
     shmemid = NULL;
   } else {
@@ -851,48 +851,29 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   } else {
     tag = 0;
   }
-  if (shmem_zero) {
-    code_size = ext_mpi_generate_byte_code(
-        NULL, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
-        my_size_shared_buf, barriers_size, locmem, reduction_op, global_ranks, NULL,
-        sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, &shmem_comm_node_column,
-        my_cores_per_node_column, shmem_gpu, &gpu_byte_code_counter, tag);
-  } else {
-    code_size = ext_mpi_generate_byte_code(
-        shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
-        my_size_shared_buf, barriers_size, locmem, reduction_op, global_ranks, NULL,
-        sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, &shmem_comm_node_column,
-        my_cores_per_node_column, shmem_gpu, &gpu_byte_code_counter, tag);
-  }
+  code_size = ext_mpi_generate_byte_code(
+      shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
+      my_size_shared_buf, barriers_size, locmem, reduction_op, global_ranks, NULL,
+      sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, &shmem_comm_node_column,
+      my_cores_per_node_column, shmem_gpu, &gpu_byte_code_counter, tag);
   if (code_size < 0)
     goto error;
   ip = comm_code[handle] = (char *)malloc(code_size);
   if (!ip)
     goto error;
-  if (shmem_zero) {
-    if (ext_mpi_generate_byte_code(
-            NULL, shmem_size, shmemid, buffer_in, (char *)sendbuf,
-            (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
-            global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
-            &shmem_comm_node_column, my_cores_per_node_column,
-            shmem_gpu, &gpu_byte_code_counter, tag) < 0)
-      goto error;
-  } else {
-    if (ext_mpi_generate_byte_code(
-            shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
-            (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
-            global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
-            &shmem_comm_node_column, my_cores_per_node_column,
-            shmem_gpu, &gpu_byte_code_counter, tag) < 0)
-      goto error;
-  }
+  if (ext_mpi_generate_byte_code(
+          shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
+          (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
+          global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
+          &shmem_comm_node_column, my_cores_per_node_column,
+          shmem_gpu, &gpu_byte_code_counter, tag) < 0)
+    goto error;
   if (alt) {
     ip = comm_code[handle + 1] = (char *)malloc(code_size);
     if (!ip)
       goto error;
     shmem_size = my_size_shared_buf + barriers_size * 4;
     if (shmem_zero) {
-      shmem = NULL;
       shmemid = NULL;
     } else {
       if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
@@ -915,23 +896,13 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                                       shmem_size - barriers_size, num_sockets_per_node, &shmem_gpu);
     }
 #endif
-    if (shmem_zero) {
-      if (ext_mpi_generate_byte_code(
-            NULL, shmem_size, shmemid, buffer_in, (char *)sendbuf,
-            (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
-            global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
-            &shmem_comm_node_column, my_cores_per_node_column,
-            shmem_gpu, &gpu_byte_code_counter, tag) < 0)
-        goto error;
-    } else {
-      if (ext_mpi_generate_byte_code(
-            shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
-            (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
-            global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
-            &shmem_comm_node_column, my_cores_per_node_column,
-            shmem_gpu, &gpu_byte_code_counter, tag) < 0)
-        goto error;
-    }
+    if (ext_mpi_generate_byte_code(
+          shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf,
+          (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
+          global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
+          &shmem_comm_node_column, my_cores_per_node_column,
+          shmem_gpu, &gpu_byte_code_counter, tag) < 0)
+      goto error;
   } else {
     comm_code[handle + 1] = NULL;
   }
@@ -2058,45 +2029,45 @@ int EXT_MPI_Finalize_native() {
 
 static void normalize_address(int count, void **address) {
   long int i;
-  i = (long int)(*address) >> 32;
-  *address = (void *)(((long int)(*address) - i * 0xFFFF) / count + i * 0xFFFF);
+  i = (long int)(*address) >> 24;
+  *address = (void *)(((long int)(*address) - (i << 24)) / count + (i << 24));
 }
 
 static void recalculate_address_io(const void *sendbuf, void *recvbuf, int count, void **shmem, int size_io, void **address, int *size) {
   long int i;
-  i = (long int)(*address) >> 32;
+  i = (long int)(*address) >> 24;
   switch (i) {
     case 8:
-      *address = (void *)(((long int)(*address) - 0x8FFFF) * count + (long int)(sendbuf));
+      *address = (void *)(((long int)(*address) - 0x8000000) * count + (long int)(sendbuf));
       if (*address + *size > sendbuf + size_io) {
         *size = sendbuf + size_io - *address;
         if (*size < 0) *size = 0;
       }
       break;
     case 9:
-      *address = (void *)(((long int)(*address) - 0x9FFFF) * count + (long int)(recvbuf));
+      *address = (void *)(((long int)(*address) - 0x9000000) * count + (long int)(recvbuf));
       if (*address + *size > recvbuf + size_io) {
         *size = recvbuf + size_io - *address;
         if (*size < 0) *size = 0;
       }
       break;
     default:
-      *address = (void *)(((long int)(*address) - i * 0xFFFF) * count + (long int)(shmem[i]));
+      *address = (void *)(((long int)(*address) - (i << 24)) * count + (long int)(shmem[i]));
   }
 }
 
 static void recalculate_address(const void *sendbuf, void *recvbuf, int count, void **shmem, void **address) {
   long int i;
-  i = (long int)(*address) >> 32;
+  i = (long int)(*address) >> 24;
   switch (i) {
     case 8:
-      *address = (void *)(((long int)(*address) - 0x8FFFF) * count + (long int)(sendbuf));
+      *address = (void *)(((long int)(*address) - 0x8000000) * count + (long int)(sendbuf));
       break;
     case 9:
-      *address = (void *)(((long int)(*address) - 0x9FFFF) * count + (long int)(recvbuf));
+      *address = (void *)(((long int)(*address) - 0x9000000) * count + (long int)(recvbuf));
       break;
     default:
-      *address = (void *)(((long int)(*address) - i * 0xFFFF) * count + (long int)(shmem[i]));
+      *address = (void *)(((long int)(*address) - (i << 24)) * count + (long int)(shmem[i]));
   }
 }
 
@@ -2452,7 +2423,7 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
   }
   switch (collective_type) {
     case collective_type_allreduce:
-      handle = EXT_MPI_Allreduce_init_native((char *)(0x8FFFF), (char *)(0x9FFFF), comms_blocking[i_comm]->mpi_size_blocking * CACHE_LINE_SIZE, datatype, op, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 1, bit, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor);
+      handle = EXT_MPI_Allreduce_init_native((char *)(0x8000000), (char *)(0x9000000), comms_blocking[i_comm]->mpi_size_blocking * CACHE_LINE_SIZE, datatype, op, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 1, bit, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor);
       if (!recursive) {
         for (i = 0; comms_blocking[i_comm]->comm_code_allreduce_blocking[i]; i++)
 	  ;
@@ -2470,7 +2441,7 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
       for (i = 0; i < comms_blocking[i_comm]->mpi_size_blocking; i++) {
         recvcounts[i] = 1;
       }
-      handle = EXT_MPI_Reduce_scatter_init_native((char *)(0x8FFFF), (char *)(0x9FFFF), recvcounts, datatype, op, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking);
+      handle = EXT_MPI_Reduce_scatter_init_native((char *)(0x8000000), (char *)(0x9000000), recvcounts, datatype, op, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking);
       add_blocking_member(count, datatype, handle, comms_blocking[i_comm]->comm_code_reduce_scatter_block_blocking, comms_blocking[i_comm]->count_reduce_scatter_block_blocking, 1);
       free(recvcounts);
     break;
@@ -2481,7 +2452,7 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
         recvcounts[i] = 1;
         displs[i] = i;
       }
-      handle = EXT_MPI_Allgatherv_init_native((char *)(0x8FFFF), 1, datatype, (char *)(0x9FFFF), recvcounts, displs, datatype, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking);
+      handle = EXT_MPI_Allgatherv_init_native((char *)(0x8000000), 1, datatype, (char *)(0x9000000), recvcounts, displs, datatype, comms_blocking[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking);
       add_blocking_member(count, datatype, handle, comms_blocking[i_comm]->comm_code_allgather_blocking, comms_blocking[i_comm]->count_allgather_blocking, 1);
       free(displs);
       free(recvcounts);
