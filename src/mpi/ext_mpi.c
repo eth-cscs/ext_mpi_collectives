@@ -828,7 +828,7 @@ static int reduce_scatter_init_general(
       sendbuf, recvbuf, recvcounts, datatype, op, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
       groups, my_cores_per_node_row * my_cores_per_node_column,
-      copyin_method_, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL);
+      copyin_method_, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
