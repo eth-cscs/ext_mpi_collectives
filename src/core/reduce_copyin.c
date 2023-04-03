@@ -531,6 +531,13 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       }
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
 
+#ifdef GPU_ENABLED
+    if (parameters->data_type == data_type_double || parameters->data_type == data_type_float) {
+      nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, buffer_out + nbuffer_out, parameters->ascii_out);
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sdd", egemv, 0, 0);
+    } else {
+#endif
       if (parameters->copyin_method == 1) {
         for (i = 1; i < node_size / 1; i *= 2)
 	  ;
@@ -544,6 +551,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
         nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, buffer_out + nbuffer_out, parameters->ascii_out);
         nbuffer_out += reduce_copies(node_size, num_factors, factors, moffsets[num_nodes], type_size, lrank_row, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
       }
+#ifdef GPU_ENABLED
+      }
+#endif
 //      nbuffer_out += reduce_copies_big((node_size - 1) / factors[0] + 1, node_size, node_size, moffsets[num_nodes], type_size, lrank_row, fast, buffer_out + nbuffer_out, parameters->ascii_out);
       free(ranks);
     }

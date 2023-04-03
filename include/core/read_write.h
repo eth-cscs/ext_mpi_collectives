@@ -56,7 +56,8 @@ enum eassembler_type {
   ereturn,
   enop,
   estage,
-  estart
+  estart,
+  egemv
 };
 
 struct parameters_block {

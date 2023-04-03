@@ -301,7 +301,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-      ascii, num_cores, socket_rank, num_sockets_per_node, i;
+      ascii, num_cores, socket_rank, num_sockets_per_node, vector_length, i;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
@@ -319,6 +319,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   num_cores = parameters->socket_row_size*parameters->socket_column_size;
   socket_rank = parameters->socket_rank;
   num_sockets_per_node = parameters->num_sockets_per_node;
+  vector_length = parameters->counts[0];
   ext_mpi_delete_parameters(parameters);
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
@@ -514,6 +515,20 @@ int ext_mpi_generate_byte_code(char **shmem,
         code_put_char(&ip, OPCODE_SOCKETBARRIER, isdryrun);
       }
     }
+#ifdef GPU_ENABLED
+    if (estring1 == egemv) {
+      ext_mpi_read_assembler_line(line, 0, "%d %d", &estring1, &integer1, &integer2);
+      code_put_char(&ip, OPCODE_GPUGEMV, isdryrun);
+      code_put_char(&ip, reduction_op, isdryrun);
+      if (shmem != NULL) {
+        code_put_pointer(&ip, (void *)(shmem[0] + integer1), isdryrun);
+        code_put_pointer(&ip, (void *)(shmem[0] + integer2), isdryrun);
+      } else {
+        code_put_pointer(&ip, (void *)(NULL + integer1), isdryrun);
+        code_put_pointer(&ip, (void *)(NULL + integer2), isdryrun);
+      }
+    }
+#endif
     if ((estring1 == ememcpy) || (estring1 == ereduce) ||
         (estring1 == esreduce) || (estring1 == esmemcpy)) {
       ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
@@ -619,6 +634,7 @@ int ext_mpi_generate_byte_code(char **shmem,
 #ifdef GPU_ENABLED
   if (!isdryrun && on_gpu) {
     ext_mpi_gpu_memcpy_hd(header->gpu_byte_code, gpu_byte_code, *gpu_byte_code_counter);
+    ext_mpi_gemv_init(reduction_op, num_cores, vector_length, &header->gpu_gemv_var);
   }
   free(gpu_byte_code);
 #endif

@@ -49,6 +49,7 @@
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #include "gpu_shmem.h"
+#include "cuda_gemv.h"
 #endif
 #ifdef NCCL_ENABLED
 #include <nccl.h>
@@ -609,6 +610,10 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       p1 = code_get_pointer(&ip);
       ext_mpi_gpu_copy_reduce(instruction2, (void *)p1, code_get_int(&ip));
       break;
+    case OPCODE_GPUGEMV:
+      instruction2 = code_get_char(&ip);
+      p1 = code_get_pointer(&ip);
+      ext_mpi_gemv_exec(&header->gpu_gemv_var, instruction2, p1, code_get_pointer(&ip));
 #endif
 #ifdef NCCL_ENABLED
     case OPCODE_START:
@@ -708,6 +713,7 @@ int EXT_MPI_Done_native(int handle) {
     header->shmem_gpu = NULL;
     header->shmemid_gpu = NULL;
   }
+  ext_mpi_gemv_done(&header->gpu_gemv_var);
   ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
   ext_mpi_destroy_shared_memory(shmem_size, header->num_sockets_per_node, shmemid, shmem, comm_code[handle]);

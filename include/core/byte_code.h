@@ -2,6 +2,10 @@
 
 #define EXT_MPI_BYTE_CODE_H_
 
+#ifdef GPU_ENABLED
+#include "cuda_gemv.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,6 +31,7 @@ struct header_byte_code {
   char **shmem_gpu;
   int *shmemid_gpu;
   char *gpu_byte_code;
+  struct gemv_var gpu_gemv_var;
 #endif
 };
 

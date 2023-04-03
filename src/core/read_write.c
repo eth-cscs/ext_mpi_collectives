@@ -1111,6 +1111,9 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case estart:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " START");
       break;
+    case egemv:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " GEMV");
+      break;
     }
   }
   return nbuffer_out;
@@ -1256,6 +1259,9 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   }
   if (strcmp(cstring1, "START") == 0) {
     return estart;
+  }
+  if (strcmp(cstring1, "GEMV") == 0) {
+    return egemv;
   }
   return (enop);
 }
