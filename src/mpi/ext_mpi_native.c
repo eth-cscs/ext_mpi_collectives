@@ -613,7 +613,9 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
     case OPCODE_GPUGEMV:
       instruction2 = code_get_char(&ip);
       p1 = code_get_pointer(&ip);
-      ext_mpi_gemv_exec(&header->gpu_gemv_var, instruction2, p1, code_get_pointer(&ip));
+      i1 = code_get_int(&ip);
+      ext_mpi_gemv_exec(&header->gpu_gemv_var, instruction2, p1, i1, code_get_int(&ip));
+      break;
 #endif
 #ifdef NCCL_ENABLED
     case OPCODE_START:
@@ -621,7 +623,7 @@ static int exec_native(char *ip, char **ip_exec, int active_wait) {
       break;
 #endif
     default:
-      printf("illegal MPI_OPCODE execute\n");
+      printf("illegal MPI_OPCODE execute native\n");
       exit(1);
     }
   } while (instruction != OPCODE_RETURN);
@@ -2214,7 +2216,7 @@ static int normalize_blocking(char *ip, int count) {
       break;
 #endif
     default:
-      printf("illegal MPI_OPCODE execute\n");
+      printf("illegal MPI_OPCODE execute normalize\n");
       exit(1);
     }
   } while (instruction != OPCODE_RETURN);
@@ -2359,7 +2361,7 @@ static int exec_blocking(char *ip, MPI_Comm comm, int tag, char *shmem_socket, i
       break;
 #endif
     default:
-      printf("illegal MPI_OPCODE execute\n");
+      printf("illegal MPI_OPCODE execute blocking\n");
       exit(1);
     }
   } while (instruction != OPCODE_RETURN);

@@ -19,7 +19,7 @@ extern "C"
 #endif
 
 int ext_mpi_gemv_init(char opcode, int row, int col, struct gemv_var *var);
-int ext_mpi_gemv_exec(struct gemv_var *var, char opcode, void *d_A, void *d_y);
+int ext_mpi_gemv_exec(struct gemv_var *var, char opcode, void *d_a, int row, int col);
 int ext_mpi_gemv_done(struct gemv_var *var);
 
 #ifdef __cplusplus

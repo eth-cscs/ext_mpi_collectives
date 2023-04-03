@@ -517,16 +517,16 @@ int ext_mpi_generate_byte_code(char **shmem,
     }
 #ifdef GPU_ENABLED
     if (estring1 == egemv) {
-      ext_mpi_read_assembler_line(line, 0, "%d %d", &estring1, &integer1, &integer2);
+      ext_mpi_read_assembler_line(line, 0, "sdd", &estring1, &integer1, &integer2);
       code_put_char(&ip, OPCODE_GPUGEMV, isdryrun);
       code_put_char(&ip, reduction_op, isdryrun);
       if (shmem != NULL) {
-        code_put_pointer(&ip, (void *)(shmem[0] + integer1), isdryrun);
-        code_put_pointer(&ip, (void *)(shmem[0] + integer2), isdryrun);
+        code_put_pointer(&ip, (void *)(shmem[0]), isdryrun);
       } else {
-        code_put_pointer(&ip, (void *)(NULL + integer1), isdryrun);
-        code_put_pointer(&ip, (void *)(NULL + integer2), isdryrun);
+        code_put_pointer(&ip, (void *)(NULL), isdryrun);
       }
+      code_put_int(&ip, integer1, isdryrun);
+      code_put_int(&ip, integer2, isdryrun);
     }
 #endif
     if ((estring1 == ememcpy) || (estring1 == ereduce) ||
@@ -634,7 +634,7 @@ int ext_mpi_generate_byte_code(char **shmem,
 #ifdef GPU_ENABLED
   if (!isdryrun && on_gpu) {
     ext_mpi_gpu_memcpy_hd(header->gpu_byte_code, gpu_byte_code, *gpu_byte_code_counter);
-    ext_mpi_gemv_init(reduction_op, num_cores, vector_length, &header->gpu_gemv_var);
+    ext_mpi_gemv_init(reduction_op, vector_length, num_cores, &header->gpu_gemv_var);
   }
   free(gpu_byte_code);
 #endif

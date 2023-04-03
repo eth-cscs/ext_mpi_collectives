@@ -12,14 +12,14 @@ struct memory_layout {
   int rank;
 };
 
-static int write_memcpy_reduce(enum eassembler_type type, enum eassembler_type buffer_type1, int buffer_number1, int is_fast1, int offset1, enum eassembler_type buffer_type2, int buffer_number2, int is_fast2, int offset2, int size, char *buffer_out, int ascii) {
+static int write_memcpy_reduce(enum eassembler_type type, enum eassembler_type buffer_type1, int buffer_number1, int is_fast1, int offset1, enum eassembler_type buffer_type2, int buffer_number2, int is_fast2, int offset2, int size, int aoffset, char *buffer_out, int ascii) {
   struct line_memcpy_reduce data_memcpy_reduce;
   data_memcpy_reduce.type = type;
   data_memcpy_reduce.buffer_type1 = buffer_type1;
   data_memcpy_reduce.buffer_number1 = buffer_number1;
   data_memcpy_reduce.is_offset1 = is_fast1;
   data_memcpy_reduce.offset_number1 = -1;
-  data_memcpy_reduce.offset1 = offset1;
+  data_memcpy_reduce.offset1 = offset1 + aoffset;
   data_memcpy_reduce.buffer_type2 = buffer_type2;
   data_memcpy_reduce.buffer_number2 = buffer_number2;
   data_memcpy_reduce.is_offset2 = is_fast2;
@@ -60,7 +60,7 @@ static int local_barrier(int num_all_ranks, int num_busy_ranks, int *ranks, char
   return nbuffer_out;
 }
 
-static int reduce_copyin(struct data_algorithm *data, int num_nodes, int counts_max, int *mcounts, int *moffsets, int *ldispls, int lrank_row, int lrank_column, int type_size, int instance, int instance_max, int gbstep, int num_ranks, int *ranks, int fast, char *buffer_out, int ascii) {
+static int reduce_copyin(struct data_algorithm *data, int num_nodes, int counts_max, int *mcounts, int *moffsets, int *ldispls, int lrank_row, int lrank_column, int type_size, int instance, int instance_max, int gbstep, int num_ranks, int *ranks, int fast, int aoffset, char *buffer_out, int ascii) {
   int nbuffer_out = 0, i, j, n, add, add2, size, add_local, size_local, add_appl, add2_appl, size_appl, add_offset, lrank_row_;
   for (n = 0; n < 2; n++) {
     for (i = 0; i < num_ranks / counts_max; i++) {
@@ -111,15 +111,15 @@ static int reduce_copyin(struct data_algorithm *data, int num_nodes, int counts_
         if (size_appl) {
           if (i == 0) {
             if (n == 0) {
-              nbuffer_out += write_memcpy_reduce(ememcpy, eshmemo, 0, fast, add_appl, esendbufp, 0, 0, add2_appl, size_appl, buffer_out + nbuffer_out, ascii);
+              nbuffer_out += write_memcpy_reduce(ememcpy, eshmemo, 0, fast, add_appl, esendbufp, 0, 0, add2_appl, size_appl, aoffset, buffer_out + nbuffer_out, ascii);
 	    } else {
-              nbuffer_out += write_memcpy_reduce(ememcp_, eshmemo, 0, 0, add_appl, esendbufp, 0, 0, add2_appl, size_appl, buffer_out + nbuffer_out, ascii);
+              nbuffer_out += write_memcpy_reduce(ememcp_, eshmemo, 0, 0, add_appl, esendbufp, 0, 0, add2_appl, size_appl, aoffset, buffer_out + nbuffer_out, ascii);
 	    }
           } else {
 	    if (n == 0) {
-              nbuffer_out += write_memcpy_reduce(ereduce, eshmemo, 0, fast, add_appl, esendbufp, 0, 0, add2_appl, size_appl, buffer_out + nbuffer_out, ascii);
+              nbuffer_out += write_memcpy_reduce(ereduce, eshmemo, 0, fast, add_appl, esendbufp, 0, 0, add2_appl, size_appl, aoffset, buffer_out + nbuffer_out, ascii);
             } else {
-              nbuffer_out += write_memcpy_reduce(ereduc_, eshmemo, 0, 0, add_appl, esendbufp, 0, 0, add2_appl, size_appl, buffer_out + nbuffer_out, ascii);
+              nbuffer_out += write_memcpy_reduce(ereduc_, eshmemo, 0, 0, add_appl, esendbufp, 0, 0, add2_appl, size_appl, aoffset, buffer_out + nbuffer_out, ascii);
 	    }
           }
         }
@@ -233,7 +233,7 @@ static int reduce_copies(int socket_size, int num_factors, int *factors, int siz
 	    offset2 = offset2 % size + (offset2 / size) / factors[0] * CACHE_LINE_SIZE + OFFSET_FAST;
 	  }
 	  if (rank < vsocket_size) {
-            nbuffer_out += write_memcpy_reduce(esreduce, eshmemo, 0, fast, offset1, eshmemo, 0, fast, offset2, memory_new[j].size, buffer_out + nbuffer_out, ascii);
+            nbuffer_out += write_memcpy_reduce(esreduce, eshmemo, 0, fast, offset1, eshmemo, 0, fast, offset2, memory_new[j].size, 0, buffer_out + nbuffer_out, ascii);
 	  }
         }
       }
@@ -320,7 +320,7 @@ nparallel = 2;
     }
     offset1 = lrank * size + add_local;
     offset2 = (lrank + hsocket_size) * size + add_local;
-    nbuffer_out += write_memcpy_reduce(esreduce, eshmemo, 0, fast, offset1, eshmemo, 0, fast, offset2, size_local, buffer_out + nbuffer_out, ascii);
+    nbuffer_out += write_memcpy_reduce(esreduce, eshmemo, 0, fast, offset1, eshmemo, 0, fast, offset2, size_local, 0, buffer_out + nbuffer_out, ascii);
     nbuffer_out += local_barrier(-nparallel, nparallel, ranks, buffer_out + nbuffer_out, ascii);
   } else {
     ranks[0] = rank;
@@ -532,11 +532,12 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
 
 #ifdef GPU_ENABLED
-    if (parameters->data_type == data_type_double || parameters->data_type == data_type_float) {
-      nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, buffer_out + nbuffer_out, parameters->ascii_out);
-      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
-      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sdd", egemv, 0, 0);
-    } else {
+      if (parameters->data_type == data_type_double || parameters->data_type == data_type_float) {
+        nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, parameters->counts[0], buffer_out + nbuffer_out, parameters->ascii_out);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sdd", egemv, parameters->counts[0], parameters->socket_row_size / factors[0]);
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+      } else {
 #endif
       if (parameters->copyin_method == 1) {
         for (i = 1; i < node_size / 1; i *= 2)
@@ -544,11 +545,11 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
 	num_ranks = gbstep = factors[0];
         instance = lrank_row / gbstep;
         instance_max = (node_size - 1) / gbstep;
-        nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, buffer_out + nbuffer_out, parameters->ascii_out);
+        nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
         nbuffer_out += reduce_copies_almost_half(node_size, i / 2, moffsets[num_nodes], type_size, lrank_row, fast, buffer_out + nbuffer_out, parameters->ascii_out);
         nbuffer_out += reduce_copies(i / 2, num_factors - 1, factors, moffsets[num_nodes], type_size, lrank_row, fast, 1, buffer_out + nbuffer_out, parameters->ascii_out);
       } else {
-        nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, buffer_out + nbuffer_out, parameters->ascii_out);
+        nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
         nbuffer_out += reduce_copies(node_size, num_factors, factors, moffsets[num_nodes], type_size, lrank_row, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
       }
 #ifdef GPU_ENABLED

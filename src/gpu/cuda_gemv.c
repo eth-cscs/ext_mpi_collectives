@@ -7,6 +7,9 @@
 #include "cuda_gemv.h"
 #include "constants.h"
 
+static double alphad = 1e0;
+static double betad = 0e0;
+
 int ext_mpi_gemv_init(char opcode, int row, int col, struct gemv_var *var) {
   double *xd, alphad = 1e0, betad = 0e0;
   float *xf, alphaf = 1e0, betaf = 0e0;
@@ -49,13 +52,13 @@ int ext_mpi_gemv_init(char opcode, int row, int col, struct gemv_var *var) {
   return 0;
 }
 
-int ext_mpi_gemv_exec(struct gemv_var *var, char opcode, void *d_A, void *d_y) {
+int ext_mpi_gemv_exec(struct gemv_var *var, char opcode, void *d_a, int row, int col) {
   switch (opcode) {
     case OPCODE_REDUCE_SUM_DOUBLE:
-      cublasDgemv(var->handle, CUBLAS_OP_T, var->col, var->row, var->d_alpha, d_A, var->col, var->d_x, 1, var->d_beta, d_y, 1);
+      cublasDgemv(var->handle, CUBLAS_OP_N, row / sizeof(double), col, &alphad, d_a + row, row, var->d_x, 1, &betad, d_a, 1);
       break;
     case OPCODE_REDUCE_SUM_FLOAT:
-      cublasSgemv(var->handle, CUBLAS_OP_T, var->col, var->row, var->d_alpha, d_A, var->col, var->d_x, 1, var->d_beta, d_y, 1);
+      cublasSgemv(var->handle, CUBLAS_OP_T, col, row / sizeof(float), var->d_alpha, d_a + row, col, var->d_x, 1, var->d_beta, d_a, 1);
       break;
   }
   return 0;
