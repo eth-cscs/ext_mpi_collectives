@@ -748,6 +748,7 @@ int EXT_MPI_Done_native(int handle) {
       header->shmem_gpu = NULL;
       header->shmemid_gpu = NULL;
     }
+    ext_mpi_gemv_done(&header->gpu_gemv_var);
     ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
     ext_mpi_destroy_shared_memory(shmem_size, header->num_sockets_per_node, shmemid, shmem, comm_code[handle + 1]);
