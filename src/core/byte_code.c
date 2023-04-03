@@ -295,7 +295,7 @@ int ext_mpi_generate_byte_code(char **shmem,
                                char *code_out, int size_comm, int size_request, void *comm_row,
                                int node_num_cores_row, void *comm_column,
                                int node_num_cores_column,
-                               char **shmem_gpu, int *gpu_byte_code_counter, int tag) {
+                               int *shmemid_gpu, char **shmem_gpu, int *gpu_byte_code_counter, int tag) {
   struct line_memcpy_reduce data_memcpy_reduce;
   struct line_irecv_isend data_irecv_isend;
   char line[1000], *ip = code_out;
@@ -346,6 +346,7 @@ int ext_mpi_generate_byte_code(char **shmem,
     header->shmem = shmem;
 #ifdef GPU_ENABLED
     header->shmem_gpu = shmem_gpu;
+    header->shmemid_gpu = shmemid_gpu;
     if (on_gpu) {
       shmem = header->shmem_gpu;
     }

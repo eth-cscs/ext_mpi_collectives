@@ -704,10 +704,9 @@ int EXT_MPI_Done_native(int handle) {
   ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle]);
 #ifdef GPU_ENABLED
   if (header->shmem_gpu) {
-    ext_mpi_gpu_destroy_shared_memory(shmem_comm_node_row, header->node_num_cores_row,
-                                      shmem_comm_node_column, header->node_num_cores_column,
-				      header->num_sockets_per_node, header->shmem_gpu);
+    ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
     header->shmem_gpu = NULL;
+    header->shmemid_gpu = NULL;
   }
   ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
@@ -737,10 +736,9 @@ int EXT_MPI_Done_native(int handle) {
     ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle + 1]);
 #ifdef GPU_ENABLED
     if (header->shmem_gpu) {
-      ext_mpi_gpu_destroy_shared_memory(shmem_comm_node_row2, header->node_num_cores_row,
-                                        shmem_comm_node_column2, header->node_num_cores_column,
-				        header->num_sockets_per_node, header->shmem_gpu);
+      ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
       header->shmem_gpu = NULL;
+      header->shmemid_gpu = NULL;
     }
     ext_mpi_gpu_free(header->gpu_byte_code);
 #endif
@@ -792,6 +790,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column;
   int gpu_byte_code_counter = 0;
   char **shmem_gpu = NULL;
+  int *shmemid_gpu = NULL;
   struct parameters_block *parameters;
   not_locmem = (locmem == NULL);
   handle = get_handle();
@@ -833,7 +832,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
     ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
                                     comm_column, my_cores_per_node_column,
-                                    shmem_size - barriers_size, num_sockets_per_node, &shmem_gpu);
+                                    shmem_size - barriers_size, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
   }
 #endif
   global_ranks =
@@ -856,7 +855,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       shmem, shmem_size, shmemid, buffer_in, (char *)sendbuf, (char *)recvbuf,
       my_size_shared_buf, barriers_size, locmem, reduction_op, global_ranks, NULL,
       sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, &shmem_comm_node_column,
-      my_cores_per_node_column, shmem_gpu, &gpu_byte_code_counter, tag);
+      my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag);
   if (code_size < 0)
     goto error;
   ip = comm_code[handle] = (char *)malloc(code_size);
@@ -867,7 +866,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
           (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
           &shmem_comm_node_column, my_cores_per_node_column,
-          shmem_gpu, &gpu_byte_code_counter, tag) < 0)
+          shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag) < 0)
     goto error;
   if (alt) {
     ip = comm_code[handle + 1] = (char *)malloc(code_size);
@@ -894,7 +893,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
       ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
                                       comm_column, my_cores_per_node_column,
-                                      shmem_size - barriers_size, num_sockets_per_node, &shmem_gpu);
+                                      shmem_size - barriers_size, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
     }
 #endif
     if (ext_mpi_generate_byte_code(
@@ -902,7 +901,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
           (char *)recvbuf, my_size_shared_buf, barriers_size, locmem, reduction_op,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
           &shmem_comm_node_column, my_cores_per_node_column,
-          shmem_gpu, &gpu_byte_code_counter, tag) < 0)
+          shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag) < 0)
       goto error;
   } else {
     comm_code[handle + 1] = NULL;
@@ -2196,12 +2195,12 @@ static int normalize_blocking(char *ip, int count) {
       break;
 #ifdef GPU_ENABLED
     case OPCODE_GPUSYNCHRONIZE:
-      ext_mpi_gpu_synchronize();
+//      ext_mpi_gpu_synchronize();
       break;
     case OPCODE_GPUKERNEL:
-      instruction2 = code_get_char(&ip);
-      p1 = code_get_pointer(&ip);
-      ext_mpi_gpu_copy_reduce(instruction2, (void *)p1, code_get_int(&ip));
+//      instruction2 = code_get_char(&ip);
+//      p1 = code_get_pointer(&ip);
+//      ext_mpi_gpu_copy_reduce(instruction2, (void *)p1, code_get_int(&ip));
       break;
 #endif
 #ifdef NCCL_ENABLED
@@ -2223,6 +2222,9 @@ static int exec_blocking(char *ip, MPI_Comm comm, int tag, char *shmem_socket, i
   char instruction;
   void *p1, *p2;
   int i1, i2;
+#ifdef GPU_ENABLED
+  char instruction2;
+#endif
 #ifdef NCCL_ENABLED
   static int initialised = 0;
   static cudaStream_t stream;

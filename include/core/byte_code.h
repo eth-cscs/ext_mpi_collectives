@@ -25,6 +25,7 @@ struct header_byte_code {
   int num_sockets_per_node;
 #ifdef GPU_ENABLED
   char **shmem_gpu;
+  int *shmemid_gpu;
   char *gpu_byte_code;
 #endif
 };
@@ -37,7 +38,7 @@ int ext_mpi_generate_byte_code(char **shmem,
                                char *code_out, int size_comm, int size_request, void *comm_row,
                                int node_num_cores_row, void *comm_column,
                                int node_num_cores_column,
-                               char **shmem_gpu, int *gpu_byte_code_counter, int tag);
+                               int *shmemid_gpu, char **shmem_gpu, int *gpu_byte_code_counter, int tag);
 
 #ifdef __cplusplus
 }
