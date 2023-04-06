@@ -2,14 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#ifndef MMAP
-#include <sys/shm.h>
-#else
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#endif
 #include "prime_factors.h"
 #include "allreduce.h"
 #include "allreduce_recursive.h"
