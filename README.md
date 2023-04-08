@@ -39,7 +39,7 @@ mpicxx main.cc -Lext_mpi_path/lib -lext_mpi_collectives -o executable.x
 
 ## Benchmark
 
-When compiling the library also a benchmark is generated which serves also as example for the library's usage
+When compiling the library also a benchmark is generated which serves also as example for the library\'s usage
 
 ```
 mpirun -n 36 ./bin/benchmark.x
@@ -78,6 +78,26 @@ There is also a standalone test for automatic parameter detection of the *allred
 ```
 ./bin/simulate.x
 ```
+
+## CMake
+
+- Required before running cmake:
+
+```
+./minclude.sh latency_bandwidth/ext_mpi_bm.txt > latency_bandwidth.tmp
+cat latency_bandwidth/ext_mpi_nst.txt > node_size_threshold.tmp
+```
+
+- Build libext_mpi_collectives.a with CMake:
+
+```
+cmake -B build -S ext_mpi_collectives.git -DCMAKE_C_COMPILER=cc \
+    -DCMAKE_INSTALL_PREFIX=myinstalldir
+cmake --build build -v
+cmake --install build/
+# -- Installing: ./myinstalldir/lib/libext_mpi_collectives.a
+```
+
 
 ## Literature
 
