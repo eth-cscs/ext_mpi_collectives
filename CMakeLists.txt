@@ -5,12 +5,8 @@ project(libext_mpi_collectives C)
 set(CMAKE_C_FLAGS_RELEASE "-w -g -O2 -DNDEBUG")
 # set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 
-option(BUILD_TESTING "build unit and integration tests" OFF)
+option(BUILD_TESTING "build tests" OFF)
 option(GPU_DIRECT "Enable CUDA-aware MPI communication" OFF)
-
-# if (BUILD_TESTING)
-#     include(setup_GTest)
-# endif()
 
 find_package(MPI REQUIRED)
 
@@ -25,6 +21,12 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 add_subdirectory(src)
+# if (BUILD_TESTING)
+#     include(setup_GTest)
+# endif()
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif(BUILD_TESTING)
 
 # {{{ TODO: check_language(HIP)
 

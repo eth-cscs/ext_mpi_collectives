@@ -91,10 +91,13 @@ cat latency_bandwidth/ext_mpi_nst.txt > node_size_threshold.tmp
 - Build libext_mpi_collectives.a with CMake:
 
 ```
-cmake -B build -S ext_mpi_collectives.git -DCMAKE_C_COMPILER=cc \
-    -DCMAKE_INSTALL_PREFIX=myinstalldir
-cmake --build build -v
-cmake --install build/
+cmake -B build -S ext_mpi_collectives.git \
+-DBUILD_TESTING=ON
+
+cmake --build build -j
+# cmake --build build -t help
+# cmake --build build -t test_waitany.x -v
+cmake --install build --prefix myinstalldir
 # -- Installing: ./myinstalldir/lib/libext_mpi_collectives.a
 ```
 

@@ -8,9 +8,7 @@ add_library(ext_mpi_collectives
     $<TARGET_OBJECTS:fortran_obj>
 )
 
-install(TARGETS ext_mpi_collectives RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR})
+set_target_properties(ext_mpi_collectives PROPERTIES PUBLIC_HEADER "${PROJECT_SOURCE_DIR}/include/mpi/ext_mpi_interface.h")
 
-# if (BUILD_TESTING)
-#     add_subdirectory(test)
-#     add_subdirectory(test/mpi)
-# endif (BUILD_TESTING)
+install(TARGETS ext_mpi_collectives RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS ext_mpi_collectives PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
