@@ -101,6 +101,16 @@ cmake --install build --prefix myinstalldir
 # -- Installing: ./myinstalldir/lib/libext_mpi_collectives.a
 ```
 
+### CMake + CUDA
+
+- Build with:
+
+```
+cmake -B build+cuda -S ext_mpi_collectives.git \
+    -DBUILD_TESTING=ON -DCMAKE_CUDA_ARCHITECTURES=80
+cmake --build build+cuda -j
+cmake --install build+cuda --prefix myinstalldir
+```
 
 ## Literature
 
