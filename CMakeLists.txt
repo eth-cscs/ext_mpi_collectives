@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(libext_mpi_collectives C)
+project(libext_mpi_collectives C CUDA)
 
 set(CMAKE_C_FLAGS_RELEASE "-w -g -O2 -DNDEBUG")
 # set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
@@ -21,21 +21,18 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 add_subdirectory(src)
-# if (BUILD_TESTING)
-#     include(setup_GTest)
-# endif()
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif(BUILD_TESTING)
 
 # {{{ TODO: check_language(HIP)
 
-# check_language(CUDA)
-# if(CMAKE_CUDA_COMPILER)
-#     enable_language(CUDA)
-#     find_package(CUDAToolkit)
-#     set(CMAKE_CUDA_STANDARD 17)
-# endif()
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+    find_package(CUDAToolkit)
+    # set(CMAKE_CUDA_STANDARD 17)
+endif()
 
 # option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using the H5Part library" ON)
 # if (SPH_EXA_WITH_H5PART)

@@ -1,7 +1,12 @@
 function(add_mpi_test sourcename testname)
     add_executable(${testname} ${sourcename})
 
+if(CMAKE_CUDA_COMPILER)
+    target_compile_definitions(${testname} PRIVATE M_MAP GPU_ENABLED)
+else()
     target_compile_definitions(${testname} PRIVATE M_MAP)
+endif()
+
     target_include_directories(${testname} PRIVATE 
         ${PROJECT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/include/core
