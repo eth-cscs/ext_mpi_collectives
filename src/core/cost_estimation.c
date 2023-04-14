@@ -94,7 +94,7 @@ error:
   return ERROR_MALLOC;
 }
 
-int insert_sockets(int depth, int *trarray, int *ttgarray, int num_sockets) {
+static int insert_sockets(int depth, int *trarray, int *ttgarray, int num_sockets) {
   int i = 1, ret = 0;
   if (num_sockets > 1) {
     while (i < num_sockets) {
