@@ -55,10 +55,10 @@ int ext_mpi_gemv_init(char opcode, int row, int col, struct gemv_var *var) {
 int ext_mpi_gemv_exec(struct gemv_var *var, char opcode, void *d_a, int row, int col) {
   switch (opcode) {
     case OPCODE_REDUCE_SUM_DOUBLE:
-      cublasDgemv(var->handle, CUBLAS_OP_N, row / sizeof(double), col, &alphad, d_a + row, row, var->d_x, 1, &betad, d_a, 1);
+      cublasDgemv(var->handle, CUBLAS_OP_N, row / sizeof(double), col, &alphad, d_a + row, row / sizeof(double), var->d_x, 1, &betad, d_a, 1);
       break;
     case OPCODE_REDUCE_SUM_FLOAT:
-      cublasSgemv(var->handle, CUBLAS_OP_T, col, row / sizeof(float), var->d_alpha, d_a + row, col, var->d_x, 1, var->d_beta, d_a, 1);
+      cublasSgemv(var->handle, CUBLAS_OP_N, row / sizeof(float), col, var->d_alpha, d_a + row, row / sizeof(double), var->d_x, 1, var->d_beta, d_a, 1);
       break;
   }
   return 0;
