@@ -53,11 +53,7 @@ static double execution_time(const void *sendbuf, void *recvbuf, int count, MPI_
     }
     time = MPI_Wtime() - time;
     flag = time < 0.1e0;
-    if (mpi_rank_row == 0) {
-      MPI_Reduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MIN, 0, comm_row);
-    } else {
-      MPI_Reduce(&flag, &flag, 1, MPI_INT, MPI_MIN, 0, comm_row);
-    }
+    MPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MIN, comm_row);
   }
   time /= iterations;
   EXT_MPI_Done_native(handle);
