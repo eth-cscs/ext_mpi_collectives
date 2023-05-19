@@ -13,7 +13,7 @@ static double execution_time(const void *sendbuf, void *recvbuf, int count, MPI_
 	              	     MPI_Op op, MPI_Comm comm_row_, int my_cores_per_node_row, MPI_Comm comm_column_,
 			     int my_cores_per_node_column, int copyin_method, int *copyin_factors, int num_sockets_per_node) {
   double time;
-  int num_ports_[5], groups_[5], handle, mpi_rank_row, iterations, i;
+  int num_ports_[5], groups_[5], handle, mpi_rank_row, iterations, flag, i;
   if (num_sockets_per_node == 1) {
     num_ports_[0] = -1;
     num_ports_[1] = 0;
@@ -43,8 +43,8 @@ static double execution_time(const void *sendbuf, void *recvbuf, int count, MPI_
     comm_row_, my_cores_per_node_row, comm_column_, my_cores_per_node_column, num_ports_,
     groups_, 1, copyin_method, copyin_factors, 1, 0, 0, 0, 0, num_sockets_per_node, 0, NULL, NULL);
   iterations = 10;
-  time = 0e0;
-  while (time < 0.1e0) {
+  flag = 1;
+  while (flag) {
     iterations *= 2;
     time = MPI_Wtime();
     for (i = 0; i < iterations; i++) {
@@ -52,6 +52,12 @@ static double execution_time(const void *sendbuf, void *recvbuf, int count, MPI_
       EXT_MPI_Wait_native(handle);
     }
     time = MPI_Wtime() - time;
+    flag = time < 0.1e0;
+    if (mpi_rank_row == 0) {
+      MPI_Reduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MIN, 0, comm_row_);
+    } else {
+      MPI_Reduce(&flag, &flag, 1, MPI_INT, MPI_MIN, 0, comm_row_);
+    }
   }
   time /= iterations;
   EXT_MPI_Done_native(handle);
