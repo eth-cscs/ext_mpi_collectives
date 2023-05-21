@@ -3,12 +3,13 @@
 #include "read_bench.h"
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include <stdio.h>
 
 #define FACTOR_MAX 13
 
 static int compare(const void *a, const void *b) {
-  return *(int*)a - *(int*)b;
+  return -*(int*)a + *(int*)b;
 }
 
 int ext_mpi_heuristic_recursive_factors(int num_nodes, int **factors_max, int ***factors) {
@@ -18,8 +19,11 @@ int ext_mpi_heuristic_recursive_factors(int num_nodes, int **factors_max, int **
   for (i = 0; i < plain_factors_max; i++) {
     temp_factors[i] = plain_factors[i];
   }
+  qsort(temp_factors, temp_factors_max, sizeof(int), compare);
   *factors_max = (int *)malloc(num_nodes*num_nodes*FACTOR_MAX*sizeof(int));
+  memset(*factors_max, 0, num_nodes*num_nodes*FACTOR_MAX*sizeof(int));
   *factors = (int **)malloc(num_nodes*num_nodes*FACTOR_MAX*sizeof(int *));
+  memset(*factors, 0, num_nodes*num_nodes*FACTOR_MAX*sizeof(int *));
   i = 0;
   while (1) {
     if (temp_factors[temp_factors_max - 1] > FACTOR_MAX)
@@ -73,7 +77,7 @@ static double cost_single(int msize, int nports) {
             (ext_mpi_file_input[i + 1 + (nports - 1) * ext_mpi_file_input_max_per_core].deltaT -
              ext_mpi_file_input[i + (nports - 1) * ext_mpi_file_input_max_per_core].deltaT) /
             (ext_mpi_file_input[i + 1 + (nports - 1) * ext_mpi_file_input_max_per_core].msize -
-             ext_mpi_file_input[i + (nports - 1) * ext_mpi_file_input_max_per_core].msize)) / nports;
+             ext_mpi_file_input[i + (nports - 1) * ext_mpi_file_input_max_per_core].msize)) / nports * nports;
   }
 }
 
@@ -90,9 +94,9 @@ static double cost_minimal(int msize, int *nports) {
   return T_min;
 }
 
-int ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factors) {
-  double T, T_min = 1e99;
-  int i, j, i_min, m;
+double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factors, int *ind_min) {
+  double T, T_min = 1e99, m;
+  int i, j, i_min = -1;
   for (i = 0; i < num; i++) {
     T = 0e0;
     m = msize;
@@ -103,24 +107,57 @@ int ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factors) 
           m = 1;
         }
       }
-      T = T + cost_single(m, factors[i][j]);
+      if (abs(factors[i][j]) <= FACTOR_MAX) {
+      T += cost_single(m, abs(factors[i][j]) - 1);
+      } else {
+        T += 1e99;
+      }
       if (factors[i][j] > 0) {
         m *= factors[i][j];
       }
     }
+//printf("%e\n", T);
     if (T < T_min) {
       T_min = T;
       i_min = i;
     }
   }
-  return i_min;
+  *ind_min = i_min;
+  return T_min;
+}
+
+int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, int ***factors) {
+  int factors_max_max = 0, i, j;
+  *factors_max = (int *)malloc(num_nodes*num_nodes*FACTOR_MAX*sizeof(int));
+  memset(*factors_max, 0, num_nodes*num_nodes*FACTOR_MAX*sizeof(int));
+  *factors = (int **)malloc(num_nodes*num_nodes*FACTOR_MAX*sizeof(int *));
+  memset(*factors, 0, num_nodes*num_nodes*FACTOR_MAX*sizeof(int *));
+  for (i = 1; i < num_nodes*num_nodes*FACTOR_MAX; i++) {
+    (*factors)[i] = (int *)malloc(num_nodes*sizeof(int));
+    (*factors_max)[i] = 0;
+    for (j = 0; j < num_nodes; j++) {
+      (*factors)[i][j] = 2;
+      (*factors_max)[i]++;
+    }
+    factors_max_max++;
+  }
+  return factors_max_max;
 }
 
 int main__() {
   double d;
-  int i;
+  int factors_max_max, *factors_max, **factors, i, j;
   ext_mpi_read_bench();
-  d = cost_minimal(100000, &i);
+  factors_max_max = ext_mpi_heuristic_recursive_non_factors(32, &factors_max, &factors);
+//  d = cost_minimal(100000, &i);
+//  printf("aaaaa %d %e\n", i, d);
+  for (i = 0; i < factors_max_max; i++) {
+    for (j = 0; j < factors_max[i]; j++) {
+      printf("%d ", factors[i][j]);
+    }
+    printf("\n");
+  }
+  d = ext_mpi_min_cost_total(100000, factors_max_max, factors_max, factors, &i);
   printf("aaaaa %d %e\n", i, d);
   return 0;
 }
