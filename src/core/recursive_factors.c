@@ -126,19 +126,56 @@ double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factor
   return T_min;
 }
 
+static int next_number(int num_nodes, int *numbers) {
+  int ret = 1, flag = 1, i = 0, j = 0, k = 1;
+  while (k < num_nodes) {
+    k *= numbers[j];
+    j++;
+  }
+  while (flag) {
+    flag = 0;
+    numbers[i]++;
+    if (numbers[i] > FACTOR_MAX) {
+      if (i + 1 < j) {
+        numbers[i] = numbers[i + 1] + 1;
+        if (numbers[i] > FACTOR_MAX) {
+          numbers[i] = FACTOR_MAX;
+        }
+      } else {
+        numbers[i] = 2;
+        ret = 0;
+      }
+      flag = 1;
+      i++;
+    }
+  }
+  return ret;
+}
+
 int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, int ***factors) {
-  int factors_max_max = 0, i, j;
+  int factors_max_max = 0, numbers[num_nodes], numbers_max, flag = 1, i, j, k, l;
+  for (i = 0; i < num_nodes; i++){
+    numbers[i] = 2;
+  }
   *factors_max = (int *)malloc(num_nodes*num_nodes*FACTOR_MAX*sizeof(int));
   memset(*factors_max, 0, num_nodes*num_nodes*FACTOR_MAX*sizeof(int));
   *factors = (int **)malloc(num_nodes*num_nodes*FACTOR_MAX*sizeof(int *));
   memset(*factors, 0, num_nodes*num_nodes*FACTOR_MAX*sizeof(int *));
-  for (i = 1; i < num_nodes*num_nodes*FACTOR_MAX; i++) {
-    (*factors)[i] = (int *)malloc(num_nodes*sizeof(int));
-    (*factors_max)[i] = 0;
-    for (j = 0; j < num_nodes; j++) {
-      (*factors)[i][j] = 2;
-      (*factors_max)[i]++;
+  for (i = 0; i < num_nodes*num_nodes*FACTOR_MAX && flag; i += l) {
+    for (numbers_max = 0, k = 1; k < num_nodes; k *= numbers[numbers_max], numbers_max++)
+      ;
+    for (l = 0; l < numbers_max + 1; l++) {
+      (*factors)[i + l] = (int *)malloc(num_nodes * 2 * sizeof(int));
+      (*factors_max)[i + l] = 0;
+      for (j = 0; j < numbers_max; j++) {
+        (*factors)[i + l][j + l] = numbers[j];
+      }
+      for (j = 0; j < l; j++) {
+        (*factors)[i + l][j] = -numbers[numbers_max - 1 - j];
+      }
+      (*factors_max)[i + l] += numbers_max + l;
     }
+    flag = next_number(num_nodes, numbers);
     factors_max_max++;
   }
   return factors_max_max;
@@ -152,12 +189,13 @@ int main__() {
 //  d = cost_minimal(100000, &i);
 //  printf("aaaaa %d %e\n", i, d);
   for (i = 0; i < factors_max_max; i++) {
+    printf("%d: ", i);
     for (j = 0; j < factors_max[i]; j++) {
       printf("%d ", factors[i][j]);
     }
     printf("\n");
   }
-  d = ext_mpi_min_cost_total(100000, factors_max_max, factors_max, factors, &i);
+  d = ext_mpi_min_cost_total(200000000, factors_max_max, factors_max, factors, &i);
   printf("aaaaa %d %e\n", i, d);
   return 0;
 }
