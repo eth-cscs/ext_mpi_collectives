@@ -138,11 +138,11 @@ static int next_number(int num_nodes, int *numbers) {
     if (numbers[i] > FACTOR_MAX) {
       if (i + 1 < j) {
         numbers[i] = numbers[i + 1] + 1;
+        numbers[i] = 2;
         if (numbers[i] > FACTOR_MAX) {
           numbers[i] = FACTOR_MAX;
         }
       } else {
-        numbers[i] = 2;
         ret = 0;
       }
       flag = 1;
@@ -152,19 +152,23 @@ static int next_number(int num_nodes, int *numbers) {
   return ret;
 }
 
-int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, int ***factors) {
-  int factors_max_max = 0, numbers[num_nodes], numbers_max, flag = 1, i, j, k, l;
+int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, int ***factors, int **primes) {
+  int factors_max_max = 0, numbers[num_nodes], numbers_max, flag = 1, lines_max, i, j, k, l;
+  lines_max = num_nodes * num_nodes * FACTOR_MAX * 100;
   for (i = 0; i < num_nodes; i++){
     numbers[i] = 2;
   }
-  *factors_max = (int *)malloc(num_nodes*num_nodes*FACTOR_MAX*sizeof(int));
-  memset(*factors_max, 0, num_nodes*num_nodes*FACTOR_MAX*sizeof(int));
-  *factors = (int **)malloc(num_nodes*num_nodes*FACTOR_MAX*sizeof(int *));
-  memset(*factors, 0, num_nodes*num_nodes*FACTOR_MAX*sizeof(int *));
-  for (i = 0; i < num_nodes*num_nodes*FACTOR_MAX && flag; i += l) {
+  *factors_max = (int *)malloc(lines_max * sizeof(int));
+  memset(*factors_max, 0, lines_max * sizeof(int));
+  *factors = (int **)malloc(lines_max * sizeof(int *));
+  memset(*factors, 0, lines_max * sizeof(int *));
+  *primes = (int *)malloc(lines_max * sizeof(int));
+  memset(*primes, 0, lines_max * sizeof(int));
+  for (i = 0; i < lines_max && flag; i += l) {
     for (numbers_max = 0, k = 1; k < num_nodes; k *= numbers[numbers_max], numbers_max++)
       ;
     for (l = 0; l < numbers_max + 1; l++) {
+      (*primes)[i + l] = k == num_nodes;
       (*factors)[i + l] = (int *)malloc(num_nodes * 2 * sizeof(int));
       (*factors_max)[i + l] = 0;
       for (j = 0; j < numbers_max; j++) {
@@ -183,19 +187,19 @@ int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, in
 
 int main__() {
   double d;
-  int factors_max_max, *factors_max, **factors, i, j;
+  int factors_max_max, *factors_max, **factors, *primes, i, j;
   ext_mpi_read_bench();
-  factors_max_max = ext_mpi_heuristic_recursive_non_factors(32, &factors_max, &factors);
+  factors_max_max = ext_mpi_heuristic_recursive_non_factors(32, &factors_max, &factors, &primes);
 //  d = cost_minimal(100000, &i);
 //  printf("aaaaa %d %e\n", i, d);
   for (i = 0; i < factors_max_max; i++) {
-    printf("%d: ", i);
+    printf("%d: prime %d : ", i, primes[i]);
     for (j = 0; j < factors_max[i]; j++) {
       printf("%d ", factors[i][j]);
     }
     printf("\n");
   }
-  d = ext_mpi_min_cost_total(200000000, factors_max_max, factors_max, factors, &i);
+  d = ext_mpi_min_cost_total(200000, factors_max_max, factors_max, factors, &i);
   printf("aaaaa %d %e\n", i, d);
   return 0;
 }
