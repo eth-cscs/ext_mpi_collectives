@@ -111,7 +111,7 @@ double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factor
         }
       }
       if (abs(factors[i][j]) <= FACTOR_MAX) {
-      T += cost_single(m, abs(factors[i][j]) - 1);
+        T += cost_single(m, abs(factors[i][j]) - 1);
       } else {
         T += 1e99;
       }
@@ -129,7 +129,7 @@ double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factor
 }
 
 static int next_number(int num_nodes, int *numbers) {
-  int ret = 1, flag = 1, i = 0, j = 0, k = 1;
+  int ret = 0, flag = 1, i = 0, j = 0, k = 1;
   while (k < num_nodes) {
     k *= numbers[j];
     j++;
@@ -138,17 +138,16 @@ static int next_number(int num_nodes, int *numbers) {
     flag = 0;
     numbers[i]++;
     if (numbers[i] > FACTOR_MAX) {
-      if (i + 1 < j) {
-        numbers[i] = numbers[i + 1] + 1;
+      if (i < j) {
         numbers[i] = 2;
-        if (numbers[i] > FACTOR_MAX) {
-          numbers[i] = FACTOR_MAX;
-        }
-      } else {
-        ret = 0;
       }
       flag = 1;
       i++;
+    }
+  }
+  for (i = 0; i < j  + 1 && !ret; i++) {
+    if (numbers[i] < FACTOR_MAX) {
+      ret = 1;
     }
   }
   return ret;
@@ -169,7 +168,7 @@ static void correct_number(int num_nodes, int *numbers, int *numbers_new) {
 
 int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, int ***factors, int **primes) {
   int factors_max_max = 0, numbers[num_nodes], numbers_corrected[num_nodes], numbers_max, flag = 1, lines_max, i, j, k, l;
-  lines_max = num_nodes * num_nodes * FACTOR_MAX * 100;
+  lines_max = num_nodes * num_nodes * FACTOR_MAX * FACTOR_MAX;
   for (i = 0; i < num_nodes; i++){
     numbers[i] = 2;
   }
@@ -202,7 +201,7 @@ int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, in
   return factors_max_max;
 }
 
-int main__() {
+static int main() {
   double d;
   int factors_max_max, *factors_max, **factors, *primes, i, j;
   ext_mpi_read_bench();
@@ -216,7 +215,7 @@ int main__() {
     }
     printf("\n");
   }
-  d = ext_mpi_min_cost_total(200000, factors_max_max, factors_max, factors, primes, &i);
+  d = ext_mpi_min_cost_total(2048, factors_max_max, factors_max, factors, primes, &i);
   printf("aaaaa %d %e\n", i, d);
   return 0;
 }
