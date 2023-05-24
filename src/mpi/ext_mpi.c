@@ -14,6 +14,7 @@
 #include "count_instructions.h"
 #include "ports_groups.h"
 #include "cost_copyin_measurement.h"
+#include "recursive_factors.h"
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #endif
@@ -34,12 +35,22 @@ static int alternating = 0;
 static int not_recursive = 0;
 static int *fixed_factors_ports = NULL;
 static int *fixed_factors_groups = NULL;
+static int new_factors_heuristic = 0;
 
 static int read_env() {
   int mpi_comm_rank, mpi_comm_size, var, i, j;
   char *c = NULL;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_comm_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &mpi_comm_size);
+  if (mpi_comm_rank == 0) {
+    var = ((c = getenv("EXT_MPI_NEW_FACTORS_HEURISTIC")) != NULL);
+    if (var) {
+      if (sscanf(c, "%d", &var) >= 1){
+        new_factors_heuristic = var;
+      }
+    }
+  }
+  MPI_Bcast(&new_factors_heuristic, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_NUM_SOCKETS_PER_NODE")) != NULL);
     if (var) {
@@ -1173,7 +1184,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_row, int my_cores_per_node_row,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node;
+  int comm_size_row, comm_rank_row, i, j, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, factors_max_max, *factors_max, **factors, *primes;
   double d1;
   struct cost_list *p1, *p2;
   struct {
@@ -1245,7 +1256,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
           groups[i] = comm_size_row/my_cores_per_node_row;
         }
         groups[i-1] = -groups[i-1];*/
-    if (comm_size_row / my_cores_per_node_row > 1) {
+    if (comm_size_row / my_cores_per_node_row > 1 && !new_factors_heuristic) {
       if (my_cores_per_node_row == 1) {
         if (ext_mpi_cost_simulation(count, type_size, comm_size_row * 12, 12,
                                     comm_size_column, my_cores_per_node_column,
@@ -1297,6 +1308,25 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       MPI_Bcast(num_ports, i, MPI_INT, composition.rank, comm_row);
       MPI_Bcast(groups, i, MPI_INT, composition.rank, comm_row);
       groups[i] = num_ports[i] = 0;
+    } else if (comm_size_row / my_cores_per_node_row > 1) {
+      factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node_row, &factors_max, &factors, &primes);
+      ext_mpi_min_cost_total(message_size, factors_max_max, factors_max, factors, primes, &i);
+      for (j = 0; j < factors_max[i]; j++) {
+        if (factors[i][j] > 0) {
+          num_ports[j] = factors[i][j] - 1;
+        } else {
+          num_ports[j] = factors[i][j] + 1;
+        }
+        groups[j] = comm_size_row/my_cores_per_node_row;
+      }
+      groups[j - 1] = -groups[j - 1];
+      groups[j] = num_ports[j] = 0;
+      free(primes);
+      for (i = 0; i < factors_max_max; i++) {
+        free(factors[i]);
+      }
+      free(factors);
+      free(factors_max);
     } else {
       groups[0] = num_ports[0] = -1;
       groups[1] = num_ports[1] = 0;

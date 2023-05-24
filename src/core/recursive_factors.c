@@ -94,12 +94,15 @@ static double cost_minimal(int msize, int *nports) {
   return T_min;
 }
 
-double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factors, int *ind_min) {
+double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factors, int *primes, int *ind_min) {
   double T, T_min = 1e99, m;
   int i, j, i_min = -1;
   for (i = 0; i < num; i++) {
     T = 0e0;
     m = msize;
+    if (!primes[i]) {
+      T += m * 1e-8;
+    }
     for (j = 0; j < factors_max[i]; j++) {
       if (factors[i][j] < 0) {
         m /= abs(factors[i][j]);
@@ -116,7 +119,6 @@ double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factor
         m *= factors[i][j];
       }
     }
-//printf("%e\n", T);
     if (T < T_min) {
       T_min = T;
       i_min = i;
@@ -199,7 +201,7 @@ int main__() {
     }
     printf("\n");
   }
-  d = ext_mpi_min_cost_total(200000, factors_max_max, factors_max, factors, &i);
+  d = ext_mpi_min_cost_total(200000, factors_max_max, factors_max, factors, primes, &i);
   printf("aaaaa %d %e\n", i, d);
   return 0;
 }
