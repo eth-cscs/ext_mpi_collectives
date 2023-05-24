@@ -1184,7 +1184,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_row, int my_cores_per_node_row,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, j, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, factors_max_max, *factors_max, **factors, *primes;
+  int comm_size_row, comm_rank_row, i, j, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, factors_max_max = 0, *factors_max, **factors, *primes;
   double d1;
   struct cost_list *p1, *p2;
   struct {
@@ -1322,9 +1322,9 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
         }
         groups[j - 1] = -groups[j - 1];
       }
-      MPI_Bcast(&j, 1, MPI_INT, composition.rank, comm_row);
-      MPI_Bcast(num_ports, j, MPI_INT, composition.rank, comm_row);
-      MPI_Bcast(groups, j, MPI_INT, composition.rank, comm_row);
+      MPI_Bcast(&j, 1, MPI_INT, 0, comm_row);
+      MPI_Bcast(num_ports, j, MPI_INT, 0, comm_row);
+      MPI_Bcast(groups, j, MPI_INT, 0, comm_row);
       groups[j] = num_ports[j] = 0;
       if (comm_rank_row == 0) {
         free(primes);
