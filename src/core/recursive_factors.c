@@ -56,7 +56,7 @@ int ext_mpi_heuristic_recursive_factors(int num_nodes, int **factors_max, int **
   }
 }
 
-static double cost_single(int msize, int nports) {
+static double cost_single(double msize, int nports) {
   double mb;
   int i;
   mb = msize;
@@ -106,8 +106,8 @@ double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factor
     for (j = 0; j < factors_max[i]; j++) {
       if (factors[i][j] < 0) {
         m /= abs(factors[i][j]);
-        if (m <= 0) {
-          m = 1;
+        if (m <= 0e0) {
+          m = 1e0;
         }
       }
       if (abs(factors[i][j]) <= FACTOR_MAX) {
@@ -154,12 +154,26 @@ static int next_number(int num_nodes, int *numbers) {
   return ret;
 }
 
+static void correct_number(int num_nodes, int *numbers, int *numbers_new) {
+  int i, k;
+  for (i = 0, k = 1; k < num_nodes; k *= numbers[i], i++) {
+    numbers_new[i] = numbers[i];
+  }
+  i--;
+  k /= numbers_new[i];
+  numbers_new[i] = 2;
+  while (numbers_new[i] * k < num_nodes) {
+    numbers_new[i]++;
+  }
+}
+
 int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, int ***factors, int **primes) {
-  int factors_max_max = 0, numbers[num_nodes], numbers_max, flag = 1, lines_max, i, j, k, l;
+  int factors_max_max = 0, numbers[num_nodes], numbers_corrected[num_nodes], numbers_max, flag = 1, lines_max, i, j, k, l;
   lines_max = num_nodes * num_nodes * FACTOR_MAX * 100;
   for (i = 0; i < num_nodes; i++){
     numbers[i] = 2;
   }
+  correct_number(num_nodes, numbers, numbers_corrected);
   *factors_max = (int *)malloc(lines_max * sizeof(int));
   memset(*factors_max, 0, lines_max * sizeof(int));
   *factors = (int **)malloc(lines_max * sizeof(int *));
@@ -167,21 +181,22 @@ int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, in
   *primes = (int *)malloc(lines_max * sizeof(int));
   memset(*primes, 0, lines_max * sizeof(int));
   for (i = 0; i < lines_max && flag; i += l) {
-    for (numbers_max = 0, k = 1; k < num_nodes; k *= numbers[numbers_max], numbers_max++)
+    for (numbers_max = 0, k = 1; k < num_nodes; k *= numbers_corrected[numbers_max], numbers_max++)
       ;
     for (l = 0; l < numbers_max + 1; l++) {
       (*primes)[i + l] = k == num_nodes;
       (*factors)[i + l] = (int *)malloc(num_nodes * 2 * sizeof(int));
       (*factors_max)[i + l] = 0;
       for (j = 0; j < numbers_max; j++) {
-        (*factors)[i + l][j + l] = numbers[j];
+        (*factors)[i + l][j + l] = numbers_corrected[j];
       }
       for (j = 0; j < l; j++) {
-        (*factors)[i + l][j] = -numbers[numbers_max - 1 - j];
+        (*factors)[i + l][j] = -numbers_corrected[numbers_max - 1 - j];
       }
       (*factors_max)[i + l] += numbers_max + l;
     }
     flag = next_number(num_nodes, numbers);
+    correct_number(num_nodes, numbers, numbers_corrected);
     factors_max_max++;
   }
   return factors_max_max;

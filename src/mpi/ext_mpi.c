@@ -1311,6 +1311,11 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
     } else if (comm_size_row / my_cores_per_node_row > 1) {
       if (comm_rank_row == 0) {
         factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node_row, &factors_max, &factors, &primes);
+	if (my_cores_per_node_row > 1) {
+	  for (i = 0; i < factors_max_max; i++) {
+	    primes[i] = 0;
+	  }
+	}
         ext_mpi_min_cost_total(message_size, factors_max_max, factors_max, factors, primes, &i);
         for (j = 0; j < factors_max[i]; j++) {
           if (factors[i][j] > 0) {
