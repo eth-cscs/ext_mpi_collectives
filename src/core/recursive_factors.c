@@ -81,7 +81,7 @@ static double cost_single(int msize, int nports) {
   }
 }
 
-static double cost_minimal(int msize, int *nports) {
+/*static double cost_minimal(int msize, int *nports) {
   double T, T_min = 1e99;
   int i;
   for (i = 0; i < FACTOR_MAX - 1; i++) {
@@ -92,7 +92,7 @@ static double cost_minimal(int msize, int *nports) {
     }
   }
   return T_min;
-}
+}*/
 
 double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factors, int *primes, int *ind_min) {
   double T, T_min = 1e99, m;

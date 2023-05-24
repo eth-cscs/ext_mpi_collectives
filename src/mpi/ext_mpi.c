@@ -1309,24 +1309,31 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       MPI_Bcast(groups, i, MPI_INT, composition.rank, comm_row);
       groups[i] = num_ports[i] = 0;
     } else if (comm_size_row / my_cores_per_node_row > 1) {
-      factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node_row, &factors_max, &factors, &primes);
-      ext_mpi_min_cost_total(message_size, factors_max_max, factors_max, factors, primes, &i);
-      for (j = 0; j < factors_max[i]; j++) {
-        if (factors[i][j] > 0) {
-          num_ports[j] = factors[i][j] - 1;
-        } else {
-          num_ports[j] = factors[i][j] + 1;
+      if (comm_rank_row == 0) {
+        factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node_row, &factors_max, &factors, &primes);
+        ext_mpi_min_cost_total(message_size, factors_max_max, factors_max, factors, primes, &i);
+        for (j = 0; j < factors_max[i]; j++) {
+          if (factors[i][j] > 0) {
+            num_ports[j] = factors[i][j] - 1;
+          } else {
+            num_ports[j] = factors[i][j] + 1;
+          }
+          groups[j] = comm_size_row/my_cores_per_node_row;
         }
-        groups[j] = comm_size_row/my_cores_per_node_row;
+        groups[j - 1] = -groups[j - 1];
       }
-      groups[j - 1] = -groups[j - 1];
+      MPI_Bcast(&j, 1, MPI_INT, composition.rank, comm_row);
+      MPI_Bcast(num_ports, j, MPI_INT, composition.rank, comm_row);
+      MPI_Bcast(groups, j, MPI_INT, composition.rank, comm_row);
       groups[j] = num_ports[j] = 0;
-      free(primes);
-      for (i = 0; i < factors_max_max; i++) {
-        free(factors[i]);
+      if (comm_rank_row == 0) {
+        free(primes);
+        for (i = 0; i < factors_max_max; i++) {
+          free(factors[i]);
+        }
+        free(factors);
+        free(factors_max);
       }
-      free(factors);
-      free(factors_max);
     } else {
       groups[0] = num_ports[0] = -1;
       groups[1] = num_ports[1] = 0;
