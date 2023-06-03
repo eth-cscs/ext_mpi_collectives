@@ -63,13 +63,13 @@ static double cost_single(double msize, int nports) {
   mb /= ext_mpi_file_input[(nports - 1) * ext_mpi_file_input_max_per_core].parallel;
   i = floor(mb / (ext_mpi_file_input[1].msize - ext_mpi_file_input[0].msize)) - 1;
   if (i < 0) {
-    return ext_mpi_file_input[0 + (nports - 1) * ext_mpi_file_input_max_per_core].deltaT / nports;
+    return ext_mpi_file_input[0 + (nports - 1) * ext_mpi_file_input_max_per_core].deltaT / nports * nports;
   } else if (i >= ext_mpi_file_input_max_per_core) {
     return (ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
                         (nports - 1) * ext_mpi_file_input_max_per_core].deltaT *
              mb /
              ext_mpi_file_input[ext_mpi_file_input_max_per_core - 1 +
-                        (nports - 1) * ext_mpi_file_input_max_per_core].msize) / nports;
+                        (nports - 1) * ext_mpi_file_input_max_per_core].msize) / nports * nports;
   } else {
     return
         (ext_mpi_file_input[i + (nports - 1) * ext_mpi_file_input_max_per_core].deltaT +
