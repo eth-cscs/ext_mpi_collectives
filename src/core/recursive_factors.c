@@ -166,7 +166,7 @@ static void correct_number(int num_nodes, int *numbers, int *numbers_new) {
   }
 }
 
-int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, int ***factors, int **primes) {
+int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int allgather, int **factors_max, int ***factors, int **primes) {
   int factors_max_max = 0, numbers[num_nodes], numbers_corrected[num_nodes], numbers_max, flag = 1, lines_max, i, j, k, l;
   lines_max = num_nodes * num_nodes * FACTOR_MAX * FACTOR_MAX;
   for (i = 0; i < num_nodes; i++){
@@ -182,7 +182,7 @@ int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, in
   for (i = 0; i < lines_max && flag; i += l) {
     for (numbers_max = 0, k = 1; k < num_nodes; k *= numbers_corrected[numbers_max], numbers_max++)
       ;
-    for (l = 0; l < numbers_max + 1; l++) {
+    for (l = 0; l < (allgather ? 1 : numbers_max + 1); l++) {
       (*primes)[i + l] = k == num_nodes;
       (*factors)[i + l] = (int *)malloc(num_nodes * 2 * sizeof(int));
       (*factors_max)[i + l] = 0;
@@ -205,7 +205,7 @@ static int main() {
   double d;
   int factors_max_max, *factors_max, **factors, *primes, i, j;
   ext_mpi_read_bench();
-  factors_max_max = ext_mpi_heuristic_recursive_non_factors(32, &factors_max, &factors, &primes);
+  factors_max_max = ext_mpi_heuristic_recursive_non_factors(32, 0, &factors_max, &factors, &primes);
 //  d = cost_minimal(100000, &i);
 //  printf("aaaaa %d %e\n", i, d);
   for (i = 0; i < factors_max_max; i++) {

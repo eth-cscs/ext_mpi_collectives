@@ -234,9 +234,10 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
                                    int my_cores_per_node_row,
                                    MPI_Comm comm_column,
                                    int my_cores_per_node_column, int *handle) {
-  int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, scount,
-                     i, alt, rcount, group_size;
+  int comm_rank_row, comm_size_row, *num_ports = NULL, *groups = NULL, type_size, scount,
+        i, j, alt, rcount, group_size, factors_max_max = -1, *factors_max, **factors, *primes;
   char *str;
+  MPI_Comm_rank(comm_row, &comm_rank_row);
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(sendtype, &type_size);
   num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
@@ -249,7 +250,38 @@ static int allgatherv_init_general(const void *sendbuf, int sendcount,
   if (comm_column != MPI_COMM_NULL) {
     PMPI_Allreduce(MPI_IN_PLACE, &scount, 1, MPI_INT, MPI_SUM, comm_column);
   }
-  if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+  if (fixed_factors_ports == NULL && new_factors_heuristic) {
+    if (comm_rank_row == 0) {
+      factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node_row, 1, &factors_max, &factors, &primes);
+      if (my_cores_per_node_row > 1) {
+	for (i = 0; i < factors_max_max; i++) {
+	  primes[i] = 0;
+	}
+      }
+      ext_mpi_min_cost_total(scount * type_size, factors_max_max, factors_max, factors, primes, &i);
+      for (j = 0; j < factors_max[i]; j++) {
+        if (factors[i][j] > 0) {
+          num_ports[j] = factors[i][j] - 1;
+        } else {
+          num_ports[j] = factors[i][j] + 1;
+        }
+        groups[j] = comm_size_row/my_cores_per_node_row;
+      }
+      groups[j - 1] = -groups[j - 1];
+    }
+    MPI_Bcast(&j, 1, MPI_INT, 0, comm_row);
+    MPI_Bcast(num_ports, j, MPI_INT, 0, comm_row);
+    MPI_Bcast(groups, j, MPI_INT, 0, comm_row);
+    groups[j] = num_ports[j] = 0;
+    if (comm_rank_row == 0) {
+      free(primes);
+      for (i = 0; i < factors_max_max; i++) {
+        free(factors[i]);
+      }
+      free(factors);
+      free(factors_max);
+    }
+  } else if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
     if (comm_size_row/my_cores_per_node_row==1){
       group_size = 1;
     }else{
@@ -1310,7 +1342,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       groups[i] = num_ports[i] = 0;
     } else if (comm_size_row / my_cores_per_node_row > 1) {
       if (comm_rank_row == 0) {
-        factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node_row, &factors_max, &factors, &primes);
+        factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node_row, 0, &factors_max, &factors, &primes);
 	if (my_cores_per_node_row > 1) {
 	  for (i = 0; i < factors_max_max; i++) {
 	    primes[i] = 0;
@@ -2500,7 +2532,7 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
       set_ports_single_node(1, 4, num_ports, groups);
     } else if (fixed_factors_ports == NULL && comm_size_row / my_cores_per_node > 1 && new_factors_heuristic) {
       if (comm_rank_row == 0) {
-        factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node, &factors_max, &factors, &primes);
+        factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node, 0, &factors_max, &factors, &primes);
         if (my_cores_per_node > 1) {
           for (i = 0; i < factors_max_max; i++) {
             primes[i] = 0;
@@ -2803,13 +2835,14 @@ error:
 }
 
 static int init_blocking_comm_allgather(MPI_Comm comm, int i_comm) {
-  int comm_size_row, *num_ports = NULL, *groups = NULL, type_size,
-      i, group_size, num_sockets_per_node, j;
+  int comm_rank_row, comm_size_row, *num_ports = NULL, *groups = NULL, type_size,
+      i, group_size, num_sockets_per_node, j, k, factors_max_max = -1, *factors_max, **factors, *primes;
   char *str;
 //  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 1048576, 2097152};
   int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 1048576};
   MPI_Datatype datatype = MPI_LONG;
   int my_cores_per_node = get_num_tasks_per_socket(comm);
+  MPI_Comm_rank(comm, &comm_rank_row);
   MPI_Comm_size(comm, &comm_size_row);
   MPI_Type_size(datatype, &type_size);
   num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
@@ -2819,7 +2852,38 @@ static int init_blocking_comm_allgather(MPI_Comm comm, int i_comm) {
   if (!groups)
     goto error;
   for (j = 0; j < sizeof(counts)/sizeof(int); j++) {
-    if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
+    if (fixed_factors_ports == NULL && comm_size_row / my_cores_per_node > 1 && new_factors_heuristic) {
+      if (comm_rank_row == 0) {
+        factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node, 1, &factors_max, &factors, &primes);
+        if (my_cores_per_node > 1) {
+          for (i = 0; i < factors_max_max; i++) {
+            primes[i] = 0;
+          }
+        }
+        ext_mpi_min_cost_total(counts[j] * type_size, factors_max_max, factors_max, factors, primes, &i);
+        for (k = 0; k < factors_max[i]; k++) {
+          if (factors[i][k] > 0) {
+            num_ports[k] = factors[i][k] - 1;
+          } else {
+            num_ports[k] = factors[i][k] + 1;
+          }
+          groups[k] = comm_size_row/my_cores_per_node;
+        }
+        groups[k - 1] = -groups[k - 1];
+      }
+      MPI_Bcast(&k, 1, MPI_INT, 0, comm);
+      MPI_Bcast(num_ports, k, MPI_INT, 0, comm);
+      MPI_Bcast(groups, k, MPI_INT, 0, comm);
+      groups[k] = num_ports[k] = 0;
+      if (comm_rank_row == 0) {
+        free(primes);
+        for (i = 0; i < factors_max_max; i++) {
+          free(factors[i]);
+        }
+        free(factors);
+        free(factors_max);
+      }
+    } else if (fixed_factors_ports == NULL && ext_mpi_minimum_computation){
       if (comm_size_row/my_cores_per_node==1){
         group_size = 1;
       }else{

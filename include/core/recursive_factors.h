@@ -9,7 +9,7 @@ extern "C"
 
 int ext_mpi_heuristic_recursive_factors(int num_nodes, int **factors_max, int ***factors);
 double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factors, int *primes, int *ind_min);
-int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int **factors_max, int ***factors, int **primes);
+int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int allgather, int **factors_max, int ***factors, int **primes);
 
 #ifdef __cplusplus
 }
