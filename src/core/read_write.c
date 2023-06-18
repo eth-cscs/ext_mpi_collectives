@@ -625,6 +625,7 @@ int ext_mpi_delete_parameters(struct parameters_block *parameters) {
   free(parameters->groups);
   free(parameters->message_sizes);
   free(parameters->copyin_factors);
+  free(parameters->rank_perm);
   free(parameters);
   return 0;
 }
