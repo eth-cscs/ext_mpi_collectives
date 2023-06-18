@@ -119,6 +119,9 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
       rank_perm[i] = i;
     }
   }
+  if (parameters->rank_perm_max) {
+    free(parameters->rank_perm);
+  }
   parameters->rank_perm_max = msizes_max;
   parameters->rank_perm = rank_perm;
   parameters->message_sizes =

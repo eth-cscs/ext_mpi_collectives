@@ -438,6 +438,7 @@ static int add_comm_to_blocking(MPI_Comm *comm){
 
 static int remove_comm_from_blocking(MPI_Comm *comm){
   int i = ext_mpi_hash_search_blocking(comm);
+  EXT_MPI_Finalize_blocking_comm(i);
   ext_mpi_hash_delete_blocking(comm);
   comms_blocking[i] = 0;
   return 0;
