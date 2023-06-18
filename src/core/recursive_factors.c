@@ -201,13 +201,11 @@ int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int allgather, int **
   return factors_max_max;
 }
 
-static int main() {
+/*int main() {
   double d;
   int factors_max_max, *factors_max, **factors, *primes, i, j;
   ext_mpi_read_bench();
   factors_max_max = ext_mpi_heuristic_recursive_non_factors(32, 0, &factors_max, &factors, &primes);
-//  d = cost_minimal(100000, &i);
-//  printf("aaaaa %d %e\n", i, d);
   for (i = 0; i < factors_max_max; i++) {
     printf("%d: prime %d : ", i, primes[i]);
     for (j = 0; j < factors_max[i]; j++) {
@@ -218,4 +216,4 @@ static int main() {
   d = ext_mpi_min_cost_total(2048, factors_max_max, factors_max, factors, primes, &i);
   printf("aaaaa %d %e\n", i, d);
   return 0;
-}
+}*/

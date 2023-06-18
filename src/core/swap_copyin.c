@@ -16,12 +16,12 @@ int ext_mpi_generate_swap_copyin(char *buffer_in, char *buffer_out) {
   lines_recv = (char **)malloc(abs(parameters->num_ports[0]) * sizeof(char *));
   lines_send = (char **)malloc(abs(parameters->num_ports[0]) * sizeof(char *));
   for (i = 0; i < abs(parameters->num_ports[0]); i++) {
-    lines_recv[i] = malloc(1000);
+    lines_recv[i] = (char *)malloc(1000 * sizeof(char *));
     nbuffer_in += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in, lines_recv[i], parameters->ascii_in);
   }
   for (i = 0; i < abs(parameters->num_ports[0]); i++) {
-    lines_send[i] = malloc(1000);
+    lines_send[i] = (char *)malloc(1000 * sizeof(char *));
     nbuffer_in += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in, lines_send[i], parameters->ascii_in);
   }

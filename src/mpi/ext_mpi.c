@@ -2502,8 +2502,8 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
   int my_cores_per_node = get_num_tasks_per_socket(comm);
-  char *sendbuf = malloc(1024 * 1024 * 1024);
-  char *recvbuf = malloc(1024 * 1024 * 1024);
+  char *sendbuf = (char *)malloc(1024 * 1024 * 1024);
+  char *recvbuf = (char *)malloc(1024 * 1024 * 1024);
   struct {
     double value;
     int rank;
@@ -2735,8 +2735,8 @@ static int init_blocking_comm_reduce_scatter_block(MPI_Comm comm, int i_comm) {
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
   int my_cores_per_node = get_num_tasks_per_socket(comm);
-  char *sendbuf = malloc(1024 * 1024 * 1024);
-  char *recvbuf = malloc(1024 * 1024 * 1024);
+  char *sendbuf = (char *)malloc(1024 * 1024 * 1024);
+  char *recvbuf = (char *)malloc(1024 * 1024 * 1024);
   MPI_Comm_size(comm, &comm_size_row);
   MPI_Type_size(datatype, &type_size);
   copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
