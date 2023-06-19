@@ -2169,8 +2169,16 @@ static void gpu_recalculate_addresses(void *p_ref, const void *sendbuf, void *re
         recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, (void **)&p2, (int *)&size);
         size = -size;
       }
-      *((char **)lldata) = p1;
-      *((char **)(lldata + sizeof(char *))) = p2;
+      if (p1) {
+        *((char **)lldata) = p1 - (char *)p_ref + (char *)p_dev;
+      } else {
+	*((char **)lldata) = NULL;
+      }
+      if (p2) {
+        *((char **)(lldata + sizeof(char *))) = p2 - (char *)p_ref + (char *)p_dev;
+      } else {
+	*((char **)(lldata + sizeof(char *))) = NULL;
+      }
       size /= count2;
       *((long int *)(lldata + 2 * sizeof(char *))) = size;
       index++;
@@ -2178,6 +2186,7 @@ static void gpu_recalculate_addresses(void *p_ref, const void *sendbuf, void *re
       lldata = p_temp + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int));
       p1 = *((char **)ldata);
     }
+    *((char **)lldata) = NULL;
   }
   ext_mpi_gpu_memcpy_hd(p_dev, p_temp, 2 * sizeof(int) + sizeof(long int) + num_streams * index * (sizeof(char *) * 2 + sizeof(long int)) + 2 * sizeof(char *) + sizeof(long int));
 }
