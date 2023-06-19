@@ -726,7 +726,9 @@ int EXT_MPI_Done_native(int handle) {
   ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle]);
 #ifdef GPU_ENABLED
   if (header->shmem_gpu) {
-    ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
+    if (header->shmemid_gpu) {
+      ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
+    }
     header->shmem_gpu = NULL;
     header->shmemid_gpu = NULL;
   }
@@ -765,7 +767,9 @@ int EXT_MPI_Done_native(int handle) {
     ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle + 1]);
 #ifdef GPU_ENABLED
     if (header->shmem_gpu) {
-      ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
+      if (header->shmemid_gpu) {
+        ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
+      }
       header->shmem_gpu = NULL;
       header->shmemid_gpu = NULL;
     }
@@ -866,9 +870,14 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   shmem_size -= barriers_size;
 #ifdef GPU_ENABLED
   if (gpu_is_device_pointer(recvbuf)) {
-    ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
-                                    comm_column, my_cores_per_node_column,
-                                    shmem_size - barriers_size, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
+    if (shmem_zero) {
+      shmem_gpu = shmem;
+      shmemid_gpu = NULL;
+    } else {
+      ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
+                                      comm_column, my_cores_per_node_column,
+                                      shmem_size - barriers_size, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
+    }
   }
 #endif
   global_ranks =
@@ -927,9 +936,14 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       goto error;
 #ifdef GPU_ENABLED
     if (gpu_is_device_pointer(recvbuf)) {
-      ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
-                                      comm_column, my_cores_per_node_column,
-                                      shmem_size - barriers_size, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
+      if (shmem_zero) {
+        shmem_gpu = shmem;
+        shmemid_gpu = NULL;
+      } else {
+        ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
+                                        comm_column, my_cores_per_node_column,
+                                        shmem_size - barriers_size, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
+      }
     }
 #endif
     if (ext_mpi_generate_byte_code(
@@ -2658,8 +2672,12 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
   ext_mpi_destroy_shared_memory(0, 1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid1, (*comms_blocking)[i_comm]->shmem_blocking1, (char *)header);
   ext_mpi_destroy_shared_memory(0, 1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid2, (*comms_blocking)[i_comm]->shmem_blocking2, (char *)header);
 #else
-  ext_mpi_gpu_destroy_shared_memory(1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid1, (*comms_blocking)[i_comm]->shmem_blocking1, (char *)header);
-  ext_mpi_gpu_destroy_shared_memory(1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid2, (*comms_blocking)[i_comm]->shmem_blocking2, (char *)header);
+  if ((*comms_blocking)[i_comm]->shmem_blocking_shmemid1) {
+    ext_mpi_gpu_destroy_shared_memory(1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid1, (*comms_blocking)[i_comm]->shmem_blocking1, (char *)header);
+  }
+  if ((*comms_blocking)[i_comm]->shmem_blocking_shmemid2) {
+    ext_mpi_gpu_destroy_shared_memory(1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid2, (*comms_blocking)[i_comm]->shmem_blocking2, (char *)header);
+  }
 #endif
   free((*comms_blocking)[i_comm]->locmem_blocking);
   loc_shmemid = (int *)malloc(1 * sizeof(int));
