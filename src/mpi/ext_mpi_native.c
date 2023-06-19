@@ -2317,6 +2317,7 @@ static int normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char 
     case OPCODE_GPUKERNEL:
       code_get_char(&ip);
       gpu_normalize_addresses(count, code_get_pointer(&ip));
+      code_get_int(&ip);
       break;
 #endif
 #ifdef NCCL_ENABLED
@@ -2558,7 +2559,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     ext_mpi_setup_shared_memory(&(*comms_blocking)[i_comm]->comm_row_blocking, &(*comms_blocking)[i_comm]->comm_column_blocking, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, (*comms_blocking)[i_comm]->shmem_node_blocking_num_segments, &(*comms_blocking)[i_comm]->shmem_node_blocking_shmemid, &(*comms_blocking)[i_comm]->shmem_node_blocking, 0, size_shared, &comm_code_temp);
     (*comms_blocking)[i_comm]->counter_node_blocking = 1;
     (*comms_blocking)[i_comm]->num_sockets_per_node_blocking = 1;
-    size_shared = 1024 * 1024 * 1024;
+    size_shared = 1024 * 1024 * 1024 / 8;
 #ifndef GPU_ENABLED
     ext_mpi_setup_shared_memory(&(*comms_blocking)[i_comm]->comm_row_blocking, &(*comms_blocking)[i_comm]->comm_column_blocking, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid1, &(*comms_blocking)[i_comm]->shmem_blocking1, 0, size_shared, &comm_code_temp);
     ext_mpi_setup_shared_memory(&(*comms_blocking)[i_comm]->comm_row_blocking, &(*comms_blocking)[i_comm]->comm_column_blocking, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid2, &(*comms_blocking)[i_comm]->shmem_blocking2, 0, size_shared, &comm_code_temp);

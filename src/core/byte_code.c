@@ -369,7 +369,7 @@ int ext_mpi_generate_byte_code(char **shmem,
       if (!gpu_byte_code)
         goto error;
       memset(gpu_byte_code, 0, *gpu_byte_code_counter);
-      if (shmem && shmem[0]) {
+      if (header->barrier_shmem_node) {
         ext_mpi_gpu_malloc((void **)&header->gpu_byte_code, *gpu_byte_code_counter);
       } else {
 	header->gpu_byte_code = malloc(*gpu_byte_code_counter);
@@ -639,7 +639,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   }
 #ifdef GPU_ENABLED
   if (!isdryrun && on_gpu) {
-    if (shmem && shmem[0]) {
+    if (header->barrier_shmem_node) {
       ext_mpi_gpu_memcpy_hd(header->gpu_byte_code, gpu_byte_code, *gpu_byte_code_counter);
     } else {
       memcpy(header->gpu_byte_code, gpu_byte_code, *gpu_byte_code_counter);
