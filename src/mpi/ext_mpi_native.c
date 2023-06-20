@@ -2147,7 +2147,7 @@ static void gpu_normalize_addresses(int count, void *p) {
 static void gpu_recalculate_addresses(void *p_ref, const void *sendbuf, void *recvbuf, int count, void **shmem_blocking, int count_io, int instruction, void *p_dev) {
   char *ldata, *lldata, p_temp[10000], *p1, *p2;
   long int size;
-  int num_streams, num_stream, index, count2;
+  int num_streams, num_stream, index, count2, index_max;
   switch (instruction) {
   case OPCODE_REDUCE_SUM_DOUBLE:
     count2 = sizeof(double);
@@ -2166,6 +2166,7 @@ static void gpu_recalculate_addresses(void *p_ref, const void *sendbuf, void *re
   }
   num_streams = *((int *)(p_ref + sizeof(int)));
   memcpy(p_temp, p_ref, 2 * sizeof(int) + sizeof(long int));
+  index_max = 0;
   for (num_stream = 0; num_stream < num_streams; num_stream++) {
     index = 0;
     ldata = p_ref + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int));
@@ -2183,16 +2184,8 @@ static void gpu_recalculate_addresses(void *p_ref, const void *sendbuf, void *re
         recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, (void **)&p2, (int *)&size);
         size = -size;
       }
-      if (p1) {
-        *((char **)lldata) = p1 - (char *)p_ref + (char *)p_dev;
-      } else {
-	*((char **)lldata) = NULL;
-      }
-      if (p2) {
-        *((char **)(lldata + sizeof(char *))) = p2 - (char *)p_ref + (char *)p_dev;
-      } else {
-	*((char **)(lldata + sizeof(char *))) = NULL;
-      }
+      *((char **)lldata) = p1 - (char *)p_ref + (char *)p_dev;
+      *((char **)(lldata + sizeof(char *))) = p2 - (char *)p_ref + (char *)p_dev;
       size /= count2;
       *((long int *)(lldata + 2 * sizeof(char *))) = size;
       index++;
@@ -2201,8 +2194,11 @@ static void gpu_recalculate_addresses(void *p_ref, const void *sendbuf, void *re
       p1 = *((char **)ldata);
     }
     *((char **)lldata) = NULL;
+    if (index > index_max) {
+      index_max = index;
+    }
   }
-  ext_mpi_gpu_memcpy_hd(p_dev, p_temp, 2 * sizeof(int) + sizeof(long int) + num_streams * index * (sizeof(char *) * 2 + sizeof(long int)) + 2 * sizeof(char *) + sizeof(long int));
+  ext_mpi_gpu_memcpy_hd(p_dev, p_temp, 2 * sizeof(int) + sizeof(long int) + (num_streams + 1) * index_max * (sizeof(char *) * 2 + sizeof(long int)) + 2 * sizeof(char *) + sizeof(long int));
 }
 #endif
 
