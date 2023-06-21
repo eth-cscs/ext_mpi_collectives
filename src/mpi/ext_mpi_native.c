@@ -2162,6 +2162,7 @@ static void gpu_recalculate_addresses(void *p_ref, const void *sendbuf, void *re
     count2 = sizeof(int);
     break;
   default:
+    count2 = 1;
     break;
   }
   num_streams = *((int *)(p_ref + sizeof(int)));
