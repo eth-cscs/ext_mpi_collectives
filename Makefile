@@ -13,9 +13,11 @@ SOURCES = $(wildcard src/core/*.c src/mpi/*.c src/fortran/*.c src/initial_benchm
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))
 TESTS = $(wildcard tests/*.c)
 TESTSBIN = $(subst tests,bin,$(TESTS:.c=.x))
+INITBENCHMARKS = bin/benchmark_node.x
+LIBS = -Llib -l$(LIBNAME) -lrt -lm
 
 .PHONY: all clean
-all: lib/libext_mpi_collectives.a $(TESTSBIN)
+all: lib/libext_mpi_collectives.a $(TESTSBIN) $(INITBENCHMARKS)
 
 lib/libext_mpi_collectives.a: $(OBJECTS)
 	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/fortran/*.o
@@ -34,8 +36,11 @@ node_size_threshold.tmp: latency_bandwidth/ext_mpi_nst.txt
 .deps/%.d: src/%.c node_size_threshold.tmp latency_bandwidth.tmp
 	$(COMPILE.c) $< -E > /dev/null
 
-bin/%.x: tests/%.c src/initial_benchmark/benchmark_node.c
-	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) tests/$*.c -Llib -l$(LIBNAME) -lrt -lm
+bin/%.x: tests/%.c
+	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) tests/$*.c $(LIBS)
+
+bin/benchmark_node.x: src/initial_benchmark/benchmark_node.c
+	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) src/initial_benchmark/benchmark_node.c $(LIBS)
 
 DEPFILES := $(patsubst %.c,%.d,$(subst src,$(DEPDIR),$(SOURCES)))
 $(DEPFILES):
