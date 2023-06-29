@@ -34,7 +34,7 @@ node_size_threshold.tmp: latency_bandwidth/ext_mpi_nst.txt
 .deps/%.d: src/%.c node_size_threshold.tmp latency_bandwidth.tmp
 	$(COMPILE.c) $< -E > /dev/null
 
-bin/%.x: tests/%.c
+bin/%.x: tests/%.c src/initial_benchmark/benchmark_node.c
 	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) tests/$*.c -Llib -l$(LIBNAME) -lrt -lm
 
 DEPFILES := $(patsubst %.c,%.d,$(subst src,$(DEPDIR),$(SOURCES)))
