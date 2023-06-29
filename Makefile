@@ -5,11 +5,11 @@ LIBNAME = ext_mpi_collectives
 INCLUDE = -I. -Iinclude/core -Iinclude/mpi
 
 DEPDIR := .deps
-directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(DEPDIR)/fortran; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(OBJ)/fortran; mkdir -p $(BIN); mkdir -p lib))
+directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(DEPDIR)/fortran; mkdir -p $(DEPDIR)/initial_benchmark; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(OBJ)/fortran; mkdir -p $(OBJ)/initial_benchmark; mkdir -p $(BIN); mkdir -p lib))
 
 CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DM_MAP
 
-SOURCES = $(wildcard src/core/*.c src/mpi/*.c src/fortran/*.c)
+SOURCES = $(wildcard src/core/*.c src/mpi/*.c src/fortran/*.c src/initial_benchmark/benchmark_node.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))
 TESTS = $(wildcard tests/*.c)
 TESTSBIN = $(subst tests,bin,$(TESTS:.c=.x))
