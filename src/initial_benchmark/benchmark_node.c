@@ -10,7 +10,7 @@
 #endif
 #endif
 
-#define MAX_MESSAGE_SIZE 10000000
+#define MAX_MESSAGE_SIZE 2097152/8
 #define MPI_DATA_TYPE MPI_LONG
 
 int main(int argc, char *argv[]) {
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Type_size(MPI_DATA_TYPE, &type_size);
 
-  bufsize = type_size * MAX_MESSAGE_SIZE * numprocs;
+  bufsize = type_size * MAX_MESSAGE_SIZE;
 //  bufsize = 1024*1024*1024;
 
   copyin_factors = (int*)malloc(10000 * sizeof(int));
