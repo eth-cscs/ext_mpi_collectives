@@ -96,12 +96,15 @@ static double cost_single(double msize, int nports) {
 
 double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factors, int *primes, int *ind_min) {
   double T, T_min = 1e99, m;
-  int i, j, i_min = -1;
+  int i, j, i_min = -1, max_minus;
   for (i = 0; i < num; i++) {
     T = 0e0;
     m = msize;
+    for (max_minus = 0; max_minus < factors_max[i] && factors[i][max_minus] < 0; max_minus++)
+      ;
     if (!primes[i]) {
-      T += m * 1e-8;
+      max_minus = factors_max[i];
+      T += m * 1e-8*10;
     }
     for (j = 0; j < factors_max[i]; j++) {
       if (factors[i][j] < 0) {
@@ -115,7 +118,7 @@ double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factor
       } else {
         T += 1e99;
       }
-      if (factors[i][j] > 0) {
+      if (factors[i][j] > 0 && j >= factors_max[i] - max_minus) {
         m *= factors[i][j];
       }
     }
