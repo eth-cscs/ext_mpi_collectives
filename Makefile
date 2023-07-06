@@ -5,19 +5,20 @@ LIBNAME = ext_mpi_collectives
 INCLUDE = -I. -Iinclude/core -Iinclude/mpi
 
 DEPDIR := .deps
-directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(DEPDIR)/fortran; mkdir -p $(DEPDIR)/initial_benchmark; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(OBJ)/fortran; mkdir -p $(OBJ)/initial_benchmark; mkdir -p $(BIN); mkdir -p lib))
+directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(DEPDIR)/fortran; mkdir -p $(DEPDIR)/initial_benchmark; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(OBJ)/fortran; mkdir -p $(OBJ)/initial_benchmark; mkdir -p $(BIN); mkdir -p lib; mkdir bin_tests))
 
 CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DM_MAP
 
-SOURCES = $(wildcard src/core/*.c src/mpi/*.c src/fortran/*.c src/initial_benchmark/benchmark_node.c)
+SOURCES = $(wildcard src/core/*.c src/mpi/*.c src/fortran/*.c src/initial_benchmark/*.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))
 TESTS = $(wildcard tests/*.c)
-TESTSBIN = $(subst tests,bin,$(TESTS:.c=.x))
-INITBENCHMARKS = bin/benchmark_node.x
+TESTSBIN = $(subst tests,bin_tests,$(TESTS:.c=.x))
+INITBENCHMARKS = $(wildcard src/initial_benchmark/*.c)
+INITBENCHMARKSBIN = $(subst src/initial_benchmark,bin,$(INITBENCHMARKS:.c=.x))
 LIBS = -Llib -l$(LIBNAME) -lrt -lm
 
 .PHONY: all clean
-all: lib/libext_mpi_collectives.a $(TESTSBIN) $(INITBENCHMARKS)
+all: lib/libext_mpi_collectives.a $(TESTSBIN) $(INITBENCHMARKSBIN)
 
 lib/libext_mpi_collectives.a: $(OBJECTS)
 	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/fortran/*.o
@@ -36,11 +37,11 @@ node_size_threshold.tmp: latency_bandwidth/ext_mpi_nst.txt
 .deps/%.d: src/%.c node_size_threshold.tmp latency_bandwidth.tmp
 	$(COMPILE.c) $< -E > /dev/null
 
-bin/%.x: tests/%.c
+bin_tests/%.x: tests/%.c
 	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) tests/$*.c $(LIBS)
 
-bin/benchmark_node.x: src/initial_benchmark/benchmark_node.c
-	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) src/initial_benchmark/benchmark_node.c $(LIBS)
+bin/%.x: src/initial_benchmark/%.c
+	$(CC) $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) src/initial_benchmark/$*.c $(LIBS)
 
 DEPFILES := $(patsubst %.c,%.d,$(subst src,$(DEPDIR),$(SOURCES)))
 $(DEPFILES):
@@ -51,4 +52,4 @@ obj/%.o: .deps/%.d
 	$(CC) -c $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) src/$*.c
 
 clean:
-	rm $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/gpu/*.o $(OBJ)/fortran/*.o lib/lib$(LIBNAME).a $(BIN)/* latency_bandwidth.tmp node_size_threshold.tmp
+	rm $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/gpu/*.o $(OBJ)/fortran/*.o lib/lib$(LIBNAME).a $(BIN)/* bin_tests/* latency_bandwidth.tmp node_size_threshold.tmp
