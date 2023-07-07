@@ -116,6 +116,7 @@ static struct comm_comm_blocking **comms_blocking_gpu = NULL;
   return (i);
 }*/
 
+#ifdef GPU_ENABLED
 static int gpu_is_device_pointer(void *buf) {
 #ifdef GPU_ENABLED
   if ((void *)(SEND_PTR_CPU) == buf || (void *)(RECV_PTR_CPU) == buf) return 0;
@@ -125,6 +126,7 @@ static int gpu_is_device_pointer(void *buf) {
   return 0;
 #endif
 }
+#endif
 
 static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
                                   MPI_Comm comm_column,

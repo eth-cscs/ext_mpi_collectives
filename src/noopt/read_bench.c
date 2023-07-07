@@ -30,13 +30,14 @@ static int read_bench_single(int data_set) {
   int file_input_max_raw = 0, file_input_max_per_core_raw;
   int cores, i, j;
   switch (data_set) {
-    case 0: 
+    case 0:
       get_file_input_raw_0(&file_input_max_raw, &file_input_raw);
       break;
     case 1:
       get_file_input_raw_1(&file_input_max_raw, &file_input_raw);
       break;
   }
+#include "node_size_threshold.tmp"
   file_input_max_per_core_raw =
       file_input_max_raw / file_input_raw[file_input_max_raw - 1].nports;
   distance = file_input_raw[1].msize - file_input_raw[0].msize;
@@ -140,10 +141,15 @@ void ext_mpi_switch_bench(int i) {
 int ext_mpi_read_bench() {
   int i;
   file_input = (FileData **)malloc(4 * sizeof(FileData *));
+  memset(file_input, 0, 4 * sizeof(FileData *));
   file_input_max = (int *)malloc(4 * sizeof(int));
+  memset(file_input_max, 0, 4 * sizeof(int));
   file_input_max_per_core = (int *)malloc(4 * sizeof(int));
+  memset(file_input_max_per_core, 0, 4 * sizeof(int));
   node_size_threshold_max = (int *)malloc(4 * sizeof(int));
+  memset(node_size_threshold_max, 0, 4 * sizeof(int));
   node_size_threshold = (int **)malloc(4 * sizeof(int *));
+  memset(node_size_threshold, 0, 4 * sizeof(int *));
   for (i = 0; i < 2; i++) {
     ext_mpi_switch_bench(i);
     read_bench_single(i);
