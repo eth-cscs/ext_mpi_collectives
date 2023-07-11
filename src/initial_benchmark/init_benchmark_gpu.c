@@ -3,6 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/shm.h>
+#ifdef GPU_ENABLED
+#ifdef __cplusplus
+#include <cuda_runtime.h>
+#else
+#include <cuda_runtime_api.h>
+#endif
+#endif
 
 #define CORES_PER_NODE 12
 
@@ -89,6 +96,39 @@ static int setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row,
   return 0;
 }
 
+#ifdef GPU_ENABLED
+static int gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row, int size_shared, char **shmem_gpu) {
+  struct cudaIpcMemHandle_st shmemid_gpu;
+  MPI_Comm my_comm_node_h;
+  int my_mpi_rank_row, my_mpi_size_row;
+  MPI_Comm_size(comm, &my_mpi_size_row);
+  MPI_Comm_rank(comm, &my_mpi_rank_row);
+  PMPI_Comm_split(comm, my_mpi_rank_row / my_cores_per_node_row,
+                  my_mpi_rank_row % my_cores_per_node_row, &my_comm_node_h);
+  if (my_mpi_rank_row % my_cores_per_node_row == 0) {
+    if (cudaMalloc((void *)shmem_gpu, size_shared) != 0)
+      exit(16);
+    if ((*shmem_gpu) == NULL)
+      exit(16);
+    if (cudaIpcGetMemHandle(&shmemid_gpu, (void *)((*shmem_gpu))) != 0)
+      exit(15);
+  } else {
+    *shmem_gpu = NULL;
+  }
+  MPI_Bcast(&shmemid_gpu, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, 0, my_comm_node_h);
+  MPI_Barrier(my_comm_node_h);
+  if ((*shmem_gpu) == NULL) {
+    if (cudaIpcOpenMemHandle((void *)shmem_gpu, shmemid_gpu, cudaIpcMemLazyEnablePeerAccess) != 0)
+      exit(13);
+  }
+  if ((*shmem_gpu) == NULL)
+    exit(2);
+  MPI_Barrier(my_comm_node_h);
+  PMPI_Comm_free(&my_comm_node_h);
+  return 0;
+}
+#endif
+
 int main(int argc, char **argv) {
   char *sendbuf, *recvbuf; // warn *tempbuf;
   int mpi_size, mpi_rank;
@@ -128,13 +168,23 @@ int main(int argc, char **argv) {
     //        sendcount_array[sendcount_array_max++] = i;
   }
 
+#ifdef GPU_ENABLED
+  gpu_setup_shared_memory(MPI_COMM_WORLD, CORES_PER_NODE, sendcount_array[sendcount_array_max - 1],
+                                    (void *)&sendbuf);
   setup_shared_memory(MPI_COMM_WORLD, CORES_PER_NODE, MPI_COMM_NULL, 1,
-                      sendcount_array[sendcount_array_max - 1] + NUM_BARRIERS, &shmemid,
+                      NUM_BARRIERS, &shmemid, &shmem, 0, NUM_BARRIERS);
+#else
+  setup_shared_memory(MPI_COMM_WORLD, CORES_PER_NODE, MPI_COMM_NULL, 1,
+                      sendcount_array[sendcount_array_max - 1], &shmemid,
                       &shmem, 0, NUM_BARRIERS);
-
   sendbuf = (char *)(shmem + NUM_BARRIERS);
+#endif
   //    sendbuf = malloc(sendcount_max);
+#ifdef GPU_ENABLED
+  cudaMalloc((void *)&recvbuf, sendcount_array[sendcount_array_max - 1]);
+#else
   recvbuf = (char *)malloc(sendcount_array[sendcount_array_max - 1]);
+#endif
   // warn    tempbuf = (char
   // *)malloc(sendcount_array[sendcount_array_max-1]*CORES_PER_NODE);
   parallel = 1;
