@@ -2,6 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef GPU_ENABLED
+#ifdef __cplusplus
+#include <cuda_runtime.h>
+#else
+#include <cuda_runtime_api.h>
+#endif
+#endif
 
 #define CORES_PER_NODE 12
 
@@ -45,8 +52,13 @@ int main(int argc, char **argv) {
     //        sendcount_array[sendcount_array_max++] = i;
   }
 
+#ifdef GPU_ENABLED
+  cudaMalloc((void**)&sendbuf, sendcount_array[sendcount_array_max - 1]);
+  cudaMalloc((void**)&recvbuf, sendcount_array[sendcount_array_max - 1] * CORES_PER_NODE);
+#else
   sendbuf = (char *)malloc(sendcount_array[sendcount_array_max - 1]);
   recvbuf = (char *)malloc(sendcount_array[sendcount_array_max - 1] * CORES_PER_NODE);
+#endif
   parallel = 1;
   for (cores = 1; cores <= CORES_PER_NODE; cores++) {
     for (k = 0; k < sendcount_array_max; k++) {
