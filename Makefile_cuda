@@ -6,7 +6,7 @@ LIBNAME = ext_mpi_collectives
 INCLUDE = -I. -Iinclude/core -Iinclude/mpi -Iinclude/gpu
 
 DEPDIR := .deps
-directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(DEPDIR)/fortran; mkdir -p $(DEPDIR)/initial_benchmark; mkdir -p $(DEPDIR)/noopt; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(OBJ)/fortran; mkdir -p $(OBJ)/initial_benchmark; mkdir -p $(OBJ)/noopt; mkdir -p $(BIN); mkdir -p lib; mkdir bin_tests))
+directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(DEPDIR)/fortran; mkdir -p $(DEPDIR)/initial_benchmark; mkdir -p $(DEPDIR)/noopt; mkdir -p $(DEPDIR)/gpu; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(OBJ)/fortran; mkdir -p $(OBJ)/initial_benchmark; mkdir -p $(OBJ)/noopt; mkdir -p $(OBJ)/gpu; mkdir -p $(BIN); mkdir -p lib; mkdir bin_tests))
 
 CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DM_MAP -DGPU_ENABLED
 NVCFLAGS = -g -O3 $(INCLUDE) -DDEBUG -DM_MAP -DGPU_ENABLED
