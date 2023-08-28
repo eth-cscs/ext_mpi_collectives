@@ -52,6 +52,35 @@ int ext_mpi_plain_prime_factors(int number, int *prime_factors) {
   return (k);
 }
 
+int ext_mpi_prime_factor_decomposition_array(int num, int *numbers, int *factors_count, int *factors_prime) {
+  int *primes, max_factor, i, j, k, max_number = 0;
+  for (i = 0; i < num; i++) {
+    if (numbers[num] > max_number) {
+      max_number = numbers[num];
+    }
+  }
+  primes = (int *)malloc((max_number + 2) * sizeof(int));
+  prime_rost(max_number + 1, primes);
+  max_factor = 0;
+  for (i = 2; i < max_number + 1; i++) {
+    if (primes[i]) {
+      factors_prime[max_factor++] = i;
+    }
+  }
+  for (i = 0; i < max_factor; i++) {
+    for (k = 0; k < num; k++) {
+      factors_count[i * num + k] = 0;
+      j = numbers[k];
+      while (j % factors_prime[i] == 0) {
+        j /= factors_prime[i];
+        factors_count[i * num + k]++;
+      }
+    }
+  }
+  free(primes);
+  return (max_factor);
+}
+
 static int factors_minimum_compare(const void *a, const void *b) {
   return (*(int *)a - *(int *)b);
 }
