@@ -39,7 +39,7 @@ mpicxx main.cc -Lext_mpi_path/lib -lext_mpi_collectives -o executable.x
 
 ## Benchmark
 
-When compiling the library also a benchmark is generated which serves also as example for the library's usage
+When compiling the library also a benchmark is generated which serves also as example for the library\'s usage
 
 ```
 mpirun -n 36 ./bin/benchmark.x
@@ -77,6 +77,39 @@ There is also a standalone test for automatic parameter detection of the *allred
 
 ```
 ./bin/simulate.x
+```
+
+## CMake
+
+- Required before running cmake:
+
+```
+./minclude.sh latency_bandwidth/ext_mpi_bm.txt > latency_bandwidth.tmp
+cat latency_bandwidth/ext_mpi_nst.txt > node_size_threshold.tmp
+```
+
+- Build libext_mpi_collectives.a with CMake:
+
+```
+cmake -B build -S ext_mpi_collectives.git \
+-DBUILD_TESTING=ON
+
+cmake --build build -j
+# cmake --build build -t help
+# cmake --build build -t test_waitany.x -v
+cmake --install build --prefix myinstalldir
+# -- Installing: ./myinstalldir/lib/libext_mpi_collectives.a
+```
+
+### CMake + CUDA
+
+- Build with:
+
+```
+cmake -B build+cuda -S ext_mpi_collectives.git \
+    -DBUILD_TESTING=ON -DCMAKE_CUDA_ARCHITECTURES=80
+cmake --build build+cuda -j
+cmake --install build+cuda --prefix myinstalldir
 ```
 
 ## Literature
