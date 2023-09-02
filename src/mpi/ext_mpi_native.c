@@ -2708,42 +2708,16 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
   }
   switch (collective_type) {
     case collective_type_allreduce:
-      j = (*comms_blocking)[i_comm]->mpi_size_blocking / (*comms_blocking)[i_comm]->num_cores_blocking;
-      if ((*comms_blocking)[i_comm]->num_cores_blocking > j) {
-	j = (*comms_blocking)[i_comm]->num_cores_blocking;
-      }
-      j = (*comms_blocking)[i_comm]->mpi_size_blocking;
-      j = CACHE_LINE_SIZE;
-j = count;
-j = (*comms_blocking)[i_comm]->mpi_size_blocking * CACHE_LINE_SIZE;
-/*      if (count * type_size > CACHE_LINE_SIZE) {
-        handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 0, bit, 0, arecursive, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor);
-      } else {
-        handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), 1, datatype, op, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 0, bit, 0, arecursive, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor);
-        padding_factor = 1;
-      }*/
+      j = (*comms_blocking)[i_comm]->mpi_size_blocking * CACHE_LINE_SIZE;
       handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 0, bit, 0, arecursive, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor);
       numbers = (int *)malloc(1024 * 1024 * sizeof(int));
       j_ = exec_padding(comm_code[handle], (char *)(send_ptr), (char *)(recv_ptr), NULL, numbers);
       j_ = ext_mpi_prime_factor_padding(j_, numbers);
       padding_factor = ext_mpi_padding_factor(j_, comm);
-//padding_factor = 1;
       free(numbers);
       for (i = 0; (*comms_blocking)[i_comm]->comm_code_allreduce_blocking[i]; i++)
         ;
-      (*comms_blocking)[i_comm]->padding_factor_allreduce_blocking[i] = j_ / padding_factor;
-/*      if (count * type_size > CACHE_LINE_SIZE) {
-	add_blocking_member(count, datatype, handle, (*comms_blocking)[i_comm]->comm_code_allreduce_blocking, (*comms_blocking)[i_comm]->count_allreduce_blocking, j / padding_factor, comm, 1, &((*comms_blocking)[i_comm]->send_pointers_allreduce_blocking[i]));
-      } else {
-	add_blocking_member(count, datatype, handle, (*comms_blocking)[i_comm]->comm_code_allreduce_blocking, (*comms_blocking)[i_comm]->count_allreduce_blocking, 1, comm, 1, &((*comms_blocking)[i_comm]->send_pointers_allreduce_blocking[i]));
-      }*/
-//printf("ppppp %d %d %d %d\n", j, count, type_size, padding_factor);
-//exit(15);
-//      add_blocking_member(count, datatype, handle, (*comms_blocking)[i_comm]->comm_code_allreduce_blocking, (*comms_blocking)[i_comm]->count_allreduce_blocking, count * type_size / padding_factor, comm, 1, &((*comms_blocking)[i_comm]->send_pointers_allreduce_blocking[i]));
-MPI_Comm_rank(comm, &j_);
-if (j_ == 0) {
-printf("j / padding_factor %d %d %d %d\n", j, padding_factor, recursive, arecursive);
-}
+      (*comms_blocking)[i_comm]->padding_factor_allreduce_blocking[i] = j / padding_factor;
       add_blocking_member(count, datatype, handle, (*comms_blocking)[i_comm]->comm_code_allreduce_blocking, (*comms_blocking)[i_comm]->count_allreduce_blocking, padding_factor, comm, 1, &((*comms_blocking)[i_comm]->send_pointers_allreduce_blocking[i]));
     break;
     case collective_type_reduce_scatter_block:
