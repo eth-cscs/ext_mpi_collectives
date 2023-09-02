@@ -36,7 +36,7 @@ int ext_mpi_prime_factor_decomposition(int number,
       factors[i].count++;
     }
   }
-  return (max_factor);
+  return max_factor;
 }
 
 int ext_mpi_plain_prime_factors(int number, int *prime_factors) {
@@ -49,14 +49,14 @@ int ext_mpi_plain_prime_factors(int number, int *prime_factors) {
     }
   }
   prime_factors[k] = 0;
-  return (k);
+  return k;
 }
 
-int ext_mpi_prime_factor_decomposition_array(int num, int *numbers, int *factors_count, int *factors_prime) {
+static int prime_factor_decomposition_array(int num, int *numbers, int *factors_prime, int *factors_count) {
   int *primes, max_factor, i, j, k, max_number = 0;
   for (i = 0; i < num; i++) {
-    if (numbers[num] > max_number) {
-      max_number = numbers[num];
+    if (numbers[i] > max_number) {
+      max_number = numbers[i];
     }
   }
   primes = (int *)malloc((max_number + 2) * sizeof(int));
@@ -78,7 +78,32 @@ int ext_mpi_prime_factor_decomposition_array(int num, int *numbers, int *factors
     }
   }
   free(primes);
-  return (max_factor);
+  return max_factor;
+}
+
+int ext_mpi_prime_factor_padding(int num, int *numbers) {
+  int *factors_prime, *factors_count, max_number = 0, i, j, ret = 1, max_factor;
+  for (i = 0; i < num; i++) {
+    if (numbers[i] > max_number) {
+      max_number = numbers[i];
+    }
+  }
+  factors_prime = (int *)malloc((max_number + 2) * sizeof(int));
+  factors_count = (int *)malloc((max_number + 2) * num * sizeof(int));
+  max_factor = prime_factor_decomposition_array(num, numbers, factors_prime, factors_count);
+  for (i = 0; i < max_factor; i++) {
+    for (j = 1; j < num; j++) {
+      if (factors_count[i * num + j] < factors_count[i * num]) {
+	factors_count[i * num] = factors_count[i * num + j];
+      }
+    }
+    for (j = 0; j < factors_count[i * num]; j++) {
+      ret *= factors_prime[i];
+    }
+  }
+  free(factors_count);
+  free(factors_prime);
+  return ret;
 }
 
 static int factors_minimum_compare(const void *a, const void *b) {
@@ -103,7 +128,7 @@ int ext_mpi_factors_minimum(int number, int factor_min, int *factors) {
   if (factors_max >= 2) {
     qsort(factors, factors_max, sizeof(int), factors_minimum_compare_reverse);
   }
-  return (factors_max);
+  return factors_max;
 }
 
 int ext_mpi_factor_sqrt(int number) {
@@ -116,7 +141,7 @@ int ext_mpi_factor_sqrt(int number) {
       factors[i] = factors[i + 1];
     }
   }
-  return (factors[0]);
+  return factors[0];
 }
 
 int ext_mpi_greatest_common_divisor(int divisor1, int divisor2) {
