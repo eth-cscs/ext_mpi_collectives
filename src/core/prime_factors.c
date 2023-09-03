@@ -1,6 +1,7 @@
 #include "prime_factors.h"
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 static void prime_rost(int max_number, int *primes) {
   int i, j;
@@ -18,16 +19,26 @@ static void prime_rost(int max_number, int *primes) {
 
 int ext_mpi_prime_factor_decomposition(int number,
                                       struct prime_factors *factors) {
-  int primes[number + 2], max_factor, i, j;
-  for (i = 0; i < number + 1; i++) {
-    factors[i].count = factors[i].prime = 0;
+  int *primes, max_factor = 0, i, j;
+  primes = (int*)malloc((abs(number) + 2) * sizeof(int));
+  if (number < 0) {
+    prime_rost(abs(number) + 1, primes);
+    for (i = 2; i < abs(number) + 1; i++) {
+      if (primes[i]) {
+        max_factor++;
+      }
+    }
+    free(primes);
+    return max_factor;
   }
   prime_rost(number + 1, primes);
-  max_factor = 0;
   for (i = 2; i < number + 1; i++) {
     if (primes[i]) {
       factors[max_factor++].prime = i;
     }
+  }
+  for (i = 0; i < max_factor; i++) {
+    factors[i].count = 0;
   }
   for (i = 0; i < max_factor; i++) {
     j = number;
@@ -36,6 +47,7 @@ int ext_mpi_prime_factor_decomposition(int number,
       factors[i].count++;
     }
   }
+  free(primes);
   return max_factor;
 }
 
@@ -53,27 +65,28 @@ int ext_mpi_plain_prime_factors(int number, int *prime_factors) {
 }
 
 static int prime_factor_decomposition_array(int num, int *numbers, int *factors_prime, int *factors_count) {
-  int *primes, max_factor, i, j, k, max_number = 0;
-  for (i = 0; i < num; i++) {
+  int *primes, max_factor = 0, i, j, k, max_number = 0;
+  for (i = 0; i < abs(num); i++) {
     if (numbers[i] > max_number) {
       max_number = numbers[i];
     }
   }
   primes = (int *)malloc((max_number + 2) * sizeof(int));
   prime_rost(max_number + 1, primes);
-  max_factor = 0;
   for (i = 2; i < max_number + 1; i++) {
     if (primes[i]) {
       factors_prime[max_factor++] = i;
     }
   }
-  for (i = 0; i < max_factor; i++) {
-    for (k = 0; k < num; k++) {
-      factors_count[i * num + k] = 0;
-      j = numbers[k];
-      while (j % factors_prime[i] == 0) {
-        j /= factors_prime[i];
-        factors_count[i * num + k]++;
+  if (num > 0) {
+    for (i = 0; i < max_factor; i++) {
+      for (k = 0; k < num; k++) {
+        factors_count[i * num + k] = 0;
+        j = numbers[k];
+        while (j % factors_prime[i] == 0) {
+          j /= factors_prime[i];
+          factors_count[i * num + k]++;
+	}
       }
     }
   }
@@ -83,13 +96,23 @@ static int prime_factor_decomposition_array(int num, int *numbers, int *factors_
 
 int ext_mpi_prime_factor_padding(int num, int *numbers) {
   int *factors_prime, *factors_count, max_number = 0, i, j, ret = 1, max_factor;
+  if (num == 0) {
+    return 1;
+  }
   for (i = 0; i < num; i++) {
     if (numbers[i] > max_number) {
       max_number = numbers[i];
     }
+    if (numbers[i] <= 0) {
+      printf("negative or zero factor in prime factor decomposition\n");
+      exit(1);
+    }
   }
   factors_prime = (int *)malloc((max_number + 2) * sizeof(int));
-  factors_count = (int *)malloc((max_number + 2) * num * sizeof(int));
+  max_factor = prime_factor_decomposition_array(-num, numbers, factors_prime, NULL);
+  free(factors_prime);
+  factors_prime = (int *)malloc((max_factor + 2) * sizeof(int));
+  factors_count = (int *)malloc((max_factor + 2) * num * sizeof(int));
   max_factor = prime_factor_decomposition_array(num, numbers, factors_prime, factors_count);
   for (i = 0; i < max_factor; i++) {
     for (j = 1; j < num; j++) {

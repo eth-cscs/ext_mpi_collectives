@@ -2708,7 +2708,13 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
   }
   switch (collective_type) {
     case collective_type_allreduce:
-      j = (*comms_blocking)[i_comm]->mpi_size_blocking * CACHE_LINE_SIZE;
+      j = (*comms_blocking)[i_comm]->mpi_size_blocking / (*comms_blocking)[i_comm]->num_cores_blocking * count;
+      if (count > (*comms_blocking)[i_comm]->mpi_size_blocking / (*comms_blocking)[i_comm]->num_cores_blocking && count % (*comms_blocking)[i_comm]->mpi_size_blocking / (*comms_blocking)[i_comm]->num_cores_blocking == 0) {
+	j = count;
+      }
+      if (count < (*comms_blocking)[i_comm]->mpi_size_blocking / (*comms_blocking)[i_comm]->num_cores_blocking && (*comms_blocking)[i_comm]->mpi_size_blocking / (*comms_blocking)[i_comm]->num_cores_blocking % count == 0) {
+	j = (*comms_blocking)[i_comm]->mpi_size_blocking / (*comms_blocking)[i_comm]->num_cores_blocking;
+      }
       handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 12, copyin, copyin_factors, 0, bit, 0, arecursive, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor);
       numbers = (int *)malloc(1024 * 1024 * sizeof(int));
       j_ = exec_padding(comm_code[handle], (char *)(send_ptr), (char *)(recv_ptr), NULL, numbers);
