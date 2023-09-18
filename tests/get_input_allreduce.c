@@ -24,12 +24,13 @@ int main(int argc, char *argv[]) {
   printf("%s\n", " PARAMETER SOCKET_RANK 0");
   printf("%s\n", " PARAMETER SOCKET_ROW_SIZE 4");
   printf("%s\n", " PARAMETER SOCKET_COLUMN_SIZE 1");
+  printf("%s\n", " PARAMETER COPYIN_FACTORS 1 2 2");
   printf("%s", " PARAMETER COUNTS");
   for (i = 0; i < 1; i++) {
     printf(" %d", counts[i]);
   }
   printf("\n");
-  printf("%s\n", " PARAMETER NUM_PORTS 2(-1) 4(1 1) 2(1)");
+  printf("%s\n", " PARAMETER NUM_PORTS 8(-1 1 1 1)");
   printf("%s", " PARAMETER MESSAGE_SIZE");
   for (i = 0; i < 8; i++) {
     printf(" %d", msizes[i]);
