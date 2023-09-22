@@ -1,0 +1,14 @@
+ext_mpi_node_size_threshold_max=12;
+ext_mpi_node_size_threshold=(int *)malloc(12*sizeof(int));
+ext_mpi_node_size_threshold[11]=3072;
+ext_mpi_node_size_threshold[10]=3072;
+ext_mpi_node_size_threshold[9]=3072;
+ext_mpi_node_size_threshold[8]=3072;
+ext_mpi_node_size_threshold[7]=3072;
+ext_mpi_node_size_threshold[6]=1536;
+ext_mpi_node_size_threshold[5]=1536;
+ext_mpi_node_size_threshold[4]=1536;
+ext_mpi_node_size_threshold[3]=1536;
+ext_mpi_node_size_threshold[2]=384;
+ext_mpi_node_size_threshold[1]=12;
+ext_mpi_node_size_threshold[0]=0;
