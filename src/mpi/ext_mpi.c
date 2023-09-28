@@ -6,6 +6,7 @@
 #include "ext_mpi.h"
 #include "constants.h"
 #include "ext_mpi_native.h"
+#include "ext_mpi_blocking.h"
 #include "read_write.h"
 #include "read_bench.h"
 #include "cost_simple_recursive.h"
@@ -2494,7 +2495,8 @@ int EXT_MPI_Done(int handle) {
 }
 
 static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
-  int comm_size_row, comm_rank_row, i, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, j, k, factors_max_max = -1, *factors_max, **factors, *primes, mpi_size;
+  int comm_size_row, comm_rank_row, i, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, j, k, factors_max_max = -1, *factors_max, **factors, *primes;
+// int mpi_size;
   double d1;
   struct cost_list *p1, *p2;
 //  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 1048576, 2097152};
