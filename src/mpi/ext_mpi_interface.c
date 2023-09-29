@@ -5,6 +5,7 @@
 #include "hash_table.h"
 #include "hash_table_blocking.h"
 #include "ext_mpi.h"
+#include "ext_mpi_blocking.h"
 #include "ext_mpi_interface.h"
 
 int ext_mpi_is_blocking = 0;

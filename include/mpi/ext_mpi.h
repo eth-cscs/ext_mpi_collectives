@@ -14,6 +14,11 @@ extern int ext_mpi_bit_identical;
 extern int ext_mpi_bit_reproducible;
 extern int ext_mpi_minimum_computation;
 
+int ext_mpi_get_num_tasks_per_socket(MPI_Comm comm);
+int ext_mpi_is_rank_zero(MPI_Comm comm_row, MPI_Comm comm_column);
+void ext_mpi_set_ports_single_node(int ext_mpi_num_sockets_per_node, int num_sockets_per_node, int *num_ports, int *groups);
+void ext_mpi_revert_num_ports(int *num_ports, int *groups);
+
 int EXT_MPI_Init();
 int EXT_MPI_Initialized(int *flag);
 int EXT_MPI_Finalize();
@@ -100,13 +105,6 @@ int EXT_MPI_Test(int handle);
 int EXT_MPI_Progress();
 int EXT_MPI_Wait(int handle);
 int EXT_MPI_Done(int handle);
-
-int EXT_MPI_Init_blocking_comm(MPI_Comm comm, int i_comm);
-int EXT_MPI_Finalize_blocking_comm(int i_comm);
-
-int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, int i_comm);
-int EXT_MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, int reduction_op, int i_comm);
-int EXT_MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm, int i_comm);
 
 #ifdef __cplusplus
 }
