@@ -30,7 +30,6 @@ int ext_mpi_verbose = 0;
 int *ext_mpi_fixed_factors_ports = NULL;
 int *ext_mpi_fixed_factors_groups = NULL;
 int ext_mpi_new_factors_heuristic = 0;
-int ext_mpi_copyin_method = -1;
 int ext_mpi_not_recursive = 0;
 
 static int num_tasks_per_socket = 0;
@@ -77,16 +76,6 @@ static int read_env() {
     }
   }
   MPI_Bcast(&ext_mpi_verbose, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (mpi_comm_rank == 0) {
-    var = ((c = getenv("EXT_MPI_COPYIN_METHOD")) != NULL);
-    if (var) {
-      ext_mpi_copyin_method = c[0]-'0';
-      if (ext_mpi_verbose) {
-        printf("# EXT_MPI copy in method %d\n", ext_mpi_copyin_method);
-      }
-    }
-  }
-  MPI_Bcast(&ext_mpi_copyin_method, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_ALTERNATING")) != NULL);
     if (var) {
@@ -747,7 +736,7 @@ static int reduce_scatter_init_general(
     MPI_Op op, MPI_Comm comm_row, int my_cores_per_node_row,
     MPI_Comm comm_column, int my_cores_per_node_column, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount, acount,
-      i, alt, group_size, copyin_method_ = -1, *copyin_factors = NULL, num_sockets_per_node;
+      i, alt, group_size, copyin_method = -1, *copyin_factors = NULL, num_sockets_per_node;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(datatype, &type_size);
@@ -807,25 +796,6 @@ static int reduce_scatter_init_general(
       groups[i] = ext_mpi_fixed_factors_groups[i];
     } while (ext_mpi_fixed_factors_ports[i]);
   }
-  if (ext_mpi_copyin_method < 0) {
-    rcount = 0;
-    for (i = 0; i < comm_size_row; i++) {
-      rcount += recvcounts[i];
-    }
-#ifdef GPU_ENABLED
-    if ((rcount * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
-#else
-    if ((rcount * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && ext_mpi_blocking) {
-#endif
-      ext_mpi_copyin_method = 3;
-    } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
-      ext_mpi_copyin_method = (rcount * type_size >
-                              ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
-    } else {
-      ext_mpi_copyin_method = (rcount * type_size >
-                              ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
-    }
-  }
   alt = 0;
   if (alternating >= 1) {
     alt = alternating - 1;
@@ -865,14 +835,14 @@ static int reduce_scatter_init_general(
     EXT_MPI_Allreduce_measurement(
         sendbuf, recvbuf, acount, datatype, op, comm_row, &my_cores_per_node_row,
         comm_column, my_cores_per_node_column,
-        my_cores_per_node_row * my_cores_per_node_column, &copyin_method_, copyin_factors, &num_sockets_per_node);
+        my_cores_per_node_row * my_cores_per_node_column, &copyin_method, copyin_factors, &num_sockets_per_node);
     ext_mpi_set_ports_single_node(ext_mpi_num_sockets_per_node, num_sockets_per_node, num_ports, groups);
   }
   *handle = EXT_MPI_Reduce_scatter_init_native(
       sendbuf, recvbuf, recvcounts, datatype, op, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
       groups, my_cores_per_node_row * my_cores_per_node_column,
-      copyin_method_, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
+      copyin_method, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -1019,7 +989,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
                                  MPI_Comm comm_column,
                                  int my_cores_per_node_column, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount,
-                     i, j, k, alt, group_size;
+                     i, j, k, alt, group_size, copyin_method = -1;
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Type_size(sendtype, &type_size);
@@ -1076,19 +1046,6 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
     num_ports[j] = num_ports[i - 1 - j];
     num_ports[i - 1 - j] = k;
   }
-  if (ext_mpi_copyin_method < 0) {
-    rcount = 0;
-    for (i = 0; i < comm_size_row; i++) {
-      rcount += sendcounts[i];
-    }
-    if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
-      ext_mpi_copyin_method = (rcount * type_size >
-                              ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
-    } else {
-      ext_mpi_copyin_method = (rcount * type_size >
-                              ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
-    }
-  }
   alt = 0;
   if (alternating >= 1) {
     alt = alternating - 1;
@@ -1119,7 +1076,7 @@ static int scatterv_init_general(const void *sendbuf, const int *sendcounts, con
       sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
       root, comm_row, my_cores_per_node_row, comm_column,
       my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, ext_mpi_copyin_method, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
+      my_cores_per_node_row * my_cores_per_node_column, copyin_method, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -1217,7 +1174,7 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_row, int my_cores_per_node_row,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, j, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, factors_max_max = 0, *factors_max, **factors, *primes;
+  int comm_size_row, comm_rank_row, i, j, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method, *copyin_factors = NULL, num_sockets_per_node, factors_max_max = 0, *factors_max, **factors, *primes;
   double d1;
   struct cost_list *p1, *p2;
   struct {
@@ -1421,21 +1378,6 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
       groups[i] = ext_mpi_fixed_factors_groups[i];
     } while (ext_mpi_fixed_factors_ports[i]);
   }
-  if (ext_mpi_copyin_method < 0) {
-#ifdef GPU_ENABLED
-    if ((count * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
-#else
-    if ((count * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && ext_mpi_blocking) {
-#endif
-      ext_mpi_copyin_method = 3;
-    } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
-      ext_mpi_copyin_method = (count * type_size >
-                              ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
-    } else {
-      ext_mpi_copyin_method =
-          (count * type_size > ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
-    }
-  }
   alt = 0;
   if (alternating >= 1) {
     alt = alternating - 1;
@@ -1468,12 +1410,12 @@ static int allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
   EXT_MPI_Allreduce_measurement(
       sendbuf, recvbuf, count, datatype, op, comm_row, &my_cores_per_node_row,
       comm_column, my_cores_per_node_column,
-      my_cores_per_node_row * my_cores_per_node_column, &copyin_method_, copyin_factors, &num_sockets_per_node);
+      my_cores_per_node_row * my_cores_per_node_column, &copyin_method, copyin_factors, &num_sockets_per_node);
   ext_mpi_set_ports_single_node(ext_mpi_num_sockets_per_node, num_sockets_per_node, num_ports, groups);
   *handle = EXT_MPI_Allreduce_init_native(
       sendbuf, recvbuf, count, datatype, op, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, copyin_method_, copyin_factors, alt,
+      my_cores_per_node_row * my_cores_per_node_column, copyin_method, copyin_factors, alt,
       ext_mpi_bit_identical, !ext_mpi_bit_reproducible, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
@@ -1675,7 +1617,7 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_row, int my_cores_per_node_row,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors, num_sockets_per_node;
+  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method, *copyin_factors, num_sockets_per_node;
   double d1;
   char *str;
   struct cost_list *p1, *p2;
@@ -1790,21 +1732,6 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       groups[i] = ext_mpi_fixed_factors_groups[i];
     } while (ext_mpi_fixed_factors_ports[i]);
   }
-  if (ext_mpi_copyin_method < 0) {
-#ifdef GPU_ENABLED
-    if ((count * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
-#else
-    if ((count * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && ext_mpi_blocking) {
-#endif
-      ext_mpi_copyin_method = 3;
-    } else if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
-      ext_mpi_copyin_method = (count * type_size >
-                              ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
-    } else {
-      ext_mpi_copyin_method =
-          (count * type_size > ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
-    }
-  }
   alt = 0;
   if (alternating >= 1) {
     alt = alternating - 1;
@@ -1835,11 +1762,11 @@ static int reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   EXT_MPI_Allreduce_measurement(
       sendbuf, recvbuf, count, datatype, op, comm_row, &my_cores_per_node_row,
       comm_column, my_cores_per_node_column,
-      my_cores_per_node_row * my_cores_per_node_column, &copyin_method_, copyin_factors, &num_sockets_per_node);
+      my_cores_per_node_row * my_cores_per_node_column, &copyin_method, copyin_factors, &num_sockets_per_node);
   *handle = EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, my_cores_per_node_row * my_cores_per_node_column, copyin_method_, copyin_factors, alt,
+      groups, my_cores_per_node_row * my_cores_per_node_column, copyin_method, copyin_factors, alt,
       0, !ext_mpi_bit_reproducible, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
@@ -1993,7 +1920,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
                               int root, MPI_Comm comm_row,
                               int my_cores_per_node_row, MPI_Comm comm_column,
                               int my_cores_per_node_column, int *handle) {
-  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors, num_sockets_per_node;
+  int comm_size_row, comm_rank_row, i, alt, comm_size_column, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method, *copyin_factors, num_sockets_per_node;
   double d1;
   char *str;
   struct cost_list *p1, *p2;
@@ -2138,15 +2065,6 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
       groups[i] = ext_mpi_fixed_factors_groups[i];
     } while (ext_mpi_fixed_factors_ports[i]);
   }
-  if (ext_mpi_copyin_method < 0) {
-    if (my_cores_per_node_row > ext_mpi_node_size_threshold_max) {
-      ext_mpi_copyin_method = (count * type_size >
-                              ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
-    } else {
-      ext_mpi_copyin_method =
-          (count * type_size > ext_mpi_node_size_threshold[my_cores_per_node_row - 1]);
-    }
-  }
   alt = 0;
   if (alternating >= 1) {
     alt = alternating - 1;
@@ -2177,11 +2095,11 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   EXT_MPI_Allreduce_measurement(
       buffer, buffer, count, datatype, MPI_OP_NULL, comm_row, &my_cores_per_node_row,
       comm_column, my_cores_per_node_column,
-      my_cores_per_node_row * my_cores_per_node_column, &copyin_method_, copyin_factors, &num_sockets_per_node);
+      my_cores_per_node_row * my_cores_per_node_column, &copyin_method, copyin_factors, &num_sockets_per_node);
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, copyin_method_, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL);
+      my_cores_per_node_row * my_cores_per_node_column, copyin_method, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);

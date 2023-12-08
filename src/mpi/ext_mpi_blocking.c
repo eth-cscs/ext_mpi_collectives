@@ -30,7 +30,6 @@ extern int ext_mpi_minimum_computation;
 extern int *ext_mpi_fixed_factors_ports;
 extern int *ext_mpi_fixed_factors_groups;
 extern int ext_mpi_new_factors_heuristic;
-extern int ext_mpi_copyin_method;
 extern int ext_mpi_not_recursive;
 
 static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
@@ -211,21 +210,6 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
         num_ports[i] = ext_mpi_fixed_factors_ports[i];
         groups[i] = ext_mpi_fixed_factors_groups[i];
       } while (ext_mpi_fixed_factors_ports[i]);
-    }
-    if (ext_mpi_copyin_method < 0) {
-#ifdef GPU_ENABLED
-      if ((counts[j] * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && !ext_mpi_gpu_is_device_pointer(recvbuf) && ext_mpi_blocking) {
-#else
-      if ((counts[j] * type_size <= CACHE_LINE_SIZE - OFFSET_FAST) && ext_mpi_blocking) {
-#endif
-        ext_mpi_copyin_method = 3;
-      } else if (my_cores_per_node > ext_mpi_node_size_threshold_max) {
-        ext_mpi_copyin_method = (counts[j] * type_size >
-                                ext_mpi_node_size_threshold[ext_mpi_node_size_threshold_max - 1]);
-      } else {
-        ext_mpi_copyin_method =
-            (counts[j] * type_size > ext_mpi_node_size_threshold[my_cores_per_node - 1]);
-      }
     }
     if (comm_size_row / my_cores_per_node > 1){
       group_size=1;

@@ -7,14 +7,10 @@
 
 FileData *ext_mpi_file_input = NULL;
 int ext_mpi_file_input_max = 0, ext_mpi_file_input_max_per_core = 0;
-int ext_mpi_node_size_threshold_max = 0;
-int *ext_mpi_node_size_threshold = NULL;
 
 static int bench_selection = -1;
 static FileData **file_input = NULL;
 static int *file_input_max = NULL, *file_input_max_per_core = NULL;
-static int *node_size_threshold_max = NULL;
-static int **node_size_threshold = NULL;
 
 static void get_file_input_raw_0(int *file_input_max_raw, FileData **file_input_raw) {
 #include "latency_bandwidth.tmp"
@@ -37,7 +33,6 @@ static int read_bench_single(int data_set) {
       get_file_input_raw_1(&file_input_max_raw, &file_input_raw);
       break;
   }
-#include "node_size_threshold.tmp"
   file_input_max_per_core_raw =
       file_input_max_raw / file_input_raw[file_input_max_raw - 1].nports;
   distance = file_input_raw[1].msize - file_input_raw[0].msize;
@@ -118,7 +113,6 @@ error:
 
 static int delete_bench_single() {
   free(ext_mpi_file_input);
-  free(ext_mpi_node_size_threshold);
   return 0;
 }
 
@@ -127,14 +121,10 @@ void ext_mpi_switch_bench(int i) {
     file_input[bench_selection] = ext_mpi_file_input;
     file_input_max[bench_selection] = ext_mpi_file_input_max;
     file_input_max_per_core[bench_selection] = ext_mpi_file_input_max_per_core;
-    node_size_threshold_max[bench_selection] = ext_mpi_node_size_threshold_max;
-    node_size_threshold[bench_selection] = ext_mpi_node_size_threshold;
   }
   ext_mpi_file_input = file_input[i];
   ext_mpi_file_input_max = file_input_max[i];
   ext_mpi_file_input_max_per_core = file_input_max_per_core[i];
-  ext_mpi_node_size_threshold_max = node_size_threshold_max[i];
-  ext_mpi_node_size_threshold = node_size_threshold[i];
   bench_selection = i;
 }
 
@@ -146,10 +136,6 @@ int ext_mpi_read_bench() {
   memset(file_input_max, 0, 4 * sizeof(int));
   file_input_max_per_core = (int *)malloc(4 * sizeof(int));
   memset(file_input_max_per_core, 0, 4 * sizeof(int));
-  node_size_threshold_max = (int *)malloc(4 * sizeof(int));
-  memset(node_size_threshold_max, 0, 4 * sizeof(int));
-  node_size_threshold = (int **)malloc(4 * sizeof(int *));
-  memset(node_size_threshold, 0, 4 * sizeof(int *));
   for (i = 0; i < 2; i++) {
     ext_mpi_switch_bench(i);
     read_bench_single(i);
@@ -163,8 +149,6 @@ int ext_mpi_delete_bench() {
     ext_mpi_switch_bench(i);
     delete_bench_single();
   }
-  free(node_size_threshold);
-  free(node_size_threshold_max);
   free(file_input_max_per_core);
   free(file_input_max);
   free(file_input);
