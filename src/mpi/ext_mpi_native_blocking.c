@@ -562,7 +562,7 @@ static long int exec_padding_address(void *p, void *sendbuf, void *recvbuf, void
 static int exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, int *numbers_padding) {
   char instruction;
   void *p1, *p2;
-  int i1, i2, num_padding = 0;
+  int i1, num_padding = 0;
 #ifdef GPU_ENABLED
   char instruction2;
 #endif
@@ -585,7 +585,7 @@ static int exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, in
     case OPCODE_MPIIRECV:
       p1 = code_get_pointer(&ip);
       i1 = code_get_int(&ip);
-      i2 = code_get_int(&ip);
+      code_get_int(&ip);
       if (i1 > 0) numbers_padding[num_padding++] = i1;
       i1 = exec_padding_address(p1, sendbuf, recvbuf, shmem);
       if (i1 > 0) numbers_padding[num_padding++] = i1;
@@ -594,7 +594,7 @@ static int exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, in
     case OPCODE_MPIISEND:
       p1 = code_get_pointer(&ip);
       i1 = code_get_int(&ip);
-      i2 = code_get_int(&ip);
+      code_get_int(&ip);
       if (i1 > 0) numbers_padding[num_padding++] = i1;
       i1 = exec_padding_address(p1, sendbuf, recvbuf, shmem);
       if (i1 > 0) numbers_padding[num_padding++] = i1;
