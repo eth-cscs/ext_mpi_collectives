@@ -55,7 +55,7 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
     for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
       if ((data.blocks[data.num_blocks - 1].lines[i].sendto_node[j] == -1) &&
           (parameters->socket == parameters->root / parameters->socket_row_size)) {
-        values[data.num_blocks - 1][i] = 1;
+        values[data.num_blocks - 1][i] = 2;
       }
     }
   }
@@ -92,34 +92,6 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
   if (j < 0)
     goto error;
   for (i = data.num_blocks - 1; i >= 0; i--) {
-    l = 0;
-    for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
-      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto_node[k] != parameters->socket) {
-          MPI_Irecv(&recv_values[j][data.blocks[i].lines[j].sendto_node[k]], 1, MPI_INT,
-                    data.blocks[i].lines[j].sendto_node[k] * parameters->socket_row_size +
-                        parameters->socket_rank % parameters->socket_row_size,
-                    0, comm_row, &request[l++]);
-        }
-      }
-    }
-    for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
-      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
-        if (data.blocks[i].lines[j].recvfrom_node[k] == parameters->socket) {
-          if ((data.blocks[i].lines[j].recvfrom_line[k] < j) && (data.blocks[i].lines[j].recvfrom_line[k] >= 0)) {
-            if (values[i][j]) {
-              values[i][data.blocks[i].lines[j].recvfrom_line[k]] = 1;
-            }
-          }
-        } else {
-          MPI_Isend(&values[i][j], 1, MPI_INT,
-                    data.blocks[i].lines[j].recvfrom_node[k] * parameters->socket_row_size +
-                        parameters->socket_rank % parameters->socket_row_size,
-                    0, comm_row, &request[l++]);
-        }
-      }
-    }
-    PMPI_Waitall(l, request, MPI_STATUSES_IGNORE);
     if (i < data.num_blocks - 1) {
       for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
         if (j < data.blocks[i + 1].num_lines) {
@@ -129,14 +101,103 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
         }
       }
     }
+    for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
+      for (k = 0; k < data.blocks[i].lines[j].reducefrom_max; k++) {
+	if (values[i][data.blocks[i].lines[j].reducefrom[k]]) {
+//	  values[i][j] = 1;
+        }
+      }
+      if (values[i][j]) {
+        for (k = 0; k < data.blocks[i].lines[j].reducefrom_max; k++) {
+	  if (!values[i][data.blocks[i].lines[j].reducefrom[k]]) {
+	    values[i][data.blocks[i].lines[j].reducefrom[k]] = 1;
+	  }
+        }
+        for (k = 0; k < data.blocks[i].lines[j].copyreducefrom_max; k++) {
+	  if (!values[i][data.blocks[i].lines[j].copyreducefrom[k]]) {
+	    values[i][data.blocks[i].lines[j].copyreducefrom[k]] = 1;
+	  }
+	  if (i > 0) values[i - 1][j] = 0;
+        }
+      }
+    }
+    if (i < data.num_blocks - 1 && i > 0) {
+      l = 0;
+      for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
+        for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+          if (data.blocks[i].lines[j].sendto_node[k] != parameters->socket) {
+            MPI_Irecv(&recv_values[j][data.blocks[i].lines[j].sendto_node[k]], 1, MPI_INT,
+                      data.blocks[i].lines[j].sendto_node[k] * parameters->socket_row_size +
+                          parameters->socket_rank % parameters->socket_row_size,
+                      0, comm_row, &request[l++]);
+          }
+        }
+      }
+      for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
+        for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+          if (data.blocks[i].lines[j].recvfrom_node[k] == parameters->socket) {
+	    printf("logical error backward_interpreter\n");
+	    exit(1);
+          } else {
+            MPI_Isend(&values[i][j], 1, MPI_INT,
+                      data.blocks[i].lines[j].recvfrom_node[k] * parameters->socket_row_size +
+                          parameters->socket_rank % parameters->socket_row_size,
+                      0, comm_row, &request[l++]);
+          }
+        }
+      }
+      PMPI_Waitall(l, request, MPI_STATUSES_IGNORE);
+    }
+    if (i < data.num_blocks - 1 && i > 0) {
+      for (j = 0; j < data.blocks[i].num_lines; j++) {
+        for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+          if (data.blocks[i].lines[j].sendto_node[k] != parameters->socket && data.blocks[i].lines[j].sendto_node[k] >= 0) {
+            if (recv_values[j][data.blocks[i].lines[j].sendto_node[k]]) {
+              values[i][j] = 2;
+            } else {
+              data.blocks[i].lines[j].sendto_max--;
+	      for (l = k; l < data.blocks[i].lines[j].sendto_max; l++) {
+	        data.blocks[i].lines[j].sendto_node[l] = data.blocks[i].lines[j].sendto_node[l + 1];
+	      }
+	      k--;
+            }
+          } else {
+	    printf("logical error backward_interpreter\n");
+	    exit(1);
+	  }
+        }
+      }
+    }
+/*    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      for (k = 0; k < data.blocks[i].lines[j].reducefrom_max; k++) {
+	if (values[i][data.blocks[i].lines[j].reducefrom[k]]) {
+//	  values[i][j] = 1;
+        }
+      }
+      if (values[i][j]) {
+        for (k = 0; k < data.blocks[i].lines[j].reducefrom_max; k++) {
+	  if (!values[i][data.blocks[i].lines[j].reducefrom[k]]) {
+	    values[i][data.blocks[i].lines[j].reducefrom[k]] = 1;
+	  }
+        }
+        for (k = 0; k < data.blocks[i].lines[j].copyreducefrom_max; k++) {
+	  if (!values[i][data.blocks[i].lines[j].copyreducefrom[k]]) {
+	    values[i][data.blocks[i].lines[j].copyreducefrom[k]] = 1;
+	  }
+	  if (i > 0) values[i - 1][j] = 0;
+        }
+      }
+    }*/
     for (j = 0; j < data.blocks[i].num_lines; j++) {
-      if (!values[i][j]) {
+      if (values[i][j] < 2) {
         if (data.blocks[i].lines[j].sendto_max > 0) {
           free(data.blocks[i].lines[j].sendto_node);
           free(data.blocks[i].lines[j].sendto_line);
           data.blocks[i].lines[j].sendto_node = data.blocks[i].lines[j].sendto_line = NULL;
           data.blocks[i].lines[j].sendto_max = 0;
         }
+      }
+      if (!values[i][j]) {
         if (data.blocks[i].lines[j].recvfrom_max > 0) {
           free(data.blocks[i].lines[j].recvfrom_node);
           free(data.blocks[i].lines[j].recvfrom_line);
@@ -144,48 +205,15 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
           data.blocks[i].lines[j].recvfrom_line = NULL;
           data.blocks[i].lines[j].recvfrom_max = 0;
         }
-      }
-    }
-    for (j = 0; j < data.blocks[i].num_lines; j++) {
-      if (!values[i][j]) {
-        if (data.blocks[i].lines[j].reducefrom_max > 0 && data.blocks[i].lines[j].copyreducefrom_max == 0) {
-          data.blocks[i].lines[j].copyreducefrom_max = data.blocks[i].lines[j].reducefrom_max;
-          free(data.blocks[i].lines[j].copyreducefrom);
-          data.blocks[i].lines[j].copyreducefrom = data.blocks[i].lines[j].reducefrom;
-          data.blocks[i].lines[j].reducefrom_max = 0;
-          data.blocks[i].lines[j].reducefrom = NULL;
-          values[i][j] = 1;
-        }
-      }
-      if (values[i][j]) {
-        for (k = 0; k < data.blocks[i].lines[j].reducefrom_max; k++) {
-          if (!values[i][data.blocks[i].lines[j].reducefrom[k]]) {
-            data.blocks[i].lines[j].reducefrom_max--;
-            for (l = k; l < data.blocks[i].lines[j].reducefrom_max; l++) {
-              data.blocks[i].lines[j].reducefrom[l] = data.blocks[i].lines[j].reducefrom[l + 1];
-            }
-            k = -1;
-          }
-        }
-        if (data.blocks[i].lines[j].reducefrom_max == 0) {
+        if (data.blocks[i].lines[j].reducefrom_max > 0) {
           free(data.blocks[i].lines[j].reducefrom);
           data.blocks[i].lines[j].reducefrom = NULL;
+	  data.blocks[i].lines[j].reducefrom_max = 0;
         }
         if (data.blocks[i].lines[j].copyreducefrom_max > 0) {
-          for (k = 0; k < data.blocks[i].lines[j].copyreducefrom_max; k++) {
-            if (!values[i][data.blocks[i].lines[j].copyreducefrom[k]]) {
-              data.blocks[i].lines[j].copyreducefrom_max--;
-              for (l = k; l < data.blocks[i].lines[j].copyreducefrom_max; l++) {
-                data.blocks[i].lines[j].copyreducefrom[l] = data.blocks[i].lines[j].copyreducefrom[l + 1];
-              }
-              k = -1;
-            }
-          }
-          if (data.blocks[i].lines[j].copyreducefrom_max == 0) {
-            free(data.blocks[i].lines[j].copyreducefrom);
-            data.blocks[i].lines[j].copyreducefrom = NULL;
-            values[i][j] = 0;
-          }
+          free(data.blocks[i].lines[j].copyreducefrom);
+          data.blocks[i].lines[j].copyreducefrom = NULL;
+	  data.blocks[i].lines[j].copyreducefrom_max = 0;
         }
       }
     }

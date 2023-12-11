@@ -8,7 +8,7 @@
 
 int ext_mpi_generate_reduce_scatter_single_node(char *buffer_in, char *buffer_out) {
   struct line_memcpy_reduce data_memcpy_reduce;
-  int *moffsets = NULL, i, type_size = 1, nbuffer_in = 0, nbuffer_out = 0;
+  int *moffsets = NULL, i, nbuffer_in = 0, nbuffer_out = 0;
   struct data_algorithm data;
   struct parameters_block *parameters;
   data.num_blocks = 0;
@@ -17,23 +17,6 @@ int ext_mpi_generate_reduce_scatter_single_node(char *buffer_in, char *buffer_ou
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
-  switch (parameters->data_type) {
-  case data_type_char:
-    type_size = sizeof(char);
-    break;
-  case data_type_int:
-    type_size = sizeof(int);
-    break;
-  case data_type_float:
-    type_size = sizeof(float);
-    break;
-  case data_type_long_int:
-    type_size = sizeof(long int);
-    break;
-  case data_type_double:
-    type_size = sizeof(double);
-    break;
-  }
   nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;

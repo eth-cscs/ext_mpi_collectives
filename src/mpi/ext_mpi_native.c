@@ -104,11 +104,6 @@ struct comm_comm_blocking {
   void *p_dev_temp;
 };
 
-static struct comm_comm_blocking **comms_blocking = NULL;
-#ifdef GPU_ENABLED
-static struct comm_comm_blocking **comms_blocking_gpu = NULL;
-#endif
-
 /*static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
   PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (comm_column != MPI_COMM_NULL) {
@@ -1231,10 +1226,12 @@ buffer2 = buffer_temp;
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
-    goto error;
-  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
-    goto error;
+  if (root > -10) {
+    if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
+      goto error;
+    if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
+      goto error;
+  }
   if (num_sockets_per_node > 1) {
     if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column) < 0)
       goto error;

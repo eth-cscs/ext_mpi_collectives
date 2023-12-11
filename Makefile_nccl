@@ -30,10 +30,7 @@ COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(TARGET_ARCH) -c
 latency_bandwidth.tmp: minclude.sh latency_bandwidth/ext_mpi_bm.txt
 	./minclude.sh latency_bandwidth/ext_mpi_bm.txt > latency_bandwidth.tmp
 
-node_size_threshold.tmp: latency_bandwidth/ext_mpi_nst.txt
-	cat latency_bandwidth/ext_mpi_nst.txt > node_size_threshold.tmp
-
-.deps/%.d: src/%.c node_size_threshold.tmp latency_bandwidth.tmp
+.deps/%.d: src/%.c latency_bandwidth.tmp
 	$(COMPILE.c) $< -E > /dev/null
 
 bin/%.x: tests/%.c
@@ -51,4 +48,4 @@ obj/%.o: .deps/%.d
 	$(CC) -c $(CFLAGS) $(TARGET_ARCH) $(OUTPUT_OPTION) src/$*.c
 
 clean:
-	rm $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/gpu/*.o lib/lib$(LIBNAME).a $(BIN)/* latency_bandwidth.tmp node_size_threshold.tmp
+	rm $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/gpu/*.o lib/lib$(LIBNAME).a $(BIN)/* latency_bandwidth.tmp

@@ -301,12 +301,12 @@ int ext_mpi_generate_byte_code(char **shmem,
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-      ascii, num_cores, socket_rank, num_sockets_per_node, vector_length, i;
+      ascii, num_cores, socket_rank, num_sockets_per_node, i;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
   char *gpu_byte_code = NULL;
-  int on_gpu, reduce, isend = 1, added = 0;
+  int on_gpu, reduce, isend = 1, added = 0, vector_length;
   struct gpu_stream *streams = NULL;
   void *p1, *p2;
 #endif
@@ -315,11 +315,11 @@ int ext_mpi_generate_byte_code(char **shmem,
   ascii = parameters->ascii_in;
 #ifdef GPU_ENABLED
   on_gpu = parameters->on_gpu;
+  vector_length = parameters->counts[0];
 #endif
   num_cores = parameters->socket_row_size*parameters->socket_column_size;
   socket_rank = parameters->socket_rank;
   num_sockets_per_node = parameters->num_sockets_per_node;
-  vector_length = parameters->counts[0];
   ext_mpi_delete_parameters(parameters);
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
