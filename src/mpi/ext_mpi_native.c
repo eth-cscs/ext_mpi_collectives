@@ -1226,10 +1226,12 @@ buffer2 = buffer_temp;
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
-    goto error;
-  if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
-    goto error;
+  if (root > -10) {
+    if (ext_mpi_generate_optimise_buffers(buffer2, buffer1) < 0)
+      goto error;
+    if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
+      goto error;
+  }
   if (num_sockets_per_node > 1) {
     if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column) < 0)
       goto error;

@@ -114,11 +114,8 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
         if (data.blocks[i].lines[j].recvfrom_node[k] == parameters->socket) {
-          if ((data.blocks[i].lines[j].recvfrom_line[k] < j) && (data.blocks[i].lines[j].recvfrom_line[k] >= 0)) {
-            if (values[i][j]) {
-              values[i][data.blocks[i].lines[j].recvfrom_line[k]] = 1;
-            }
-          }
+	  printf("logical error forward_interpreter\n");
+	  exit(1);
         } else {
           MPI_Irecv(&recv_values[j][data.blocks[i].lines[j].recvfrom_node[k]], 1, MPI_INT,
                     data.blocks[i].lines[j].recvfrom_node[k] * parameters->socket_row_size +
@@ -134,15 +131,20 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
                     data.blocks[i].lines[j].sendto_node[k] * parameters->socket_row_size +
                         parameters->socket_rank % parameters->socket_row_size,
                     0, comm_row, &request[l++]);
-        }
+        } else {
+	  printf("logical error forward_interpreter\n");
+	  exit(1);
+	}
       }
     }
     PMPI_Waitall(l, request, MPI_STATUSES_IGNORE);
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
-        if (data.blocks[i].lines[j].recvfrom_node[k] != parameters->socket) {
+        if (data.blocks[i].lines[j].recvfrom_node[k] != parameters->socket && data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
           if (recv_values[j][data.blocks[i].lines[j].recvfrom_node[k]]) {
-            values[i][j] = 1;
+            values[i][j] = 2;
+          } else {
+            values[i][j] = 0;
           }
         }
       }
@@ -155,6 +157,8 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
 	  data.blocks[i].lines[j].sendto_node = data.blocks[i].lines[j].sendto_line = NULL;
  	  data.blocks[i].lines[j].sendto_max = 0;
         }
+      }
+      if (values[i][j] < 2) {
 	if (data.blocks[i].lines[j].recvfrom_max > 0) {
 	  free(data.blocks[i].lines[j].recvfrom_node);
 	  free(data.blocks[i].lines[j].recvfrom_line);
