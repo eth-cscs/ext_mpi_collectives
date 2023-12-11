@@ -1173,18 +1173,6 @@ buffer2 = buffer_temp;
 buffer_temp = buffer1;
 buffer1 = buffer2;
 buffer2 = buffer_temp;
-  if ((root >= 0) || (root <= -10)) {
-    if (root >= 0) {
-      if (ext_mpi_generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)
-        goto error;
-    } else {
-      if (ext_mpi_generate_forward_interpreter(buffer2, buffer1, comm_row) < 0)
-        goto error;
-    }
-    buffer_temp = buffer1;
-    buffer1 = buffer2;
-    buffer2 = buffer_temp;
-  }
   if (my_cores_per_node_row * my_cores_per_node_column > 1) {
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(recvbuf)) {
@@ -1198,6 +1186,18 @@ buffer2 = buffer_temp;
   }
 #endif
   } else {
+    buffer_temp = buffer1;
+    buffer1 = buffer2;
+    buffer2 = buffer_temp;
+  }
+  if (my_mpi_size_row / my_cores_per_node_row > 1 && ((root >= 0) || (root <= -10))) {
+    if (root >= 0) {
+      if (ext_mpi_generate_backward_interpreter(buffer1, buffer2, comm_row) < 0)
+        goto error;
+    } else {
+      if (ext_mpi_generate_forward_interpreter(buffer1, buffer2, comm_row) < 0)
+        goto error;
+    }
     buffer_temp = buffer1;
     buffer1 = buffer2;
     buffer2 = buffer_temp;

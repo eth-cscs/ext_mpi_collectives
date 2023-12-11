@@ -1443,10 +1443,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     }
   }
   num_sockets_per_node = ext_mpi_num_sockets_per_node;
-  EXT_MPI_Allreduce_measurement(
-      buffer, buffer, count, datatype, MPI_OP_NULL, comm_row, &my_cores_per_node_row,
-      comm_column, my_cores_per_node_column,
-      my_cores_per_node_row * my_cores_per_node_column, &copyin_method, copyin_factors, &num_sockets_per_node);
+  copyin_method = 0;
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,

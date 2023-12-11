@@ -8,7 +8,7 @@
 int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
                                  MPI_Comm comm_row) {
   int **values = NULL, **recv_values = NULL, max_lines;
-  int nbuffer_out = 0, nbuffer_in = 0, i, j, k, l;
+  int nbuffer_out = 0, nbuffer_in = 0, partner, i, j, k, l;
   struct data_algorithm data;
   struct parameters_block *parameters;
   MPI_Request *request = NULL;
@@ -53,13 +53,12 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
   }
   for (i = 0; i < data.blocks[0].num_lines; i++) {
     for (j = 0; j < data.blocks[0].lines[i].recvfrom_max; j++) {
-      k = parameters->socket == parameters->root / parameters->socket_row_size;
+      k = parameters->socket == parameters->root;
       if (parameters->root <= -10) {
-        k = parameters->socket ==
-            (-10 - parameters->root) / parameters->socket_row_size;
+        k = parameters->socket == (-10 - parameters->root);
       }
       if ((data.blocks[0].lines[i].recvfrom_node[j] == -1) && k) {
-        values[0][i] = 1;
+        values[0][i] = 2;
       }
     }
   }
@@ -88,7 +87,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
   }
   j = 0;
   for (i = 0; i < max_lines; i++) {
-    recv_values[i] = (int *)malloc(sizeof(int) * parameters->num_sockets);
+    recv_values[i] = (int *)malloc(sizeof(int) * parameters->num_sockets * parameters->socket_row_size);
     if (!recv_values[i])
       j = ERROR_MALLOC;
   }
@@ -110,41 +109,43 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
 	}
       }
     }
-    l = 0;
-    for (j = 0; j < data.blocks[i].num_lines; j++) {
-      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
-        if (data.blocks[i].lines[j].recvfrom_node[k] == parameters->socket) {
-	  printf("logical error forward_interpreter\n");
-	  exit(1);
-        } else {
-          MPI_Irecv(&recv_values[j][data.blocks[i].lines[j].recvfrom_node[k]], 1, MPI_INT,
-                    data.blocks[i].lines[j].recvfrom_node[k] * parameters->socket_row_size +
-                        parameters->socket_rank % parameters->socket_row_size,
-                    0, comm_row, &request[l++]);
+    if (i > 0 && i < data.num_blocks - 1) {
+      l = 0;
+      for (j = 0; j < data.blocks[i].num_lines; j++) {
+        for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+	  partner = data.blocks[i].lines[j].recvfrom_node[k];
+          if (partner <= -10) partner = -data.blocks[i].lines[j].recvfrom_node[k] - 10;
+          if (partner / parameters->socket_row_size == parameters->socket) {
+	    printf("logical error 1 forward_interpreter\n");
+	    exit(1);
+          } else {
+            MPI_Irecv(&recv_values[j][partner], 1, MPI_INT, partner, 0, comm_row, &request[l++]);
+          }
         }
       }
-    }
-    for (j = 0; j < data.blocks[i].num_lines; j++) {
-      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-        if (data.blocks[i].lines[j].sendto_node[k] != parameters->socket) {
-          MPI_Isend(&values[i][j], 1, MPI_INT,
-                    data.blocks[i].lines[j].sendto_node[k] * parameters->socket_row_size +
-                        parameters->socket_rank % parameters->socket_row_size,
-                    0, comm_row, &request[l++]);
-        } else {
-	  printf("logical error forward_interpreter\n");
-	  exit(1);
-	}
-      }
-    }
-    PMPI_Waitall(l, request, MPI_STATUSES_IGNORE);
-    for (j = 0; j < data.blocks[i].num_lines; j++) {
-      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
-        if (data.blocks[i].lines[j].recvfrom_node[k] != parameters->socket && data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
-          if (recv_values[j][data.blocks[i].lines[j].recvfrom_node[k]]) {
-            values[i][j] = 2;
+      for (j = 0; j < data.blocks[i].num_lines; j++) {
+        for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+	  partner = data.blocks[i].lines[j].sendto_node[k];
+          if (partner <= -10) partner = -data.blocks[i].lines[j].sendto_node[k] - 10;
+          if (partner / parameters->socket_row_size != parameters->socket) {
+            MPI_Isend(&values[i][j], 1, MPI_INT, partner, 0, comm_row, &request[l++]);
           } else {
-            values[i][j] = 0;
+	    printf("logical error 2 forward_interpreter\n");
+	    exit(1);
+	  }
+        }
+      }
+      PMPI_Waitall(l, request, MPI_STATUSES_IGNORE);
+      for (j = 0; j < data.blocks[i].num_lines; j++) {
+        for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+	  partner = data.blocks[i].lines[j].recvfrom_node[k];
+          if (partner <= -10) partner = -data.blocks[i].lines[j].recvfrom_node[k] - 10;
+          if (partner != parameters->socket / parameters->socket_row_size && data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+            if (recv_values[j][partner]) {
+              values[i][j] = 2;
+            } else {
+              values[i][j] = 0;
+            }
           }
         }
       }

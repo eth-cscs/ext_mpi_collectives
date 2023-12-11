@@ -8,7 +8,7 @@
 int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
                                   MPI_Comm comm_row) {
   int **values = NULL, **recv_values = NULL, max_lines;
-  int nbuffer_out = 0, nbuffer_in = 0, i, j, k, l;
+  int nbuffer_out = 0, nbuffer_in = 0, partner, i, j, k, l;
   struct data_algorithm data;
   struct parameters_block *parameters;
   MPI_Request *request = NULL;
@@ -54,7 +54,7 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
   for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
     for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
       if ((data.blocks[data.num_blocks - 1].lines[i].sendto_node[j] == -1) &&
-          (parameters->socket == parameters->root / parameters->socket_row_size)) {
+          (parameters->socket == parameters->root)) {
         values[data.num_blocks - 1][i] = 2;
       }
     }
@@ -84,7 +84,7 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
   }
   j = 0;
   for (i = 0; i < max_lines; i++) {
-    recv_values[i] = (int *)malloc(sizeof(int) * parameters->num_sockets);
+    recv_values[i] = (int *)malloc(sizeof(int) * parameters->num_sockets * parameters->socket_row_size);
     if (!recv_values[i])
       j = ERROR_MALLOC;
   }
@@ -126,23 +126,21 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
       for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
         for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
           if (data.blocks[i].lines[j].sendto_node[k] != parameters->socket) {
-            MPI_Irecv(&recv_values[j][data.blocks[i].lines[j].sendto_node[k]], 1, MPI_INT,
-                      data.blocks[i].lines[j].sendto_node[k] * parameters->socket_row_size +
-                          parameters->socket_rank % parameters->socket_row_size,
-                      0, comm_row, &request[l++]);
+	    partner = data.blocks[i].lines[j].sendto_node[k];
+	    if (partner <= -10) partner = -data.blocks[i].lines[j].sendto_node[k] - 10;
+            MPI_Irecv(&recv_values[j][partner], 1, MPI_INT, partner, 0, comm_row, &request[l++]);
           }
         }
       }
       for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
         for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
-          if (data.blocks[i].lines[j].recvfrom_node[k] == parameters->socket) {
-	    printf("logical error backward_interpreter\n");
+	  partner = data.blocks[i].lines[j].recvfrom_node[k];
+	  if (partner <= -10) partner = -data.blocks[i].lines[j].recvfrom_node[k] - 10;
+          if (partner / parameters->socket_row_size == parameters->socket) {
+	    printf("logical error 1 backward_interpreter\n");
 	    exit(1);
           } else {
-            MPI_Isend(&values[i][j], 1, MPI_INT,
-                      data.blocks[i].lines[j].recvfrom_node[k] * parameters->socket_row_size +
-                          parameters->socket_rank % parameters->socket_row_size,
-                      0, comm_row, &request[l++]);
+            MPI_Isend(&values[i][j], 1, MPI_INT, partner, 0, comm_row, &request[l++]);
           }
         }
       }
@@ -151,8 +149,10 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
     if (i < data.num_blocks - 1 && i > 0) {
       for (j = 0; j < data.blocks[i].num_lines; j++) {
         for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
-          if (data.blocks[i].lines[j].sendto_node[k] != parameters->socket && data.blocks[i].lines[j].sendto_node[k] >= 0) {
-            if (recv_values[j][data.blocks[i].lines[j].sendto_node[k]]) {
+	  partner = data.blocks[i].lines[j].sendto_node[k];
+	  if (partner <= -10) partner = -data.blocks[i].lines[j].sendto_node[k] - 10;
+          if (partner / parameters->socket_row_size != parameters->socket && partner >= 0) {
+            if (recv_values[j][partner]) {
               values[i][j] = 2;
             } else {
               data.blocks[i].lines[j].sendto_max--;
@@ -162,7 +162,7 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
 	      k--;
             }
           } else {
-	    printf("logical error backward_interpreter\n");
+	    printf("logical error 2 backward_interpreter\n");
 	    exit(1);
 	  }
         }
