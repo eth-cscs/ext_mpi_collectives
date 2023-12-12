@@ -1217,7 +1217,6 @@ buffer2 = buffer_temp;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-//if (my_node == 0 && my_lrank_node == 0) printf("%s\n", buffer1);
   if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
   /*
@@ -1277,7 +1276,7 @@ buffer2 = buffer_temp;
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  if (recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
+  if (root > -10 && recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
     if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
