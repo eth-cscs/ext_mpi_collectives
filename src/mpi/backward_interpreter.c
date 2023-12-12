@@ -8,7 +8,7 @@
 int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
                                   MPI_Comm comm_row) {
   int **values = NULL, **recv_values = NULL, max_lines;
-  int nbuffer_out = 0, nbuffer_in = 0, partner, i, j, k, l;
+  int nbuffer_out = 0, nbuffer_in = 0, partner, i, j, k, l = -1;
   struct data_algorithm data;
   struct parameters_block *parameters;
   MPI_Request *request = NULL;
@@ -127,20 +127,18 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
         for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
           if (data.blocks[i].lines[j].sendto_node[k] != parameters->socket) {
 	    partner = data.blocks[i].lines[j].sendto_node[k];
-	    if (partner <= -10) partner = -data.blocks[i].lines[j].sendto_node[k] - 10;
-            MPI_Irecv(&recv_values[j][partner], 1, MPI_INT, partner, 0, comm_row, &request[l++]);
+            MPI_Irecv(&recv_values[j][partner], 1, MPI_INT, partner * parameters->socket_row_size + parameters->socket_rank, 0, comm_row, &request[l++]);
           }
         }
       }
       for (j = data.blocks[i].num_lines - 1; j >= 0; j--) {
         for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
 	  partner = data.blocks[i].lines[j].recvfrom_node[k];
-	  if (partner <= -10) partner = -data.blocks[i].lines[j].recvfrom_node[k] - 10;
-          if (partner / parameters->socket_row_size == parameters->socket) {
+          if (partner == parameters->socket) {
 	    printf("logical error 1 backward_interpreter\n");
 	    exit(1);
           } else {
-            MPI_Isend(&values[i][j], 1, MPI_INT, partner, 0, comm_row, &request[l++]);
+            MPI_Isend(&values[i][j], 1, MPI_INT, partner * parameters->socket_row_size + parameters->socket_rank, 0, comm_row, &request[l++]);
           }
         }
       }
@@ -150,16 +148,16 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
       for (j = 0; j < data.blocks[i].num_lines; j++) {
         for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
 	  partner = data.blocks[i].lines[j].sendto_node[k];
-	  if (partner <= -10) partner = -data.blocks[i].lines[j].sendto_node[k] - 10;
-          if (partner / parameters->socket_row_size != parameters->socket && partner >= 0) {
+          if (partner != parameters->socket && partner >= 0) {
             if (recv_values[j][partner]) {
               values[i][j] = 2;
             } else {
-              data.blocks[i].lines[j].sendto_max--;
+	      data.blocks[i].lines[j].sendto_node[k] = -10 - data.blocks[i].lines[j].sendto_node[k];
+/*              data.blocks[i].lines[j].sendto_max--;
 	      for (l = k; l < data.blocks[i].lines[j].sendto_max; l++) {
 	        data.blocks[i].lines[j].sendto_node[l] = data.blocks[i].lines[j].sendto_node[l + 1];
 	      }
-	      k--;
+	      k--;*/
             }
           } else {
 	    printf("logical error 2 backward_interpreter\n");
@@ -189,21 +187,24 @@ int ext_mpi_generate_backward_interpreter(char *buffer_in, char *buffer_out,
       }
     }*/
     for (j = 0; j < data.blocks[i].num_lines; j++) {
-      if (values[i][j] < 2) {
+/*      if (values[i][j] < 2) {
         if (data.blocks[i].lines[j].sendto_max > 0) {
           free(data.blocks[i].lines[j].sendto_node);
           free(data.blocks[i].lines[j].sendto_line);
           data.blocks[i].lines[j].sendto_node = data.blocks[i].lines[j].sendto_line = NULL;
           data.blocks[i].lines[j].sendto_max = 0;
         }
-      }
+      }*/
       if (!values[i][j]) {
         if (data.blocks[i].lines[j].recvfrom_max > 0) {
-          free(data.blocks[i].lines[j].recvfrom_node);
+	  for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+	    data.blocks[i].lines[j].recvfrom_node[k] = -10 - data.blocks[i].lines[j].recvfrom_node[k];
+	  }
+/*          free(data.blocks[i].lines[j].recvfrom_node);
           free(data.blocks[i].lines[j].recvfrom_line);
           data.blocks[i].lines[j].recvfrom_node = NULL;
           data.blocks[i].lines[j].recvfrom_line = NULL;
-          data.blocks[i].lines[j].recvfrom_max = 0;
+          data.blocks[i].lines[j].recvfrom_max = 0;*/
         }
         if (data.blocks[i].lines[j].reducefrom_max > 0) {
           free(data.blocks[i].lines[j].reducefrom);

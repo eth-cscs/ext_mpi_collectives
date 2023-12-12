@@ -61,7 +61,11 @@ int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_ou
           if (node_rank == 0 || node == data.blocks[i].lines[j].sendto_node[k]) {
             data.blocks[i].lines[j].sendto_node[k] = data.blocks[i].lines[j].sendto_node[k] * node_size + node_rank;
           } else {
-            data.blocks[i].lines[j].sendto_node[k] = -10 - (data.blocks[i].lines[j].sendto_node[k] * node_size + node_rank);
+	    if (data.blocks[i].lines[j].sendto_node[k] >= 0) {
+              data.blocks[i].lines[j].sendto_node[k] = -10 - (data.blocks[i].lines[j].sendto_node[k] * node_size + node_rank);
+	    } else {
+              data.blocks[i].lines[j].sendto_node[k] = -10 - ((-10 - data.blocks[i].lines[j].sendto_node[k]) * node_size + node_rank);
+	    }
           }
         }
       }
@@ -71,8 +75,11 @@ int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_ou
             data.blocks[i].lines[j].recvfrom_node[k] =
                 data.blocks[i].lines[j].recvfrom_node[k] * node_size + node_rank;
           } else {
-            data.blocks[i].lines[j].recvfrom_node[k] =
-                -10 - (data.blocks[i].lines[j].recvfrom_node[k] * node_size + node_rank);
+	    if (data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+              data.blocks[i].lines[j].recvfrom_node[k] = -10 - (data.blocks[i].lines[j].recvfrom_node[k] * node_size + node_rank);
+	    } else {
+              data.blocks[i].lines[j].recvfrom_node[k] = -10 - ((-10 - data.blocks[i].lines[j].recvfrom_node[k]) * node_size + node_rank);
+	    }
           }
         }
       }

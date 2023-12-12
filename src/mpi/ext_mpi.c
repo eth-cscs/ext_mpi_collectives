@@ -1407,7 +1407,6 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   char *str;
   MPI_Comm_size(comm_row, &comm_size_row);
   MPI_Comm_rank(comm_row, &comm_rank_row);
-  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
   MPI_Type_size(datatype, &type_size);
   message_size = type_size * count;
   if (comm_column != MPI_COMM_NULL) {
@@ -1444,6 +1443,7 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   }
   num_sockets_per_node = ext_mpi_num_sockets_per_node;
   copyin_method = 0;
+  copyin_factors = NULL;
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm_row, my_cores_per_node_row,
       comm_column, my_cores_per_node_column, num_ports, groups,
@@ -1452,12 +1452,10 @@ static int bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     goto error;
   free(groups);
   free(num_ports);
-  free(copyin_factors);
   return 0;
 error:
   free(groups);
   free(num_ports);
-  free(copyin_factors);
   return ERROR_MALLOC;
 }
 
@@ -1488,7 +1486,7 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     if (!buffer_ref_hh)
       goto error;
     for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
-      ((long int *)buffer_hh)[i] = world_rankd * count + i;
+      ((long int *)buffer_hh)[i] = world_rankd * count + i + 73;
     }
     ext_mpi_gpu_memcpy_hd(buffer_ref, buffer_hh, count * type_size);
     MPI_Bcast(buffer_hh, count, MPI_LONG, root, comm_row);
@@ -1520,7 +1518,7 @@ int EXT_MPI_Bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     memcpy(buffer_org, buffer, count * type_size);
     for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
       ((long int *)buffer_ref)[i] = ((long int *)buffer)[i] =
-          world_rankd * count + i + 1000;
+          world_rankd * count + i + 1073;
     }
     MPI_Bcast(buffer_ref, count, datatype, root, comm_row);
     if (bcast_init_general(buffer, count, datatype, root, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, handle) < 0)
