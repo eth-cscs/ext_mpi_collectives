@@ -8,7 +8,7 @@
 int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_out) {
   int *nodes_recv = NULL, *nodes_send = NULL, node_rank, node_row_size = 1,
       node_column_size = 1, node_size;
-  int node, num_nodes;
+  int num_nodes;
   int nbuffer_out = 0, nbuffer_in = 0, i, j, k;
   struct data_algorithm data;
   struct parameters_block *parameters;
@@ -18,7 +18,6 @@ int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_ou
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
-  node = parameters->socket;
   num_nodes = parameters->num_sockets;
   node_rank = parameters->socket_rank;
   node_row_size = parameters->socket_row_size;
@@ -58,8 +57,12 @@ int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_ou
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
         if (data.blocks[i].lines[j].sendto_node[k] != -1) {
-          if (node_rank == 0 || node == data.blocks[i].lines[j].sendto_node[k]) {
-            data.blocks[i].lines[j].sendto_node[k] = data.blocks[i].lines[j].sendto_node[k] * node_size + node_rank;
+          if (node_rank == 0) {
+	    if (data.blocks[i].lines[j].sendto_node[k] >= 0) {
+              data.blocks[i].lines[j].sendto_node[k] = data.blocks[i].lines[j].sendto_node[k] * node_size + node_rank;
+	    } else {
+              data.blocks[i].lines[j].sendto_node[k] = -10 - ((-10 - data.blocks[i].lines[j].sendto_node[k]) * node_size + node_rank);
+	    }
           } else {
 	    if (data.blocks[i].lines[j].sendto_node[k] >= 0) {
               data.blocks[i].lines[j].sendto_node[k] = -10 - (data.blocks[i].lines[j].sendto_node[k] * node_size + node_rank);
@@ -71,9 +74,12 @@ int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_ou
       }
       for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
         if (data.blocks[i].lines[j].recvfrom_node[k] != -1) {
-          if (node_rank == 0 || node == data.blocks[i].lines[j].recvfrom_node[k]) {
-            data.blocks[i].lines[j].recvfrom_node[k] =
-                data.blocks[i].lines[j].recvfrom_node[k] * node_size + node_rank;
+          if (node_rank == 0) {
+	    if (data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+              data.blocks[i].lines[j].recvfrom_node[k] = data.blocks[i].lines[j].recvfrom_node[k] * node_size + node_rank;
+	    } else {
+              data.blocks[i].lines[j].recvfrom_node[k] = -10 - ((-10 - data.blocks[i].lines[j].recvfrom_node[k]) * node_size + node_rank);
+	    }
           } else {
 	    if (data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
               data.blocks[i].lines[j].recvfrom_node[k] = -10 - (data.blocks[i].lines[j].recvfrom_node[k] * node_size + node_rank);

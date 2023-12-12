@@ -51,14 +51,22 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
       values[i][j] = 0;
     }
   }
+  k = parameters->socket == parameters->root;
+  if (parameters->root <= -10) {
+    k = parameters->socket == (-10 - parameters->root);
+  }
   for (i = 0; i < data.blocks[0].num_lines; i++) {
     for (j = 0; j < data.blocks[0].lines[i].recvfrom_max; j++) {
-      k = parameters->socket == parameters->root;
-      if (parameters->root <= -10) {
-        k = parameters->socket == (-10 - parameters->root);
-      }
-      if ((data.blocks[0].lines[i].recvfrom_node[j] == -1) && k) {
-        values[0][i] = 2;
+      if (data.blocks[0].lines[i].recvfrom_node[j] == -1) {
+        if (k) {
+          values[0][i] = 2;
+        } else {
+	  free(data.blocks[0].lines[i].recvfrom_node);
+	  free(data.blocks[0].lines[i].recvfrom_line);
+	  data.blocks[0].lines[i].recvfrom_node = NULL;
+	  data.blocks[0].lines[i].recvfrom_line = NULL;
+	  data.blocks[0].lines[i].recvfrom_max = 0;
+        }
       }
     }
   }
@@ -114,21 +122,19 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
       for (j = 0; j < data.blocks[i].num_lines; j++) {
         for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
 	  partner = data.blocks[i].lines[j].recvfrom_node[k];
-          if (partner <= -10) partner = -data.blocks[i].lines[j].recvfrom_node[k] - 10;
-          if (partner / parameters->socket_row_size == parameters->socket) {
+          if (partner == parameters->socket) {
 	    printf("logical error 1 forward_interpreter\n");
 	    exit(1);
           } else {
-            MPI_Irecv(&recv_values[j][partner], 1, MPI_INT, partner, 0, comm_row, &request[l++]);
+            MPI_Irecv(&recv_values[j][partner], 1, MPI_INT, partner * parameters->socket_row_size + parameters->socket_rank, 0, comm_row, &request[l++]);
           }
         }
       }
       for (j = 0; j < data.blocks[i].num_lines; j++) {
         for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
 	  partner = data.blocks[i].lines[j].sendto_node[k];
-          if (partner <= -10) partner = -data.blocks[i].lines[j].sendto_node[k] - 10;
-          if (partner / parameters->socket_row_size != parameters->socket) {
-            MPI_Isend(&values[i][j], 1, MPI_INT, partner, 0, comm_row, &request[l++]);
+          if (partner != parameters->socket) {
+            MPI_Isend(&values[i][j], 1, MPI_INT, partner * parameters->socket_row_size + parameters->socket_rank, 0, comm_row, &request[l++]);
           } else {
 	    printf("logical error 2 forward_interpreter\n");
 	    exit(1);
@@ -139,12 +145,13 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
       for (j = 0; j < data.blocks[i].num_lines; j++) {
         for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
 	  partner = data.blocks[i].lines[j].recvfrom_node[k];
-          if (partner <= -10) partner = -data.blocks[i].lines[j].recvfrom_node[k] - 10;
-          if (partner != parameters->socket / parameters->socket_row_size && data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+          if (partner != parameters->socket && partner >= 0) {
             if (recv_values[j][partner]) {
               values[i][j] = 2;
             } else {
-              values[i][j] = 0;
+              if (data.blocks[i].lines[j].reducefrom_max == 0 && data.blocks[i].lines[j].copyreducefrom_max == 0) {
+                values[i][j] = 0;
+	      }
             }
           }
         }
@@ -152,21 +159,26 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
     }
     for (j = 0; j < data.blocks[i].num_lines; j++) {
       if (!values[i][j]) {
-	if (data.blocks[i].lines[j].sendto_max > 0) {
-	  free(data.blocks[i].lines[j].sendto_node);
-	  free(data.blocks[i].lines[j].sendto_line);
-	  data.blocks[i].lines[j].sendto_node = data.blocks[i].lines[j].sendto_line = NULL;
- 	  data.blocks[i].lines[j].sendto_max = 0;
-        }
+	for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+	  if (data.blocks[i].lines[j].sendto_node[k] >= 0) {
+	    data.blocks[i].lines[j].sendto_node[k] = -10 - data.blocks[i].lines[j].sendto_node[k];
+	  }
+	}
       }
       if (values[i][j] < 2) {
+	for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+	  if (data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+	    data.blocks[i].lines[j].recvfrom_node[k] = -10 - data.blocks[i].lines[j].recvfrom_node[k];
+	  }
+	}
 	if (data.blocks[i].lines[j].recvfrom_max > 0) {
-	  free(data.blocks[i].lines[j].recvfrom_node);
-	  free(data.blocks[i].lines[j].recvfrom_line);
-	  data.blocks[i].lines[j].recvfrom_node = NULL;
-	  data.blocks[i].lines[j].recvfrom_line = NULL;
-	  data.blocks[i].lines[j].recvfrom_max = 0;
-        }
+	  values[i][j] = 0;
+	}
+	for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+	  if (data.blocks[i].lines[j].recvfrom_node[k] >=0) {
+	    values[i][j] = 1;
+	  }
+	}
       }
     }
     for (j = 0; j < data.blocks[i].num_lines; j++) {
@@ -177,23 +189,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
 	  data.blocks[i].lines[j].copyreducefrom = data.blocks[i].lines[j].reducefrom;
 	  data.blocks[i].lines[j].reducefrom_max = 0;
 	  data.blocks[i].lines[j].reducefrom = NULL;
-	  values[i][j] = 1;
-        }
-      }
-      if (values[i][j]) {
-	for (k = 0; k < data.blocks[i].lines[j].reducefrom_max; k++) {
-	  if (!values[i][data.blocks[i].lines[j].reducefrom[k]]) {
-	    data.blocks[i].lines[j].reducefrom_max--;
-	    for (l = k; l < data.blocks[i].lines[j].reducefrom_max; l++) {
-	      data.blocks[i].lines[j].reducefrom[l] = data.blocks[i].lines[j].reducefrom[l + 1];
-            }
-	    k = -1;
-          }
-        }
-	if (data.blocks[i].lines[j].reducefrom_max == 0) {
-          free(data.blocks[i].lines[j].reducefrom);
-	  data.blocks[i].lines[j].reducefrom = NULL;
-        }
+	}
 	if (data.blocks[i].lines[j].copyreducefrom_max > 0) {
 	  for (k = 0; k < data.blocks[i].lines[j].copyreducefrom_max; k++) {
 	    if (!values[i][data.blocks[i].lines[j].copyreducefrom[k]]) {
@@ -208,7 +204,27 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
             free(data.blocks[i].lines[j].copyreducefrom);
 	    data.blocks[i].lines[j].copyreducefrom = NULL;
 	    values[i][j] = 0;
+	  } else {
+	    values[i][j] = 1;
 	  }
+        }
+      }
+      if (data.blocks[i].lines[j].copyreducefrom_max > 0) {
+	values[i][j] = 1;
+      }
+      if (values[i][j]) {
+	for (k = 0; k < data.blocks[i].lines[j].reducefrom_max; k++) {
+	  if (!values[i][data.blocks[i].lines[j].reducefrom[k]]) {
+	    data.blocks[i].lines[j].reducefrom_max--;
+	    for (l = k; l < data.blocks[i].lines[j].reducefrom_max; l++) {
+	      data.blocks[i].lines[j].reducefrom[l] = data.blocks[i].lines[j].reducefrom[l + 1];
+            }
+	    k = -1;
+          }
+        }
+	if (data.blocks[i].lines[j].reducefrom_max == 0) {
+          free(data.blocks[i].lines[j].reducefrom);
+	  data.blocks[i].lines[j].reducefrom = NULL;
         }
       }
     }
