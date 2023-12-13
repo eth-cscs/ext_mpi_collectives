@@ -1189,13 +1189,8 @@ buffer2 = buffer_temp;
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(recvbuf)) {
 #endif
-    if ((root >= 0) || (root <= -10)) {
-      if (ext_mpi_generate_raw_code_tasks_node_master(buffer2, buffer1) < 0)
-        goto error;
-    } else {
-      if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
-        goto error;
-    }
+    if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
+      goto error;
 #ifdef GPU_ENABLED
   } else {
     if (ext_mpi_generate_raw_code_tasks_node_master(buffer2, buffer1) < 0)
