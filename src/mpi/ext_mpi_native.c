@@ -38,6 +38,7 @@
 #include "reduce_scatter_single_node.h"
 #include "padding_factor.h"
 #include "shmem.h"
+#include "ext_mpi_native_exec.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
@@ -65,10 +66,10 @@ static int handle_code_max = 100;
 static char **comm_code = NULL;
 static char **execution_pointer = NULL;
 static int *active_wait = NULL;
-
 static int is_initialised = 0;
-static MPI_Comm EXT_MPI_COMM_WORLD = MPI_COMM_NULL;
 static int tag_max = 0;
+
+MPI_Comm ext_mpi_COMM_WORLD_dup = MPI_COMM_NULL;
 
 struct comm_comm_blocking {
   int mpi_size_blocking;
@@ -140,7 +141,7 @@ static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
                         my_mpi_rank_column % my_cores_per_node_column,
                         &my_comm_node) == MPI_ERR_INTERN)
       goto error;
-    MPI_Comm_rank(EXT_MPI_COMM_WORLD, &grank);
+    MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &grank);
     lglobal_ranks = (int *)malloc(sizeof(int) * my_cores_per_node_column);
     if (!lglobal_ranks)
       goto error;
@@ -153,7 +154,7 @@ static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
                my_cores_per_node_column, MPI_INT, 0, comm_row);
     free(lglobal_ranks);
   } else {
-    MPI_Comm_rank(EXT_MPI_COMM_WORLD, &grank);
+    MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &grank);
     MPI_Gather(&grank, 1, MPI_INT, global_ranks, 1, MPI_INT, 0, comm_row);
   }
   MPI_Bcast(global_ranks, my_mpi_size_row * my_cores_per_node_column, MPI_INT,
@@ -229,424 +230,6 @@ error:
   return ERROR_MALLOC;
 }
 
-static void node_barrier(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node) {
-  int step;
-  for (step = 1; step < num_sockets_per_node; step <<= 1) {
-    ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
-    while ((unsigned int)(((volatile int*)(shmem[step]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
-      ;
-    (*barrier_count)++;
-  }
-}
-
-static int node_barrier_test(char **shmem, int barrier_count, int socket_rank, int num_sockets_per_node) {
-  int step;
-  for (step = 1; step < num_sockets_per_node; step <<= 1) {
-    ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
-    if ((unsigned int)(((volatile int*)(shmem[step]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX) {
-      return 1;
-    }
-    barrier_count++;
-  }
-  return 0;
-}
-
-static void socket_barrier(char *shmem, int *barrier_count, int socket_rank, int num_cores) {
-  int step;
-  for (step = 1; step < num_cores; step <<= 1) {
-    ((volatile int*)shmem)[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
-    while ((unsigned int)(((volatile int*)shmem)[((socket_rank + step) % num_cores) * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
-      ;
-    (*barrier_count)++;
-  }
-}
-
-static int socket_barrier_test(char *shmem, int barrier_count, int socket_rank, int num_cores) {
-  int step;
-  for (step = 1; step < num_cores; step <<= 1) {
-    ((volatile int*)shmem)[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
-    if ((unsigned int)(((volatile int*)shmem)[((socket_rank + step) % num_cores) * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX) {
-      return 1;
-    }
-    barrier_count++;
-  }
-  return 0;
-}
-
-static void socket_barrier_atomic_set(char *shmem, int barrier_count, int entry) {
-  ((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
-}
-
-static void socket_barrier_atomic_wait(char *shmem, int *barrier_count, int entry) {
-  while ((unsigned int)(((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
-    ;
-  (*barrier_count)++;
-}
-
-static int socket_barrier_atomic_test(char *shmem, int barrier_count, int entry) {
-  return (unsigned int)(((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX;
-}
-
-static void reduce_waitany(void **pointers_to, void **pointers_from, int *sizes, int num_red, int op_reduce){
-  /*
-  Function to perform the reduction operation using MPI_Waitany.
-  */
-  void *p1, *p2;
-  int red_it, i1, i;
-            //loop over reduction_iteration 
-            for (red_it = 0; red_it<num_red; red_it++) {
-              //pointer to which to sum up
-              p1 = pointers_to[red_it];
-              //pointer from which to sum up
-              p2 = pointers_from[red_it];
-              //length over which to perform reduction
-              i1 = sizes[red_it];
-              //switch to datatype that is reduced
-              switch (op_reduce) {
-              case OPCODE_REDUCE_SUM_DOUBLE:
-                for (i = 0; i < i1; i++) {
-                  ((double *)p1)[i] += ((double *)p2)[i];
-                }
-                break;
-              case OPCODE_REDUCE_SUM_LONG_INT:
-                for (i = 0; i < i1; i++) {
-                  ((long int *)p1)[i] += ((long int *)p2)[i];
-                }
-                break;
-              case OPCODE_REDUCE_SUM_FLOAT:
-                for (i = 0; i < i1; i++) {
-                  ((float *)p1)[i] += ((float *)p2)[i];
-                }
-                break;
-              case OPCODE_REDUCE_SUM_INT:
-                for (i = 0; i < i1; i++) {
-                  ((int *)p1)[i] += ((int *)p2)[i];
-                }
-                break;
-              }
-            }
-}
-
-static void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
-  void *pointers[num_wait][2][abs(num_red_max)], *pointers_temp[abs(num_red_max)];
-  int sizes[num_wait][abs(num_red_max)], num_red[num_wait], done = 0, red_it = 0, count, index, num_waitall, target_index, not_moved, i;
-        char op, op_reduce=-1;
-        for (i=0; i<num_wait; i++){
-          num_red[i]=0;
-        }
-        while (done < num_wait) {
-          //get values for reduction operation and put them in a datastructure
-          op = code_get_char(ip);
-          //check whether an attached or a reduce is encountered
-          switch (op) {
-          case OPCODE_REDUCE: {
-            //get all parameters for all reductions
-            op_reduce = code_get_char(ip);
-            //get pointer from which to perform reduction operation
-            pointers[done][0][num_red[done]] = code_get_pointer(ip);
-            //get pointer to which to perform reduction operation
-            pointers[done][1][num_red[done]] = code_get_pointer(ip);
-            //get for how many elements to perform reduction
-            sizes[done][num_red[done]] = code_get_int(ip);
-            num_red[done]++;
-            break;
-          }
-          case OPCODE_ATTACHED: {
-            //increase done to indicate you are at the next set of reduction operations
-            done++;
-            break;
-          }
-	  default:{
-	    printf("illegal opcode in exec_waitany\n");
-	    exit(1);
-          }
-          }
-        }
-        if (num_red_max>=0){
-        //if there is any reduction operation to perform, iterate over all waitany and perform the corresponding reduction operations based on the parameters that are just acquired
-        for (count=0; count<num_wait; count++) {
-            MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
-            reduce_waitany(pointers[index][0], pointers[index][1], sizes[index], num_red[index], op_reduce);
-        }
-        }else{
-        num_waitall=0;
-        for (count=0; count<num_wait; count++) {
-          if (!num_red[count]){
-            num_waitall++;
-          }
-        }
-        target_index = -1;
-        not_moved = 0;
-        for (count=0; count<num_wait; count++) {
-            MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
-            if (!num_red[index]){
-              num_waitall--;
-              if ((!num_waitall)&&not_moved){
-                reduce_waitany(pointers_temp, pointers[target_index][1], sizes[target_index], num_red[target_index], op_reduce);
-                not_moved = 0;
-              }
-            }else{
-              if (num_waitall){
-                if (!not_moved){
-                  target_index = index;
-                  not_moved = 1;
-                  for (red_it = 0; red_it<num_red[index]; red_it++) {
-                    pointers_temp[red_it] = pointers[index][0][red_it];
-                  }
-                }else{
-                  reduce_waitany(pointers[target_index][1], pointers[index][1], sizes[index], num_red[index], op_reduce);
-                }
-              }else{
-		if (!not_moved){
-                  reduce_waitany(pointers[index][0], pointers[index][1], sizes[index], num_red[index], op_reduce);
-                }else{
-                  reduce_waitany(pointers[target_index][1], pointers[index][1], sizes[index], num_red[index], op_reduce);
-		}
-              }
-            }
-        }
-        }
-}
-
-static int exec_native(char *ip, char **ip_exec, int active_wait) {
-  char instruction, instruction2; //, *r_start, *r_temp, *ipl;
-  void *p1, *p2, *p3;
-  //  char *rlocmem=NULL;
-  int i1, i2; //, n_r, s_r, i;
-  struct header_byte_code *header;
-#ifdef NCCL_ENABLED
-  static int initialised = 0;
-  static cudaStream_t stream;
-  if (!initialised) {
-    cudaStreamCreate(&stream);
-    initialised = 1;
-  }
-#endif
-  header = (struct header_byte_code *)ip;
-  ip = *ip_exec;
-  do {
-    instruction = code_get_char(&ip);
-    switch (instruction) {
-    case OPCODE_RETURN:
-      /*          if (rlocmem != NULL){
-                  ipl = r_start;
-                  for (i=0; i<n_r; i++){
-                    i1 = code_get_int (&ipl);
-                    r_temp = r_start+i1;
-                    p1 = code_get_pointer (&r_temp);
-                    r_temp = r_start+i1;
-                    code_put_pointer (&r_temp, (void
-         *)((char*)p1-(rlocmem-NULL)), 0);
-                  }
-                  free(rlocmem);
-                }*/
-      break;
-      /*        case OPCODE_LOCALMEM:
-                s_r = code_get_int (&ip);
-                n_r = code_get_int (&ip);
-                rlocmem = (char *) malloc(s_r);
-                r_start = ip;
-                for (i=0; i<n_r; i++){
-                  i1 = code_get_int (&ip);
-                  r_temp = r_start+i1;
-                  p1 = code_get_pointer (&r_temp);
-                  r_temp = r_start+i1;
-                  code_put_pointer (&r_temp, (void *)((char*)p1+(rlocmem-NULL)),
-         0);
-                }
-                break;*/
-    case OPCODE_MEMCPY:
-      p1 = code_get_pointer(&ip);
-      p2 = code_get_pointer(&ip);
-      memcpy((void *)p1, (void *)p2, code_get_int(&ip));
-      break;
-    case OPCODE_MPIIRECV:
-      p1 = code_get_pointer(&ip);
-      i1 = code_get_int(&ip);
-      i2 = code_get_int(&ip);
-#ifdef NCCL_ENABLED
-      code_get_pointer(&ip);
-      ncclRecv((void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
-#else
-      MPI_Irecv((void *)p1, i1, MPI_CHAR, i2, header->tag, EXT_MPI_COMM_WORLD,
-                (MPI_Request *)code_get_pointer(&ip));
-#endif
-      break;
-    case OPCODE_MPIISEND:
-      p1 = code_get_pointer(&ip);
-      i1 = code_get_int(&ip);
-      i2 = code_get_int(&ip);
-#ifdef NCCL_ENABLED
-      code_get_pointer(&ip);
-      ncclSend((const void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
-#else
-      MPI_Isend((void *)p1, i1, MPI_CHAR, i2, header->tag, EXT_MPI_COMM_WORLD,
-                (MPI_Request *)code_get_pointer(&ip));
-#endif
-      break;
-    case OPCODE_MPIWAITALL:
-#ifdef NCCL_ENABLED
-      i1 = code_get_int(&ip);
-      p1 = code_get_pointer(&ip);
-      ncclGroupEnd();
-      cudaStreamSynchronize(stream);
-#else
-      if (active_wait & 2) {
-        i1 = code_get_int(&ip);
-        p1 = code_get_pointer(&ip);
-        PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
-      } else {
-        *ip_exec = ip - 1;
-        i1 = code_get_int(&ip);
-        p1 = code_get_pointer(&ip);
-        PMPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
-        if (!i2) {
-          return (0);
-        } else {
-          PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
-        }
-      }
-#endif
-      break;
-    case OPCODE_MPIWAITANY:
-      if (active_wait & 2) {
-        // how many to wait for
-        i1 = code_get_int(&ip);
-        // max reduction size
-        i2 = code_get_int(&ip);
-        // MPI requests
-        p3 = code_get_pointer(&ip);
-        exec_waitany(i1, i2, p3, &ip);
-      } else {
-        printf("not implemented");
-        exit(2);
-        *ip_exec = ip - 1;
-        i1 = code_get_int(&ip);
-        p1 = code_get_pointer(&ip);
-        PMPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
-        if (!i2) {
-          return 0;
-        } else {
-          PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
-        }
-      }
-      break;
-    case OPCODE_SOCKETBARRIER:
-      if (active_wait & 2) {
-        socket_barrier(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
-                       header->socket_rank, header->num_cores);
-      } else {
-        *ip_exec = ip - 1;
-        if (!socket_barrier_test(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket,
-                                 header->socket_rank, header->num_cores)) {
-          return 0;
-        } else {
-          socket_barrier(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket,
-                         header->socket_rank, header->num_cores);
-        }
-      }
-      break;
-    case OPCODE_NODEBARRIER:
-      if (active_wait & 2) {
-        node_barrier(header->barrier_shmem_node, &header->barrier_counter_node,
-                       header->socket_rank, header->num_sockets_per_node);
-      } else {
-        *ip_exec = ip - 1;
-        if (!node_barrier_test(header->barrier_shmem_node, header->barrier_counter_node,
-                                 header->socket_rank, header->num_sockets_per_node)) {
-          return 0;
-        } else {
-          node_barrier(header->barrier_shmem_node, &header->barrier_counter_node,
-                         header->socket_rank, header->num_sockets_per_node);
-        }
-      }
-      break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_SET:
-      socket_barrier_atomic_set(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket, code_get_int(&ip));
-      break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
-      i1 = code_get_int(&ip);
-      if (active_wait & 2) {
-        socket_barrier_atomic_wait(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket, i1);
-      } else {
-        *ip_exec = ip - 1 - sizeof(int);
-        if (!socket_barrier_atomic_test(header->barrier_shmem_socket + header->barrier_shmem_size, header->barrier_counter_socket, i1)) {
-          return 0;
-        } else {
-          socket_barrier_atomic_wait(header->barrier_shmem_socket + header->barrier_shmem_size, &header->barrier_counter_socket, i1);
-        }
-      }
-      break;
-    case OPCODE_REDUCE:
-      instruction2 = code_get_char(&ip);
-      p1 = code_get_pointer(&ip);
-      p2 = code_get_pointer(&ip);
-      i1 = code_get_int(&ip);
-      switch (instruction2) {
-      case OPCODE_REDUCE_SUM_DOUBLE:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((double *)p1)[i2] += ((double *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_LONG_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((long int *)p1)[i2] += ((long int *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_FLOAT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((float *)p1)[i2] += ((float *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((int *)p1)[i2] += ((int *)p2)[i2];
-        }
-        break;
-      }
-      break;
-    case OPCODE_MPISENDRECV:
-      p1 = code_get_pointer(&ip);
-      p1 = code_get_pointer(&ip);
-      i1 = code_get_int(&ip);
-      MPI_Recv((void *)p1, i1, MPI_CHAR, code_get_int(&ip), 0,
-               EXT_MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      break;
-    case OPCODE_ATTACHED:
-      break;
-#ifdef GPU_ENABLED
-    case OPCODE_GPUSYNCHRONIZE:
-      ext_mpi_gpu_synchronize();
-      break;
-    case OPCODE_GPUKERNEL:
-      instruction2 = code_get_char(&ip);
-      p1 = code_get_pointer(&ip);
-      ext_mpi_gpu_copy_reduce(instruction2, (void *)p1, code_get_int(&ip));
-      break;
-    case OPCODE_GPUGEMV:
-      instruction2 = code_get_char(&ip);
-      p1 = code_get_pointer(&ip);
-      i1 = code_get_int(&ip);
-      ext_mpi_gemv_exec(&header->gpu_gemv_var, instruction2, p1, i1, code_get_int(&ip));
-      break;
-#endif
-#ifdef NCCL_ENABLED
-    case OPCODE_START:
-      ncclGroupStart();
-      break;
-#endif
-    default:
-      printf("illegal MPI_OPCODE execute native\n");
-      exit(1);
-    }
-  } while (instruction != OPCODE_RETURN);
-  *ip_exec = NULL;
-#ifdef NCCL_ENABLED
-//  cudaStreamDestroy(stream);
-#endif
-  return 0;
-}
-
 int EXT_MPI_Start_native(int handle) {
   char *hcomm;
   if (comm_code[handle + 1]) {
@@ -666,8 +249,8 @@ int EXT_MPI_Start_native(int handle) {
 int EXT_MPI_Test_native(int handle) {
   active_wait[handle] = 1;
   if (execution_pointer[handle]) {
-    exec_native(comm_code[handle], &execution_pointer[handle],
-                active_wait[handle]);
+    ext_mpi_exec_native(comm_code[handle], &execution_pointer[handle],
+                        active_wait[handle]);
   }
   return (execution_pointer[handle] == NULL);
 }
@@ -676,8 +259,8 @@ int EXT_MPI_Progress_native() {
   int ret = 0, handle;
   for (handle = 0; handle < handle_code_max; handle += 2) {
     if (execution_pointer[handle]) {
-      ret += exec_native(comm_code[handle], &execution_pointer[handle],
-                         active_wait[handle]);
+      ret += ext_mpi_exec_native(comm_code[handle], &execution_pointer[handle],
+                                 active_wait[handle]);
     }
   }
   return (ret);
@@ -690,8 +273,8 @@ int EXT_MPI_Wait_native(int handle) {
     active_wait[handle] = 2;
   }
   if (execution_pointer[handle]) {
-    exec_native(comm_code[handle], &execution_pointer[handle],
-                active_wait[handle]);
+    ext_mpi_exec_native(comm_code[handle], &execution_pointer[handle],
+                        active_wait[handle]);
   }
   active_wait[handle] = 0;
   return (0);
@@ -2071,7 +1654,7 @@ error:
 }
 
 int EXT_MPI_Init_native() {
-  PMPI_Comm_dup(MPI_COMM_WORLD, &EXT_MPI_COMM_WORLD);
+  PMPI_Comm_dup(MPI_COMM_WORLD, &ext_mpi_COMM_WORLD_dup);
   is_initialised = 1;
   return 0;
 }
@@ -2079,20 +1662,16 @@ int EXT_MPI_Init_native() {
 int EXT_MPI_Initialized_native() { return is_initialised; }
 
 int EXT_MPI_Finalize_native() {
-  PMPI_Comm_free(&EXT_MPI_COMM_WORLD);
+  PMPI_Comm_free(&ext_mpi_COMM_WORLD_dup);
   return 0;
 }
 
-void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_EXT_MPI_COMM_WORLD, int *e_tag_max, void (*e_socket_barrier)(char *shmem, int *barrier_count, int socket_rank, int num_cores), void (*e_node_barrier)(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node), void (*e_socket_barrier_atomic_set)(char *shmem, int barrier_count, int entry), void (*e_socket_barrier_atomic_wait)(char *shmem, int *barrier_count, int entry)){
+void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_ext_mpi_COMM_WORLD_dup, int *e_tag_max, void (*e_socket_barrier)(char *shmem, int *barrier_count, int socket_rank, int num_cores), void (*e_node_barrier)(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node), void (*e_socket_barrier_atomic_set)(char *shmem, int barrier_count, int entry), void (*e_socket_barrier_atomic_wait)(char *shmem, int *barrier_count, int entry)){
   e_handle_code_max = &handle_code_max;
   e_comm_code = &comm_code;
   e_execution_pointer = &execution_pointer;
   e_active_wait = &active_wait;
   e_is_initialised = &is_initialised;
-  e_EXT_MPI_COMM_WORLD = &EXT_MPI_COMM_WORLD;
+  e_ext_mpi_COMM_WORLD_dup = &ext_mpi_COMM_WORLD_dup;
   e_tag_max = &tag_max;
-  e_socket_barrier = &socket_barrier;
-  e_node_barrier = &node_barrier;
-  e_socket_barrier_atomic_set = &socket_barrier_atomic_set;
-  e_socket_barrier_atomic_wait = &socket_barrier_atomic_wait;
 }
