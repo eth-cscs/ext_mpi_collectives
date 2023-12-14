@@ -56,7 +56,7 @@ int MPI_Finalize(){
 int MPI_Allreduce_init(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
   MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request);
-  if (!(ret=EXT_MPI_Allreduce_init(sendbuf, recvbuf, count, datatype, op, comm, &handle))){
+  if (!(ret=EXT_MPI_Allreduce_init(sendbuf, recvbuf, count, datatype, op, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
   return ret;
@@ -65,7 +65,7 @@ int MPI_Allreduce_init(const void *sendbuf, void *recvbuf, int count, MPI_Dataty
 int MPI_Allgatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, const int *recvcounts, const int *displs, MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
   MPI_Recv_init(NULL, 0, recvtype, 0, 0, comm, request);
-  if (!(ret=EXT_MPI_Allgatherv_init(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm, &handle))){
+  if (!(ret=EXT_MPI_Allgatherv_init(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
   return ret;
@@ -74,7 +74,7 @@ int MPI_Allgatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtyp
 int MPI_Reduce_scatter_init(const void *sendbuf, void *recvbuf, const int recvcounts[], MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
   MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request);
-  if (!(ret=EXT_MPI_Reduce_scatter_init(sendbuf, recvbuf, recvcounts, datatype, op, comm, &handle))){
+  if (!(ret=EXT_MPI_Reduce_scatter_init(sendbuf, recvbuf, recvcounts, datatype, op, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
   return ret;
@@ -83,7 +83,7 @@ int MPI_Reduce_scatter_init(const void *sendbuf, void *recvbuf, const int recvco
 int MPI_Bcast_init(void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
   MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request);
-  if (!(ret=EXT_MPI_Bcast_init(buffer, count, datatype, root, comm, &handle))){
+  if (!(ret=EXT_MPI_Bcast_init(buffer, count, datatype, root, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
   return ret;
@@ -92,7 +92,7 @@ int MPI_Bcast_init(void *buffer, int count, MPI_Datatype datatype, int root, MPI
 int MPI_Reduce_init(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
   MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request);
-  if (!(ret=EXT_MPI_Reduce_init(sendbuf, recvbuf, count, datatype, op, root, comm, &handle))){
+  if (!(ret=EXT_MPI_Reduce_init(sendbuf, recvbuf, count, datatype, op, root, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
   return ret;
@@ -101,7 +101,7 @@ int MPI_Reduce_init(const void *sendbuf, void *recvbuf, int count, MPI_Datatype 
 int MPI_Gatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, const int *recvcounts, const int *displs, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
   MPI_Recv_init(NULL, 0, recvtype, 0, 0, comm, request);
-  if (!(ret=EXT_MPI_Gatherv_init(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm, &handle))){
+  if (!(ret=EXT_MPI_Gatherv_init(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
   return ret;
@@ -110,7 +110,7 @@ int MPI_Gatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, 
 int MPI_Scatterv_init(const void *sendbuf, const int *sendcounts, const int *displs, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
   MPI_Recv_init(NULL, 0, sendtype, 0, 0, comm, request);
-  if (!(ret=EXT_MPI_Scatterv_init(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm, &handle))){
+  if (!(ret=EXT_MPI_Scatterv_init(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
   return ret;
