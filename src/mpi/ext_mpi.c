@@ -205,7 +205,7 @@ int ext_mpi_allgatherv_init_general(const void *sendbuf, int sendcount,
                                     MPI_Datatype recvtype, MPI_Comm comm,
                                     MPI_Info info, int *handle) {
   int comm_rank_row, comm_size_row, *num_ports = NULL, *groups = NULL, type_size, scount,
-        i, alt, rcount, group_size, my_cores_per_node_row, my_cores_per_node_column;
+        i, alt, rcount, group_size, my_cores_per_node_row, my_cores_per_node_column, not_recursive;
   char *str;
   if (ext_mpi_debug) {
     i = ext_mpi_debug;
@@ -237,9 +237,10 @@ int ext_mpi_allgatherv_init_general(const void *sendbuf, int sendcount,
     alt = rcount < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
   }
   if (groups[0] == -1 && groups[1] == 0) num_ports[0] = 1;
+  not_recursive = (group_size!=comm_size_row/my_cores_per_node_row) || ext_mpi_not_recursive;
   if (ext_mpi_verbose) {
     if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
-      if (group_size==comm_size_row/my_cores_per_node_row){
+      if (!not_recursive){
         printf("# recursive\n");
       }
       str = ext_mpi_print_ports_groups(num_ports, groups);
@@ -253,7 +254,7 @@ int ext_mpi_allgatherv_init_general(const void *sendbuf, int sendcount,
       sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
       comm, my_cores_per_node_row, MPI_COMM_NULL, my_cores_per_node_column,
       num_ports, groups,
-      alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
+      alt, not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -271,7 +272,7 @@ int ext_mpi_gatherv_init_general(const void *sendbuf, int sendcount,
                                  MPI_Datatype recvtype, int root,
                                  MPI_Comm comm, MPI_Info info, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, scount,
-                     i, alt, rcount, group_size, my_cores_per_node_row, my_cores_per_node_column;
+      i, alt, rcount, group_size, my_cores_per_node_row, my_cores_per_node_column, not_recursive;
   char *str;
   if (ext_mpi_debug) {
     i = ext_mpi_debug;
@@ -304,9 +305,10 @@ int ext_mpi_gatherv_init_general(const void *sendbuf, int sendcount,
   } else {
     alt = rcount < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
   }
+  not_recursive = (group_size!=comm_size_row/my_cores_per_node_row) || ext_mpi_not_recursive;
   if (ext_mpi_verbose) {
     if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
-      if (group_size==comm_size_row/my_cores_per_node_row){
+      if (!not_recursive){
         printf("# recursive\n");
       }
       str = ext_mpi_print_ports_groups(num_ports, groups);
@@ -320,7 +322,7 @@ int ext_mpi_gatherv_init_general(const void *sendbuf, int sendcount,
       sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
       root, comm, my_cores_per_node_row, MPI_COMM_NULL,
       my_cores_per_node_column, num_ports, groups,
-      alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
+      alt, not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -382,7 +384,7 @@ void ext_mpi_revert_num_ports(int *num_ports, int *groups) {
 int ext_mpi_reduce_scatter_init_general(
     const void *sendbuf, void *recvbuf, const int *recvcounts, MPI_Datatype datatype,
     MPI_Op op, MPI_Comm comm, MPI_Info info, int *handle) {
-  int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount, acount,
+  int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount, acount, not_recursive,
       alt, group_size, copyin_method = -1, *copyin_factors = NULL, num_sockets_per_node, my_cores_per_node, i, j, k;
   char *str;
   if (ext_mpi_debug) {
@@ -421,9 +423,10 @@ int ext_mpi_reduce_scatter_init_general(
   } else {
     alt = rcount < 10000000 && my_cores_per_node > 1;
   }
+  not_recursive = (group_size!=comm_size_row/my_cores_per_node) || ext_mpi_not_recursive;
   if (ext_mpi_verbose) {
     if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
-      if (group_size==comm_size_row/my_cores_per_node){
+      if (!not_recursive){
         printf("# recursive\n");
       }
       str = ext_mpi_print_ports_groups(num_ports, groups);
@@ -454,8 +457,8 @@ int ext_mpi_reduce_scatter_init_general(
   *handle = EXT_MPI_Reduce_scatter_init_native(
       sendbuf, recvbuf, recvcounts, datatype, op, comm,
       my_cores_per_node, MPI_COMM_NULL, 1, num_ports,
-      groups,
-      copyin_method, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
+      groups, copyin_method, copyin_factors, alt, not_recursive,
+      ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -475,7 +478,7 @@ int ext_mpi_scatterv_init_general(const void *sendbuf, const int *sendcounts, co
                                   int root, MPI_Comm comm,
                                   MPI_Info info, int *handle) {
   int comm_size_row, *num_ports = NULL, *groups = NULL, type_size, rcount, my_cores_per_node_row, my_cores_per_node_column,
-                     i, j, k, alt, group_size, copyin_method = -1;
+                     i, j, k, alt, group_size, copyin_method = -1, not_recursive;
   char *str;
   if (ext_mpi_debug) {
     i = ext_mpi_debug;
@@ -507,9 +510,10 @@ int ext_mpi_scatterv_init_general(const void *sendbuf, const int *sendcounts, co
   } else {
     alt = rcount < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
   }
+  not_recursive = (group_size!=comm_size_row/my_cores_per_node_row) || ext_mpi_not_recursive;
   if (ext_mpi_verbose) {
     if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
-      if (group_size==comm_size_row/my_cores_per_node_row){
+      if (!not_recursive){
         printf("# recursive\n");
       }
       str = ext_mpi_print_ports_groups(num_ports, groups);
@@ -523,7 +527,7 @@ int ext_mpi_scatterv_init_general(const void *sendbuf, const int *sendcounts, co
       sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
       root, comm, my_cores_per_node_row, MPI_COMM_NULL,
       my_cores_per_node_column, num_ports, groups,
-      copyin_method, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
+      copyin_method, alt, not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -553,7 +557,7 @@ int ext_mpi_reduce_scatter_block_init_general(
 int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                    MPI_Datatype datatype, MPI_Op op,
                                    MPI_Comm comm, MPI_Info info, int *handle) {
-  int comm_size_row, comm_rank_row, i, alt, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method, *copyin_factors = NULL, num_sockets_per_node, my_cores_per_node_row, my_cores_per_node_column;
+  int comm_size_row, comm_rank_row, i, alt, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method, *copyin_factors = NULL, num_sockets_per_node, my_cores_per_node_row, my_cores_per_node_column, not_recursive;
   char *str;
   if (ext_mpi_debug) {
     i = ext_mpi_debug;
@@ -589,9 +593,10 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
   } else {
     alt = count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
   }
+  not_recursive = (group_size!=comm_size_row/my_cores_per_node_row) || ext_mpi_not_recursive;
   if (ext_mpi_verbose) {
     if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)) {
-      if (group_size==comm_size_row/my_cores_per_node_row){
+      if (!not_recursive){
         printf("# recursive\n");
       }
       str = ext_mpi_print_ports_groups(num_ports, groups);
@@ -613,7 +618,7 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
       sendbuf, recvbuf, count, datatype, op, comm, my_cores_per_node_row,
       MPI_COMM_NULL, my_cores_per_node_column, num_ports, groups,
       copyin_method, copyin_factors, alt,
-      ext_mpi_bit_identical, !ext_mpi_bit_reproducible, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
+      ext_mpi_bit_identical, !ext_mpi_bit_reproducible, not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -630,7 +635,7 @@ error:
 int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
                                 MPI_Datatype datatype, MPI_Op op, int root,
                                 MPI_Comm comm, MPI_Info info, int *handle) {
-  int comm_size_row, comm_rank_row, alt, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method, *copyin_factors, num_sockets_per_node, my_cores_per_node, i;
+  int comm_size_row, comm_rank_row, alt, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method, *copyin_factors, num_sockets_per_node, my_cores_per_node, not_recursive, i;
   char *str;
   if (ext_mpi_debug) {
     i = ext_mpi_debug;
@@ -660,9 +665,10 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   } else {
     alt = count * type_size < 10000000 && my_cores_per_node > 1;
   }
+  not_recursive = (group_size!=comm_size_row/my_cores_per_node) || ext_mpi_not_recursive;
   if (ext_mpi_verbose) {
     if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
-      if (group_size==comm_size_row/my_cores_per_node){
+      if (!not_recursive){
         printf("# recursive\n");
       }
       str = ext_mpi_print_ports_groups(num_ports, groups);
@@ -681,7 +687,7 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, root, comm,
       my_cores_per_node, MPI_COMM_NULL, 1, num_ports,
       groups, copyin_method, copyin_factors, alt,
-      0, !ext_mpi_bit_reproducible, (group_size==comm_size_row/my_cores_per_node) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
+      0, !ext_mpi_bit_reproducible, not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -698,7 +704,7 @@ error:
 int ext_mpi_bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
                                int root, MPI_Comm comm, MPI_Info info,
                                int *handle) {
-  int comm_size_row, comm_rank_row, alt, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method, *copyin_factors, num_sockets_per_node, my_cores_per_node_row, my_cores_per_node_column, i;
+  int comm_size_row, comm_rank_row, alt, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method, *copyin_factors, num_sockets_per_node, my_cores_per_node_row, my_cores_per_node_column, not_recursive, i;
   char *str;
   if (ext_mpi_debug) {
     i = ext_mpi_debug;
@@ -725,9 +731,10 @@ int ext_mpi_bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   } else {
     alt = count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
   }
+  not_recursive = (group_size!=comm_size_row/my_cores_per_node_row) || ext_mpi_not_recursive;
   if (ext_mpi_verbose) {
     if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
-      if (group_size==comm_size_row/my_cores_per_node_row){
+      if (!not_recursive){
         printf("# recursive\n");
       }
       str = ext_mpi_print_ports_groups(num_ports, groups);
@@ -743,7 +750,7 @@ int ext_mpi_bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm, my_cores_per_node_row,
       MPI_COMM_NULL, my_cores_per_node_column, num_ports, groups,
-      copyin_method, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL);
+      copyin_method, copyin_factors, alt, not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);

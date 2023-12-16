@@ -558,7 +558,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *num_ports,
                                int *groups, int copyin, int *copyin_factors,
-                               int alt, int bit, int waitany, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
+                               int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int coarse_count, *counts = NULL, iret;
@@ -733,7 +733,7 @@ allreduce_short = 0;
 buffer_temp = buffer1;
 buffer1 = buffer2;
 buffer2 = buffer_temp;
-  if (!recursive) {
+  if (not_recursive) {
     if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
       goto error;
   } else {
@@ -815,7 +815,7 @@ buffer2 = buffer_temp;
     if (ext_mpi_generate_optimise_multi_socket(buffer1, buffer2) < 0)
       goto error;
   }
-  if (waitany&&recursive) {
+  if (waitany&&!not_recursive) {
     if (ext_mpi_generate_waitany(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
@@ -848,7 +848,7 @@ buffer2 = buffer_temp;
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  if (root > -10 && recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
+  if (root > -10 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
     if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
@@ -877,11 +877,11 @@ int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   int *groups, int copyin,
                                   int *copyin_factors,
                                   int alt, int bit, int waitany,
-                                  int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
+                                  int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   return (EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, -1, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, copyin, copyin_factors, alt, bit, waitany, recursive, blocking, num_sockets_per_node, shmem_zero, locmem, padding_factor));
+      groups, copyin, copyin_factors, alt, bit, waitany, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, padding_factor));
 }
 
 int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
@@ -889,11 +889,11 @@ int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
                               int my_cores_per_node_row, MPI_Comm comm_column,
                               int my_cores_per_node_column, int *num_ports,
                               int *groups, int copyin, int *copyin_factors,
-                              int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
+                              int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
   return (EXT_MPI_Reduce_init_native(
       buffer, buffer, count, datatype, MPI_OP_NULL, -10 - root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, copyin, copyin_factors, alt, 0, 0, recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL));
+      groups, copyin, copyin_factors, alt, 0, 0, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL));
 }
 
 int EXT_MPI_Gatherv_init_native(
@@ -901,7 +901,7 @@ int EXT_MPI_Gatherv_init_native(
     const int *recvcounts, const int *displs, MPI_Datatype recvtype, int root,
     MPI_Comm comm_row, int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *groups,
-    int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
+    int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
@@ -1045,7 +1045,7 @@ int EXT_MPI_Gatherv_init_native(
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (!recursive) {
+  if (not_recursive) {
     if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
       goto error;
   } else {
@@ -1102,7 +1102,7 @@ int EXT_MPI_Gatherv_init_native(
 #ifdef GPU_ENABLED
   }
 #endif
-  if (recursive && my_cores_per_node_row * my_cores_per_node_column == 1){
+  if (!not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1){
     if (ext_mpi_generate_use_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
@@ -1125,7 +1125,7 @@ int EXT_MPI_Gatherv_init_native(
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  if (recursive && my_cores_per_node_row * my_cores_per_node_column == 1){
+  if (!not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1){
     if (ext_mpi_generate_swap_copyin(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
@@ -1152,11 +1152,11 @@ int EXT_MPI_Allgatherv_init_native(
     const int *recvcounts, const int *displs, MPI_Datatype recvtype,
     MPI_Comm comm_row, int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *groups,
-    int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
+    int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
   return (EXT_MPI_Gatherv_init_native(
       sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, -1,
       comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column,
-      num_ports, groups, alt, recursive, blocking, num_sockets_per_node, shmem_zero, locmem));
+      num_ports, groups, alt, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem));
 }
 
 int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
@@ -1167,7 +1167,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
                                  MPI_Comm comm_column,
                                  int my_cores_per_node_column, int *num_ports,
                                  int *groups,
-                                 int copyin, int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
+                                 int copyin, int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
@@ -1377,7 +1377,7 @@ int EXT_MPI_Reduce_scatter_init_native(
     MPI_Datatype datatype, MPI_Op op, MPI_Comm comm_row,
     int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *groups,
-    int copyin, int *copyin_factors, int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
+    int copyin, int *copyin_factors, int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
@@ -1529,7 +1529,7 @@ int EXT_MPI_Reduce_scatter_init_native(
 #endif
   if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
     goto error;
-  if (!recursive) {
+  if (not_recursive) {
     if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
       goto error;
   } else {
@@ -1607,7 +1607,7 @@ int EXT_MPI_Reduce_scatter_init_native(
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  if (recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
+  if (!not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
     if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
