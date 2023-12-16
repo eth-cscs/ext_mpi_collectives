@@ -253,7 +253,7 @@ int ext_mpi_allgatherv_init_general(const void *sendbuf, int sendcount,
       sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
       comm, my_cores_per_node_row, MPI_COMM_NULL, my_cores_per_node_column,
       num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
+      alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -320,7 +320,7 @@ int ext_mpi_gatherv_init_general(const void *sendbuf, int sendcount,
       sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
       root, comm, my_cores_per_node_row, MPI_COMM_NULL,
       my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
+      alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -454,7 +454,7 @@ int ext_mpi_reduce_scatter_init_general(
   *handle = EXT_MPI_Reduce_scatter_init_native(
       sendbuf, recvbuf, recvcounts, datatype, op, comm,
       my_cores_per_node, MPI_COMM_NULL, 1, num_ports,
-      groups, my_cores_per_node,
+      groups,
       copyin_method, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
@@ -523,7 +523,7 @@ int ext_mpi_scatterv_init_general(const void *sendbuf, const int *sendcounts, co
       sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
       root, comm, my_cores_per_node_row, MPI_COMM_NULL,
       my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, copyin_method, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
+      copyin_method, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, ext_mpi_num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -612,7 +612,7 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
   *handle = EXT_MPI_Allreduce_init_native(
       sendbuf, recvbuf, count, datatype, op, comm, my_cores_per_node_row,
       MPI_COMM_NULL, my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, copyin_method, copyin_factors, alt,
+      copyin_method, copyin_factors, alt,
       ext_mpi_bit_identical, !ext_mpi_bit_reproducible, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
@@ -680,7 +680,7 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   *handle = EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, root, comm,
       my_cores_per_node, MPI_COMM_NULL, 1, num_ports,
-      groups, my_cores_per_node, copyin_method, copyin_factors, alt,
+      groups, copyin_method, copyin_factors, alt,
       0, !ext_mpi_bit_reproducible, (group_size==comm_size_row/my_cores_per_node) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
   if (*handle < 0)
     goto error;
@@ -743,7 +743,7 @@ int ext_mpi_bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm, my_cores_per_node_row,
       MPI_COMM_NULL, my_cores_per_node_column, num_ports, groups,
-      my_cores_per_node_row * my_cores_per_node_column, copyin_method, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL);
+      copyin_method, copyin_factors, alt, (group_size==comm_size_row/my_cores_per_node_row) && !ext_mpi_not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL);
   if (*handle < 0)
     goto error;
   free(groups);

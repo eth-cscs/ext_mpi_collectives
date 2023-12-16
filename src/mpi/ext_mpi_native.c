@@ -557,7 +557,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_row, int my_cores_per_node_row,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *num_ports,
-                               int *groups, int num_active_ports, int copyin, int *copyin_factors,
+                               int *groups, int copyin, int *copyin_factors,
                                int alt, int bit, int waitany, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
@@ -594,12 +594,6 @@ allreduce_short = 0;
   }
   if ((op == MPI_SUM) && (datatype == MPI_INT)) {
     reduction_op = OPCODE_REDUCE_SUM_INT;
-  }
-  if (num_active_ports > my_cores_per_node_row * my_cores_per_node_column) {
-    num_active_ports = my_cores_per_node_row * my_cores_per_node_column;
-  }
-  if (num_active_ports < 1) {
-    num_active_ports = 1;
   }
   MPI_Type_size(datatype, &type_size);
   count *= type_size;
@@ -880,26 +874,26 @@ int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_row, int my_cores_per_node_row,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column, int *num_ports,
-                                  int *groups, int num_active_ports, int copyin,
+                                  int *groups, int copyin,
                                   int *copyin_factors,
                                   int alt, int bit, int waitany,
                                   int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   return (EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, -1, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, copyin_factors, alt, bit, waitany, recursive, blocking, num_sockets_per_node, shmem_zero, locmem, padding_factor));
+      groups, copyin, copyin_factors, alt, bit, waitany, recursive, blocking, num_sockets_per_node, shmem_zero, locmem, padding_factor));
 }
 
 int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
                               int root, MPI_Comm comm_row,
                               int my_cores_per_node_row, MPI_Comm comm_column,
                               int my_cores_per_node_column, int *num_ports,
-                              int *groups, int num_active_ports, int copyin, int *copyin_factors,
+                              int *groups, int copyin, int *copyin_factors,
                               int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
   return (EXT_MPI_Reduce_init_native(
       buffer, buffer, count, datatype, MPI_OP_NULL, -10 - root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, num_active_ports, copyin, copyin_factors, alt, 0, 0, recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL));
+      groups, copyin, copyin_factors, alt, 0, 0, recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL));
 }
 
 int EXT_MPI_Gatherv_init_native(
@@ -907,7 +901,7 @@ int EXT_MPI_Gatherv_init_native(
     const int *recvcounts, const int *displs, MPI_Datatype recvtype, int root,
     MPI_Comm comm_row, int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *groups,
-    int num_active_ports, int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
+    int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
@@ -919,12 +913,6 @@ int EXT_MPI_Gatherv_init_native(
   buffer2 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer2)
     goto error;
-  if (num_active_ports > my_cores_per_node_row * my_cores_per_node_column) {
-    num_active_ports = my_cores_per_node_row * my_cores_per_node_column;
-  }
-  if (num_active_ports < 1) {
-    num_active_ports = 1;
-  }
   MPI_Comm_size(comm_row, &my_mpi_size_row);
   MPI_Comm_rank(comm_row, &my_mpi_rank_row);
   if (comm_column != MPI_COMM_NULL) {
@@ -1164,11 +1152,11 @@ int EXT_MPI_Allgatherv_init_native(
     const int *recvcounts, const int *displs, MPI_Datatype recvtype,
     MPI_Comm comm_row, int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *groups,
-    int num_active_ports, int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
+    int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
   return (EXT_MPI_Gatherv_init_native(
       sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, -1,
       comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column,
-      num_ports, groups, num_active_ports, alt, recursive, blocking, num_sockets_per_node, shmem_zero, locmem));
+      num_ports, groups, alt, recursive, blocking, num_sockets_per_node, shmem_zero, locmem));
 }
 
 int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
@@ -1178,7 +1166,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
                                  MPI_Comm comm_row, int my_cores_per_node_row,
                                  MPI_Comm comm_column,
                                  int my_cores_per_node_column, int *num_ports,
-                                 int *groups, int num_active_ports,
+                                 int *groups,
                                  int copyin, int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
@@ -1191,12 +1179,6 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   buffer2 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer2)
     goto error;
-  if (num_active_ports > my_cores_per_node_row * my_cores_per_node_column) {
-    num_active_ports = my_cores_per_node_row * my_cores_per_node_column;
-  }
-  if (num_active_ports < 1) {
-    num_active_ports = 1;
-  }
   MPI_Type_size(sendtype, &type_size);
   MPI_Comm_size(comm_row, &my_mpi_size_row);
   MPI_Comm_rank(comm_row, &my_mpi_rank_row);
@@ -1395,7 +1377,7 @@ int EXT_MPI_Reduce_scatter_init_native(
     MPI_Datatype datatype, MPI_Op op, MPI_Comm comm_row,
     int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *groups,
-    int num_active_ports, int copyin, int *copyin_factors, int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
+    int copyin, int *copyin_factors, int alt, int recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
   int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
@@ -1420,12 +1402,6 @@ int EXT_MPI_Reduce_scatter_init_native(
   }
   if ((op == MPI_SUM) && (datatype == MPI_INT)) {
     reduction_op = OPCODE_REDUCE_SUM_INT;
-  }
-  if (num_active_ports > my_cores_per_node_row * my_cores_per_node_column) {
-    num_active_ports = my_cores_per_node_row * my_cores_per_node_column;
-  }
-  if (num_active_ports < 1) {
-    num_active_ports = 1;
   }
   MPI_Type_size(datatype, &type_size);
   MPI_Comm_size(comm_row, &my_mpi_size_row);
