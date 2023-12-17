@@ -4,6 +4,19 @@
 #include "recursive_factors.h"
 #include "num_ports_factors.h"
 
+int ext_mpi_copyin_info(MPI_Comm comm, MPI_Info info, int *copyin_method, int *copyin_factors) {
+  *copyin_method = -1;
+  return *copyin_method;
+}
+
+int ext_mpi_not_recursive_info(MPI_Comm comm, MPI_Info info) {
+  return 0;
+}
+
+int ext_mpi_alternating_info(MPI_Comm comm, MPI_Info info) {
+  return -1;
+}
+
 void ext_mpi_set_ports_single_node(int num_sockets_per_node, int *num_ports, int *groups) {
   if (groups[0] == -1 && groups[1] == 0) {
     if (num_sockets_per_node == 1) {
@@ -33,21 +46,47 @@ void ext_mpi_set_ports_single_node(int num_sockets_per_node, int *num_ports, int
   }
 }
 
-/*  num_ports = (int *)malloc((2 * comm_size_row + 1) * sizeof(int));
-  if (!num_ports)
-    goto error;
-  groups = (int *)malloc((2 * comm_size_row + 1) * sizeof(int));
-  if (!groups)
-    goto error;*/
-int ext_mpi_num_ports_factors(int message_size, int collective_type, MPI_Comm comm_row, int my_cores_per_node_row, int num_sockets_per_node, int minimum_computation, int *fixed_factors_ports, int *fixed_factors_groups, int *num_ports, int *groups) {
+static int get_group_size(int *num_ports, int *groups){
+  int group_size, i;
+  if (num_ports[1]) {
+    group_size = 1;
+  } else {
+    group_size = 0;
+  }
+  for (i=0; num_ports[i]; i++) {
+    if (num_ports[i] > 0) {
+      group_size *= abs(num_ports[i]) + 1;
+    }
+  }
+  return group_size;
+}
+
+int ext_mpi_num_ports_factors_env(MPI_Comm comm_row, int *fixed_factors_ports, int *fixed_factors_groups, int *num_ports, int *groups) {
+  int i;
+  if (fixed_factors_ports) {
+    i = -1;
+    do {
+      i++;
+      num_ports[i] = fixed_factors_ports[i];
+      groups[i] = fixed_factors_groups[i];
+    } while (fixed_factors_ports[i]);
+  }
+  return get_group_size(num_ports, groups);
+}
+
+int ext_mpi_num_ports_factors_info(MPI_Comm comm_row, MPI_Info info, int *num_ports, int *groups) {
+  return -1;
+}
+
+int ext_mpi_num_ports_factors(int message_size, int collective_type, MPI_Comm comm_row, int my_cores_per_node_row, int num_sockets_per_node, int minimum_computation, int *num_ports, int *groups) {
   int comm_rank_row, comm_size_row, factors_max_max = -1, group_size, **factors, *factors_max, *primes, i, j;
   PMPI_Comm_rank(comm_row, &comm_rank_row);
   PMPI_Comm_size(comm_row, &comm_size_row);
-  if (fixed_factors_ports == NULL && comm_size_row == my_cores_per_node_row * num_sockets_per_node) {
+  if (comm_size_row == my_cores_per_node_row * num_sockets_per_node) {
     num_ports[0] = groups[0] = -1;
     num_ports[1] = groups[1] = 0;
     ext_mpi_set_ports_single_node(num_sockets_per_node, num_ports, groups);
-  } else if (fixed_factors_ports == NULL && !minimum_computation) {
+  } else if (!minimum_computation) {
     if (comm_rank_row == 0) {
       factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node_row, collective_type, &factors_max, &factors, &primes);
       if (my_cores_per_node_row > 1) {
@@ -79,7 +118,7 @@ int ext_mpi_num_ports_factors(int message_size, int collective_type, MPI_Comm co
       free(factors_max);
     }
     // FIXME comm_column
-  } else if (fixed_factors_ports == NULL && minimum_computation){
+  } else if (minimum_computation){
     //allreduce case for minimum computation
     if (comm_size_row/my_cores_per_node_row==1){
       //if only one node
@@ -114,23 +153,6 @@ int ext_mpi_num_ports_factors(int message_size, int collective_type, MPI_Comm co
     }
     //set the final value of the array to 0 to indicate the end of it
     num_ports[2*group_size] = groups[2*group_size] = 0;
-  } else {
-    i = -1;
-    do {
-      i++;
-      num_ports[i] = fixed_factors_ports[i];
-      groups[i] = fixed_factors_groups[i];
-    } while (fixed_factors_ports[i]);
   }
-  if (comm_size_row / my_cores_per_node_row > 1) {
-    group_size = 1;
-  } else {
-    group_size = 0;
-  }
-  for (i=0; num_ports[i]; i++) {
-    if (num_ports[i] > 0) {
-      group_size *= abs(num_ports[i]) + 1;
-    }
-  }
-  return group_size;
+  return get_group_size(num_ports, groups);
 }
