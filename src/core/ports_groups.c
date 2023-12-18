@@ -27,9 +27,9 @@ int ext_mpi_scan_copyin(char *str, int *copyin_method, int **copyin_factors) {
   while (c2[0] != 0) {
     while (c2[0] != ' ' && c2[0] != 0) c2++;
     while (c2[0] == ' ' && c2[0] != 0) c2++;
-    if (c2[0] != 0) sscanf(c2, "%d", copyin_factors[i++]);
+    if (c2[0] != 0) sscanf(c2, "%d", &((*copyin_factors)[i++]));
   }
-  copyin_factors[i] = 0;
+  (*copyin_factors)[i] = 0;
   free(c);
   return 0;
 }

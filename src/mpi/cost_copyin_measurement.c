@@ -194,17 +194,17 @@ int EXT_MPI_Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
     MPI_Bcast(copyin_method, 1, MPI_INT, 0, comm_row);
     MPI_Bcast(copyin_factors_min, *my_cores_per_node_row + 1, MPI_INT, 0, comm_row);
     if (mpi_rank_row == 0 && ext_mpi_verbose) {
-      printf("# EXT_MPI copyin %d;", *copyin_method);
+/*      printf("# EXT_MPI copyin %d;", *copyin_method); */
     }
     for (j = 0; copyin_factors_min[j]; j++) {
       copyin_factors[j] = copyin_factors_min[j];
       if (mpi_rank_row == 0 && ext_mpi_verbose) {
-        printf(" %d", copyin_factors[j]);
+/*        printf(" %d", copyin_factors[j]); */
       }
     }
     copyin_factors[j] = 0;
     if (mpi_rank_row == 0 && ext_mpi_verbose) {
-      printf("\n");
+/*      printf("\n"); */
     }
     if (*num_sockets_per_node == 1) {
       *num_sockets_per_node = num_sockets_per_node_min;

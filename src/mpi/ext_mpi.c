@@ -476,19 +476,6 @@ int ext_mpi_reduce_scatter_init_general(
     alt = rcount < 10000000 && my_cores_per_node > 1;
   }
   not_recursive = (group_size!=comm_size_row/my_cores_per_node) || ext_mpi_not_recursive_info(comm, info) || ext_mpi_not_recursive;
-  if (ext_mpi_verbose) {
-    if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
-      if (!not_recursive){
-        printf("# recursive\n");
-      }
-      str = ext_mpi_print_ports_groups(num_ports, groups);
-      i = recvcounts[0];
-      printf("# EXT_MPI reduce_scatter parameters %d %d %d %d ports %s\n",
-             comm_size_row / my_cores_per_node, i * type_size, 1,
-             my_cores_per_node, str);
-      free(str);
-    }
-  }
   acount = 0;
   for (i = 0; i < comm_size_row; i++) {
     acount += recvcounts[i];
@@ -510,6 +497,22 @@ int ext_mpi_reduce_scatter_init_general(
   }
   if (ext_mpi_num_sockets_per_node == 1) {
     ext_mpi_set_ports_single_node(num_sockets_per_node, num_ports, groups);
+  }
+  if (ext_mpi_verbose) {
+    if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
+      if (!not_recursive){
+        printf("# recursive\n");
+      }
+      str = ext_mpi_print_ports_groups(num_ports, groups);
+      i = recvcounts[0];
+      printf("# EXT_MPI reduce_scatter parameters %d %d %d %d ports %s\n",
+             comm_size_row / my_cores_per_node, i * type_size, 1,
+             my_cores_per_node, str);
+      free(str);
+      str = ext_mpi_print_copyin(copyin_method, copyin_factors);
+      printf("# EXT_MPI reduce_scatter parameters copyin %s\n", str);
+      free(str);
+    }
   }
   *handle = EXT_MPI_Reduce_scatter_init_native(
       sendbuf, recvbuf, recvcounts, datatype, op, comm,
@@ -665,18 +668,6 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
     alt = count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1;
   }
   not_recursive = (group_size!=comm_size_row/my_cores_per_node_row) || ext_mpi_not_recursive_info(comm, info) || ext_mpi_not_recursive;
-  if (ext_mpi_verbose) {
-    if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)) {
-      if (!not_recursive){
-        printf("# recursive\n");
-      }
-      str = ext_mpi_print_ports_groups(num_ports, groups);
-      printf("# EXT_MPI allreduce parameters %d %d %d %d ports %s\n",
-             comm_size_row / my_cores_per_node_row, message_size, 1,
-             my_cores_per_node_row * my_cores_per_node_column, str);
-      free(str);
-    }
-  }
   num_sockets_per_node = ext_mpi_num_sockets_per_node;
   if (ext_mpi_copyin_method >= 0) {
     copyin_method = ext_mpi_copyin_method;
@@ -694,6 +685,21 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
   }
   if (ext_mpi_num_sockets_per_node == 1) {
     ext_mpi_set_ports_single_node(num_sockets_per_node, num_ports, groups);
+  }
+  if (ext_mpi_verbose) {
+    if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)) {
+      if (!not_recursive){
+        printf("# recursive\n");
+      }
+      str = ext_mpi_print_ports_groups(num_ports, groups);
+      printf("# EXT_MPI allreduce parameters %d %d %d %d ports %s\n",
+             comm_size_row / my_cores_per_node_row, message_size, 1,
+             my_cores_per_node_row * my_cores_per_node_column, str);
+      free(str);
+      str = ext_mpi_print_copyin(copyin_method, copyin_factors);
+      printf("# EXT_MPI allreduce parameters copyin %s\n", str);
+      free(str);
+    }
   }
   *handle = EXT_MPI_Allreduce_init_native(
       sendbuf, recvbuf, count, datatype, op, comm, my_cores_per_node_row,
@@ -754,18 +760,6 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
     alt = count * type_size < 10000000 && my_cores_per_node > 1;
   }
   not_recursive = (group_size!=comm_size_row/my_cores_per_node) || ext_mpi_not_recursive_info(comm, info) || ext_mpi_not_recursive;
-  if (ext_mpi_verbose) {
-    if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
-      if (!not_recursive){
-        printf("# recursive\n");
-      }
-      str = ext_mpi_print_ports_groups(num_ports, groups);
-      printf("# EXT_MPI reduce parameters %d %d %d %d ports %s\n",
-             comm_size_row / my_cores_per_node, count * message_size, 1,
-             my_cores_per_node, str);
-      free(str);
-    }
-  }
   num_sockets_per_node = ext_mpi_num_sockets_per_node;
   if (ext_mpi_copyin_method >= 0) {
     copyin_method = ext_mpi_copyin_method;
@@ -779,6 +773,21 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
           sendbuf, recvbuf, count, datatype, op, comm, &my_cores_per_node,
           MPI_COMM_NULL, 1,
           my_cores_per_node, &copyin_method, copyin_factors, &num_sockets_per_node);
+    }
+  }
+  if (ext_mpi_verbose) {
+    if (ext_mpi_is_rank_zero(comm, MPI_COMM_NULL)){
+      if (!not_recursive){
+        printf("# recursive\n");
+      }
+      str = ext_mpi_print_ports_groups(num_ports, groups);
+      printf("# EXT_MPI reduce parameters %d %d %d %d ports %s\n",
+             comm_size_row / my_cores_per_node, count * message_size, 1,
+             my_cores_per_node, str);
+      free(str);
+      str = ext_mpi_print_copyin(copyin_method, copyin_factors);
+      printf("# EXT_MPI reduce parameters copyin %s\n", str);
+      free(str);
     }
   }
   *handle = EXT_MPI_Reduce_init_native(
@@ -905,93 +914,51 @@ my_cores_per_node_column, handle); free(recvcounts); return(iret);
 int EXT_MPI_Allgatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
                             void *recvbuf, const int *recvcounts, const int *displs,
                             MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, int *handle) {
-  int num_core_per_node = ext_mpi_get_num_tasks_per_socket(comm);
-  if (num_core_per_node > 0) {
-    return ext_mpi_allgatherv_init_general(
-        sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
-        comm, info, handle);
-  } else {
-    *handle = -1;
-    return -1;
-  }
+  return ext_mpi_allgatherv_init_general(
+      sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
+      comm, info, handle);
 }
 
 int EXT_MPI_Allgather_init(void *sendbuf, int sendcount, MPI_Datatype sendtype,
                            void *recvbuf, int recvcount, MPI_Datatype recvtype,
                            MPI_Comm comm, MPI_Info info, int *handle) {
-  int num_core_per_node = ext_mpi_get_num_tasks_per_socket(comm);
-  if (num_core_per_node > 0) {
-    return ext_mpi_allgather_init_general(
-        sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, info,
-        handle);
-  } else {
-    *handle = -1;
-    return -1;
-  }
+  return ext_mpi_allgather_init_general(
+      sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, info,
+      handle);
 }
 
 int EXT_MPI_Reduce_scatter_init(const void *sendbuf, void *recvbuf, const int *recvcounts,
                                 MPI_Datatype datatype, MPI_Op op, MPI_Comm comm,
                                 MPI_Info info, int *handle) {
-  int num_core_per_node = ext_mpi_get_num_tasks_per_socket(comm);
-  if (num_core_per_node > 0) {
-    return ext_mpi_reduce_scatter_init_general(
-        sendbuf, recvbuf, recvcounts, datatype, op, comm, info, handle);
-  } else {
-    *handle = -1;
-    return -1;
-  }
+  return ext_mpi_reduce_scatter_init_general(
+      sendbuf, recvbuf, recvcounts, datatype, op, comm, info, handle);
 }
 
 int EXT_MPI_Reduce_scatter_block_init(void *sendbuf, void *recvbuf,
                                       int recvcount, MPI_Datatype datatype,
                                       MPI_Op op, MPI_Comm comm, MPI_Info info, int *handle) {
-  int num_core_per_node = ext_mpi_get_num_tasks_per_socket(comm);
-  if (num_core_per_node > 0) {
-    return ext_mpi_reduce_scatter_block_init_general(
-        sendbuf, recvbuf, recvcount, datatype, op, comm, info, handle);
-  } else {
-    *handle = -1;
-    return (0);
-  }
+  return ext_mpi_reduce_scatter_block_init_general(
+      sendbuf, recvbuf, recvcount, datatype, op, comm, info, handle);
 }
 
 int EXT_MPI_Allreduce_init(const void *sendbuf, void *recvbuf, int count,
                            MPI_Datatype datatype, MPI_Op op, MPI_Comm comm,
                            MPI_Info info, int *handle) {
-  int num_core_per_node = ext_mpi_get_num_tasks_per_socket(comm);
-  if (num_core_per_node > 0) {
-    return ext_mpi_allreduce_init_general(sendbuf, recvbuf, count, datatype,
-                                          op, comm, info, handle);
-  } else {
-    *handle = -1;
-    return -1;
-  }
+  return ext_mpi_allreduce_init_general(sendbuf, recvbuf, count, datatype,
+                                        op, comm, info, handle);
 }
 
 int EXT_MPI_Bcast_init(void *sendbuf, int count, MPI_Datatype datatype,
                        int root, MPI_Comm comm, MPI_Info info, int *handle) {
-  int num_core_per_node = ext_mpi_get_num_tasks_per_socket(comm);
-  if (num_core_per_node > 0) {
-    return ext_mpi_bcast_init_general(sendbuf, count, datatype, root, comm,
-		                      info, handle);
-  } else {
-    *handle = -1;
-    return -1;
-  }
+  return ext_mpi_bcast_init_general(sendbuf, count, datatype, root, comm,
+		                    info, handle);
 }
 
 int EXT_MPI_Reduce_init(const void *sendbuf, void *recvbuf, int count,
                         MPI_Datatype datatype, MPI_Op op, int root,
                         MPI_Comm comm, MPI_Info info, int *handle) {
-  int num_core_per_node = ext_mpi_get_num_tasks_per_socket(comm);
-  if (num_core_per_node > 0) {
-    return ext_mpi_reduce_init_general(sendbuf, recvbuf, count, datatype, op,
-                                        root, comm, info, handle);
-  } else {
-    *handle = -1;
-    return -1;
-  }
+  return ext_mpi_reduce_init_general(sendbuf, recvbuf, count, datatype, op,
+                                     root, comm, info, handle);
 }
 
 int EXT_MPI_Gatherv_init(const void *sendbuf, int sendcount,
@@ -999,28 +966,16 @@ int EXT_MPI_Gatherv_init(const void *sendbuf, int sendcount,
                          const int *recvcounts, const int *displs,
                          MPI_Datatype recvtype, int root,
                          MPI_Comm comm, MPI_Info info, int *handle){
-  int num_core_per_node = ext_mpi_get_num_tasks_per_socket(comm);
-  if (num_core_per_node > 0) {
-    return ext_mpi_gatherv_init_general(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
-                                        root, comm, info, handle);
-  } else {
-    *handle = -1;
-    return -1;
-  }
+  return ext_mpi_gatherv_init_general(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype,
+                                      root, comm, info, handle);
 }
 
 int EXT_MPI_Scatterv_init(const void *sendbuf, const int *sendcounts, const int *displs,
                           MPI_Datatype sendtype, void *recvbuf,
                           int recvcount, MPI_Datatype recvtype,
                           int root, MPI_Comm comm, MPI_Info info, int *handle){
-  int num_core_per_node = ext_mpi_get_num_tasks_per_socket(comm);
-  if (num_core_per_node > 0) {
-    return ext_mpi_scatterv_init_general(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
-                                         root, comm, info, handle);
-  } else {
-    *handle = -1;
-    return -1;
-  }
+  return ext_mpi_scatterv_init_general(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype,
+                                       root, comm, info, handle);
 }
 
 int EXT_MPI_Start(int handle) {
