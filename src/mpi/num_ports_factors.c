@@ -70,8 +70,10 @@ int ext_mpi_num_ports_factors_env(MPI_Comm comm_row, int *fixed_factors_ports, i
       num_ports[i] = fixed_factors_ports[i];
       groups[i] = fixed_factors_groups[i];
     } while (fixed_factors_ports[i]);
+    return get_group_size(num_ports, groups);
+  } else {
+    return -1;
   }
-  return get_group_size(num_ports, groups);
 }
 
 int ext_mpi_num_ports_factors_info(MPI_Comm comm_row, MPI_Info info, int *num_ports, int *groups) {
