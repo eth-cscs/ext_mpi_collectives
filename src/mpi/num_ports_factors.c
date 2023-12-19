@@ -4,17 +4,16 @@
 #include "recursive_factors.h"
 #include "num_ports_factors.h"
 
+int ext_mpi_get_param(int ext_mpi_param, MPI_Comm comm, MPI_Info info, char *info_str, int de) {
+  if (ext_mpi_param >= 0) {
+    return ext_mpi_param;
+  }
+  return de;
+}
+
 int ext_mpi_copyin_info(MPI_Comm comm, MPI_Info info, int *copyin_method, int *copyin_factors) {
   *copyin_method = -1;
   return *copyin_method;
-}
-
-int ext_mpi_not_recursive_info(MPI_Comm comm, MPI_Info info) {
-  return 0;
-}
-
-int ext_mpi_alternating_info(MPI_Comm comm, MPI_Info info) {
-  return -1;
 }
 
 void ext_mpi_set_ports_single_node(int num_sockets_per_node, int *num_ports, int *groups) {
