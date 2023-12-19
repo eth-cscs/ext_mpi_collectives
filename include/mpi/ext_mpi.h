@@ -14,7 +14,7 @@ extern int ext_mpi_bit_identical;
 extern int ext_mpi_bit_reproducible;
 extern int ext_mpi_minimum_computation;
 
-int ext_mpi_get_num_tasks_per_socket(MPI_Comm comm);
+int ext_mpi_get_num_tasks_per_socket(MPI_Comm comm, int num_sockets_per_node);
 int ext_mpi_is_rank_zero(MPI_Comm comm_row, MPI_Comm comm_column);
 void ext_mpi_revert_num_ports(int *num_ports, int *groups);
 

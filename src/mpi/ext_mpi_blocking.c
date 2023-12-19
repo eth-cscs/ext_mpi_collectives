@@ -48,7 +48,7 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
   }*/
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
-  int my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm);
+  int my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, abs(ext_mpi_num_sockets_per_node));
   char *sendbuf = (char *)malloc(1024 * 1024 * 1024);
   char *recvbuf = (char *)malloc(1024 * 1024 * 1024);
   char *str;
@@ -205,7 +205,7 @@ static int init_blocking_comm_reduce_scatter_block(MPI_Comm comm, int i_comm) {
   int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072};
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
-  int my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm);
+  int my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, abs(ext_mpi_num_sockets_per_node));
   char *sendbuf = (char *)malloc(1024 * 1024 * 1024);
   char *recvbuf = (char *)malloc(1024 * 1024 * 1024);
   MPI_Comm_size(comm, &comm_size_row);
@@ -314,7 +314,7 @@ static int init_blocking_comm_allgather(MPI_Comm comm, int i_comm) {
 //  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 1048576, 2097152};
   int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072};
   MPI_Datatype datatype = MPI_LONG;
-  int my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm);
+  int my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, abs(ext_mpi_num_sockets_per_node));
   MPI_Comm_rank(comm, &comm_rank_row);
   MPI_Comm_size(comm, &comm_size_row);
   MPI_Type_size(datatype, &type_size);
