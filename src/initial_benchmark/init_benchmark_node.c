@@ -14,7 +14,7 @@
 #define MPI_DATA_TYPE MPI_LONG
 
 int main(int argc, char *argv[]) {
-  int i, numprocs, rank, size, type_size, bufsize, num_tasks, num_tasks_, copyin_method, *copyin_factors, num_sockets_per_node;
+  int i, numprocs, rank, size, type_size, bufsize, num_tasks, num_tasks_, copyin_method, *copyin_factors = NULL, num_sockets_per_node;
   void *sendbuf, *recvbuf;
 #ifdef GPU_ENABLED
   void *sendbuf_device, *recvbuf_device;
@@ -29,7 +29,6 @@ int main(int argc, char *argv[]) {
   bufsize = type_size * MAX_MESSAGE_SIZE;
 //  bufsize = 1024*1024*1024;
 
-  copyin_factors = (int*)malloc(10000 * sizeof(int));
   sendbuf = malloc(bufsize);
   recvbuf = malloc(bufsize);
 
@@ -44,7 +43,8 @@ int main(int argc, char *argv[]) {
       for (size = 1; size <= MAX_MESSAGE_SIZE; size *= 8) {
         num_sockets_per_node = 1;
         num_tasks_ = num_tasks;
-        EXT_MPI_Allreduce_measurement(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm, &num_tasks_, MPI_COMM_NULL, 1, 12, &copyin_method, copyin_factors, &num_sockets_per_node);
+	free(copyin_factors);
+        EXT_MPI_Allreduce_measurement(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm, &num_tasks_, MPI_COMM_NULL, 1, 12, &copyin_method, &copyin_factors, &num_sockets_per_node);
         MPI_Barrier(new_comm);
         if (rank == 0) {
           printf("%d %d %d", num_tasks, size * type_size, copyin_method);

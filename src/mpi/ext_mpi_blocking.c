@@ -54,9 +54,6 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
   char *str;
   MPI_Comm_size(comm, &comm_size_row);
   MPI_Comm_rank(comm, &comm_rank_row);
-  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
-  if (!copyin_factors)
-    goto error;
   MPI_Type_size(datatype, &type_size);
   num_ports = (int *)malloc((2 * comm_size_row + 1) * sizeof(int));
   if (!num_ports)
@@ -173,7 +170,7 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
     EXT_MPI_Allreduce_measurement(
         sendbuf, recvbuf, counts[j], datatype, op, comm, &my_cores_per_node,
         MPI_COMM_NULL, 1,
-        my_cores_per_node, &copyin_method_, copyin_factors, &num_sockets_per_node);
+        my_cores_per_node, &copyin_method_, &copyin_factors, &num_sockets_per_node);
     if (ext_mpi_num_sockets_per_node == 1) {
       ext_mpi_set_ports_single_node(num_sockets_per_node, num_ports, groups);
     }
@@ -210,9 +207,6 @@ static int init_blocking_comm_reduce_scatter_block(MPI_Comm comm, int i_comm) {
   char *recvbuf = (char *)malloc(1024 * 1024 * 1024);
   MPI_Comm_size(comm, &comm_size_row);
   MPI_Type_size(datatype, &type_size);
-  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
-  if (!copyin_factors)
-    goto error;
   num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
   if (!num_ports)
     goto error;
@@ -278,14 +272,11 @@ static int init_blocking_comm_reduce_scatter_block(MPI_Comm comm, int i_comm) {
       }
     }
     num_sockets_per_node = ext_mpi_num_sockets_per_node;
-    for (i = 0; i < comm_size_row + 1; i++) {
-      copyin_factors[i] = 0;
-    }
     if (num_sockets_per_node == 1) num_sockets_per_node = -1;
     EXT_MPI_Allreduce_measurement(
         sendbuf, recvbuf, counts[j], datatype, op, comm, &my_cores_per_node,
         MPI_COMM_NULL, 1,
-        my_cores_per_node, &copyin_method_, copyin_factors, &num_sockets_per_node);
+        my_cores_per_node, &copyin_method_, &copyin_factors, &num_sockets_per_node);
     if (ext_mpi_num_sockets_per_node == 1) {
       ext_mpi_set_ports_single_node(num_sockets_per_node, num_ports, groups);
     }
