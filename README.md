@@ -116,6 +116,23 @@ cmake --build build+cuda -j
 cmake --install build+cuda --prefix myinstalldir
 ```
 
+## Environment variables and arguments of MPI_Info
+
+Environment variables:
+
+|    variable name                 |  meaning                                                 |  default                  |
+| -------------------------------- | -------------------------------------------------------- | ------------------------- |
+|    EXT_MPI_VERBOSE               |  print parameters                                        |  0                        |
+|    EXT_MPI_DEBUG                 |  internal check of values communicated in initalisation  |  1                        |
+|    EXT_MPI_NUM_SOCKETS_PER_NODE  |  number of sockets per node                              |  1                        |
+|    EXT_MPI_NOT_RECURSIVE         |  only cyclic shift algorithms not recursive ones         |  0                        |
+|    EXT_MPI_ALTERNATING           |  alternating buffer                                      |  depends on message size  |
+|    EXT_MPI_NUM_TASKS_PER_SOCKET  |  number of tasks per socket                              |  as many as possible      |
+|    EXT_MPI_NUM_PORTS             |  parameters for internode communication algorithms       |  measurement              |
+|    EXT_MPI_COPYIN                |  parameters for copy in reduction algorithm              |  measurement              |
+
+the same parameters can be passed with the MPI_Info argument where the variable names are in lower case
+
 ## Literature
 
 [A. Jocksch, N. Ohana, E. Lanti, E. Koutsaniti, V. Karakasis, L. Villard: An optimisation of allreduce communication in message-passing systems. Parallel Computing, 107 (2021) 102812](https://doi.org/10.1016/j.parco.2021.102812)
