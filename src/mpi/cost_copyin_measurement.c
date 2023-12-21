@@ -5,6 +5,7 @@
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #endif
+#include <stdlib.h>
 #include <stdio.h>
 
 extern int ext_mpi_verbose;
@@ -154,7 +155,7 @@ int EXT_MPI_Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Comm comm_row, int *my_cores_per_node_row,
                                   MPI_Comm comm_column, int my_cores_per_node_column,
                                   int num_active_ports, int *copyin_method,
-                                  int *copyin_factors, int *num_sockets_per_node) {
+                                  int **copyin_factors, int *num_sockets_per_node) {
   int mpi_rank_row, mpi_size_row, i, j, k, copyin_factors_min[*my_cores_per_node_row+1], msize, copyin_method_min, num_sockets_per_node_min, num_sockets_per_node_max = 1, one_socket_only = 0;
   double time, time_min;
   if (*num_sockets_per_node == -1) {
@@ -164,27 +165,28 @@ int EXT_MPI_Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
   MPI_Comm_size(comm_row, &mpi_size_row);
   MPI_Comm_rank(comm_row, &mpi_rank_row);
   MPI_Type_size(datatype, &msize);
+  (*copyin_factors) = (int*)malloc((mpi_size_row + 1) * sizeof(int));
   msize *= count;
   if (*my_cores_per_node_row * my_cores_per_node_column == 1) {
     *copyin_method = 0;
-    copyin_factors[0] = 1;
-    copyin_factors[1] = 0;
+    (*copyin_factors)[0] = 1;
+    (*copyin_factors)[1] = 0;
   } else {
     time_min = allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row, comm_column, my_cores_per_node_column, num_active_ports, &copyin_method_min, copyin_factors_min, *num_sockets_per_node);
     num_sockets_per_node_min = 1;
     if (*my_cores_per_node_row == mpi_size_row && !one_socket_only) num_sockets_per_node_max = 4;
     for (j = 2; j <= num_sockets_per_node_max; j *= 2){
       if (*num_sockets_per_node == 1 && *my_cores_per_node_row % j == 0) {
-        time = allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row/j, comm_column, my_cores_per_node_column, num_active_ports, copyin_method, copyin_factors, *num_sockets_per_node*j);
+        time = allreduce_measurement(sendbuf, recvbuf, count, datatype, op, comm_row, *my_cores_per_node_row/j, comm_column, my_cores_per_node_column, num_active_ports, copyin_method, *copyin_factors, *num_sockets_per_node*j);
         k = time < time_min;
         MPI_Bcast(&k, 1, MPI_INT, 0, comm_row);
         if (k) {
           time_min = time;
           copyin_method_min = *copyin_method;
-          for (i = 0; copyin_factors[i]; i++) {
-            copyin_factors_min[i] = copyin_factors[i];
+          for (i = 0; (*copyin_factors)[i]; i++) {
+            copyin_factors_min[i] = (*copyin_factors)[i];
           }
-          copyin_factors_min[i] = copyin_factors[i];
+          copyin_factors_min[i] = (*copyin_factors)[i];
           num_sockets_per_node_min = j;
         }
       }
@@ -197,12 +199,12 @@ int EXT_MPI_Allreduce_measurement(const void *sendbuf, void *recvbuf, int count,
 /*      printf("# EXT_MPI copyin %d;", *copyin_method); */
     }
     for (j = 0; copyin_factors_min[j]; j++) {
-      copyin_factors[j] = copyin_factors_min[j];
+      (*copyin_factors)[j] = copyin_factors_min[j];
       if (mpi_rank_row == 0 && ext_mpi_verbose) {
 /*        printf(" %d", copyin_factors[j]); */
       }
     }
-    copyin_factors[j] = 0;
+    (*copyin_factors)[j] = 0;
     if (mpi_rank_row == 0 && ext_mpi_verbose) {
 /*      printf("\n"); */
     }

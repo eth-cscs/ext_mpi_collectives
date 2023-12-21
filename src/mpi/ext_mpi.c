@@ -258,10 +258,12 @@ int ext_mpi_allgatherv_init_general(const void *sendbuf, int sendcount,
   minimum_computation = ext_mpi_get_param(ext_mpi_minimum_computation, comm, info, "ext_mpi_minimum_computation", 0);
   group_size = ext_mpi_num_ports_factors_env(comm, ext_mpi_fixed_factors_ports, ext_mpi_fixed_factors_groups, num_ports, groups);
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors_info(comm, info, num_ports, groups);
+    free(groups);
+    free(num_ports);
+    group_size = ext_mpi_num_ports_factors_info(comm, info, &num_ports, &groups);
   }
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors(scount * type_size, 1, comm, my_cores_per_node_row, num_sockets_per_node, minimum_computation, num_ports, groups);
+    group_size = ext_mpi_num_ports_factors(scount * type_size, 1, comm, my_cores_per_node_row, num_sockets_per_node, minimum_computation, &num_ports, &groups);
   }
   rcount = 0;
   for (i = 0; i < comm_size_row; i++) {
@@ -328,10 +330,12 @@ int ext_mpi_gatherv_init_general(const void *sendbuf, int sendcount,
   minimum_computation = ext_mpi_get_param(ext_mpi_minimum_computation, comm, info, "ext_mpi_minimum_computation", 0);
   group_size = ext_mpi_num_ports_factors_env(comm, ext_mpi_fixed_factors_ports, ext_mpi_fixed_factors_groups, num_ports, groups);
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors_info(comm, info, num_ports, groups);
+    free(groups);
+    free(num_ports);
+    group_size = ext_mpi_num_ports_factors_info(comm, info, &num_ports, &groups);
   }
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors(scount * type_size, 1, comm, my_cores_per_node_row, num_sockets_per_node, minimum_computation, num_ports, groups);
+    group_size = ext_mpi_num_ports_factors(scount * type_size, 1, comm, my_cores_per_node_row, num_sockets_per_node, minimum_computation, &num_ports, &groups);
   }
 /*  for (i = 0; i < comm_size_row / my_cores_per_node_row + 1; i++) {
     num_ports[i] = -num_ports[i];
@@ -452,10 +456,12 @@ int ext_mpi_reduce_scatter_init_general(
   minimum_computation = ext_mpi_get_param(ext_mpi_minimum_computation, comm, info, "ext_mpi_minimum_computation", 0);
   group_size = ext_mpi_num_ports_factors_env(comm, ext_mpi_fixed_factors_ports, ext_mpi_fixed_factors_groups, num_ports, groups);
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors_info(comm, info, num_ports, groups);
+    free(groups);
+    free(num_ports);
+    group_size = ext_mpi_num_ports_factors_info(comm, info, &num_ports, &groups);
   }
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors(rcount * type_size, 1, comm, my_cores_per_node, num_sockets_per_node_, minimum_computation, num_ports, groups);
+    group_size = ext_mpi_num_ports_factors(rcount * type_size, 1, comm, my_cores_per_node, num_sockets_per_node_, minimum_computation, &num_ports, &groups);
   }
   for (i = 0; num_ports[i]; i++);
   for (j = 0; j < i/2; j++) {
@@ -476,11 +482,12 @@ int ext_mpi_reduce_scatter_init_general(
     }
     copyin_factors[i] = 0;
   } else {
-    if (ext_mpi_copyin_info(comm, info, &copyin_method, copyin_factors) < 0) {
+    free(copyin_factors);
+    if (ext_mpi_copyin_info(comm, info, &copyin_method, &copyin_factors) < 0) {
       EXT_MPI_Allreduce_measurement(
           sendbuf, recvbuf, acount, datatype, op, comm, &my_cores_per_node,
           MPI_COMM_NULL, 1,
-          my_cores_per_node, &copyin_method, copyin_factors, &num_sockets_per_node);
+          my_cores_per_node, &copyin_method, &copyin_factors, &num_sockets_per_node);
     }
   }
   if (num_sockets_per_node_ == 1) {
@@ -550,10 +557,12 @@ int ext_mpi_scatterv_init_general(const void *sendbuf, const int *sendcounts, co
   minimum_computation = ext_mpi_get_param(ext_mpi_minimum_computation, comm, info, "ext_mpi_minimum_computation", 0);
   group_size = ext_mpi_num_ports_factors_env(comm, ext_mpi_fixed_factors_ports, ext_mpi_fixed_factors_groups, num_ports, groups);
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors_info(comm, info, num_ports, groups);
+    free(groups);
+    free(num_ports);
+    group_size = ext_mpi_num_ports_factors_info(comm, info, &num_ports, &groups);
   }
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors(rcount * type_size, 1, comm, my_cores_per_node_row, num_sockets_per_node, minimum_computation, num_ports, groups);
+    group_size = ext_mpi_num_ports_factors(rcount * type_size, 1, comm, my_cores_per_node_row, num_sockets_per_node, minimum_computation, &num_ports, &groups);
   }
   for (i = 0; num_ports[i]; i++);
   for (j = 0; j < i / 2; j++) {
@@ -643,10 +652,12 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
   minimum_computation = ext_mpi_get_param(ext_mpi_minimum_computation, comm, info, "ext_mpi_minimum_computation", 0);
   group_size = ext_mpi_num_ports_factors_env(comm, ext_mpi_fixed_factors_ports, ext_mpi_fixed_factors_groups, num_ports, groups);
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors_info(comm, info, num_ports, groups);
+    free(groups);
+    free(num_ports);
+    group_size = ext_mpi_num_ports_factors_info(comm, info, &num_ports, &groups);
   }
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors(message_size, 0, comm, my_cores_per_node_row, num_sockets_per_node_, minimum_computation, num_ports, groups);
+    group_size = ext_mpi_num_ports_factors(message_size, 0, comm, my_cores_per_node_row, num_sockets_per_node_, minimum_computation, &num_ports, &groups);
   }
   alt = ext_mpi_get_param(ext_mpi_alternating, comm, info, "ext_mpi_alternating", count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1);
   not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size!=comm_size_row/my_cores_per_node_row));
@@ -660,11 +671,12 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
     }
     copyin_factors[i] = 0;
   } else {
-    if (ext_mpi_copyin_info(comm, info, &copyin_method, copyin_factors) < 0) {
+    free(copyin_factors);
+    if (ext_mpi_copyin_info(comm, info, &copyin_method, &copyin_factors) < 0) {
       EXT_MPI_Allreduce_measurement(
           sendbuf, recvbuf, count, datatype, op, comm, &my_cores_per_node_row,
           MPI_COMM_NULL, my_cores_per_node_column,
-          my_cores_per_node_row * my_cores_per_node_column, &copyin_method, copyin_factors, &num_sockets_per_node);
+          my_cores_per_node_row * my_cores_per_node_column, &copyin_method, &copyin_factors, &num_sockets_per_node);
     }
   }
   if (num_sockets_per_node_ == 1) {
@@ -734,10 +746,12 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   minimum_computation = ext_mpi_get_param(ext_mpi_minimum_computation, comm, info, "ext_mpi_minimum_computation", 0);
   group_size = ext_mpi_num_ports_factors_env(comm, ext_mpi_fixed_factors_ports, ext_mpi_fixed_factors_groups, num_ports, groups);
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors_info(comm, info, num_ports, groups);
+    free(groups);
+    free(num_ports);
+    group_size = ext_mpi_num_ports_factors_info(comm, info, &num_ports, &groups);
   }
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors(message_size, 0, comm, my_cores_per_node, num_sockets_per_node_, minimum_computation, num_ports, groups);
+    group_size = ext_mpi_num_ports_factors(message_size, 0, comm, my_cores_per_node, num_sockets_per_node_, minimum_computation, &num_ports, &groups);
   }
   alt = ext_mpi_get_param(ext_mpi_alternating, comm, info, "ext_mpi_alternating", count * type_size < 10000000 && my_cores_per_node > 1);
   not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size!=comm_size_row/my_cores_per_node));
@@ -750,11 +764,12 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
     }
     copyin_factors[i] = 0;
   } else {
-    if (ext_mpi_copyin_info(comm, info, &copyin_method, copyin_factors) < 0) {
+    free(copyin_factors);
+    if (ext_mpi_copyin_info(comm, info, &copyin_method, &copyin_factors) < 0) {
       EXT_MPI_Allreduce_measurement(
           sendbuf, recvbuf, count, datatype, op, comm, &my_cores_per_node,
           MPI_COMM_NULL, 1,
-          my_cores_per_node, &copyin_method, copyin_factors, &num_sockets_per_node);
+          my_cores_per_node, &copyin_method, &copyin_factors, &num_sockets_per_node);
     }
   }
   if (ext_mpi_verbose) {
@@ -818,10 +833,12 @@ int ext_mpi_bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   minimum_computation = ext_mpi_get_param(ext_mpi_minimum_computation, comm, info, "ext_mpi_minimum_computation", 0);
   group_size = ext_mpi_num_ports_factors_env(comm, ext_mpi_fixed_factors_ports, ext_mpi_fixed_factors_groups, num_ports, groups);
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors_info(comm, info, num_ports, groups);
+    free(groups);
+    free(num_ports);
+    group_size = ext_mpi_num_ports_factors_info(comm, info, &num_ports, &groups);
   }
   if (group_size < 0) {
-    group_size = ext_mpi_num_ports_factors(count * type_size, 1, comm, my_cores_per_node_row, num_sockets_per_node_, minimum_computation, num_ports, groups);
+    group_size = ext_mpi_num_ports_factors(count * type_size, 1, comm, my_cores_per_node_row, num_sockets_per_node_, minimum_computation, &num_ports, &groups);
   }
   alt = ext_mpi_get_param(ext_mpi_alternating, comm, info, "ext_mpi_alternating", count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1);
   not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size!=comm_size_row/my_cores_per_node_row));
