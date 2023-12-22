@@ -132,31 +132,37 @@ double ext_mpi_min_cost_total(int msize, int num, int *factors_max, int **factor
 }
 
 static int next_number(int num_nodes, int *numbers) {
-  int ret = 0, flag = 1, i = 0, j = 0, k = 1;
-  while (k < num_nodes) {
-    k *= numbers[j];
-    j++;
-  }
-  while (flag) {
-    flag = 0;
-    numbers[i]++;
-    if (numbers[i] > FACTOR_MAX) {
+  int ret = 1, flag, flag2 = 1, i, j, k, l, m = num_nodes + 1;
+  for (j = 0, k = 1; k < num_nodes; k *= 2, j++);
+  while (flag2 && ret) {
+    flag = 1; flag2 = 0;
+    i = 0;
+    while (flag && ret) {
+      flag = 0;
       if (i < j) {
-        numbers[i] = 2;
+        if (j - 1 - i < m) {
+          m = j - 1 - i;
+        }
+        numbers[j - 1 - i]++;
+        if (numbers[j - 1 - i] > FACTOR_MAX) {
+          numbers[j - 1 - i] = 2;
+          flag = 1;
+        }
+        i++;
+      } else {
+        ret = 0;
       }
-      flag = 1;
-      i++;
     }
-  }
-  for (i = 0; i < j  + 1 && !ret; i++) {
-    if (numbers[i] < FACTOR_MAX) {
-      ret = 1;
+    for (l = 0, k = 1; k < num_nodes; k *= numbers[l], l++);
+    k /= numbers[l - 1];
+    if ((m > l - 1) || (k * (numbers[l - 1] - 1) >= num_nodes)) {
+      flag2 = 1;
     }
   }
   return ret;
 }
 
-static void correct_number(int num_nodes, int *numbers, int *numbers_new) {
+static int correct_number(int num_nodes, int *numbers, int *numbers_new) {
   int i, k;
   for (i = 0, k = 1; k < num_nodes; k *= numbers[i], i++) {
     numbers_new[i] = numbers[i];
@@ -167,6 +173,7 @@ static void correct_number(int num_nodes, int *numbers, int *numbers_new) {
   while (numbers_new[i] * k < num_nodes) {
     numbers_new[i]++;
   }
+  return numbers_new[i] != numbers[i];
 }
 
 int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int allgather, int **factors_max, int ***factors, int **primes) {
@@ -197,9 +204,8 @@ int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int allgather, int **
       }
       (*factors_max)[i + l] += numbers_max + l;
     }
-    flag = next_number(num_nodes, numbers);
-    correct_number(num_nodes, numbers, numbers_corrected);
-    factors_max_max++;
+    flag = next_number(num_nodes, numbers_corrected);
+    factors_max_max += l;
   }
   return factors_max_max;
 }
