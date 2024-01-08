@@ -120,9 +120,10 @@ int ext_mpi_num_ports_factors(int message_size, int collective_type, MPI_Comm co
   } else if (!minimum_computation) {
     if (comm_rank_row == 0) {
       factors_max_max = ext_mpi_heuristic_recursive_non_factors(comm_size_row/my_cores_per_node_row, collective_type, &factors_max, &factors, &primes);
+      factors_max_max = ext_mpi_heuristic_cancel_factors(factors_max_max, factors_max, factors, primes);
       if (my_cores_per_node_row > 1) {
         for (i = 0; i < factors_max_max; i++) {
-	  primes[i] = 0;
+	  primes[i] = 1;
 	}
       }
       ext_mpi_min_cost_total(message_size, factors_max_max, factors_max, factors, primes, &i);

@@ -5,6 +5,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include <limits.h>
 
 #define FACTOR_MAX 13
 
@@ -210,11 +211,38 @@ int ext_mpi_heuristic_recursive_non_factors(int num_nodes, int allgather, int **
   return factors_max_max;
 }
 
+int ext_mpi_heuristic_cancel_factors(int factors_max_max, int *factors_max, int **factors, int *primes) {
+  int cancel, i, j, k, l;
+  for (k = 0; k < factors_max_max; k++) {
+    cancel = 0;
+    l = INT_MAX;
+    for (j = 0; j < factors_max[k]; j++) {
+      if ((factors[k][j] > 0) && (factors[k][j] <= l)) {
+        l = factors[k][j];
+      } else if (factors[k][j] > 0) {
+        cancel = 1;
+      }
+    }
+    if (cancel) {
+      free(factors[k]);
+      factors_max_max--;
+      for (i = k; i < factors_max_max; i++) {
+        factors_max[i] = factors_max[i + 1];
+        factors[i] = factors[i + 1];
+        primes[i] = primes[i + 1];
+      }
+      k--;
+    }
+  }
+  return factors_max_max;
+}
+
 /*int main() {
   double d;
   int factors_max_max, *factors_max, **factors, *primes, i, j;
   ext_mpi_read_bench();
   factors_max_max = ext_mpi_heuristic_recursive_non_factors(32, 0, &factors_max, &factors, &primes);
+  factors_max_max = ext_mpi_heuristic_cancel_factors(factors_max_max, factors_max, factors, primes);
   for (i = 0; i < factors_max_max; i++) {
     printf("%d: prime %d : ", i, primes[i]);
     for (j = 0; j < factors_max[i]; j++) {
