@@ -114,8 +114,8 @@ int ext_mpi_num_ports_factors(int message_size, int collective_type, MPI_Comm co
   (*num_ports) = (int*)malloc((comm_size_row + 1)*sizeof(int));
   (*groups) = (int*)malloc((comm_size_row + 1)*sizeof(int));
   if (comm_size_row == my_cores_per_node_row * num_sockets_per_node) {
-    (*num_ports)[0] = (*groups[0]) = -1;
-    (*num_ports)[1] = (*groups[1]) = 0;
+    (*num_ports)[0] = (*groups)[0] = -1;
+    (*num_ports)[1] = (*groups)[1] = 0;
     ext_mpi_set_ports_single_node(num_sockets_per_node, *num_ports, *groups);
   } else if (!minimum_computation) {
     if (comm_rank_row == 0) {
