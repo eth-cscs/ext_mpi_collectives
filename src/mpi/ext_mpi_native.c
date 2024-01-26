@@ -38,6 +38,7 @@
 #include "reduce_scatter_single_node.h"
 #include "padding_factor.h"
 #include "shmem.h"
+#include "ext_mpi_xpmem.h"
 #include "ext_mpi_native_exec.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
@@ -1631,6 +1632,9 @@ error:
 
 int EXT_MPI_Init_native() {
   PMPI_Comm_dup(MPI_COMM_WORLD, &ext_mpi_COMM_WORLD_dup);
+#ifdef XPMEM
+  ext_mpi_init_xpmem(ext_mpi_COMM_WORLD_dup);
+#endif
   is_initialised = 1;
   return 0;
 }
