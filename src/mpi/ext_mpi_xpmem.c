@@ -12,15 +12,15 @@
 #ifdef XPMEM
 extern MPI_Comm ext_mpi_COMM_WORLD_dup;
 
-long int *ext_mpi_all_xpmem_id;
+long long int *ext_mpi_all_xpmem_id;
 
 int ext_mpi_init_xpmem(MPI_Comm comm) {
   MPI_Comm xpmem_comm_node;
   int my_mpi_rank, my_mpi_size, my_cores_per_node, i;
-  long int global_xpmem_id, *all_global_xpmem_id;
+  long long int global_xpmem_id, *all_global_xpmem_id;
   my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1);
-  all_global_xpmem_id = (long int *)malloc(my_cores_per_node * sizeof(long int));
-  ext_mpi_all_xpmem_id = (long int *)malloc(my_cores_per_node * sizeof(long int));
+  all_global_xpmem_id = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
+  ext_mpi_all_xpmem_id = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
   PMPI_Comm_size(comm, &my_mpi_size);
   PMPI_Comm_rank(comm, &my_mpi_rank);
   PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
@@ -32,8 +32,8 @@ int ext_mpi_init_xpmem(MPI_Comm comm) {
     printf("error xpmem_make\n");
     exit(1);
   }
-  PMPI_Allgather(&global_xpmem_id, 1, MPI_LONG_INT, all_global_xpmem_id, 1, MPI_LONG_INT, xpmem_comm_node);
-  for (i = 1; i < my_cores_per_node; i++) {
+  PMPI_Allgather(&global_xpmem_id, 1, MPI_LONG_LONG, all_global_xpmem_id, 1, MPI_LONG_LONG, xpmem_comm_node);
+  for (i = 0; i < my_cores_per_node; i++) {
     if (my_mpi_rank != i) {
       ext_mpi_all_xpmem_id[i] = xpmem_get (all_global_xpmem_id[i], XPMEM_RDWR, XPMEM_PERMIT_MODE, NULL);
       if (ext_mpi_all_xpmem_id[i] == -1) {
@@ -54,6 +54,10 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *s
   struct xpmem_addr addr;
   int my_mpi_rank, my_mpi_size, i, j;
   char *a;
+  if (!sendrecvbuf) {
+    sendrecvbufs = NULL;
+    return -1;
+  }
   PMPI_Comm_rank(comm, &my_mpi_rank);
   PMPI_Comm_size(comm, &my_mpi_size);
   PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
@@ -61,24 +65,31 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *s
   PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
   *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char **));
-  PMPI_Allgather(sendrecvbuf, 1, MPI_LONG_INT, *sendrecvbufs, 1, MPI_LONG_INT, xpmem_comm_node);
-  PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_LONG_INT, MPI_MAX, xpmem_comm_node);
+  PMPI_Allgather(sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node);
+  PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, xpmem_comm_node);
+  size += 4096;
   while (size & (4096 - 1)) {
     size++;
   }
   for (i = 0; i < my_mpi_size; i++) {
     if (ext_mpi_all_xpmem_id[i] != -1) {
-      while ((long int)((*sendrecvbufs)[i]) & (4096 - 1)) {
-        (*sendrecvbufs)[i]--;
-      }
       addr.offset = (long int)((*sendrecvbufs)[i]);
-      addr.apid = ext_mpi_all_xpmem_id[i];
-      a = xpmem_attach(addr, size, NULL);
-      if ((long int)a == -1) {
-        printf("error xpmem_attach\n");
-        exit(1);
+      while (addr.offset & (4096 - 1)) {
+        addr.offset--;
       }
-      (*sendrecvbufs)[i] = a + (long int)((*sendrecvbufs)[i] - addr.offset);
+      addr.apid = ext_mpi_all_xpmem_id[i];
+      if (addr.apid != -1 && addr.offset > 0) {
+        a = xpmem_attach(addr, size, NULL);
+        if ((long int)a == -1) {
+          printf("error xpmem_attach\n");
+          exit(1);
+        }
+        (*sendrecvbufs)[i] = a + (long int)((*sendrecvbufs)[i] - addr.offset);
+      } else if (addr.offset > 0) {
+	(*sendrecvbufs)[i] = sendrecvbuf;
+      } else {
+	(*sendrecvbufs)[i] = NULL;
+      }
     }
   }
   for (i = 0; i < my_mpi_rank; i++) {
@@ -88,6 +99,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *s
     }
     (*sendrecvbufs)[my_mpi_size - 1] = a;
   }
+  (*sendrecvbufs)[0] = sendrecvbuf;
   return 0;
 }
 
@@ -95,6 +107,9 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
   MPI_Comm xpmem_comm_node;
   int my_mpi_rank, my_mpi_size, i;
   char *addr;
+  if (comm == MPI_COMM_NULL) {
+    return -1;
+  }
   PMPI_Comm_rank(comm, &my_mpi_rank);
   PMPI_Comm_size(comm, &my_mpi_size);
   PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,

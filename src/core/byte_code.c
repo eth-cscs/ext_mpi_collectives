@@ -345,6 +345,8 @@ int ext_mpi_generate_byte_code(char **shmem,
     header->shmemid = shmemid;
     header->locmem = locmem;
     header->shmem = shmem;
+    header->sendbufs = sendbufs;
+    header->recvbufs = recvbufs;
 #ifdef GPU_ENABLED
     header->shmem_gpu = shmem_gpu;
     header->shmemid_gpu = shmemid_gpu;

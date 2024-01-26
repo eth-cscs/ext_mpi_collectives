@@ -328,8 +328,8 @@ int EXT_MPI_Done_native(int handle) {
   free(header->sendbufs);
   free(header->recvbufs);
 #else
-  ext_mpi_sendrecvbuf_done_xpmem(*((MPI_Comm *)(header + header->size_to_return)), header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
-  ext_mpi_sendrecvbuf_done_xpmem(*((MPI_Comm *)(header + header->size_to_return)), header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
+  ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row, header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
+  ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row, header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
 #endif
   ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle]);
   free(locmem);
@@ -376,8 +376,8 @@ int EXT_MPI_Done_native(int handle) {
     free(header->sendbufs);
     free(header->recvbufs);
 #else
-    ext_mpi_sendrecvbuf_done_xpmem(*((MPI_Comm *)(header + header->size_to_return)), header->node_num_cores_row + header->num_sockets_per_node, header->sendbufs);
-    ext_mpi_sendrecvbuf_done_xpmem(*((MPI_Comm *)(header + header->size_to_return)), header->node_num_cores_row + header->num_sockets_per_node, header->recvbufs);
+    ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row2, header->node_num_cores_row + header->num_sockets_per_node, header->sendbufs);
+    ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row2, header->node_num_cores_row + header->num_sockets_per_node, header->recvbufs);
 #endif
     ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle + 1]);
     free(locmem);
@@ -534,6 +534,17 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                                       &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
         goto error_shared;
     }
+#ifndef XPMEM
+    sendbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+    recvbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+    memset(sendbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+    memset(recvbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+    sendbufs[0] = (char *)sendbuf;
+    recvbufs[0] = recvbuf;
+#else
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, (char *)sendbuf, parameters->counts[0], &sendbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, recvbuf, parameters->counts[0], &recvbufs);
+#endif
     my_size_shared_buf = shmem_size - barriers_size * 4;
     shmem_size -= barriers_size;
     if (not_locmem) {
