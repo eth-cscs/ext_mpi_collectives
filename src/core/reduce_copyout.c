@@ -152,6 +152,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
                                &add))) {
             data_memcpy_reduce.type = ememcpy;
             data_memcpy_reduce.buffer_type1 = erecvbufp;
+            data_memcpy_reduce.buffer_number1 = 0;
             data_memcpy_reduce.is_offset1 = 0;
             data_memcpy_reduce.offset1 = add;
             data_memcpy_reduce.buffer_type2 = eshmemo;

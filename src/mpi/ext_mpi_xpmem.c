@@ -52,7 +52,7 @@ int ext_mpi_init_xpmem(MPI_Comm comm) {
 int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *sendrecvbuf, int size, char ***sendrecvbufs) {
   MPI_Comm xpmem_comm_node;
   struct xpmem_addr addr;
-  int my_mpi_rank, my_mpi_size, i;
+  int my_mpi_rank, my_mpi_size, i, j;
   char *a;
   PMPI_Comm_rank(comm, &my_mpi_rank);
   PMPI_Comm_size(comm, &my_mpi_size);
@@ -81,10 +81,17 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *s
       (*sendrecvbufs)[i] = a + (long int)((*sendrecvbufs)[i] - addr.offset);
     }
   }
+  for (i = 0; i < my_mpi_rank; i++) {
+    a = (*sendrecvbufs)[0];
+    for (j = 1; j < my_mpi_size; j++) {
+      (*sendrecvbufs)[j - 1] = (*sendrecvbufs)[j];
+    }
+    (*sendrecvbufs)[my_mpi_size - 1] = a;
+  }
   return 0;
 }
 
-int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char ***sendrecvbufs) {
+int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **sendrecvbufs) {
   MPI_Comm xpmem_comm_node;
   int my_mpi_rank, my_mpi_size, i;
   char *addr;
@@ -94,19 +101,17 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
                   my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
   PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
-  for (i = 0; i < my_mpi_size; i++) {
-    addr = (*sendrecvbufs)[i];
+  for (i = 1; i < my_mpi_size; i++) {
+    addr = sendrecvbufs[i];
     while ((long int)addr & (4096 - 1)) {
       addr--;
     }
-    if (ext_mpi_all_xpmem_id[i] != -1) {
-      if (xpmem_detach(addr) != 0) {
-        printf("error xpmem_detach\n");
-        exit(1);
-      }
+    if (xpmem_detach(addr) != 0) {
+      printf("error xpmem_detach\n");
+      exit(1);
     }
   }
-  free(*sendrecvbufs);
+  free(sendrecvbufs);
   return 0;
 }
 #endif
