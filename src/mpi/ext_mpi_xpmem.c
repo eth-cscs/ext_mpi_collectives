@@ -65,7 +65,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *s
   PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
   *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char **));
-  PMPI_Allgather(sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node);
+  PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node);
   PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, xpmem_comm_node);
   size += 4096;
   while (size & (4096 - 1)) {
@@ -78,17 +78,15 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *s
         addr.offset--;
       }
       addr.apid = ext_mpi_all_xpmem_id[i];
-      if (addr.apid != -1 && addr.offset > 0) {
+      if (addr.apid != -1 && (*sendrecvbufs)[i]) {
         a = xpmem_attach(addr, size, NULL);
         if ((long int)a == -1) {
           printf("error xpmem_attach\n");
           exit(1);
         }
         (*sendrecvbufs)[i] = a + (long int)((*sendrecvbufs)[i] - addr.offset);
-      } else if (addr.offset > 0) {
-	(*sendrecvbufs)[i] = sendrecvbuf;
       } else {
-	(*sendrecvbufs)[i] = NULL;
+	(*sendrecvbufs)[i] = sendrecvbuf;
       }
     }
   }
