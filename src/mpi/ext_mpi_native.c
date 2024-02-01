@@ -376,8 +376,8 @@ int EXT_MPI_Done_native(int handle) {
     free(header->sendbufs);
     free(header->recvbufs);
 #else
-    ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row2, header->node_num_cores_row + header->num_sockets_per_node, header->sendbufs);
-    ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row2, header->node_num_cores_row + header->num_sockets_per_node, header->recvbufs);
+    ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row2, header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
+    ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row2, header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
 #endif
     ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle + 1]);
     free(locmem);
