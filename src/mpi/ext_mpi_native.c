@@ -418,7 +418,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                          int my_cores_per_node_row, MPI_Comm comm_column,
                          int my_cores_per_node_column, int alt, int shmem_zero, char *locmem) {
   int i, num_comm_max = -1, my_size_shared_buf = -1, barriers_size,
-         nbuffer_in = 0, tag, not_locmem;
+         nbuffer_in = 0, tag, not_locmem, counts0;
   char *ip, **sendbufs, **recvbufs;
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
   int locmem_size, shmem_size = 0, *shmemid = NULL, num_sockets_per_node = 1;
@@ -437,6 +437,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   num_comm_max = parameters->locmem_max;
   my_size_shared_buf = parameters->shmem_max;
   num_sockets_per_node = parameters->num_sockets_per_node;
+  counts0 = parameters->counts[0];
   ext_mpi_delete_parameters(parameters);
   locmem_size = num_comm_max * sizeof(MPI_Request);
   if (not_locmem) {
@@ -470,8 +471,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   sendbufs[0] = (char *)sendbuf;
   recvbufs[0] = recvbuf;
 #else
-  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, (char *)sendbuf, parameters->counts[0], &sendbufs);
-  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, recvbuf, parameters->counts[0], &recvbufs);
+  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, (char *)sendbuf, counts0, &sendbufs);
+  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, recvbuf, counts0, &recvbufs);
 #endif
   my_size_shared_buf = shmem_size - barriers_size * 4;
   shmem_size -= barriers_size;
@@ -542,8 +543,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     sendbufs[0] = (char *)sendbuf;
     recvbufs[0] = recvbuf;
 #else
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, (char *)sendbuf, parameters->counts[0], &sendbufs);
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, recvbuf, parameters->counts[0], &recvbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, (char *)sendbuf, counts0, &sendbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, recvbuf, counts0, &recvbufs);
 #endif
     my_size_shared_buf = shmem_size - barriers_size * 4;
     shmem_size -= barriers_size;

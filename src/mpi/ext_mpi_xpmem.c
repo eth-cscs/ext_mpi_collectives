@@ -10,6 +10,9 @@
 #include <mpi.h>
 
 #ifdef XPMEM
+
+#define PAGESIZE 4096
+
 extern MPI_Comm ext_mpi_COMM_WORLD_dup;
 
 long long int *ext_mpi_all_xpmem_id;
@@ -67,14 +70,14 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *s
   *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char **));
   PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node);
   PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, xpmem_comm_node);
-  size += 4096;
-  while (size & (4096 - 1)) {
+  size += PAGESIZE;
+  while (size & (PAGESIZE - 1)) {
     size++;
   }
   for (i = 0; i < my_mpi_size; i++) {
     if (ext_mpi_all_xpmem_id[i] != -1) {
       addr.offset = (long int)((*sendrecvbufs)[i]);
-      while (addr.offset & (4096 - 1)) {
+      while (addr.offset & (PAGESIZE - 1)) {
         addr.offset--;
       }
       addr.apid = ext_mpi_all_xpmem_id[i];
@@ -116,7 +119,7 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
   for (i = 1; i < my_mpi_size; i++) {
     addr = sendrecvbufs[i];
-    while ((long int)addr & (4096 - 1)) {
+    while ((long int)addr & (PAGESIZE - 1)) {
       addr--;
     }
     if (xpmem_detach(addr) != 0) {
