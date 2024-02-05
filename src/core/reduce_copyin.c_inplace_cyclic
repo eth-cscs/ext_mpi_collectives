@@ -472,12 +472,12 @@ static int reduce_copies_inplace_cyclic(int socket_size, int num_factors, int *f
   }
   if (step < num_factors) {
     for (gbstep = 1; step < num_factors; gbstep *= factors[step++]) {
+      if (gbstep > 1 || abs(factors[step - 1]) != factors[step]) {
+	for (i = 1; i < factors[step - 1]; i++) {
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (socket_size + rank + gbstep * i / abs(factors[step - 1])) % socket_size);
+	}
+      }
       for (substep = 1; substep < factors[step]; substep++) {
-        if (gbstep > 1 || abs(factors[step - 1]) != factors[step]) {
-	  for (i = 1; i < factors[step - 1]; i++) {
-            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (socket_size + rank + gbstep * i / abs(factors[step - 1])) % socket_size);
-	  }
-        }
         for (i = gbstep; i < socket_size && i < gbstep * 2; i++) {
           offset1 = offset2 = displs[(2 * socket_size + rank + i - gbstep) % socket_size];
           size_local = sizes[(2 * socket_size + rank + i - gbstep) % socket_size];
