@@ -137,39 +137,41 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
         (parameters->root ==
          parameters->socket * parameters->socket_row_size +
              parameters->socket_rank % parameters->socket_row_size)) {
-      add2 = 0;
-      for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
-        k = 0;
-        for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
-          if (data.blocks[data.num_blocks - 1].lines[i].sendto_node[j] == -1) {
-            k = 1;
+      if (parameters->copyin_method < 5) {
+        add2 = 0;
+        for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
+          k = 0;
+          for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
+            if (data.blocks[data.num_blocks - 1].lines[i].sendto_node[j] == -1) {
+              k = 1;
+            }
           }
-        }
-        if (k) {
-          if ((size = overlapp(ldispls[lrank_column], ldispls[lrank_column + 1],
-                               moffsets[data.blocks[data.num_blocks - 1].lines[i].frac],
-                               moffsets[data.blocks[data.num_blocks - 1].lines[i].frac + 1],
-                               &add))) {
-            data_memcpy_reduce.type = ememcpy;
-            data_memcpy_reduce.buffer_type1 = erecvbufp;
-            data_memcpy_reduce.buffer_number1 = 0;
-            data_memcpy_reduce.is_offset1 = 0;
-            data_memcpy_reduce.offset1 = add;
-            data_memcpy_reduce.buffer_type2 = eshmemo;
-            data_memcpy_reduce.buffer_number2 = 0;
-	    if (!fast) {
-              data_memcpy_reduce.is_offset2 = 0;
-              data_memcpy_reduce.offset2 = add2;
-	    } else {
-              data_memcpy_reduce.is_offset2 = 1;
-              data_memcpy_reduce.offset_number2 = -1;
-              data_memcpy_reduce.offset2 = add2 + sizeof(long int);
-	    }
-            data_memcpy_reduce.size = size;
-            nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+          if (k) {
+            if ((size = overlapp(ldispls[lrank_column], ldispls[lrank_column + 1],
+                                 moffsets[data.blocks[data.num_blocks - 1].lines[i].frac],
+                                 moffsets[data.blocks[data.num_blocks - 1].lines[i].frac + 1],
+                                 &add))) {
+              data_memcpy_reduce.type = ememcpy;
+              data_memcpy_reduce.buffer_type1 = erecvbufp;
+              data_memcpy_reduce.buffer_number1 = 0;
+              data_memcpy_reduce.is_offset1 = 0;
+              data_memcpy_reduce.offset1 = add;
+              data_memcpy_reduce.buffer_type2 = eshmemo;
+              data_memcpy_reduce.buffer_number2 = 0;
+	      if (!fast) {
+                data_memcpy_reduce.is_offset2 = 0;
+                data_memcpy_reduce.offset2 = add2;
+	      } else {
+                data_memcpy_reduce.is_offset2 = 1;
+                data_memcpy_reduce.offset_number2 = -1;
+                data_memcpy_reduce.offset2 = add2 + sizeof(long int);
+	      }
+              data_memcpy_reduce.size = size;
+              nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+            }
           }
+          add2 += mcounts[data.blocks[data.num_blocks - 1].lines[i].frac];
         }
-        add2 += mcounts[data.blocks[data.num_blocks - 1].lines[i].frac];
       }
     }
   } else {

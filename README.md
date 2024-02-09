@@ -133,6 +133,9 @@ Environment variables:
 
 the same parameters can be passed with the MPI_Info argument where the variable names are in lower case
 
+## On Slingshot:
+export FI_MR_CACHE_MONITOR=memhooks
+
 ## Literature
 
 [A. Jocksch, N. Ohana, E. Lanti, E. Koutsaniti, V. Karakasis, L. Villard: An optimisation of allreduce communication in message-passing systems. Parallel Computing, 107 (2021) 102812](https://doi.org/10.1016/j.parco.2021.102812)

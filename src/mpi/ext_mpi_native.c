@@ -418,7 +418,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                          int my_cores_per_node_row, MPI_Comm comm_column,
                          int my_cores_per_node_column, int alt, int shmem_zero, char *locmem) {
   int i, num_comm_max = -1, my_size_shared_buf = -1, barriers_size,
-         nbuffer_in = 0, tag, not_locmem, counts0;
+         nbuffer_in = 0, tag, not_locmem;
   char *ip, **sendbufs, **recvbufs;
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
   int locmem_size, shmem_size = 0, *shmemid = NULL, num_sockets_per_node = 1;
@@ -428,6 +428,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   char **shmem_gpu = NULL;
   int *shmemid_gpu = NULL;
   struct parameters_block *parameters;
+#ifdef XPMEM
+  int counts0;
+#endif
   not_locmem = (locmem == NULL);
   handle = get_handle();
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
@@ -437,7 +440,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   num_comm_max = parameters->locmem_max;
   my_size_shared_buf = parameters->shmem_max;
   num_sockets_per_node = parameters->num_sockets_per_node;
+#ifdef XPMEM
   counts0 = parameters->counts[0];
+#endif
   ext_mpi_delete_parameters(parameters);
   locmem_size = num_comm_max * sizeof(MPI_Request);
   if (not_locmem) {
