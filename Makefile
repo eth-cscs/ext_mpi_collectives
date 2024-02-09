@@ -7,7 +7,7 @@ INCLUDE = -I. -Iinclude/core -Iinclude/mpi
 DEPDIR := .deps
 directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(DEPDIR)/fortran; mkdir -p $(DEPDIR)/initial_benchmark; mkdir -p $(DEPDIR)/noopt; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(OBJ)/fortran; mkdir -p $(OBJ)/initial_benchmark; mkdir -p $(OBJ)/noopt; mkdir -p $(BIN); mkdir -p lib; mkdir bin_tests))
 
-CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DM_MAP
+CFLAGS = -g -O2 -Wall $(INCLUDE) -DDEBUG -DM_MAP -DX_PMEM
 
 SOURCES = $(wildcard src/core/*.c src/mpi/*.c src/fortran/*.c src/noopt/*.c src/initial_benchmark/*.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))
@@ -15,6 +15,7 @@ TESTS = $(wildcard tests/*.c)
 TESTSBIN = $(subst tests,bin_tests,$(TESTS:.c=.x))
 INITBENCHMARKS = $(wildcard src/initial_benchmark/*.c)
 INITBENCHMARKSBIN = $(subst src/initial_benchmark,bin,$(INITBENCHMARKS:.c=.x))
+#LIBS = -Llib -l$(LIBNAME) -lrt -lm -L/opt/cray/xpmem/default/lib64 -lxpmem
 LIBS = -Llib -l$(LIBNAME) -lrt -lm
 
 .PHONY: all clean
