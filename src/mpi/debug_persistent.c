@@ -484,7 +484,7 @@ int ext_mpi_allreduce_init_debug(const void *sendbuf, void *recvbuf, int count,
       if (!sendbuf_h)
         goto error;
       for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
-        ((long int *)sendbuf_h)[i] = world_rankd * count + i;
+        ((long int *)sendbuf_h)[i] = world_rankd * count + i + 73;
         ((long int *)recvbuf)[i] = -1;
       }
       if ((count * type_size) % (int)sizeof(long int)){
