@@ -493,7 +493,7 @@ int ext_mpi_allreduce_init_debug(const void *sendbuf, void *recvbuf, int count,
     }else{
       sendbuf_h = MPI_IN_PLACE;
       for (i = 0; i < (count * type_size) / (int)sizeof(long int); i++) {
-        ((long int *)recvbuf)[i] = ((long int *)recvbuf_ref)[i] = world_rankd * count + i;
+        ((long int *)recvbuf)[i] = ((long int *)recvbuf_ref)[i] = world_rankd * count + i + 73;
       }
       if ((count * type_size) % (int)sizeof(long int)){
         ((int *)recvbuf)[count-1] = ((int *)recvbuf_ref)[count-1] = world_rankd * count + count - 1;

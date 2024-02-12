@@ -372,20 +372,40 @@ nparallel = 2;
   return nbuffer_out;
 }*/
 
-static int reduce_copies_inplace_cyclic(int socket_size, int num_factors, int *factors, int size, int type_size, int rank, char *buffer_out, int ascii){
-  int nbuffer_out = 0, add_local, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, i;
-  for (i = 0; i < socket_size; i++) {
-    size_local = (size / type_size) / socket_size;
-    if (i >= (size / type_size) % socket_size) {
-      add_local = size_local * i + (size / type_size) % socket_size;
-    } else {
-      add_local = size_local * i + i;
-      size_local++;
+static void sizes_displs(int socket_size, int size, int type_size, int size_l, int *sizes, int *displs) {
+  int size_local, add_local, i;
+  if (!size_l) {
+    for (i = 0; i < socket_size; i++) {
+      size_local = (size / type_size) / socket_size;
+      if (i >= (size / type_size) % socket_size) {
+        add_local = size_local * i + (size / type_size) % socket_size;
+      } else {
+        add_local = size_local * i + i;
+        size_local++;
+      }
+      sizes[i] = size_local * type_size;
+      displs[i] = add_local * type_size;
     }
-    sizes[i] = size_local * type_size;
-    displs[i] = add_local * type_size;
+  } else {
+    for (i = 0; i < socket_size; i++) {
+      if (i == 0) {
+	displs[i] = 0;
+      } else {
+	displs[i] = displs[i - 1] + sizes[i - 1];
+      }
+      if (displs[i] + size_l * type_size <= size && i < socket_size - 1) {
+        sizes[i] = size_l * type_size;
+      } else {
+	sizes[i] = size - displs[i];
+      }
+    }
   }
   displs[socket_size] = displs[socket_size - 1] + sizes[socket_size - 1];
+}
+
+static int reduce_copies_inplace_cyclic(int socket_size, int num_factors, int *factors, int size, int type_size, int rank, int size_l, int offset_global, char *buffer_out, int ascii){
+  int nbuffer_out = 0, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, i;
+  sizes_displs(socket_size, size, type_size, size_l, sizes, displs);
   nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", eset_socket_barrier, rank);
   for (step = 0, gbstep = 1; step < num_factors && factors[step] < 0; gbstep *= abs(factors[step++]));
   for (step = 0; step < num_factors && factors[step] < 0; step++) {
@@ -393,7 +413,7 @@ static int reduce_copies_inplace_cyclic(int socket_size, int num_factors, int *f
     for (substep = 1; substep < abs(factors[step]); substep++) {
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (socket_size + rank - gbstep * substep) % socket_size);
       for (i = gbstep; i < socket_size && i < gbstep * 2; i++) {
-        offset = displs[(2 * socket_size + rank + i - gbstep) % socket_size];
+        offset = displs[(2 * socket_size + rank + i - gbstep) % socket_size] + offset_global;
         size_local = sizes[(2 * socket_size + rank + i - gbstep) % socket_size];
         if (size_local > 0) {
           nbuffer_out += write_memcpy_reduce(esreduce, esendbufp, 0, 0, offset, esendbufp, (socket_size - gbstep * substep) % socket_size, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
@@ -411,7 +431,7 @@ static int reduce_copies_inplace_cyclic(int socket_size, int num_factors, int *f
       }
       for (substep = 1; substep < factors[step]; substep++) {
         for (i = gbstep; i < socket_size && i < gbstep * 2; i++) {
-          offset = displs[(2 * socket_size + rank + i - gbstep) % socket_size];
+          offset = displs[(2 * socket_size + rank + i - gbstep) % socket_size] + offset_global;
           size_local = sizes[(2 * socket_size + rank + i - gbstep) % socket_size];
           if (size_local > 0) {
             nbuffer_out += write_memcpy_reduce(esmemcpy, esendbufp, (socket_size - gbstep * substep) % socket_size, 0, offset, esendbufp, 0, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
@@ -425,7 +445,7 @@ static int reduce_copies_inplace_cyclic(int socket_size, int num_factors, int *f
     }
   } else {
     for (i = 1; i < socket_size; i++) {
-      offset = displs[(socket_size + i + rank) % socket_size];
+      offset = displs[(socket_size + i + rank) % socket_size] + offset_global;
       size_local = sizes[(socket_size + i + rank) % socket_size];
       if (size_local > 0) {
         nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (socket_size + rank + i) % socket_size);
@@ -437,20 +457,9 @@ static int reduce_copies_inplace_cyclic(int socket_size, int num_factors, int *f
   return nbuffer_out;
 }
 
-static int reduce_copies_inplace_recursive(int socket_size, int num_factors, int *factors, int size, int type_size, int rank, char *buffer_out, int ascii){
-  int nbuffer_out = 0, add_local, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, rstart = 0, rstart_next, i, j;
-  for (i = 0; i < socket_size; i++) {
-    size_local = (size / type_size) / socket_size;
-    if (i >= (size / type_size) % socket_size) {
-      add_local = size_local * i + (size / type_size) % socket_size;
-    } else {
-      add_local = size_local * i + i;
-      size_local++;
-    }
-    sizes[i] = size_local * type_size;
-    displs[i] = add_local * type_size;
-  }
-  displs[socket_size] = displs[socket_size - 1] + sizes[socket_size - 1];
+static int reduce_copies_inplace_recursive(int socket_size, int num_factors, int *factors, int size, int type_size, int rank, int size_l, int offset_global, char *buffer_out, int ascii){
+  int nbuffer_out = 0, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, rstart = 0, rstart_next, i, j;
+  sizes_displs(socket_size, size, type_size, size_l, sizes, displs);
   nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", eset_socket_barrier, rank);
   for (step = 0, gbstep = 1; step < num_factors && factors[step] < 0; gbstep *= abs(factors[step++]));
   for (step = 0; step < num_factors && factors[step] < 0; step++) {
@@ -459,7 +468,7 @@ static int reduce_copies_inplace_recursive(int socket_size, int num_factors, int
       if ((rank - rstart) / gbstep == substep) substep++;
       if (substep < abs(factors[step])) {
         nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, rstart + gbstep * substep + rank % gbstep);
-        offset = displs[(rank / gbstep) * gbstep];
+        offset = displs[(rank / gbstep) * gbstep] + offset_global;
 	size_local = 0;
         for (i = 0; i < gbstep; i++) {
           size_local += sizes[(rank / gbstep) * gbstep + i];
@@ -500,7 +509,7 @@ static int reduce_copies_inplace_recursive(int socket_size, int num_factors, int
       for (substep = 0; substep < factors[step]; substep++) {
 	if ((rank - rstart) / gbstep == substep) substep++;
 	if (substep < factors[step]) {
-          offset = displs[(rank / gbstep) * gbstep];
+          offset = displs[(rank / gbstep) * gbstep] + offset_global;
 	  size_local = 0;
           for (i = 0; i < gbstep; i++) {
             size_local += sizes[(rank / gbstep) * gbstep + i];
@@ -519,7 +528,7 @@ static int reduce_copies_inplace_recursive(int socket_size, int num_factors, int
     }
   } else {
     for (i = 1; i < socket_size; i++) {
-      offset = displs[(socket_size + i + rank) % socket_size];
+      offset = displs[(socket_size + i + rank) % socket_size] + offset_global;
       size_local = sizes[(socket_size + i + rank) % socket_size];
       if (size_local > 0) {
         nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (socket_size + rank + i) % socket_size);
@@ -539,7 +548,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       *lcounts = NULL, *ldispls = NULL, lrank_row, lrank_column, instance,
       nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i, j,
       k, *ranks, gbstep, collective_type = 1, fast,
-      type_size = 1, num_ranks, num_factors, *factors, instance_max;
+      type_size = 1, num_ranks, num_factors, *factors, instance_max, size_local, add_local;
   struct data_algorithm data;
   struct parameters_block *parameters;
   data.num_blocks = 0;
@@ -638,9 +647,6 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       moffsets[i] = moffsets[num_nodes];
     }
   }
-  // nbuffer_out+=write_assembler_line_ssdsdsdsdd(buffer_out+nbuffer_out,
-  // ememcpy, eshmempbuffer_offseto, buffer_counter, eshmempbuffer_offsetcp, add,
-  // eshmempbuffer_offseto, 0, eshmempbuffer_offsetcp, add2, size, parameters->as
   nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   if (collective_type) {
     if (((collective_type == 2) && (parameters->root >= 0)) ||
@@ -670,56 +676,74 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
       }
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
     } else {
-      ranks = (int*)malloc(sizeof(int) * node_size);
-      gbstep = factors[0];
-      if (node_size % gbstep == 0 || lrank_row / gbstep < (node_size - 1) / gbstep) {
-        num_ranks = gbstep;
-      } else {
-	num_ranks = node_size % gbstep;
-      }
-      for (j = 0; j < num_ranks; j++) {
-        ranks[(num_ranks + j - lrank_row % gbstep) % num_ranks] = (lrank_row / gbstep) * gbstep + j % num_ranks;
-      }
-      instance = lrank_row / gbstep;
-      for (i = 0, j = 1; i < num_factors; j *= factors[i++])
-        ;
-      instance_max = (j - 1) / gbstep;
-      fast = !parameters->on_gpu && parameters->num_sockets == 1 && parameters->message_sizes[0] <= CACHE_LINE_SIZE - OFFSET_FAST;
-      if (fast) {
-        type_size = moffsets[num_nodes];
-      }
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
-
-#ifdef GPU_ENABLED
-      if (parameters->data_type == data_type_double || parameters->data_type == data_type_float) {
-        nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, parameters->counts[0], buffer_out + nbuffer_out, parameters->ascii_out);
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "sdd", egemv, parameters->counts[0], parameters->socket_row_size / factors[0]);
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
-      } else {
-#endif
-      if (parameters->copyin_method == 5) {
-	nbuffer_out += reduce_copies_inplace_cyclic(node_size, num_factors, factors, moffsets[num_nodes], type_size, lrank_row, buffer_out + nbuffer_out, parameters->ascii_out);
-      } else if (parameters->copyin_method == 6) {
-	nbuffer_out += reduce_copies_inplace_recursive(node_size, num_factors, factors, moffsets[num_nodes], type_size, lrank_row, buffer_out + nbuffer_out, parameters->ascii_out);
-      } else if (parameters->copyin_method == 1) {
-        for (i = 1; i < node_size / 1; i *= 2)
-	  ;
-	num_ranks = gbstep = factors[0];
+      switch (parameters->copyin_method) {
+      case 5:
+      case 6:
+	if (factors[0] < 0) {
+	  if (parameters->copyin_method == 5) {
+	    nbuffer_out += reduce_copies_inplace_cyclic(node_size, num_factors - 1, factors + 1, moffsets[num_nodes], type_size, lrank_row, -factors[0], 0, buffer_out + nbuffer_out, parameters->ascii_out);
+          } else {
+	    nbuffer_out += reduce_copies_inplace_recursive(node_size, num_factors - 1, factors + 1, moffsets[num_nodes], type_size, lrank_row, -factors[0], 0, buffer_out + nbuffer_out, parameters->ascii_out);
+	  }
+	} else {
+	  for (i = 0; i < factors[0]; i++) {
+	    size_local = (moffsets[num_nodes] / type_size) / factors[0];
+	    if (i >= (moffsets[num_nodes] / type_size) % factors[0]) {
+              add_local = size_local * i + (moffsets[num_nodes] / type_size) % factors[0];
+            } else {
+              add_local = size_local * i + i;
+              size_local++;
+            }
+	    size_local *= type_size;
+	    add_local *= type_size;
+	    if (size_local > 0) {
+	      if (parameters->copyin_method == 5) {
+	        nbuffer_out += reduce_copies_inplace_cyclic(node_size, num_factors - 1, factors + 1, size_local, type_size, lrank_row, 0, add_local, buffer_out + nbuffer_out, parameters->ascii_out);
+              } else {
+	        nbuffer_out += reduce_copies_inplace_recursive(node_size, num_factors - 1, factors + 1, size_local, type_size, lrank_row, 0, add_local, buffer_out + nbuffer_out, parameters->ascii_out);
+	      }
+	    }
+	  }
+	}
+	break;
+      case 0:
+      case 1:
+        ranks = (int*)malloc(sizeof(int) * node_size);
+        gbstep = factors[0];
+        if (node_size % gbstep == 0 || lrank_row / gbstep < (node_size - 1) / gbstep) {
+          num_ranks = gbstep;
+        } else {
+	  num_ranks = node_size % gbstep;
+        }
+        for (j = 0; j < num_ranks; j++) {
+          ranks[(num_ranks + j - lrank_row % gbstep) % num_ranks] = (lrank_row / gbstep) * gbstep + j % num_ranks;
+        }
         instance = lrank_row / gbstep;
-        instance_max = (node_size - 1) / gbstep;
-        nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
-        nbuffer_out += reduce_copies_almost_half(node_size, i / 2, moffsets[num_nodes], type_size, lrank_row, fast, buffer_out + nbuffer_out, parameters->ascii_out);
-        nbuffer_out += reduce_copies(i / 2, num_factors - 1, factors, moffsets[num_nodes], type_size, lrank_row, fast, 1, buffer_out + nbuffer_out, parameters->ascii_out);
-      } else {
-        nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
-        nbuffer_out += reduce_copies(node_size, num_factors, factors, moffsets[num_nodes], type_size, lrank_row, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+        for (i = 0, j = 1; i < num_factors; j *= factors[i++])
+          ;
+        instance_max = (j - 1) / gbstep;
+        fast = !parameters->on_gpu && parameters->num_sockets == 1 && parameters->message_sizes[0] <= CACHE_LINE_SIZE - OFFSET_FAST;
+        if (fast) {
+          type_size = moffsets[num_nodes];
+        }
+        if (parameters->copyin_method == 1) {
+          for (i = 1; i < node_size / 1; i *= 2)
+	    ;
+	  num_ranks = gbstep = factors[0];
+          instance = lrank_row / gbstep;
+          instance_max = (node_size - 1) / gbstep;
+          nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+          nbuffer_out += reduce_copies_almost_half(node_size, i / 2, moffsets[num_nodes], type_size, lrank_row, fast, buffer_out + nbuffer_out, parameters->ascii_out);
+          nbuffer_out += reduce_copies(i / 2, num_factors - 1, factors, moffsets[num_nodes], type_size, lrank_row, fast, 1, buffer_out + nbuffer_out, parameters->ascii_out);
+        } else {
+          nbuffer_out += reduce_copyin(&data, num_nodes, counts_max, mcounts, moffsets, ldispls, lrank_row % gbstep, lrank_column, type_size, instance, instance_max, gbstep, num_ranks, ranks, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+          nbuffer_out += reduce_copies(node_size, num_factors, factors, moffsets[num_nodes], type_size, lrank_row, fast, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+        }
+        free(ranks);
+	break;
       }
-#ifdef GPU_ENABLED
-      }
-#endif
 //      nbuffer_out += reduce_copies_big((node_size - 1) / factors[0] + 1, node_size, node_size, moffsets[num_nodes], type_size, lrank_row, fast, buffer_out + nbuffer_out, parameters->ascii_out);
-      free(ranks);
     }
   } else {
     add = iodispls[node_rank];
