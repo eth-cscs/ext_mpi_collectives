@@ -619,12 +619,25 @@ int reduce_copies_inplace(int copyin_method, int socket_size, int num_factors, i
       }
       size_local *= type_size;
       add_local *= type_size;
-      if (size_local > 0) {
+      if (size_local > 0 || socket_size != num_ranks) {
         if (copyin_method == 5) {
 	  nbuffer_out += reduce_copies_inplace_cyclic(socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 1, buffer_out + nbuffer_out, ascii);
         } else {
 	  nbuffer_out += reduce_copies_inplace_recursive(socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 1, buffer_out + nbuffer_out, ascii);
 	}
+        if (num_factors_loc != num_factors) {
+          for (i = 0; i < socket_size / socket_size_loc; i++){
+            ranks_loci[i] = ranks[i + rank / (socket_size / socket_size_loc) * (socket_size / socket_size_loc)];
+          }
+          for (i = 0; i < socket_size / socket_size_loc; i++) {
+	    if (ranks_loci[i] == ranks[rank]) {
+	      rank_loci = i;
+	      break;
+	    }
+          }
+          sizes_displs(socket_size_loc, size_local, type_size, 0, sizes, displs);
+          nbuffer_out += reduce_copies_inplace(copyin_method, socket_size / socket_size_loc, num_factors - num_factors_loc - 2, factors + num_factors_loc + 2, add + add_local + displs[rank_loc], sizes[rank_loc], type_size, rank_loci, num_ranks, ranks_loci, buffer_out + nbuffer_out, ascii);
+        }
         if (copyin_method == 5) {
 	  nbuffer_out += reduce_copies_inplace_cyclic(socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 2, buffer_out + nbuffer_out, ascii);
         } else {
