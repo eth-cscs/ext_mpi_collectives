@@ -133,10 +133,10 @@ static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
   MPI_Comm my_comm_node;
   int my_mpi_size_row, grank, my_mpi_size_column, my_mpi_rank_column,
       *lglobal_ranks = NULL;
-  MPI_Comm_size(comm_row, &my_mpi_size_row);
+  PMPI_Comm_size(comm_row, &my_mpi_size_row);
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_size(comm_column, &my_mpi_size_column);
-    MPI_Comm_rank(comm_column, &my_mpi_rank_column);
+    PMPI_Comm_size(comm_column, &my_mpi_size_column);
+    PMPI_Comm_rank(comm_column, &my_mpi_rank_column);
     if (PMPI_Comm_split(comm_column,
                         my_mpi_rank_column / my_cores_per_node_column,
                         my_mpi_rank_column % my_cores_per_node_column,
@@ -146,20 +146,20 @@ static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
     lglobal_ranks = (int *)malloc(sizeof(int) * my_cores_per_node_column);
     if (!lglobal_ranks)
       goto error;
-    MPI_Gather(&grank, 1, MPI_INT, lglobal_ranks, 1, MPI_INT, 0, my_comm_node);
-    MPI_Bcast(lglobal_ranks, my_cores_per_node_column, MPI_INT, 0,
-              my_comm_node);
-    MPI_Barrier(my_comm_node);
+    PMPI_Gather(&grank, 1, MPI_INT, lglobal_ranks, 1, MPI_INT, 0, my_comm_node);
+    PMPI_Bcast(lglobal_ranks, my_cores_per_node_column, MPI_INT, 0,
+               my_comm_node);
+    PMPI_Barrier(my_comm_node);
     PMPI_Comm_free(&my_comm_node);
-    MPI_Gather(lglobal_ranks, my_cores_per_node_column, MPI_INT, global_ranks,
-               my_cores_per_node_column, MPI_INT, 0, comm_row);
+    PMPI_Gather(lglobal_ranks, my_cores_per_node_column, MPI_INT, global_ranks,
+                my_cores_per_node_column, MPI_INT, 0, comm_row);
     free(lglobal_ranks);
   } else {
-    MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &grank);
-    MPI_Gather(&grank, 1, MPI_INT, global_ranks, 1, MPI_INT, 0, comm_row);
+    PMPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &grank);
+    PMPI_Gather(&grank, 1, MPI_INT, global_ranks, 1, MPI_INT, 0, comm_row);
   }
-  MPI_Bcast(global_ranks, my_mpi_size_row * my_cores_per_node_column, MPI_INT,
-            0, comm_row);
+  PMPI_Bcast(global_ranks, my_mpi_size_row * my_cores_per_node_column, MPI_INT,
+             0, comm_row);
   return 0;
 error:
   free(lglobal_ranks);
@@ -295,13 +295,13 @@ int EXT_MPI_Done_native(int handle) {
   shmem_size = header->barrier_shmem_size;
   shmemid = header->shmemid;
   locmem = header->locmem;
-  if ((MPI_Comm *)(ip + header->size_to_return)) {
-    shmem_comm_node_row = *((MPI_Comm *)(ip + header->size_to_return));
+  if (*((void **)(ip + header->size_to_return))) {
+    shmem_comm_node_row = *((MPI_Comm *)(ip + header->size_to_return + sizeof(void*)));
   } else {
     shmem_comm_node_row = MPI_COMM_NULL;
   }
-  if ((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm))) {
-    shmem_comm_node_column = *((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm)));
+  if (*((void **)(ip + header->size_to_return + sizeof(MPI_Comm) + sizeof(void*)))) {
+    shmem_comm_node_column = *((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm) + 2*sizeof(void*)));
   } else {
     shmem_comm_node_column = MPI_COMM_NULL;
   }
@@ -343,13 +343,13 @@ int EXT_MPI_Done_native(int handle) {
     shmem_size = header->barrier_shmem_size;
     shmemid = header->shmemid;
     locmem = header->locmem;
-    if ((MPI_Comm *)(ip + header->size_to_return)) {
-      shmem_comm_node_row2 = *((MPI_Comm *)(ip + header->size_to_return));
+    if (*((void **)(ip + header->size_to_return))) {
+      shmem_comm_node_row2 = *((MPI_Comm *)(ip + header->size_to_return + sizeof(void*)));
     } else {
       shmem_comm_node_row2 = MPI_COMM_NULL;
     }
-    if ((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm))) {
-      shmem_comm_node_column2 = *((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm)));
+    if (*((void **)(ip + header->size_to_return + sizeof(MPI_Comm) + sizeof(void*)))) {
+      shmem_comm_node_column2 = *((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm) + 2*sizeof(void*)));
     } else {
       shmem_comm_node_column2 = MPI_COMM_NULL;
     }

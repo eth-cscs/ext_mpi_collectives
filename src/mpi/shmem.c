@@ -20,24 +20,24 @@ void ext_mpi_node_barrier_mpi(MPI_Comm shmem_comm_node_row,
   struct header_byte_code *header;
   if (comm_code) {
     header = (struct header_byte_code *)comm_code;
-    if (comm_code+header->size_to_return) {
-      shmem_comm_node_row = *((MPI_Comm *)(comm_code+header->size_to_return));
+    if (*((void **)(comm_code+header->size_to_return))) {
+      shmem_comm_node_row = *((MPI_Comm *)(comm_code+header->size_to_return+sizeof(void*)));
     } else {
       shmem_comm_node_row = MPI_COMM_NULL;
     }
-    if (comm_code+header->size_to_return+sizeof(MPI_Comm)) {
-      shmem_comm_node_column = *((MPI_Comm *)(comm_code+header->size_to_return+sizeof(MPI_Comm)));
+    if (*((void **)(comm_code+header->size_to_return+sizeof(MPI_Comm)+sizeof(void*)))) {
+      shmem_comm_node_column = *((MPI_Comm *)(comm_code+header->size_to_return+sizeof(MPI_Comm)+2*sizeof(void*)));
     } else {
       shmem_comm_node_column = MPI_COMM_NULL;
     }
   }
   if (shmem_comm_node_row != MPI_COMM_NULL) {
-    MPI_Barrier(shmem_comm_node_row);
+    PMPI_Barrier(shmem_comm_node_row);
   }
   if (shmem_comm_node_column != MPI_COMM_NULL) {
-    MPI_Barrier(shmem_comm_node_column);
+    PMPI_Barrier(shmem_comm_node_column);
     if (shmem_comm_node_row != MPI_COMM_NULL) {
-      MPI_Barrier(shmem_comm_node_row);
+      PMPI_Barrier(shmem_comm_node_row);
     }
   }
 }

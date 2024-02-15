@@ -633,8 +633,10 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
   MPI_Comm_size(comm, &comm_size_row);
   MPI_Comm_rank(comm, &comm_rank_row);
   i = comm_size_row + 1;
-  for (i = 0; ext_mpi_copyin_factors[i]; i++);
-  i++;
+  if (ext_mpi_copyin_factors) {
+    for (i = 0; ext_mpi_copyin_factors[i]; i++);
+    i++;
+  }
   copyin_factors = (int*) malloc(sizeof(int) * i);
   if (!copyin_factors)
     goto error;

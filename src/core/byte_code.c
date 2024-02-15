@@ -679,20 +679,24 @@ int ext_mpi_generate_byte_code(char **shmem,
   header->size_to_return = ip - code_out;
   if (code_out) {
     if (comm_row) {
-      memcpy(ip, comm_row, size_comm);
+      *((void **)ip) = &ip;
+      memcpy(ip + sizeof(void*), comm_row, size_comm);
     } else {
-      memset(ip, 0, size_comm);
+      *((void **)ip) = NULL;
+      memset(ip + sizeof(void*), 0, size_comm);
     }
   }
-  ip += size_comm;
+  ip += size_comm + sizeof(void*);
   if (code_out) {
     if (comm_column) {
-      memcpy(ip, comm_column, size_comm);
+      *((void **)ip) = &ip;
+      memcpy(ip + sizeof(void*), comm_column, size_comm);
     } else {
-      memset(ip, 0, size_comm);
+      *((void **)ip) = NULL;
+      memset(ip + sizeof(void*), 0, size_comm);
     }
   }
-  ip += size_comm;
+  ip += size_comm + sizeof(void*);
   return (ip - code_out);
 #ifdef GPU_ENABLED
 error:
