@@ -74,15 +74,15 @@ static int read_env() {
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_DEBUG")) != NULL);
     if (var) {
-      if (sscanf(c, "%d", &var) == 0){
-        ext_mpi_debug = 0;
+      if (sscanf(c, "%d", &var) >= 1){
+        ext_mpi_debug = var;
       }
       if (ext_mpi_verbose) {
         printf("# EXT_MPI debug %d\n", ext_mpi_debug);
       }
     }
   }
-  MPI_Bcast(&ext_mpi_verbose, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ext_mpi_debug, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_ALTERNATING")) != NULL);
     if (var) {
