@@ -163,7 +163,7 @@ static int read_env() {
       for (i=0; ext_mpi_copyin_factors[i]; i++);
       i++;
     }else{
-      ext_mpi_copyin_factors = (int *)malloc((2 * j + 1) * sizeof(int));
+      ext_mpi_copyin_factors = (int *)malloc((2 * j + 1) * sizeof(int) + 1000);
       if (!ext_mpi_copyin_factors)
         goto error;
     }
@@ -632,7 +632,10 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
   my_cores_per_node_column = 1;
   MPI_Comm_size(comm, &comm_size_row);
   MPI_Comm_rank(comm, &comm_rank_row);
-  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
+  i = comm_size_row + 1;
+  for (i = 0; ext_mpi_copyin_factors[i]; i++);
+  i++;
+  copyin_factors = (int*) malloc(sizeof(int) * i);
   if (!copyin_factors)
     goto error;
   MPI_Type_size(datatype, &type_size);
