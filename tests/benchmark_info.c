@@ -16,7 +16,7 @@
 #define COLLECTIVE_TYPE 0
 
 int main(int argc, char *argv[]) {
-  int numprocs, rank, size, flag, type_size, bufsize, iterations, num_tasks, *counts, *displs, ninfo_arg = 0, i;
+  int numprocs, rank, size, flag, type_size, bufsize, iterations, num_tasks, *counts, *displs, ninfo_arg = 0, in_place = 0, i;
   char info_arg[1000];
   double latency_ref = 0.0;
   double latency = 0.0, t_start = 0.0, t_stop = 0.0;
@@ -30,6 +30,10 @@ int main(int argc, char *argv[]) {
   MPI_Comm new_comm;
   MPI_Request request;
   MPI_Info info;
+
+  if (argc == 2 && argv[1][0] == 'i') {
+    in_place = 1;
+  }
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -45,8 +49,11 @@ int main(int argc, char *argv[]) {
   bufsize = type_size * MAX_MESSAGE_SIZE * numprocs;
   bufsize = 100*1024*1024;
 
-//  sendbuf = malloc(bufsize);
-  sendbuf = MPI_IN_PLACE;
+  if (in_place) {
+    sendbuf = MPI_IN_PLACE;
+  } else {
+    sendbuf = malloc(bufsize);
+  }
   recvbuf = malloc(bufsize);
   counts = (int*)malloc(numprocs*sizeof(int));
   displs = (int*)malloc(numprocs*sizeof(int));
@@ -205,7 +212,9 @@ int main(int argc, char *argv[]) {
   cudaFree(sendbuf_device);
   cudaFree(recvbuf_device);
 #endif
-//  free(sendbuf);
+  if (!in_place) {
+    free(sendbuf);
+  }
   free(recvbuf);
 
   MPI_Finalize();
