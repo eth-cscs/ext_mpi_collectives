@@ -372,6 +372,26 @@ nparallel = 2;
   return nbuffer_out;
 }*/
 
+static void rank_order(int size, int num_factors, int *factors, int *ranks) {
+  int ranks_new[size], ranks_temp[size], i, j;
+  for (i = 0; i < size / abs(factors[0]); i++) {
+    for (j = 0; j < abs(factors[0]); j++) {
+      ranks_new[i + j * size / abs(factors[0])] = ranks[i * abs(factors[0]) + j];
+    }
+  }
+  if (num_factors > 1) {
+    for (j = 0; j < abs(factors[0]); j++) {
+      for (i = 0; i < size / abs(factors[0]); i++) {
+        ranks_temp[i] = ranks_new[i + j * size / abs(factors[0])];
+      }
+      rank_order(size / abs(factors[0]), num_factors - 1, factors + 1, ranks_temp);
+      for (i = 0; i < size / abs(factors[0]); i++) {
+        ranks[i + j * size / abs(factors[0])] = ranks_temp[i];
+      }
+    }
+  }
+}
+
 static void sizes_displs(int socket_size, int size, int type_size, int size_l, int *sizes, int *displs) {
   int size_local, add_local, i;
   if (!size_l) {
@@ -816,6 +836,16 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
 	ranks = (int*)malloc(node_size * sizeof(int));
 	for (i = 0; i < node_size; i++) {
 	   ranks[i] = i;
+	}
+	if (parameters->copyin_method == 6) {
+	  for (i = 1; factors[i] < 0 && i < num_factors; i++);
+	  rank_order(node_size, i - 1, factors + 1, ranks);
+	  for (i = 0; i < node_size; i++) {
+	    if (ranks[i] == lrank_row) {
+	      lrank_row = i;
+	      break;
+	    }
+	  }
 	}
 	nbuffer_out += reduce_copies_one_socket(parameters->copyin_method, node_size, num_factors, factors, 0, moffsets[num_nodes], type_size, lrank_row, node_size, ranks, !parameters->in_place, buffer_out + nbuffer_out, parameters->ascii_out);
 	free(ranks);

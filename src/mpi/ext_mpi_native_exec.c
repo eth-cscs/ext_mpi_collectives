@@ -21,20 +21,36 @@
 #define RECV_PTR_CPU 0xb0000000
 #endif
 
+#ifdef __x86_64__
+#define MEMORY_FENCE() asm volatile("mfence" :: \
+                                        : "memory")
+#define MEMORY_FENCE_LOAD() asm volatile("lfence" :: \
+                                      : "memory")
+#define MEMORY_FENCE_STORE() asm volatile("sfence" :: \
+                                       : "memory")
+#else
+#define MEMORY_FENCE() __atomic_thread_fence(__ATOMIC_ACQ_REL)
+#define MEMORY_FENCE_LOAD() __atomic_thread_fence(__ATOMIC_ACQUIRE)
+#define MEMORY_FENCE_STORE() __atomic_thread_fence(__ATOMIC_RELEASE)
+#endif
+
 extern MPI_Comm ext_mpi_COMM_WORLD_dup;
 
 static void node_barrier(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node) {
   int step;
+  MEMORY_FENCE_STORE();
   for (step = 1; step < num_sockets_per_node; step <<= 1) {
     (*barrier_count)++;
     ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
     while ((unsigned int)(((volatile int*)(shmem[step]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
       ;
   }
+  MEMORY_FENCE_LOAD();
 }
 
 static int node_barrier_test(char **shmem, int barrier_count, int socket_rank, int num_sockets_per_node) {
   int step;
+  MEMORY_FENCE_STORE();
   for (step = 1; step < num_sockets_per_node; step <<= 1) {
     barrier_count++;
     ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
@@ -42,21 +58,25 @@ static int node_barrier_test(char **shmem, int barrier_count, int socket_rank, i
       return 1;
     }
   }
+  MEMORY_FENCE_LOAD();
   return 0;
 }
 
 static void socket_barrier(char *shmem, int *barrier_count, int socket_rank, int num_cores) {
   int step;
+  MEMORY_FENCE_STORE();
   for (step = 1; step < num_cores; step <<= 1) {
     (*barrier_count)++;
     ((volatile int*)shmem)[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
     while ((unsigned int)(((volatile int*)shmem)[((socket_rank + step) % num_cores) * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
       ;
   }
+  MEMORY_FENCE_LOAD();
 }
 
 static int socket_barrier_test(char *shmem, int barrier_count, int socket_rank, int num_cores) {
   int step;
+  MEMORY_FENCE_STORE();
   for (step = 1; step < num_cores; step <<= 1) {
     barrier_count++;
     ((volatile int*)shmem)[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
@@ -64,21 +84,25 @@ static int socket_barrier_test(char *shmem, int barrier_count, int socket_rank, 
       return 1;
     }
   }
+  MEMORY_FENCE_LOAD();
   return 0;
 }
 
 static void socket_barrier_atomic_set(char *shmem, int *barrier_count, int entry) {
   (*barrier_count)++;
+  MEMORY_FENCE_STORE();
   ((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
 }
 
 static void socket_barrier_atomic_wait(char *shmem, int barrier_count, int entry) {
   while ((unsigned int)(((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX)
     ;
+  MEMORY_FENCE_LOAD();
 }
 
 static int socket_barrier_atomic_test(char *shmem, int barrier_count, int entry) {
   return (unsigned int)(((volatile int*)shmem)[entry * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX;
+  MEMORY_FENCE_LOAD();
 }
 
 static void reduce_waitany(void **pointers_to, void **pointers_from, int *sizes, int num_red, int op_reduce){
