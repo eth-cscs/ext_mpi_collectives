@@ -462,11 +462,13 @@ int ext_mpi_allreduce_init_debug(const void *sendbuf, void *recvbuf, int count,
       if (((long int *)recvbuf_hh)[i] != ((long int *)recvbuf_ref_hh)[i]) {
         j = 1;
       }
+      ((long int *)recvbuf_hh)[i] = -1;
     }
     if ((count * type_size) % (int)sizeof(long int)){
       if (((int *)recvbuf_hh)[count-1] != ((int *)recvbuf_ref_hh)[count-1]){
         j = 1;
       }
+      ((int *)recvbuf_hh)[count-1] = -1;
     }
     if (sendbuf != MPI_IN_PLACE){
       ext_mpi_gpu_free(sendbuf_h);
@@ -519,11 +521,13 @@ int ext_mpi_allreduce_init_debug(const void *sendbuf, void *recvbuf, int count,
       if (((long int *)recvbuf)[i] != ((long int *)recvbuf_ref)[i]) {
         j = 1;
       }
+      ((long int *)recvbuf)[i] = -1;
     }
     if ((count * type_size) % (int)sizeof(long int)){
       if (((int *)recvbuf)[count-1] != ((int *)recvbuf_ref)[count-1]){
         j = 1;
       }
+      ((int *)recvbuf)[count-1] = -1;
     }
     if (sendbuf != MPI_IN_PLACE){
       free(sendbuf_h);
