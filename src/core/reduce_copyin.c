@@ -518,9 +518,18 @@ static int reduce_copies_cyclic(int socket_size, int num_factors, int *factors, 
   }
   if (step < num_factors) {
     for (gbstep = 1; step < num_factors; gbstep *= factors[step++]) {
+      flag = 0;
+      for (substep = 1; substep < factors[step]; substep++) {
+        for (i = 0; i + gbstep * substep < socket_size && i < gbstep; i++) {
+          size_local = sizes[(2 * socket_size + rank + i) % socket_size];
+	  if (size_local > 0) {
+	    flag = 1;
+	  }
+	}
+      }
       if (gbstep > 1 || abs(factors[step - 1]) != factors[step]) {
 	for (substep = 1; substep < abs(factors[step - 1]); substep++) {
-          if (expart == 0 || expart == 2) {
+          if (flag && (expart == 0 || expart == 2)) {
             nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[((socket_size + gbstep * substep / abs(factors[step - 1])) % socket_size + rank) % socket_size] - ranks[rank]) % num_ranks);
 	  }
 	}
@@ -560,7 +569,7 @@ static int reduce_copies_cyclic(int socket_size, int num_factors, int *factors, 
 }
 
 static int reduce_copies_recursive(int socket_size, int num_factors, int *factors, int size, int type_size, int rank, int num_ranks, int *ranks, int size_l, int offset_global, int expart, int first_call, char *buffer_out, int ascii){
-  int nbuffer_out = 0, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, rstart = 0, rstart_next, flag_first = 1, i, j;
+  int nbuffer_out = 0, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, rstart = 0, rstart_next, flag_first = 1, flag, i, j;
   sizes_displs(socket_size, size, type_size, size_l, sizes, displs);
   for (step = 0, gbstep = 1; step < num_factors && factors[step] < 0; gbstep *= abs(factors[step++]));
   for (step = 0; step < num_factors && factors[step] < 0; step++) {
@@ -607,10 +616,24 @@ static int reduce_copies_recursive(int socket_size, int num_factors, int *factor
       }
       j /= factors[step];
       rstart_next = rstart + ((rank - rstart) / j) * j;
+      flag = 0;
+      for (substep = 0; substep < factors[step]; substep++) {
+	if ((rank - rstart) / gbstep == substep) substep++;
+	if (substep < factors[step]) {
+          offset = displs[(rank / gbstep) * gbstep] + offset_global;
+	  size_local = 0;
+          for (i = 0; i < gbstep; i++) {
+            size_local += sizes[(rank / gbstep) * gbstep + i];
+          }
+	  if (size_local > 0) {
+	    flag = 1;
+	  }
+        }
+      }
       if (gbstep > 1) {
 	for (i = 0; i < abs(factors[step - 1]); i++) {
 	  if (rank != rstart_next + gbstep * i / abs(factors[step - 1]) + rank % (gbstep / abs(factors[step - 1]))) {
-	    if (expart == 0 || expart == 2) {
+	    if (flag && (expart == 0 || expart == 2)) {
               nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[rstart_next + gbstep * i / abs(factors[step - 1]) + rank % (gbstep / abs(factors[step - 1]))] - ranks[rank]) % num_ranks);
 	    }
 	  }
@@ -618,7 +641,7 @@ static int reduce_copies_recursive(int socket_size, int num_factors, int *factor
       } else if (abs(factors[step - 1]) != factors[step]) {
 	for (i = 0; i < abs(factors[step - 1]); i++) {
 	  if (rank != rstart_next + gbstep * i / abs(factors[step - 1])) {
-	    if (expart == 0 || expart == 2) {
+	    if (flag && (expart == 0 || expart == 2)) {
               nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[rstart_next + gbstep * i / abs(factors[step - 1])] - ranks[rank]) % num_ranks);
 	    }
 	  }
@@ -683,7 +706,8 @@ int reduce_copies_one_socket(int copyin_method, int socket_size, int num_factors
     }
   }
   if (factors[0] < 0) {
-    if (type_size * abs(factors[0]) >= size) {
+//    if (type_size * abs(factors[0]) >= size) {
+    if (0) {
       nbuffer_out += reduce_copies_redundant(socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, add, 1, first_call, buffer_out + nbuffer_out, ascii);
     } else {
       if (copyin_method == 5) {
