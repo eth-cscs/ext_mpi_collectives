@@ -71,7 +71,7 @@ struct comm_comm_blocking {
   char **comm_code_allreduce_blocking;
   char **comm_code_reduce_scatter_block_blocking;
   char **comm_code_allgather_blocking;
-  char *shmem_socket_blocking;
+  char **shmem_socket_blocking;
   int shmem_socket_blocking_shmemid;
   int counter_socket_blocking;
   int socket_rank_blocking;
@@ -176,7 +176,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     ext_mpi_setup_shared_memory(&(*comms_blocking)[i_comm]->comm_row_blocking, &(*comms_blocking)[i_comm]->comm_column_blocking, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &loc_shmemid, &shmem_local, 0, size_shared, &comm_code_temp);
     (*comms_blocking)[i_comm]->shmem_socket_blocking_shmemid = loc_shmemid[0];
     free(loc_shmemid);
-    (*comms_blocking)[i_comm]->shmem_socket_blocking = shmem_local[0];
+    (*comms_blocking)[i_comm]->shmem_socket_blocking = shmem_local;
     free(shmem_local);
     (*comms_blocking)[i_comm]->counter_socket_blocking = 0;
     (*comms_blocking)[i_comm]->num_cores_blocking = my_cores_per_node;
@@ -290,8 +290,9 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
   loc_shmemid = (int *)malloc(1 * sizeof(int));
   *loc_shmemid = (*comms_blocking)[i_comm]->shmem_socket_blocking_shmemid;
   loc_shmem = (char **)malloc(1 * sizeof(char *));
-  *loc_shmem = (*comms_blocking)[i_comm]->shmem_socket_blocking;
-  ext_mpi_destroy_shared_memory(0, 1, loc_shmemid, loc_shmem, (char *)header);
+/*FIXME*/
+//  *loc_shmem = (*comms_blocking)[i_comm]->shmem_socket_blocking;
+//  ext_mpi_destroy_shared_memory(0, 1, loc_shmemid, loc_shmem, (char *)header);
   ext_mpi_destroy_shared_memory(0, (*comms_blocking)[i_comm]->shmem_node_blocking_num_segments, (*comms_blocking)[i_comm]->shmem_node_blocking_shmemid, (*comms_blocking)[i_comm]->shmem_node_blocking, (char *)header);
   free(header);
   for (i = 0; i < 101; i++) {

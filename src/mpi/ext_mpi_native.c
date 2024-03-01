@@ -334,6 +334,7 @@ int EXT_MPI_Done_native(int handle) {
   ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle]);
   free(locmem);
   free(((struct header_byte_code *)comm_code[handle])->barrier_shmem_node);
+  free(((struct header_byte_code *)comm_code[handle])->barrier_shmem_socket);
   free(comm_code[handle]);
   comm_code[handle] = NULL;
   ip = comm_code[handle + 1];
@@ -382,6 +383,7 @@ int EXT_MPI_Done_native(int handle) {
     ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle + 1]);
     free(locmem);
     free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_node);
+    free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_socket);
     free(comm_code[handle + 1]);
     comm_code[handle + 1] = NULL;
   }
@@ -463,8 +465,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     shmemid = NULL;
   } else {
     if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
-                                    comm_row, my_cores_per_node_row, comm_column,
-                                    my_cores_per_node_column, &shmem_size, num_sockets_per_node,
+                                    comm_row, 1, comm_column,
+                                    my_cores_per_node_column, &shmem_size, num_sockets_per_node * my_cores_per_node_row,
                                     &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
       goto error_shared;
   }
@@ -535,8 +537,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       shmemid = NULL;
     } else {
       if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
-                                      comm_row, my_cores_per_node_row, comm_column,
-                                      my_cores_per_node_column, &shmem_size, num_sockets_per_node,
+                                      comm_row, 1, comm_column,
+                                      my_cores_per_node_column, &shmem_size, num_sockets_per_node * my_cores_per_node_row,
                                       &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
         goto error_shared;
     }
@@ -586,11 +588,11 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   free(global_ranks);
   return handle;
 error:
-  ext_mpi_destroy_shared_memory(shmem_size, num_sockets_per_node, shmemid, shmem, comm_code[handle]);
+  ext_mpi_destroy_shared_memory(shmem_size, num_sockets_per_node * my_cores_per_node_row, shmemid, shmem, comm_code[handle]);
   free(global_ranks);
   return ERROR_MALLOC;
 error_shared:
-  ext_mpi_destroy_shared_memory(shmem_size, num_sockets_per_node, shmemid, shmem, comm_code[handle]);
+  ext_mpi_destroy_shared_memory(shmem_size, num_sockets_per_node * my_cores_per_node_row, shmemid, shmem, comm_code[handle]);
   free(global_ranks);
   return ERROR_SHMEM;
 }

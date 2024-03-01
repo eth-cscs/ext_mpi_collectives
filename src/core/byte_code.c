@@ -333,10 +333,13 @@ int ext_mpi_generate_byte_code(char **shmem,
     header->barrier_counter_node = 0;
     if (shmem && shmem[0]) {
       header->barrier_shmem_node = (char **)malloc(num_sockets_per_node*sizeof(char *));
+      header->barrier_shmem_socket = (char **)malloc(node_num_cores_row * sizeof(char *));
       for (i=0; i<num_sockets_per_node; i++) {
         header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;
       }
-      header->barrier_shmem_socket = shmem[0] + my_size_shared_buf;
+      for (i = 0; i < node_num_cores_row; i++) {
+        header->barrier_shmem_socket[i] = shmem[(num_cores - i) % num_cores] + my_size_shared_buf + barriers_size;
+      }
     } else {
       header->barrier_shmem_node = NULL;
       header->barrier_shmem_socket = NULL;
@@ -418,13 +421,13 @@ int ext_mpi_generate_byte_code(char **shmem,
         }
 #endif
         code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_SET, isdryrun);
-        code_put_int(&ip, integer1, isdryrun);
+        code_put_pointer(&ip, header->barrier_shmem_socket[0], isdryrun);
       }
     }
     if (estring1 == ewait_socket_barrier) {
       if (header->num_cores != 1) {
         code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_WAIT, isdryrun);
-        code_put_int(&ip, integer1, isdryrun);
+        code_put_pointer(&ip, header->barrier_shmem_socket[integer1], isdryrun);
       }
     }
     if (estring1 == ewaitall) {

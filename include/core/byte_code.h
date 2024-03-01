@@ -14,7 +14,7 @@ struct header_byte_code {
   int size_to_return;
   int barrier_counter_socket;
   int barrier_counter_node;
-  char *barrier_shmem_socket;
+  char **barrier_shmem_socket;
   int barrier_shmem_size;
   char **barrier_shmem_node;
   int *shmemid;
