@@ -660,12 +660,11 @@ static int reduce_copies_recursive(int socket_size, int num_factors, int *factor
 	  }
         }
       }
-      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", eset_socket_barrier, ranks[rank]);
     }
     for (i = 0; i < factors[step - 1]; i++) {
       if (rank != gbstep * i / factors[step - 1] + rank % (gbstep / factors[step - 1])) {
 	if (expart == 0 || expart == 2) {
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, ranks[gbstep * i / factors[step - 1] + rank % (gbstep / factors[step - 1])]);
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[gbstep * i / factors[step - 1] + rank % (gbstep / factors[step - 1])] - ranks[rank]) % num_ranks);
 	}
       }
     }
