@@ -39,12 +39,6 @@ int main(int argc, char *argv[]) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Type_size(MPI_DATA_TYPE, &type_size);
-  MPI_Info_create(&info);
-  ninfo_arg += sprintf(info_arg + ninfo_arg, "5;1");
-  for (i = 1; i < numprocs; i*=2) {
-    ninfo_arg += sprintf(info_arg + ninfo_arg, " -2");
-  }
-  MPI_Info_set(info, "ext_mpi_copyin", info_arg);
 
   bufsize = type_size * MAX_MESSAGE_SIZE * numprocs;
   bufsize = 100*1024*1024;
@@ -78,6 +72,20 @@ int main(int argc, char *argv[]) {
         for (i = 0; i < numprocs-1; i++) {
           displs[i+1] = displs[i] + counts[i];
         }
+        MPI_Info_create(&info);
+	ninfo_arg = 0;
+	if (size <= 8) {
+          ninfo_arg += sprintf(info_arg + ninfo_arg, "5;-8");
+	} else {
+          ninfo_arg += sprintf(info_arg + ninfo_arg, "5;1");
+	}
+        for (i = 1; i < numprocs; i*=2) {
+          ninfo_arg += sprintf(info_arg + ninfo_arg, " -2");
+        }
+        for (i = 1; i < numprocs; i*=2) {
+          ninfo_arg += sprintf(info_arg + ninfo_arg, " 2");
+        }
+        MPI_Info_set(info, "ext_mpi_copyin", info_arg);
         switch (COLLECTIVE_TYPE){
           case 0:
           MPI_Allreduce_init(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
@@ -104,6 +112,7 @@ int main(int argc, char *argv[]) {
           MPI_Scatterv_init(sendbuf, counts, displs, MPI_DATA_TYPE, recvbuf, size, MPI_DATA_TYPE, 0, new_comm, MPI_INFO_NULL, &request);
           break;
         }
+	MPI_Info_free(&info);
         MPI_Barrier(new_comm);
         iterations = 1;
         flag = 1;

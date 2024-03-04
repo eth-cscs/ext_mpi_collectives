@@ -407,14 +407,16 @@ static void sizes_displs(int socket_size, int size, int type_size, int size_l, i
       displs[i] = add_local * type_size;
     }
   } else {
+    size_l *= type_size;
+    if (size_l > size) size_l = size;
     for (i = 0; i < socket_size; i++) {
       if (i == 0) {
 	displs[i] = 0;
       } else {
 	displs[i] = displs[i - 1] + sizes[i - 1];
       }
-      if (displs[i] + size_l * type_size <= size && i < socket_size - 1) {
-        sizes[i] = size_l * type_size;
+      if (displs[i] + size_l <= size && i < socket_size - 1) {
+        sizes[i] = size_l;
       } else {
 	sizes[i] = size - displs[i];
       }
@@ -424,7 +426,7 @@ static void sizes_displs(int socket_size, int size, int type_size, int size_l, i
 }
 
 static int reduce_copies_redundant(int socket_size, int num_factors, int *factors, int size, int type_size, int rank, int num_ranks, int *ranks, int offset_global, int expart, int first_call, char *buffer_out, int ascii){
-  int nbuffer_out = 0, dist, depth, step, gbstep, substep, rstart = 0, i, j;
+  int nbuffer_out = 0, dist, depth, step, gbstep, substep, rstart = 0, last = 0, i, j;
   for (depth = 0; factors[depth] < 0 && depth < num_factors; depth++);
   for (step = 0, gbstep = 1; step < num_factors && factors[step] < 0; gbstep *= abs(factors[step++]));
   dist = size;
@@ -452,24 +454,32 @@ static int reduce_copies_redundant(int socket_size, int num_factors, int *factor
     nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, 0, 0, offset_global + dist * depth, erecvbufp, 0, 0, offset_global, size, 0, buffer_out + nbuffer_out, ascii);
     for (step = 0; step < num_factors && factors[step] < 0; step++) {
       gbstep /= abs(factors[step]);
+      if (step + 1 == num_factors || factors[step + 1] >= 0) last = 1;
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_socket_barrier);
-      nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, 0, 0, offset_global + dist * (depth + 1 + step), eshmemo, 0, 0, offset_global + dist * (depth + step), size, 0, buffer_out + nbuffer_out, ascii);
+      if (!last) {
+        nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, 0, 0, offset_global + dist * (depth + 1 + step), eshmemo, 0, 0, offset_global + dist * (depth + step), size, 0, buffer_out + nbuffer_out, ascii);
+      } else {
+        nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset_global, eshmemo, 0, 0, offset_global + dist * (depth + step), size, 0, buffer_out + nbuffer_out, ascii);
+      }
       for (substep = 0; substep < abs(factors[step]); substep++) {
         if ((rank - rstart) / gbstep == substep) substep++;
         if (substep < abs(factors[step])) {
           nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, ranks[rstart + gbstep * substep + rank % gbstep]);
-          nbuffer_out += write_memcpy_reduce(esreduce, eshmemo, 0, 0, offset_global + dist * (depth + 1 + step), eshmemo, (num_ranks + ranks[rstart + gbstep * substep + rank % gbstep] - ranks[rank]) % num_ranks, 0, offset_global + dist * ((depth + 1) + step), size, 0, buffer_out + nbuffer_out, ascii);
+	  if (!last) {
+            nbuffer_out += write_memcpy_reduce(esreduce, eshmemo, 0, 0, offset_global + dist * (depth + 1 + step), eshmemo, (num_ranks + ranks[rstart + gbstep * substep + rank % gbstep] - ranks[rank]) % num_ranks, 0, offset_global + dist * ((depth + 1) + step), size, 0, buffer_out + nbuffer_out, ascii);
+	  } else {
+            nbuffer_out += write_memcpy_reduce(esreduce, erecvbufp, 0, 0, offset_global, eshmemo, (num_ranks + ranks[rstart + gbstep * substep + rank % gbstep] - ranks[rank]) % num_ranks, 0, offset_global + dist * (depth + 1 + step), size, 0, buffer_out + nbuffer_out, ascii);
+	  }
 	}
       }
       rstart += ((rank - rstart) / gbstep) * gbstep;
     }
-    nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset_global, eshmemo, 0, 0, offset_global + dist * 2 * depth, size, 0, buffer_out + nbuffer_out, ascii);
   }
   return nbuffer_out;
 }
 
 static int reduce_copies_cyclic(int socket_size, int num_factors, int *factors, int size, int type_size, int rank, int num_ranks, int *ranks, int size_l, int offset_global, int expart, int first_call, char *buffer_out, int ascii){
-  int nbuffer_out = 0, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, used[socket_size], first_used[socket_size], flag, i;
+  int nbuffer_out = 0, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, used[socket_size], first_used[socket_size], i;
   for (i = 0; i < socket_size; i++) {
     used[i] = first_used[i] = 0;
   }
@@ -480,27 +490,31 @@ static int reduce_copies_cyclic(int socket_size, int num_factors, int *factors, 
     if (expart == 0 || expart == 1) {
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_socket_barrier);
     }
-    for (substep = 1; substep < abs(factors[step]); substep++) {
-      flag = 0;
-      for (i = 0; i + gbstep * substep < socket_size && i < gbstep; i++) {
-	size_local = sizes[(2 * socket_size + rank + i) % socket_size];
-	if (size_local > 0) {
-	  flag = 1;
+    for (i = 0; i + gbstep < socket_size && i < gbstep; i++) {
+      offset = displs[(2 * socket_size + rank + i) % socket_size] + offset_global;
+      size_local = sizes[(2 * socket_size + rank + i) % socket_size];
+      if (first_call && !used[i + gbstep]) {
+	if (!first_used[i]) {
+          if (size_local > 0 && (expart == 0 || expart == 1)) {
+            nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset, esendbufp, 0, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
+	  }
+          first_used[i] = 1;
 	}
+        used[i] = used[i + gbstep] = 1;
       }
-      if (flag && (expart == 0 || expart == 1)) {
+    }
+    for (substep = 1; substep < abs(factors[step]); substep++) {
+      size_local = 0;
+      for (i = 0; i + gbstep * substep < socket_size && i < gbstep; i++) {
+	size_local += sizes[(2 * socket_size + rank + i) % socket_size];
+      }
+      if (size_local > 0 && (expart == 0 || expart == 1)) {
         nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[((socket_size - gbstep * substep) % socket_size + rank) % socket_size] - ranks[rank]) % num_ranks);
       }
       for (i = 0; i + gbstep * substep < socket_size && i < gbstep; i++) {
 	offset = displs[(2 * socket_size + rank + i) % socket_size] + offset_global;
 	size_local = sizes[(2 * socket_size + rank + i) % socket_size];
-	if (first_call && !used[i + gbstep * substep]) {
-	  if (substep == 1 && !first_used[i]) {
-            if (size_local > 0 && (expart == 0 || expart == 1)) {
-              nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset, esendbufp, 0, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
-	    }
-            first_used[i] = 1;
-	  }
+	if (first_call && used[i + gbstep * substep] <= 1) {
 	  if (size_local > 0 && (expart == 0 || expart == 1)) {
             nbuffer_out += write_memcpy_reduce(esreduce, erecvbufp, 0, 0, offset, esendbufp, (num_ranks + ranks[((socket_size - gbstep * substep) % socket_size + rank) % socket_size] - ranks[rank]) % num_ranks, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
 	  }
@@ -509,27 +523,19 @@ static int reduce_copies_cyclic(int socket_size, int num_factors, int *factors, 
             nbuffer_out += write_memcpy_reduce(esreduce, erecvbufp, 0, 0, offset, erecvbufp, (num_ranks + ranks[((socket_size - gbstep * substep) % socket_size + rank) % socket_size] - ranks[rank]) % num_ranks, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
 	  }
 	}
-	used[i] = used[i + gbstep * substep] = 1;
+	used[i] = used[i + gbstep * substep] = 2;
       }
     }
   }
-  if (expart == 0 || expart == 2) {
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_socket_barrier);
-  }
   if (step < num_factors) {
     for (gbstep = 1; step < num_factors; gbstep *= factors[step++]) {
-      flag = 0;
-      for (substep = 1; substep < factors[step]; substep++) {
-        for (i = 0; i + gbstep * substep < socket_size && i < gbstep; i++) {
-          size_local = sizes[(2 * socket_size + rank + i) % socket_size];
-	  if (size_local > 0) {
-	    flag = 1;
-	  }
-	}
-      }
-      if (gbstep > 1 || abs(factors[step - 1]) != factors[step]) {
+      if (gbstep > 1) {
 	for (substep = 1; substep < abs(factors[step - 1]); substep++) {
-          if (flag && (expart == 0 || expart == 2)) {
+	  size_local = 0;
+          for (i = 0; i + gbstep * substep / factors[step - 1] < socket_size && i < gbstep / factors[step - 1]; i++) {
+	    size_local += sizes[(2 * socket_size + rank + gbstep * substep / factors[step - 1] + i) % socket_size];
+	  }
+          if (size_local > 0 && (expart == 0 || expart == 2)) {
             nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[((socket_size + gbstep * substep / abs(factors[step - 1])) % socket_size + rank) % socket_size] - ranks[rank]) % num_ranks);
 	  }
 	}
@@ -548,11 +554,18 @@ static int reduce_copies_cyclic(int socket_size, int num_factors, int *factors, 
       }
     }
     for (substep = 1; substep < factors[step - 1]; substep++) {
-      if (expart == 0 || expart == 2) {
+      size_local = 0;
+      for (i = 0; i + gbstep * substep / factors[step - 1] < socket_size && i < gbstep / factors[step - 1]; i++) {
+        size_local += sizes[(2 * socket_size + rank + gbstep * substep / factors[step - 1] + i) % socket_size];
+      }
+      if (size_local > 0 && (expart == 0 || expart == 2)) {
         nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[((socket_size + gbstep * substep / factors[step - 1]) % socket_size + rank) % socket_size] - ranks[rank]) % num_ranks);
       }
     }
   } else {
+    if (expart == 0 || expart == 2) {
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_socket_barrier);
+    }
     for (i = 1; i < socket_size; i++) {
       offset = displs[(socket_size + rank + i) % socket_size] + offset_global;
       size_local = sizes[(socket_size + rank + i) % socket_size];
@@ -561,15 +574,27 @@ static int reduce_copies_cyclic(int socket_size, int num_factors, int *factors, 
         nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset, erecvbufp, (num_ranks + ranks[(rank + i) % socket_size] - ranks[rank]) % num_ranks, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
       }
     }
+    for (step = 0, gbstep = 1; step < num_factors && factors[step] < 0; gbstep *= abs(factors[step++]));
+    for (step = 0; step < num_factors && factors[step] < 0; step++) {
+      gbstep /= abs(factors[step]);
+      if (expart == 0 || expart == 2) {
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_socket_barrier);
+      }
+      for (substep = 1; substep < abs(factors[step]); substep++) {
+        if (expart == 0 || expart == 2) {
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[((socket_size - gbstep * substep) % socket_size + rank) % socket_size] - ranks[rank]) % num_ranks);
+        }
+      }
+    }
     if (expart == 0 || expart == 2) {
-      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", esocket_barrier);
+//      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", esocket_barrier);
     }
   }
   return nbuffer_out;
 }
 
 static int reduce_copies_recursive(int socket_size, int num_factors, int *factors, int size, int type_size, int rank, int num_ranks, int *ranks, int size_l, int offset_global, int expart, int first_call, char *buffer_out, int ascii){
-  int nbuffer_out = 0, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, rstart = 0, rstart_next, flag_first = 1, flag, i, j;
+  int nbuffer_out = 0, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, rstart = 0, flag_first = 1, *ranks_wait, max_factor, *rstarts, i;
   sizes_displs(socket_size, size, type_size, size_l, sizes, displs);
   for (step = 0, gbstep = 1; step < num_factors && factors[step] < 0; gbstep *= abs(factors[step++]));
   for (step = 0; step < num_factors && factors[step] < 0; step++) {
@@ -586,14 +611,15 @@ static int reduce_copies_recursive(int socket_size, int num_factors, int *factor
           size_local += sizes[(rank / gbstep) * gbstep + i];
         }
         if (size_local > 0 && (expart == 0 || expart == 1)) {
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[(rank + (socket_size - rank + rstart + gbstep * substep + rank % gbstep) % socket_size) % socket_size] - ranks[rank]) % num_ranks);
 	  if (first_call && step == 0) {
 	    if (flag_first) {
               nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset, esendbufp, 0, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
               flag_first = 0;
 	    }
+            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[rstart + gbstep * substep + rank % gbstep] - ranks[rank]) % num_ranks);
             nbuffer_out += write_memcpy_reduce(esreduce, erecvbufp, 0, 0, offset, esendbufp, (num_ranks + ranks[(rank + (socket_size - rank + rstart + gbstep * substep + rank % gbstep) % socket_size) % socket_size] - ranks[rank]) % num_ranks, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
 	  } else {
+            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[rstart + gbstep * substep + rank % gbstep] - ranks[rank]) % num_ranks);
             nbuffer_out += write_memcpy_reduce(esreduce, erecvbufp, 0, 0, offset, erecvbufp, (num_ranks + ranks[(rank + (socket_size - rank + rstart + gbstep * substep + rank % gbstep) % socket_size) % socket_size] - ranks[rank]) % num_ranks, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
 	  }
 	}
@@ -601,54 +627,48 @@ static int reduce_copies_recursive(int socket_size, int num_factors, int *factor
     }
     rstart += ((rank - rstart) / gbstep) * gbstep;
   }
-  if (expart == 0 || expart == 2) {
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_socket_barrier);
-  }
   if (step < num_factors) {
-    for (gbstep = 1; step < num_factors; gbstep *= factors[step++]) {
-      for (j = 1, i = num_factors - 1; factors[i] > 0; i--) {
-	j *= factors[i];
+    max_factor = 0;
+    rstart = 0;
+    for (step = 0; step < num_factors; step++) {
+      if (abs(factors[step]) > max_factor) {
+	max_factor = abs(factors[step]);
       }
-      rstart = 0;
-      for (i = num_factors - 1; i > step; i--) {
-	j /= factors[i];
-        rstart += ((rank - rstart) / j) * j;
-      }
-      j /= factors[step];
-      rstart_next = rstart + ((rank - rstart) / j) * j;
-      flag = 0;
-      for (substep = 0; substep < factors[step]; substep++) {
-	if ((rank - rstart) / gbstep == substep) substep++;
-	if (substep < factors[step]) {
-          offset = displs[(rank / gbstep) * gbstep] + offset_global;
+    }
+    ranks_wait = (int *)malloc(num_factors * max_factor * sizeof(int));
+    rstarts = (int *)malloc(num_factors * sizeof(int));
+    for (i = 0; i < num_factors * max_factor; i++) {
+      ranks_wait[i] = -1;
+    }
+    for (step = 0, gbstep = 1; step < num_factors && factors[step] < 0; gbstep *= abs(factors[step++]));
+    for (step = num_factors - 1; factors[step] > 0; step--) {
+      gbstep /= abs(factors[step]);
+      for (substep = 0; substep < abs(factors[step]); substep++) {
+        if ((rank - rstart) / gbstep == substep) substep++;
+        if (substep < abs(factors[step])) {
 	  size_local = 0;
-          for (i = 0; i < gbstep; i++) {
-            size_local += sizes[(rank / gbstep) * gbstep + i];
+	  for (i = 0; i < gbstep; i++) {
+            size_local += sizes[(((rank + (socket_size - rank + rstart + gbstep * substep + rank % gbstep) % socket_size) % socket_size) / gbstep) * gbstep + i];
           }
 	  if (size_local > 0) {
-	    flag = 1;
+            ranks_wait[step * max_factor + substep] = (num_ranks + ranks[(rank + (socket_size - rank + rstart + gbstep * substep + rank % gbstep) % socket_size) % socket_size] - ranks[rank]) % num_ranks;
 	  }
         }
       }
+      rstarts[step] = rstart;
+      rstart += ((rank - rstart) / gbstep) * gbstep;
+    }
+    for (step = 0, gbstep = 1; step < num_factors && factors[step] < 0; gbstep *= abs(factors[step++]));
+    for (gbstep = 1; step < num_factors; gbstep *= factors[step++]) {
       if (gbstep > 1) {
-	for (i = 0; i < abs(factors[step - 1]); i++) {
-	  if (rank != rstart_next + gbstep * i / abs(factors[step - 1]) + rank % (gbstep / abs(factors[step - 1]))) {
-	    if (flag && (expart == 0 || expart == 2)) {
-              nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[rstart_next + gbstep * i / abs(factors[step - 1]) + rank % (gbstep / abs(factors[step - 1]))] - ranks[rank]) % num_ranks);
-	    }
-	  }
-	}
-      } else if (abs(factors[step - 1]) != factors[step]) {
-	for (i = 0; i < abs(factors[step - 1]); i++) {
-	  if (rank != rstart_next + gbstep * i / abs(factors[step - 1])) {
-	    if (flag && (expart == 0 || expart == 2)) {
-              nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[rstart_next + gbstep * i / abs(factors[step - 1])] - ranks[rank]) % num_ranks);
-	    }
-	  }
-	}
+        for (substep = 0; substep < abs(factors[step - 1]); substep++) {
+          if (ranks_wait[(step - 1) * max_factor + substep] >= 0 && (expart == 0 || expart == 2)) {
+            nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, ranks_wait[(step - 1) * max_factor + substep]);
+          }
+        }
       }
       for (substep = 0; substep < factors[step]; substep++) {
-	if ((rank - rstart) / gbstep == substep) substep++;
+	if ((rank - rstarts[step]) / gbstep == substep) substep++;
 	if (substep < factors[step]) {
           offset = displs[(rank / gbstep) * gbstep] + offset_global;
 	  size_local = 0;
@@ -656,19 +676,25 @@ static int reduce_copies_recursive(int socket_size, int num_factors, int *factor
             size_local += sizes[(rank / gbstep) * gbstep + i];
           }
           if (size_local > 0 && (expart == 0 || expart == 2)) {
-            nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, (num_ranks + ranks[(rank + (socket_size - rank + rstart + gbstep * substep + rank % gbstep) % socket_size) % socket_size] - ranks[rank]) % num_ranks, 0, offset, erecvbufp, 0, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
+            nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, (num_ranks + ranks[(rank + (socket_size - rank + rstarts[step] + gbstep * substep + rank % gbstep) % socket_size) % socket_size] - ranks[rank]) % num_ranks, 0, offset, erecvbufp, 0, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
 	  }
         }
       }
-    }
-    for (i = 0; i < factors[step - 1]; i++) {
-      if (rank != gbstep * i / factors[step - 1] + rank % (gbstep / factors[step - 1])) {
-	if (expart == 0 || expart == 2) {
-          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, (num_ranks + ranks[gbstep * i / factors[step - 1] + rank % (gbstep / factors[step - 1])] - ranks[rank]) % num_ranks);
-	}
+      if (expart == 0 || expart == 2) {
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_socket_barrier);
       }
     }
+    for (substep = 0; substep < abs(factors[num_factors - 1]); substep++) {
+      if (ranks_wait[(num_factors - 1) * max_factor + substep] >= 0 && (expart == 0 || expart == 2)) {
+        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_socket_barrier, ranks_wait[(num_factors - 1) * max_factor + substep]);
+      }
+    }
+    free(rstarts);
+    free(ranks_wait);
   } else {
+    if (expart == 0 || expart == 2) {
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_socket_barrier);
+    }
     for (i = 1; i < socket_size; i++) {
       offset = displs[(socket_size + i + rank) % socket_size] + offset_global;
       size_local = sizes[(socket_size + i + rank) % socket_size];
