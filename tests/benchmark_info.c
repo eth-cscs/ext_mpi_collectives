@@ -1,4 +1,5 @@
 #include "ext_mpi_interface.h"
+#include "ext_mpi.h"
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +17,7 @@
 #define COLLECTIVE_TYPE 0
 
 int main(int argc, char *argv[]) {
-  int numprocs, rank, size, flag, type_size, bufsize, iterations, num_tasks, *counts, *displs, ninfo_arg = 0, in_place = 0, i;
+  int numprocs, rank, size, flag, type_size, bufsize, iterations, num_tasks, *counts, *displs, ninfo_arg = 0, in_place = 0, i, j;
   char info_arg[1000];
   double latency_ref = 0.0;
   double latency = 0.0, t_start = 0.0, t_stop = 0.0;
@@ -79,10 +80,11 @@ int main(int argc, char *argv[]) {
 	} else {
           ninfo_arg += sprintf(info_arg + ninfo_arg, "5;1");
 	}
-        for (i = 1; i < numprocs; i*=2) {
+	j = ext_mpi_get_num_tasks_per_socket(MPI_COMM_WORLD, 1);
+        for (i = 1; i < j; i *= 2) {
           ninfo_arg += sprintf(info_arg + ninfo_arg, " -2");
         }
-        for (i = 1; i < numprocs; i*=2) {
+        for (i = 1; i < j; i *= 2) {
           ninfo_arg += sprintf(info_arg + ninfo_arg, " 2");
         }
         MPI_Info_set(info, "ext_mpi_copyin", info_arg);

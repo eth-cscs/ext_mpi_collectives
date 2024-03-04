@@ -824,17 +824,21 @@ buffer2 = buffer_temp;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_allreduce_copyin(buffer1, buffer2) < 0)
     goto error;
   if (my_mpi_size_row / my_cores_per_node_row > 1) {
-    if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
+    if (ext_mpi_generate_allreduce_copyin_shmem(buffer2, buffer1) < 0)
+      goto error;
+    if (ext_mpi_generate_raw_code(buffer1, buffer2) < 0)
+      goto error;
+    if (ext_mpi_generate_allreduce_copyout_shmem(buffer2, buffer1) < 0)
       goto error;
   } else {
     buffer_temp = buffer1;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_allreduce_copyout(buffer1, buffer2) < 0)
     goto error;
   /*
      int mpi_rank;

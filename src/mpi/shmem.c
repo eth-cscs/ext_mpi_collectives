@@ -154,7 +154,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
       }
     } else {
       if (!single_task) {
-        (*shmem)[ii] = (char *)shmat((*shmemid)[ii], NULL, SHM_RDONLY);
+        (*shmem)[ii] = (char *)shmat((*shmemid)[ii], NULL, 0);
       } else {
         (*shmem)[ii] = (char *)malloc(*size_shared);
       }
