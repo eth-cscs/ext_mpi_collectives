@@ -421,13 +421,21 @@ int ext_mpi_generate_byte_code(char **shmem,
         }
 #endif
         code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_SET, isdryrun);
-        code_put_pointer(&ip, header->barrier_shmem_socket[0], isdryrun);
+	if (header->barrier_shmem_socket) {
+          code_put_pointer(&ip, header->barrier_shmem_socket[0], isdryrun);
+	} else {
+          code_put_pointer(&ip, NULL, isdryrun);
+	}
       }
     }
     if (estring1 == ewait_socket_barrier) {
       if (header->num_cores != 1) {
         code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_WAIT, isdryrun);
-        code_put_pointer(&ip, header->barrier_shmem_socket[integer1], isdryrun);
+	if (header->barrier_shmem_socket) {
+          code_put_pointer(&ip, header->barrier_shmem_socket[integer1], isdryrun);
+	} else {
+          code_put_pointer(&ip, NULL, isdryrun);
+	}
       }
     }
     if (estring1 == ewaitall) {
