@@ -338,7 +338,7 @@ int ext_mpi_generate_byte_code(char **shmem,
         header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;
       }
       for (i = 0; i < node_num_cores_row; i++) {
-        header->barrier_shmem_socket[i] = shmem[(num_cores - i) % num_cores] + my_size_shared_buf + barriers_size;
+        header->barrier_shmem_socket[i] = shmem[i] + my_size_shared_buf + barriers_size;
       }
     } else {
       header->barrier_shmem_node = NULL;

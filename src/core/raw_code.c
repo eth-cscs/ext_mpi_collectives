@@ -21,7 +21,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   struct line_memcpy_reduce data_memcpy_reduce;
   int node, num_nodes, size, add, add2, flag, node_rank,
       node_row_size = 1, node_column_size = 1, node_size, buffer_counter,
-      size_s, adds;
+      size_s, adds, buffer_number;
   int num_comm = 0, num_comms = 0, nbuffer_out = 0, nbuffer_in = 0, *msizes, msizes_max, i, j,
       k = -1, m, n, o, q;
 #ifdef NCCL_ENABLED
@@ -46,6 +46,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   msizes_max = parameters->message_sizes_max;
   msizes = parameters->message_sizes;
   node_size = node_row_size * node_column_size;
+  buffer_number = (parameters->socket_row_size - parameters->socket_rank) % parameters->socket_row_size;
   nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
@@ -93,7 +94,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
 #endif
         data_irecv_isend.type = eirecv;
         data_irecv_isend.buffer_type = eshmemo;
-        data_irecv_isend.buffer_number = 0;
+        data_irecv_isend.buffer_number = buffer_number;
         data_irecv_isend.is_offset = 1;
         data_irecv_isend.offset_number = buffer_counter;
         data_irecv_isend.offset = 0;
@@ -107,7 +108,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       if (size_s) {
         data_irecv_isend.type = eirec_;
         data_irecv_isend.buffer_type = eshmemo;
-        data_irecv_isend.buffer_number = 0;
+        data_irecv_isend.buffer_number = buffer_number;
         data_irecv_isend.is_offset = 1;
         data_irecv_isend.offset_number = buffer_counter;
         data_irecv_isend.offset = 0;
@@ -128,12 +129,12 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
             size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
             if (size) {
               data_memcpy_reduce.buffer_type1 = eshmemo;
-              data_memcpy_reduce.buffer_number1 = 0;
+              data_memcpy_reduce.buffer_number1 = buffer_number;
               data_memcpy_reduce.is_offset1 = 1;
               data_memcpy_reduce.offset_number1 = buffer_counter;
               data_memcpy_reduce.offset1= add;
               data_memcpy_reduce.buffer_type2 = eshmemo;
-              data_memcpy_reduce.buffer_number2 = 0;
+              data_memcpy_reduce.buffer_number2 = buffer_number;
               data_memcpy_reduce.is_offset2 = 1;
               data_memcpy_reduce.offset_number2 = 0;
               data_memcpy_reduce.offset2 = add2;
@@ -151,12 +152,12 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
             size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
             if (size) {
               data_memcpy_reduce.buffer_type1 = eshmemo;
-              data_memcpy_reduce.buffer_number1 = 0;
+              data_memcpy_reduce.buffer_number1 = buffer_number;
               data_memcpy_reduce.is_offset1 = 1;
               data_memcpy_reduce.offset_number1 = buffer_counter;
               data_memcpy_reduce.offset1= adds;
               data_memcpy_reduce.buffer_type2 = eshmemo;
-              data_memcpy_reduce.buffer_number2 = 0;
+              data_memcpy_reduce.buffer_number2 = buffer_number;
               data_memcpy_reduce.is_offset2 = 1;
               data_memcpy_reduce.offset_number2 = 0;
               data_memcpy_reduce.offset2 = add2;
@@ -178,7 +179,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
             buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         data_irecv_isend.type = eisend;
         data_irecv_isend.buffer_type = eshmemo;
-        data_irecv_isend.buffer_number = 0;
+        data_irecv_isend.buffer_number = buffer_number;
         data_irecv_isend.is_offset = 1;
         data_irecv_isend.offset_number = buffer_counter;
         data_irecv_isend.offset = 0;
@@ -194,7 +195,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
             buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
         data_irecv_isend.type = eisen_;
         data_irecv_isend.buffer_type = eshmemo;
-        data_irecv_isend.buffer_number = 0;
+        data_irecv_isend.buffer_number = buffer_number;
         data_irecv_isend.is_offset = 1;
         data_irecv_isend.offset_number = buffer_counter;
         data_irecv_isend.offset = 0;
@@ -237,12 +238,12 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       }
       if (size && (q != node)) {
         data_memcpy_reduce.buffer_type1 = eshmemo;
-        data_memcpy_reduce.buffer_number1 = 0;
+        data_memcpy_reduce.buffer_number1 = buffer_number;
         data_memcpy_reduce.is_offset1 = 1;
         data_memcpy_reduce.offset_number1 = 0;
         data_memcpy_reduce.offset1= j;
         data_memcpy_reduce.buffer_type2 = eshmemo;
-        data_memcpy_reduce.buffer_number2 = 0;
+        data_memcpy_reduce.buffer_number2 = buffer_number;
         data_memcpy_reduce.is_offset2 = 1;
         data_memcpy_reduce.offset_number2 = buffer_counter;
         data_memcpy_reduce.offset2 = 0;
@@ -274,12 +275,12 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
           add2 += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[k].frac);
         }
         data_memcpy_reduce.buffer_type1 = eshmemo;
-        data_memcpy_reduce.buffer_number1 = 0;
+        data_memcpy_reduce.buffer_number1 = buffer_number;
         data_memcpy_reduce.is_offset1 = 1;
         data_memcpy_reduce.offset_number1 = 0;
         data_memcpy_reduce.offset1= add;
         data_memcpy_reduce.buffer_type2 = eshmemo;
-        data_memcpy_reduce.buffer_number2 = 0;
+        data_memcpy_reduce.buffer_number2 = buffer_number;
         data_memcpy_reduce.is_offset2 = 1;
         data_memcpy_reduce.offset_number2 = 0;
         data_memcpy_reduce.offset2 = add2;
@@ -301,12 +302,12 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
           add2 += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[k].frac);
         }
         data_memcpy_reduce.buffer_type1 = eshmemo;
-        data_memcpy_reduce.buffer_number1 = 0;
+        data_memcpy_reduce.buffer_number1 = buffer_number;
         data_memcpy_reduce.is_offset1 = 1;
         data_memcpy_reduce.offset_number1 = 0;
         data_memcpy_reduce.offset1= add;
         data_memcpy_reduce.buffer_type2 = eshmemo;
-        data_memcpy_reduce.buffer_number2 = 0;
+        data_memcpy_reduce.buffer_number2 = buffer_number;
         data_memcpy_reduce.is_offset2 = 1;
         data_memcpy_reduce.offset_number2 = 0;
         data_memcpy_reduce.offset2 = add2;

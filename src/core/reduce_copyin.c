@@ -1575,7 +1575,7 @@ static int overlapp(int dest_start, int dest_end, int source_start,
 }
 
 static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out, int in_out) {
-  int nbuffer_out = 0, nbuffer_in = 0, flag, *ranks, offset1, offset2, size, num_ranks, lrank_row, *counts, *displs, type_size = 1, *moffsets, i, j, k;
+  int nbuffer_out = 0, nbuffer_in = 0, flag, *ranks, offset1, offset2, size, num_ranks, lrank_row, *counts, *displs, type_size = 1, *moffsets, add, i, j, k, l;
   char line[1000];
   enum eassembler_type estring1;
   struct parameters_block *parameters;
@@ -1656,51 +1656,69 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
     moffsets[i + 1] = moffsets[i] + parameters->message_sizes[i];
   }
   if (in_out == 1) {
-    nbuffer_out += write_memcpy_reduce(esmemcp_, eshmemo, 0, 0, 50000, erecvbufp, 0, 0, 50000, 50000, 0, buffer_out + nbuffer_out, parameters->ascii_out);
-    offset1 = 0;
-    for (i = 0; i < data.blocks[0].num_lines; i++) {
-      k = 0;
-      for (j = 0; j < data.blocks[0].lines[i].recvfrom_max; j++) {
-        if (data.blocks[0].lines[i].recvfrom_node[j] == -1) {
-//if (parameters->socket_rank == 0 && parameters->socket == 0)		printf("aaa %d %d\n", i, data.blocks[0].lines[i].frac);
-          k = 1;
-	}
-      }
-      if (k) {
-        if ((size = overlapp(displs[parameters->socket_rank], displs[parameters->socket_rank + 1],
+    offset2 = displs[parameters->socket_rank];
+    for (l = 0; l < parameters->num_sockets; l++) {
+      add = 0;
+      for (i = 0; i < data.blocks[0].num_lines; i++) {
+	if (data.blocks[0].lines[i].frac == l) {
+          k = 0;
+          for (j = 0; j < data.blocks[0].lines[i].recvfrom_max; j++) {
+            if (data.blocks[0].lines[i].recvfrom_node[j] == -1) {
+              k = 1;
+	    }
+          }
+          size = 0;
+          if (k) {
+            if ((size = overlapp(displs[parameters->socket_rank],
+			     displs[parameters->socket_rank + 1],
                              moffsets[data.blocks[0].lines[i].frac],
                              moffsets[data.blocks[0].lines[i].frac + 1],
-                             &offset2))) {
-//          nbuffer_out += write_memcpy_reduce(esmemcp_, eshmemo, 0, 0, offset1, erecvbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
-	  if (parameters->socket_row_size == 1) {
-            nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, (num_ranks + ranks[0] - ranks[lrank_row]) % num_ranks, 0, offset1, esendbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
-	  } else {
-            nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, (num_ranks + ranks[0] - ranks[lrank_row]) % num_ranks, 0, offset1, erecvbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+                             &offset1))) {
+	      offset1 += add - moffsets[data.blocks[0].lines[i].frac];
+	      if (parameters->socket_row_size == 1) {
+                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, (num_ranks + ranks[0] - ranks[lrank_row]) % num_ranks, 0, offset1, esendbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+	      } else {
+                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, (num_ranks + ranks[0] - ranks[lrank_row]) % num_ranks, 0, offset1, erecvbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+	      }
+	    }
 	  }
+          offset2 += size;
         }
+        add += moffsets[data.blocks[0].lines[i].frac + 1] - moffsets[data.blocks[0].lines[i].frac];
       }
-      offset1 += parameters->message_sizes[data.blocks[0].lines[i].frac];
     }
   } else if (in_out == 2) {
-    offset2 = 0;
-    for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
-      k = 0;
-      for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
-        if (data.blocks[data.num_blocks - 1].lines[i].sendto_node[j] == -1) {
-//if (parameters->socket_rank == 0 && parameters->socket == 0)		printf("bbb %d %d\n", i, data.blocks[data.num_blocks - 1].lines[i].frac);
-          k = 1;
-	}
-      }
-      if (k) {
-        if ((size = overlapp(displs[parameters->socket_rank], displs[parameters->socket_rank + 1],
+    offset1 = displs[parameters->socket_rank];
+    for (l = 0; l < parameters->num_sockets; l++) {
+      add = 0;
+      for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
+	if (data.blocks[data.num_blocks - 1].lines[i].frac == l) {
+	  k = 0;
+	  for (j = 0; j < data.blocks[data.num_blocks - 1].lines[i].sendto_max; j++) {
+	    if (data.blocks[data.num_blocks - 1].lines[i].sendto_node[j] == -1) {
+	      k = 1;
+	    }
+	  }
+	  size = 0;
+	  if (k) {
+	    if ((size = overlapp(
+			     displs[parameters->socket_rank],
+			     displs[parameters->socket_rank + 1],
                              moffsets[data.blocks[data.num_blocks - 1].lines[i].frac],
                              moffsets[data.blocks[data.num_blocks - 1].lines[i].frac + 1],
-                             &offset1))) {
-          nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset1, eshmemo, (num_ranks + ranks[0] - ranks[lrank_row]) % num_ranks, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
-        }
+                             &offset2))) {
+	      offset2 += add - moffsets[data.blocks[data.num_blocks - 1].lines[i].frac];
+	      nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset1, eshmemo, (num_ranks + ranks[0] - ranks[lrank_row]) % num_ranks, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+	    }
+	  }
+	  offset1 += size;
+	}
+        add += moffsets[data.blocks[data.num_blocks - 1].lines[i].frac + 1] - moffsets[data.blocks[data.num_blocks - 1].lines[i].frac];
       }
-      offset2 += parameters->message_sizes[data.blocks[data.num_blocks - 1].lines[i].frac];
     }
+  }
+  if (in_out == 1) {
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   }
   ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   free(moffsets);
@@ -1721,6 +1739,5 @@ int ext_mpi_generate_allreduce_copyin_shmem(char *buffer_in, char *buffer_out) {
 }
 
 int ext_mpi_generate_allreduce_copyout_shmem(char *buffer_in, char *buffer_out) {
-//	printf("aaa %s\n", buffer_in);
   return generate_allreduce_copyinout_shmem(buffer_in, buffer_out, 2);
 }

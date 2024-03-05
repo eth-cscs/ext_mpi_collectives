@@ -127,13 +127,12 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
   *shmemid = (int *)malloc(num_segments * sizeof(int));
   *shmem = (char **)malloc(num_segments * sizeof(char *));
   for (i = 0; i < num_segments; i++) {
-    ii = (num_segments - i + my_mpi_rank_row / my_cores_per_node_row) % num_segments;
+    ii = (num_segments + i - my_mpi_rank_row % num_segments) % num_segments;
     ext_mpi_node_barrier_mpi(*shmem_comm_node_row, *shmem_comm_node_column, NULL);
     (*shmemid)[ii] = -1;
     (*shmem)[ii] = NULL;
 #ifndef MMAP
-    if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments) == i * my_cores_per_node_row) &&
-        (my_mpi_rank_column % my_cores_per_node_column == 0)) {
+    if (ii == 0) {
       if (!single_task) {
         (*shmemid)[ii] = shmget(IPC_PRIVATE, *size_shared, IPC_CREAT | 0600);
       } else {
@@ -141,29 +140,17 @@ int ext_mpi_setup_shared_memory(MPI_Comm *shmem_comm_node_row,
       }
     }
     ext_mpi_node_barrier_mpi(*shmem_comm_node_row, *shmem_comm_node_column, NULL);
-    MPI_Bcast(&((*shmemid)[ii]), 1, MPI_INT, i * my_cores_per_node_row, *shmem_comm_node_row);
-    if (*shmem_comm_node_column != MPI_COMM_NULL) {
-      MPI_Bcast(&((*shmemid)[ii]), 1, MPI_INT, 0, *shmem_comm_node_column);
-    }
+    MPI_Bcast(&((*shmemid)[ii]), 1, MPI_INT, i, *shmem_comm_node_row);
     ext_mpi_node_barrier_mpi(*shmem_comm_node_row, *shmem_comm_node_column, NULL);
-    if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments)) / my_cores_per_node_row == i) {
-      if (!single_task) {
-        (*shmem)[ii] = (char *)shmat((*shmemid)[ii], NULL, 0);
-      } else {
-        (*shmem)[ii] = (char *)malloc(*size_shared);
-      }
+    if (!single_task) {
+      (*shmem)[ii] = (char *)shmat((*shmemid)[ii], NULL, 0);
     } else {
-      if (!single_task) {
-        (*shmem)[ii] = (char *)shmat((*shmemid)[ii], NULL, 0);
-      } else {
-        (*shmem)[ii] = (char *)malloc(*size_shared);
-      }
+      (*shmem)[ii] = (char *)malloc(*size_shared);
     }
     if ((*shmem)[ii] == NULL)
       goto error;
     ext_mpi_node_barrier_mpi(*shmem_comm_node_row, *shmem_comm_node_column, NULL);
-    if ((my_mpi_rank_row % (my_cores_per_node_row * num_segments) == i * my_cores_per_node_row) &&
-         (my_mpi_rank_column % my_cores_per_node_column == 0)) {
+    if (ii == 0) {
       memset((void *)((*shmem)[ii] + (*size_shared - numfill)), fill, numfill);
     }
 #else
