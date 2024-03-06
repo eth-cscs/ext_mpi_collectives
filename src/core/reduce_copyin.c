@@ -1656,7 +1656,7 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
     moffsets[i + 1] = moffsets[i] + parameters->message_sizes[i];
   }
   if (in_out == 1) {
-    offset2 = displs[parameters->socket_rank];
+    offset2 = displs[ranks[parameters->socket_rank]];
     for (l = 0; l < parameters->num_sockets; l++) {
       add = 0;
       for (i = 0; i < data.blocks[0].num_lines; i++) {
@@ -1688,7 +1688,7 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
       }
     }
   } else if (in_out == 2) {
-    offset1 = displs[parameters->socket_rank];
+    offset1 = displs[ranks[parameters->socket_rank]];
     for (l = 0; l < parameters->num_sockets; l++) {
       add = 0;
       for (i = 0; i < data.blocks[data.num_blocks - 1].num_lines; i++) {
