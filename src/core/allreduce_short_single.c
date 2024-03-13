@@ -281,7 +281,7 @@ int ext_mpi_generate_allreduce_short_single(char *buffer_in, char *buffer_out) {
     printf("ext_mpi_generate_allreduce_short not implemented\n");
     exit(1);
   } else {
-    i = allreduce_core(&data, parameters->num_sockets, parameters->num_ports, parameters->socket);
+    i = allreduce_core(&data, parameters->num_nodes, parameters->num_ports, parameters->node);
   }
   if (i < 0)
     goto error;

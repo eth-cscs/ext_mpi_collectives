@@ -83,7 +83,6 @@ struct comm_comm_blocking {
   int *count_allgather_blocking;
   char **shmem_blocking1;
   char **shmem_blocking2;
-//  int shmem_blocking_num_segments;
   int *shmem_blocking_shmemid1;
   int *shmem_blocking_shmemid2;
   char *locmem_blocking;
@@ -96,7 +95,6 @@ struct comm_comm_blocking {
   int socket_rank_blocking;
   int num_cores_blocking;
   char **shmem_node_blocking;
-  int shmem_node_blocking_num_segments;
   int *shmem_node_blocking_shmemid;
   int counter_node_blocking;
   int num_sockets_per_node_blocking;
@@ -323,7 +321,7 @@ int EXT_MPI_Done_native(int handle) {
     free(header->gpu_byte_code);
   }
 #endif
-  ext_mpi_destroy_shared_memory(shmem_size, header->num_sockets_per_node, shmemid, shmem, comm_code[handle]);
+  ext_mpi_destroy_shared_memory(shmem_size, header->num_sockets_per_node * header->node_num_cores_row, shmemid, shmem, comm_code[handle]);
 #ifndef XPMEM
   free(header->sendbufs);
   free(header->recvbufs);
@@ -372,7 +370,7 @@ int EXT_MPI_Done_native(int handle) {
       free(header->gpu_byte_code);
     }
 #endif
-    ext_mpi_destroy_shared_memory(shmem_size, header->num_sockets_per_node, shmemid, shmem, comm_code[handle + 1]);
+    ext_mpi_destroy_shared_memory(shmem_size, header->num_sockets_per_node * header->node_num_cores_row, shmemid, shmem, comm_code[handle + 1]);
 #ifndef XPMEM
     free(header->sendbufs);
     free(header->recvbufs);
@@ -425,7 +423,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row;
   int locmem_size, shmem_size = 0, *shmemid = NULL, num_sockets_per_node = 1;
   char **shmem = NULL;
-  MPI_Comm shmem_comm_node_row, shmem_comm_node_column;
+  MPI_Comm shmem_comm_node_row;
   int gpu_byte_code_counter = 0;
   char **shmem_gpu = NULL;
   int *shmemid_gpu = NULL;
@@ -464,10 +462,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     }
     shmemid = NULL;
   } else {
-    if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
-                                    comm_row, 1, comm_column,
-                                    my_cores_per_node_column, &shmem_size, num_sockets_per_node * my_cores_per_node_row,
-                                    &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
+    if (ext_mpi_setup_shared_memory(comm_row, num_sockets_per_node * my_cores_per_node_row,
+                                    &shmem_size, &shmemid, &shmem, 0, barriers_size * 4, &shmem_comm_node_row) < 0)
       goto error_shared;
   }
 #ifndef XPMEM
@@ -514,7 +510,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   code_size = ext_mpi_generate_byte_code(
       shmem, shmem_size, shmemid, buffer_in, sendbufs, recvbufs,
       my_size_shared_buf, barriers_size, locmem, reduction_op, global_ranks, NULL,
-      sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, &shmem_comm_node_column,
+      sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
       my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag);
   if (code_size < 0)
     goto error;
@@ -525,7 +521,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
           shmem, shmem_size, shmemid, buffer_in, sendbufs,
           recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
-          &shmem_comm_node_column, my_cores_per_node_column,
+          NULL, my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag) < 0)
     goto error;
   if (alt) {
@@ -536,10 +532,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     if (shmem_zero) {
       shmemid = NULL;
     } else {
-      if (ext_mpi_setup_shared_memory(&shmem_comm_node_row, &shmem_comm_node_column,
-                                      comm_row, 1, comm_column,
-                                      my_cores_per_node_column, &shmem_size, num_sockets_per_node * my_cores_per_node_row,
-                                      &shmemid, &shmem, 0, barriers_size * 4, comm_code) < 0)
+      if (ext_mpi_setup_shared_memory(comm_row, num_sockets_per_node * my_cores_per_node_row,
+                                      &shmem_size, &shmemid, &shmem, 0, barriers_size * 4, &shmem_comm_node_row) < 0)
         goto error_shared;
     }
 #ifndef XPMEM
@@ -576,7 +570,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
           shmem, shmem_size, shmemid, buffer_in, sendbufs,
           recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
-          &shmem_comm_node_column, my_cores_per_node_column,
+          NULL, my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag) < 0)
       goto error;
   } else {
@@ -605,11 +599,10 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                int *groups, int copyin, int *copyin_factors,
                                int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
-      my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
-  int coarse_count, *counts = NULL, iret;
+      my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
+      coarse_count, *counts = NULL, iret,
+      nbuffer1 = 0, msize, *msizes = NULL, i, allreduce_short = (num_ports[0] > 0), reduction_op;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
-  int nbuffer1 = 0, msize, *msizes = NULL, i, allreduce_short = (num_ports[0] > 0);
-  int reduction_op;
   struct parameters_block *parameters;
   if (allreduce_short) {
     for (i = 0; groups[i]; i++) {
@@ -655,6 +648,7 @@ allreduce_short = 0;
   my_lrank_row = my_mpi_rank_row % my_cores_per_node_row;
   my_lrank_column = my_mpi_rank_column % my_cores_per_node_column;
   my_lrank_node = my_lrank_row * my_cores_per_node_column + my_lrank_column;
+  socket_number = (my_mpi_rank_row % (my_cores_per_node_row * num_sockets_per_node)) / my_cores_per_node_row;
   counts = (int *)malloc(my_cores_per_node_column * sizeof(int));
   if (!counts)
     goto error;
@@ -699,9 +693,10 @@ allreduce_short = 0;
     nbuffer1 += sprintf(buffer1 + nbuffer1,
                         " PARAMETER COLLECTIVE_TYPE ALLREDUCE\n");
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
-                      my_mpi_size_row / my_cores_per_node_row);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
+                      my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node));
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_NUMBER %d\n", socket_number);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_ROW_SIZE %d\n",
@@ -770,7 +765,7 @@ allreduce_short = 0;
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
-  //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
 //  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
@@ -904,6 +899,9 @@ buffer2 = buffer_temp;
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
+int rank;
+MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+if (rank == 0) printf("%s\n", buffer2);
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt, shmem_zero, locmem);
@@ -1020,8 +1018,8 @@ int EXT_MPI_Gatherv_init_native(
   }
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER COLLECTIVE_TYPE ALLGATHERV\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
@@ -1282,8 +1280,8 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1,
                       " PARAMETER COLLECTIVE_TYPE REDUCE_SCATTER\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
@@ -1506,8 +1504,8 @@ int EXT_MPI_Reduce_scatter_init_native(
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1,
                       " PARAMETER COLLECTIVE_TYPE REDUCE_SCATTER\n");
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);

@@ -96,7 +96,7 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  num_nodes = parameters->num_sockets;
+  num_nodes = parameters->num_nodes;
   msizes_max = parameters->message_sizes_max;
   msizes = parameters->message_sizes;
   if (num_nodes != msizes_max) {
@@ -134,7 +134,7 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
   for (i = 0; i < msizes_max; i++) {
     rank_back_perm[rank_perm[i]] = i;
   }
-  parameters->socket = rank_back_perm[parameters->socket];
+  parameters->node = rank_back_perm[parameters->node];
   for (i = 0; i < msizes_max; i++) {
     parameters->message_sizes[i] = msizes[rank_back_perm[i]];
   }
@@ -169,7 +169,7 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  num_nodes = parameters->num_sockets;
+  num_nodes = parameters->num_nodes;
   msizes_max = parameters->message_sizes_max;
   msizes = parameters->message_sizes;
   rank_perm = parameters->rank_perm;
@@ -177,7 +177,7 @@ int ext_mpi_generate_rank_permutation_backward(char *buffer_in, char *buffer_out
     printf("wrong number of message sizes\n");
     exit(2);
   }
-  parameters->socket = rank_perm[parameters->socket];
+  parameters->node = rank_perm[parameters->node];
   parameters->message_sizes =
       (int *)malloc(sizeof(int) * parameters->message_sizes_max);
   if (!parameters->message_sizes)

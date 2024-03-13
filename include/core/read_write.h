@@ -62,8 +62,9 @@ enum eassembler_type {
 
 struct parameters_block {
   enum ecollective_type collective_type;
-  int socket;
-  int num_sockets;
+  int node;
+  int num_nodes;
+  int socket_number;
   int socket_rank;
   int socket_row_size;
   int socket_column_size;
@@ -78,6 +79,8 @@ struct parameters_block {
   int message_sizes_max;
   int *rank_perm;
   int rank_perm_max;
+  int *rank_perm_node;
+  int rank_perm_node_max;
   int *iocounts;
   int iocounts_max;
   int copyin_method;

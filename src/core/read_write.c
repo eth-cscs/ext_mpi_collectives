@@ -151,6 +151,16 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
       (*parameters)->rank_perm[(*parameters)->rank_perm_max] = 0;
       nbuffer_in += sizeof(int) * (*parameters)->rank_perm_max;
     }
+    if ((*parameters)->rank_perm_node_max) {
+      (*parameters)->rank_perm_node =
+          (int *)malloc(sizeof(int) * ((*parameters)->rank_perm_node_max + 1));
+      if (!(*parameters)->rank_perm_node)
+        goto error;
+      memcpy((*parameters)->rank_perm_node, buffer_in + nbuffer_in,
+             sizeof(int) * (*parameters)->rank_perm_node_max);
+      (*parameters)->rank_perm_node[(*parameters)->rank_perm_node_max] = 0;
+      nbuffer_in += sizeof(int) * (*parameters)->rank_perm_node_max;
+    }
     if ((*parameters)->iocounts_max) {
       (*parameters)->iocounts =
           (int *)malloc(sizeof(int) * ((*parameters)->iocounts_max + 1));
@@ -188,11 +198,14 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->message_sizes_max = 0;
   (*parameters)->rank_perm = NULL;
   (*parameters)->rank_perm_max = 0;
+  (*parameters)->rank_perm_node = NULL;
+  (*parameters)->rank_perm_node_max = 0;
   (*parameters)->iocounts = NULL;
   (*parameters)->iocounts_max = 0;
   (*parameters)->collective_type = collective_type_allreduce_group;
-  (*parameters)->socket = 0;
-  (*parameters)->num_sockets = 0;
+  (*parameters)->node = 0;
+  (*parameters)->num_nodes = 0;
+  (*parameters)->socket_number = 0;
   (*parameters)->socket_rank = 0;
   (*parameters)->socket_row_size = 1;
   (*parameters)->socket_column_size = 1;
@@ -246,11 +259,14 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
         if (strcmp(string2, "ROOT") == 0) {
           (*parameters)->root = integer1;
         }
-        if (strcmp(string2, "SOCKET") == 0) {
-          (*parameters)->socket = integer1;
+        if (strcmp(string2, "NODE") == 0) {
+          (*parameters)->node = integer1;
         }
-        if (strcmp(string2, "NUM_SOCKETS") == 0) {
-          (*parameters)->num_sockets = integer1;
+        if (strcmp(string2, "NUM_NODES") == 0) {
+          (*parameters)->num_nodes = integer1;
+        }
+        if (strcmp(string2, "SOCKET_NUMBER") == 0) {
+          (*parameters)->socket_number = integer1;
         }
         if (strcmp(string2, "SOCKET_RANK") == 0) {
           (*parameters)->socket_rank = integer1;
@@ -339,6 +355,17 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
           (*parameters)->rank_perm_max =
               read_int_series(buffer_in_copy, &((*parameters)->rank_perm));
           if ((*parameters)->rank_perm_max < 0)
+            goto error;
+        }
+        if (strcmp(string2, "RANK_PNODE") == 0) {
+          free((*parameters)->rank_perm_node);
+          while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
+                 (*buffer_in_copy != '-') && (*buffer_in_copy != '\0')) {
+            buffer_in_copy++;
+          }
+          (*parameters)->rank_perm_node_max =
+              read_int_series(buffer_in_copy, &((*parameters)->rank_perm_node));
+          if ((*parameters)->rank_perm_node_max < 0)
             goto error;
         }
         if (strcmp(string2, "IOCOUNTS") == 0) {
@@ -450,6 +477,11 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
              sizeof(int) * parameters->rank_perm_max);
       nbuffer_out += sizeof(int) * parameters->rank_perm_max;
     }
+    if (parameters->rank_perm_node_max) {
+      memcpy(buffer_out + nbuffer_out, parameters->rank_perm_node,
+             sizeof(int) * parameters->rank_perm_node_max);
+      nbuffer_out += sizeof(int) * parameters->rank_perm_node_max;
+    }
     if (parameters->iocounts_max) {
       memcpy(buffer_out + nbuffer_out, parameters->iocounts,
              sizeof(int) * parameters->iocounts_max);
@@ -503,10 +535,12 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     break;
   default: ;
   }
-  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET %d\n",
-                         parameters->socket);
-  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NUM_SOCKETS %d\n",
-                         parameters->num_sockets);
+  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NODE %d\n",
+                         parameters->node);
+  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NUM_NODES %d\n",
+                         parameters->num_nodes);
+  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_NUMBER %d\n",
+                         parameters->socket_number);
   nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_RANK %d\n",
                          parameters->socket_rank);
   nbuffer_out +=
@@ -559,6 +593,14 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     for (i = 0; i < parameters->rank_perm_max; i++) {
       nbuffer_out +=
           sprintf(buffer_out + nbuffer_out, " %d", parameters->rank_perm[i]);
+    }
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
+  }
+  if (parameters->rank_perm_node_max > 0) {
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER RANK_PNODE");
+    for (i = 0; i < parameters->rank_perm_node_max; i++) {
+      nbuffer_out +=
+          sprintf(buffer_out + nbuffer_out, " %d", parameters->rank_perm_node[i]);
     }
     nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
   }

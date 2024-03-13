@@ -121,7 +121,7 @@ int ext_mpi_messages_shared_memory(char *buffer_in, char *buffer_out, MPI_Comm c
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   ascii_in = parameters->ascii_in;
   ascii_out = parameters->ascii_out;
-  socket = parameters->socket;
+  socket = parameters->node;
   socket_rank = parameters->socket_rank;
   num_sockets_per_node = parameters->num_sockets_per_node;
   socket_tasks = parameters->socket_row_size * parameters->socket_column_size;
