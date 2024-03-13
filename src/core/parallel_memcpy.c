@@ -116,7 +116,7 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
           data_memcpy_reduce.size = i * type_size;
           data_memcpy_reduce.offset1 += add * type_size;
           data_memcpy_reduce.offset2 += add * type_size;
-	  data_memcpy_reduce.buffer_number1 = data_memcpy_reduce.buffer_number2 = parameters->rank_perm_node[(parameters->socket_row_size - parameters->socket_rank) % parameters->socket_row_size];
+	  data_memcpy_reduce.buffer_number1 = data_memcpy_reduce.buffer_number2 = (parameters->socket_row_size - parameters->socket_rank) % parameters->socket_row_size;
           if (data_memcpy_reduce.type == ememcp_) {
             data_memcpy_reduce.type = ememcpy;
           }

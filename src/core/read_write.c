@@ -151,16 +151,6 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
       (*parameters)->rank_perm[(*parameters)->rank_perm_max] = 0;
       nbuffer_in += sizeof(int) * (*parameters)->rank_perm_max;
     }
-    if ((*parameters)->rank_perm_node_max) {
-      (*parameters)->rank_perm_node =
-          (int *)malloc(sizeof(int) * ((*parameters)->rank_perm_node_max + 1));
-      if (!(*parameters)->rank_perm_node)
-        goto error;
-      memcpy((*parameters)->rank_perm_node, buffer_in + nbuffer_in,
-             sizeof(int) * (*parameters)->rank_perm_node_max);
-      (*parameters)->rank_perm_node[(*parameters)->rank_perm_node_max] = 0;
-      nbuffer_in += sizeof(int) * (*parameters)->rank_perm_node_max;
-    }
     if ((*parameters)->iocounts_max) {
       (*parameters)->iocounts =
           (int *)malloc(sizeof(int) * ((*parameters)->iocounts_max + 1));
@@ -198,8 +188,6 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->message_sizes_max = 0;
   (*parameters)->rank_perm = NULL;
   (*parameters)->rank_perm_max = 0;
-  (*parameters)->rank_perm_node = NULL;
-  (*parameters)->rank_perm_node_max = 0;
   (*parameters)->iocounts = NULL;
   (*parameters)->iocounts_max = 0;
   (*parameters)->collective_type = collective_type_allreduce_group;
@@ -357,17 +345,6 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
           if ((*parameters)->rank_perm_max < 0)
             goto error;
         }
-        if (strcmp(string2, "RANK_PNODE") == 0) {
-          free((*parameters)->rank_perm_node);
-          while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
-                 (*buffer_in_copy != '-') && (*buffer_in_copy != '\0')) {
-            buffer_in_copy++;
-          }
-          (*parameters)->rank_perm_node_max =
-              read_int_series(buffer_in_copy, &((*parameters)->rank_perm_node));
-          if ((*parameters)->rank_perm_node_max < 0)
-            goto error;
-        }
         if (strcmp(string2, "IOCOUNTS") == 0) {
           free((*parameters)->iocounts);
           while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
@@ -476,11 +453,6 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
       memcpy(buffer_out + nbuffer_out, parameters->rank_perm,
              sizeof(int) * parameters->rank_perm_max);
       nbuffer_out += sizeof(int) * parameters->rank_perm_max;
-    }
-    if (parameters->rank_perm_node_max) {
-      memcpy(buffer_out + nbuffer_out, parameters->rank_perm_node,
-             sizeof(int) * parameters->rank_perm_node_max);
-      nbuffer_out += sizeof(int) * parameters->rank_perm_node_max;
     }
     if (parameters->iocounts_max) {
       memcpy(buffer_out + nbuffer_out, parameters->iocounts,
@@ -593,14 +565,6 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     for (i = 0; i < parameters->rank_perm_max; i++) {
       nbuffer_out +=
           sprintf(buffer_out + nbuffer_out, " %d", parameters->rank_perm[i]);
-    }
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
-  }
-  if (parameters->rank_perm_node_max > 0) {
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER RANK_PNODE");
-    for (i = 0; i < parameters->rank_perm_node_max; i++) {
-      nbuffer_out +=
-          sprintf(buffer_out + nbuffer_out, " %d", parameters->rank_perm_node[i]);
     }
     nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
   }

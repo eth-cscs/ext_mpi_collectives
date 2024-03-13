@@ -79,8 +79,6 @@ struct parameters_block {
   int message_sizes_max;
   int *rank_perm;
   int rank_perm_max;
-  int *rank_perm_node;
-  int rank_perm_node_max;
   int *iocounts;
   int iocounts_max;
   int copyin_method;

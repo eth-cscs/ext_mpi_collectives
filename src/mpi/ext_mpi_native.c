@@ -762,7 +762,7 @@ allreduce_short = 0;
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ON_GPU\n");
   }
 #endif
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
+  //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
 //  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
@@ -890,9 +890,9 @@ buffer2 = buffer_temp;
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-int rank;
-MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-if (rank == 0) printf("%s\n", buffer2);
+//int rank;
+//MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+//if (rank == 0) printf("%s\n", buffer2);
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt, shmem_zero, locmem);
