@@ -600,10 +600,11 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
-      coarse_count, *counts = NULL, iret,
+      *counts = NULL, iret,
       nbuffer1 = 0, msize, *msizes = NULL, i, allreduce_short = (num_ports[0] > 0), reduction_op;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   struct parameters_block *parameters;
+  MPI_Comm comm_subrow;
   if (allreduce_short) {
     for (i = 0; groups[i]; i++) {
       if ((groups[i] < 0) && groups[i + 1]) {
@@ -644,40 +645,37 @@ allreduce_short = 0;
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;
   }
-  my_node = my_mpi_rank_row / my_cores_per_node_row;
+  my_node = my_mpi_rank_row / (my_cores_per_node_row * num_sockets_per_node);
   my_lrank_row = my_mpi_rank_row % my_cores_per_node_row;
   my_lrank_column = my_mpi_rank_column % my_cores_per_node_column;
   my_lrank_node = my_lrank_row * my_cores_per_node_column + my_lrank_column;
   socket_number = (my_mpi_rank_row % (my_cores_per_node_row * num_sockets_per_node)) / my_cores_per_node_row;
-  counts = (int *)malloc(my_cores_per_node_column * sizeof(int));
+  counts = (int *)malloc(num_sockets_per_node * sizeof(int));
   if (!counts)
     goto error;
-  if (comm_column != MPI_COMM_NULL) {
-    PMPI_Allreduce(&count, &coarse_count, 1, MPI_INT, MPI_SUM, comm_column);
-    PMPI_Allgather(&count, 1, MPI_INT, counts, 1, MPI_INT, comm_column);
-  } else {
-    coarse_count = count;
-    counts[0] = count;
+  for (i = 0; i < num_sockets_per_node; i++) {
+    counts[(socket_number + i) % num_sockets_per_node] = (count / type_size) / num_sockets_per_node;
+    if (i < (count / type_size) % num_sockets_per_node) {
+      counts[(socket_number + i) % num_sockets_per_node]++;
+    }
+    counts[(socket_number + i) % num_sockets_per_node] *= type_size;
   }
-  msize = 0;
-  for (i = 0; i < my_cores_per_node_column; i++) {
-    msize += counts[i];
-  }
+  msize = counts[0];
   if (!allreduce_short) {
     msizes =
-        (int *)malloc(sizeof(int) * my_mpi_size_row / my_cores_per_node_row);
+        (int *)malloc(sizeof(int) * my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node));
     if (!msizes)
       goto error;
-    for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
+    for (i = 0; i < my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node); i++) {
       msizes[i] =
-          (msize / type_size) / (my_mpi_size_row / my_cores_per_node_row);
+          (msize / type_size) / (my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node));
     }
     for (i = 0;
-         i < (msize / type_size) % (my_mpi_size_row / my_cores_per_node_row);
+         i < (msize / type_size) % (my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node));
          i++) {
       msizes[i]++;
     }
-    for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
+    for (i = 0; i < my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node); i++) {
       msizes[i] *= type_size;
     }
   } else {
@@ -686,6 +684,7 @@ allreduce_short = 0;
       goto error;
     msizes[0] = msize;
   }
+  MPI_Comm_split(comm_row, socket_number, my_mpi_rank_row, &comm_subrow);
   if (allreduce_short) {
     nbuffer1 += sprintf(buffer1 + nbuffer1,
                         " PARAMETER COLLECTIVE_TYPE ALLREDUCE_SHORT\n");
@@ -718,7 +717,7 @@ allreduce_short = 0;
     nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ROOT %d\n", root);
   }
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER COUNTS");
-  for (i = 0; i < my_cores_per_node_column; i++) {
+  for (i = 0; i < num_sockets_per_node; i++) {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", counts[i]);
   }
   free(counts);
@@ -729,12 +728,12 @@ allreduce_short = 0;
   free(str);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER MESSAGE_SIZE");
   if (!allreduce_short) {
-    for (i = 0; i < my_mpi_size_row / my_cores_per_node_row; i++) {
+    for (i = 0; i < my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node); i++) {
       nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", msizes[i]);
     }
   } else {
     nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", msizes[0]);
-    for (i = 1; i < my_mpi_size_row / my_cores_per_node_row; i++) {
+    for (i = 1; i < my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node); i++) {
       nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", 0);
     }
   }
@@ -853,12 +852,12 @@ buffer2 = buffer_temp;
     if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
       goto error;
   }
-  if (num_sockets_per_node > 1) {
-    if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column) < 0)
+/*  if (num_sockets_per_node > 1) {
+    if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, comm_subrow) < 0)
       goto error;
     if (ext_mpi_generate_optimise_multi_socket(buffer1, buffer2) < 0)
       goto error;
-  }
+  }*/
   if (waitany&&!not_recursive) {
     if (ext_mpi_generate_waitany(buffer2, buffer1) < 0)
       goto error;
@@ -876,7 +875,7 @@ buffer2 = buffer_temp;
 #ifdef GPU_ENABLED
   }
 #endif
-  if (ext_mpi_clean_barriers(buffer2, buffer1, comm_row, comm_column) < 0)
+  if (ext_mpi_clean_barriers(buffer2, buffer1, comm_subrow, comm_column) < 0)
     goto error;
   if (alt) {
     if (ext_mpi_generate_no_first_barrier(buffer1, buffer2) < 0)
@@ -907,12 +906,14 @@ if (rank == 0) printf("%s\n", buffer2);
                        my_cores_per_node_column, alt, shmem_zero, locmem);
   free(buffer2);
   free(buffer1);
+  MPI_Comm_free(&comm_subrow);
   return iret;
 error:
   free(msizes);
   free(counts);
   free(buffer2);
   free(buffer1);
+  MPI_Comm_free(&comm_subrow);
   return ERROR_MALLOC;
 }
 
