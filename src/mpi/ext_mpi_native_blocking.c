@@ -10,8 +10,6 @@
 #include "constants.h"
 #include "ext_mpi_native.h"
 #include "waitany.h"
-#include "messages_shared_memory.h"
-#include "optimise_multi_socket.h"
 #include "padding_factor.h"
 #include "shmem.h"
 #include "ext_mpi_native_exec.h"

@@ -1057,9 +1057,8 @@ error:
 
 int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
   int num_nodes = 1, node_rank, node_row_size = 1,
-      node_column_size = 1, node_size, *counts = NULL, counts_max = 0,
-      *displs = NULL, *iocounts = NULL, iocounts_max = 0, *iodispls = NULL,
-      *lcounts = NULL, *ldispls = NULL, lrank_row, lrank_column,
+      node_size, *counts = NULL, counts_max = 0,
+      *lcounts = NULL, *ldispls = NULL, lrank_row,
       nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i,
       *ranks, collective_type = 1,
       type_size = 1, num_factors, *factors;
@@ -1076,7 +1075,6 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
   num_nodes = parameters->num_nodes;
   node_rank = parameters->socket_rank;
   node_row_size = parameters->socket_row_size;
-  node_column_size = parameters->socket_column_size;
   num_factors = parameters->copyin_factors_max;
   factors = parameters->copyin_factors;
   if (parameters->collective_type == collective_type_allgatherv) {
@@ -1088,8 +1086,6 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
   mcounts = parameters->message_sizes;
   counts_max = parameters->counts_max;
   counts = parameters->counts;
-  iocounts_max = parameters->iocounts_max;
-  iocounts = parameters->iocounts;
   switch (parameters->data_type) {
   case data_type_char:
     type_size = sizeof(char);
@@ -1110,7 +1106,7 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
   moffsets = (int *)malloc((num_nodes + 1) * sizeof(int));
   if (!moffsets)
     goto error;
-  node_size = node_row_size * node_column_size;
+  node_size = node_row_size * parameters->num_sockets_per_node;
   nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
@@ -1119,31 +1115,16 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
     exit(2);
   }
   nbuffer_out += ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
-  displs = (int *)malloc((counts_max + 1) * sizeof(int));
-  if (!displs)
-    goto error;
-  displs[0] = 0;
-  for (i = 0; i < counts_max; i++) {
-    displs[i + 1] = displs[i] + counts[i];
-  }
-  iodispls = (int *)malloc((iocounts_max + 1) * sizeof(int));
-  if (!iodispls)
-    goto error;
-  iodispls[0] = 0;
-  for (i = 0; i < iocounts_max; i++) {
-    iodispls[i + 1] = iodispls[i] + iocounts[i];
-  }
-  lrank_row = node_rank / counts_max;
-  lrank_column = node_rank % counts_max;
+  lrank_row = node_rank + parameters->socket_row_size * parameters->socket_number;
   lcounts = (int *)malloc(sizeof(int) * (node_size / counts_max));
   if (!lcounts)
     goto error;
   ldispls = (int *)malloc(sizeof(int) * (node_size / counts_max + 1));
   if (!ldispls)
     goto error;
-  for (i = 0; i < node_size / counts_max; i++) {
-    lcounts[i] = (counts[lrank_column] / type_size) / (node_size / counts_max);
-    if (i < (counts[lrank_column] / type_size) % (node_size / counts_max)) {
+  for (i = 0; i < node_size; i++) {
+    lcounts[i] = (counts[0] / type_size) / (node_size / counts_max);
+    if (i < (counts[0] / type_size) % (node_size / counts_max)) {
       lcounts[i]++;
     }
     lcounts[i] *= type_size;
@@ -1187,8 +1168,6 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
   ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
-  free(iodispls);
-  free(displs);
   free(moffsets);
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
@@ -1196,8 +1175,6 @@ error:
   ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
-  free(iodispls);
-  free(displs);
   free(moffsets);
   ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;
@@ -1205,9 +1182,8 @@ error:
 
 int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
   int num_nodes = 1, node_rank, node_row_size = 1,
-      node_column_size = 1, node_size, *counts = NULL, counts_max = 0,
-      *displs = NULL, *iocounts = NULL, iocounts_max = 0, *iodispls = NULL,
-      *lcounts = NULL, *ldispls = NULL, lrank_row, lrank_column,
+      node_size, *counts = NULL, counts_max = 0,
+      *lcounts = NULL, *ldispls = NULL, lrank_row,
       nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i,
       *ranks, collective_type = 1, flag,
       type_size = 1, num_factors, *factors;
@@ -1225,7 +1201,6 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
   num_nodes = parameters->num_nodes;
   node_rank = parameters->socket_rank;
   node_row_size = parameters->socket_row_size;
-  node_column_size = parameters->socket_column_size;
   num_factors = parameters->copyin_factors_max;
   factors = parameters->copyin_factors;
   if (parameters->collective_type == collective_type_allgatherv) {
@@ -1237,8 +1212,6 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
   mcounts = parameters->message_sizes;
   counts_max = parameters->counts_max;
   counts = parameters->counts;
-  iocounts_max = parameters->iocounts_max;
-  iocounts = parameters->iocounts;
   switch (parameters->data_type) {
   case data_type_char:
     type_size = sizeof(char);
@@ -1259,7 +1232,7 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
   moffsets = (int *)malloc((num_nodes + 1) * sizeof(int));
   if (!moffsets)
     goto error;
-  node_size = node_row_size * node_column_size;
+  node_size = node_row_size * parameters->num_sockets_per_node;
   nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
   if (i == ERROR_MALLOC)
     goto error;
@@ -1276,22 +1249,7 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
     }
   } while (flag);
 //  nbuffer_out += ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
-  displs = (int *)malloc((counts_max + 1) * sizeof(int));
-  if (!displs)
-    goto error;
-  displs[0] = 0;
-  for (i = 0; i < counts_max; i++) {
-    displs[i + 1] = displs[i] + counts[i];
-  }
-  iodispls = (int *)malloc((iocounts_max + 1) * sizeof(int));
-  if (!iodispls)
-    goto error;
-  iodispls[0] = 0;
-  for (i = 0; i < iocounts_max; i++) {
-    iodispls[i + 1] = iodispls[i] + iocounts[i];
-  }
-  lrank_row = node_rank / counts_max;
-  lrank_column = node_rank % counts_max;
+  lrank_row = node_rank + parameters->socket_row_size * parameters->socket_number;
   lcounts = (int *)malloc(sizeof(int) * (node_size / counts_max));
   if (!lcounts)
     goto error;
@@ -1299,8 +1257,8 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
   if (!ldispls)
     goto error;
   for (i = 0; i < node_size / counts_max; i++) {
-    lcounts[i] = (counts[lrank_column] / type_size) / (node_size / counts_max);
-    if (i < (counts[lrank_column] / type_size) % (node_size / counts_max)) {
+    lcounts[i] = (counts[0] / type_size) / (node_size / counts_max);
+    if (i < (counts[0] / type_size) % (node_size / counts_max)) {
       lcounts[i]++;
     }
     lcounts[i] *= type_size;
@@ -1345,8 +1303,6 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
   ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
-  free(iodispls);
-  free(displs);
   free(moffsets);
   ext_mpi_delete_parameters(parameters);
   return nbuffer_out;
@@ -1354,8 +1310,6 @@ error:
   ext_mpi_delete_algorithm(data);
   free(ldispls);
   free(lcounts);
-  free(iodispls);
-  free(displs);
   free(moffsets);
   ext_mpi_delete_parameters(parameters);
   return ERROR_MALLOC;

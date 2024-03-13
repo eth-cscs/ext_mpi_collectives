@@ -33,8 +33,6 @@
 #include "swap_copyin.h"
 #include "no_socket_barriers.h"
 #include "waitany.h"
-#include "messages_shared_memory.h"
-#include "optimise_multi_socket.h"
 #include "reduce_scatter_single_node.h"
 #include "padding_factor.h"
 #include "shmem.h"
@@ -852,12 +850,6 @@ buffer2 = buffer_temp;
     if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
       goto error;
   }
-/*  if (num_sockets_per_node > 1) {
-    if (ext_mpi_messages_shared_memory(buffer2, buffer1, comm_row, my_cores_per_node_row, comm_column, my_cores_per_node_column, comm_subrow) < 0)
-      goto error;
-    if (ext_mpi_generate_optimise_multi_socket(buffer1, buffer2) < 0)
-      goto error;
-  }*/
   if (waitany&&!not_recursive) {
     if (ext_mpi_generate_waitany(buffer2, buffer1) < 0)
       goto error;
