@@ -1446,7 +1446,6 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
       }
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
     } else {
-      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
       switch (parameters->copyin_method) {
       case 5:
       case 6:
