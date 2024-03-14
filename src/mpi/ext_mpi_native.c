@@ -460,7 +460,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     }
     shmemid = NULL;
   } else {
-    if (ext_mpi_setup_shared_memory(comm_row, num_sockets_per_node * my_cores_per_node_row,
+    if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node,
                                     &shmem_size, &shmemid, &shmem, 0, barriers_size * 4, &shmem_comm_node_row) < 0)
       goto error_shared;
   }
@@ -530,7 +530,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     if (shmem_zero) {
       shmemid = NULL;
     } else {
-      if (ext_mpi_setup_shared_memory(comm_row, num_sockets_per_node * my_cores_per_node_row,
+      if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node, 
                                       &shmem_size, &shmemid, &shmem, 0, barriers_size * 4, &shmem_comm_node_row) < 0)
         goto error_shared;
     }
