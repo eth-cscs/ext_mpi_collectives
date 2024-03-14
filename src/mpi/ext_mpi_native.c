@@ -799,7 +799,7 @@ buffer2 = buffer_temp;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (my_cores_per_node_row * my_cores_per_node_column > 1) {
+  if (my_cores_per_node_row * my_cores_per_node_column > 1 || num_sockets_per_node > 1) {
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(recvbuf)) {
 #endif

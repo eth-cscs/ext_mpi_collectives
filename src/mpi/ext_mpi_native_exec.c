@@ -37,24 +37,28 @@
 extern MPI_Comm ext_mpi_COMM_WORLD_dup;
 
 static void node_barrier(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node) {
+  char *p;
   int step;
   MEMORY_FENCE_STORE();
   for (step = 1; step < num_sockets_per_node; step <<= 1) {
     (*barrier_count)++;
-    ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = *barrier_count;
-    while ((unsigned int)(((volatile int*)(shmem[step]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] - *barrier_count) > INT_MAX)
+    *((int*)(shmem[0])) = *barrier_count;
+    p = shmem[step];
+    while ((unsigned int)(*((volatile int*)(p)) - *barrier_count) > INT_MAX)
       ;
   }
   MEMORY_FENCE_LOAD();
 }
 
 static int node_barrier_test(char **shmem, int barrier_count, int socket_rank, int num_sockets_per_node) {
+  char *p;
   int step;
   MEMORY_FENCE_STORE();
   for (step = 1; step < num_sockets_per_node; step <<= 1) {
     barrier_count++;
-    ((volatile int*)(shmem[0]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] = barrier_count;
-    if ((unsigned int)(((volatile int*)(shmem[step]))[socket_rank * (CACHE_LINE_SIZE / sizeof(int))] - barrier_count) > INT_MAX) {
+    *((int*)(shmem[0])) = barrier_count;
+    p = shmem[step];
+    if ((unsigned int)(*((volatile int*)(p)) - barrier_count) > INT_MAX) {
       return 1;
     }
   }

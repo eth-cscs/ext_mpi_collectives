@@ -1242,7 +1242,6 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
   for (i = 0; i < node_size / counts_max; i++) {
     ldispls[i + 1] = ldispls[i] + lcounts[i];
   }
-  nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
   switch (parameters->copyin_method) {
   case 5:
   case 6:
@@ -1297,7 +1296,7 @@ static int overlapp(int dest_start, int dest_end, int source_start,
 }
 
 static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out, int in_out) {
-  int nbuffer_out = 0, nbuffer_in = 0, flag, *ranks, offset1, offset2, size, num_ranks, lrank_row, *counts, *displs, type_size = 1, *moffsets, add, i, j, k, l;
+  int nbuffer_out = 0, nbuffer_in = 0, flag, *ranks, offset1, offset2, size, num_ranks, lrank_row, *counts, *displs, type_size = 1, *moffsets, add, *displs_, i, j, k, l;
   char line[1000];
   enum eassembler_type estring1;
   struct parameters_block *parameters;
@@ -1339,8 +1338,8 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
     type_size = sizeof(double);
     break;
   }
-  num_ranks = parameters->socket_row_size;
-  lrank_row = parameters->socket_rank;
+  num_ranks = parameters->socket_row_size * parameters->num_sockets_per_node;
+  lrank_row = parameters->socket_rank + parameters->socket_number * parameters->socket_row_size;
   ranks = (int*)malloc(num_ranks * sizeof(int));
   for (i = 0; i < num_ranks; i++) {
     ranks[i] = i;
@@ -1361,6 +1360,9 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
   displs = (int *)malloc(sizeof(int) * (num_ranks + 1));
   if (!displs)
     goto error;
+  displs_ = (int *)malloc(sizeof(int) * (num_ranks + 1));
+  if (!displs_)
+    goto error;
   size = 0;
   for (i = 0; i < parameters->counts_max; i++) {
     size += parameters->counts[i];
@@ -1375,9 +1377,9 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
       counts[i] = 0;
     }
   }
-  displs[0] = 0;
+  displs_[0] = 0;
   for (i = 0; i < num_ranks; i++) {
-    displs[i + 1] = displs[i] + counts[i];
+    displs_[i + 1] = displs_[i] + counts[i];
   }
   moffsets = (int *)malloc((parameters->num_nodes + 1) * sizeof(int));
   if (!moffsets)
@@ -1400,20 +1402,21 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
           }
           size = 0;
           if (k) {
-            if ((size = overlapp(displs[lrank_row],
-			     displs[lrank_row + 1],
+            if ((size = overlapp(
+			     displs_[lrank_row],
+			     displs_[lrank_row + 1],
                              moffsets[data.blocks[0].lines[i].frac],
                              moffsets[data.blocks[0].lines[i].frac + 1],
                              &offset1))) {
 	      offset1 += add - moffsets[data.blocks[0].lines[i].frac];
-	      if (parameters->socket_row_size == 1) {
-                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, (num_ranks + ranks[0] - ranks[lrank_row]) % num_ranks, 0, offset1, esendbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+	      if (parameters->socket_row_size == 1 && parameters->num_sockets_per_node == 1) {
+                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, get_rank_cyclic(parameters->num_sockets_per_node, num_ranks, ranks, lrank_row, lrank_row / parameters->socket_row_size * parameters->socket_row_size), 0, offset1, esendbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
 	      } else {
-                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, (num_ranks + ranks[0] - ranks[lrank_row]) % num_ranks, 0, offset1, erecvbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, get_rank_cyclic(parameters->num_sockets_per_node, num_ranks, ranks, lrank_row, lrank_row / parameters->socket_row_size * parameters->socket_row_size), 0, offset1, erecvbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
 	      }
 	    }
+	    offset2 += size;
 	  }
-          offset2 += size;
         }
         add += moffsets[data.blocks[0].lines[i].frac + 1] - moffsets[data.blocks[0].lines[i].frac];
       }
@@ -1433,16 +1436,16 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
 	  size = 0;
 	  if (k) {
 	    if ((size = overlapp(
-			     displs[lrank_row],
-			     displs[lrank_row + 1],
+			     displs_[lrank_row],
+			     displs_[lrank_row + 1],
                              moffsets[data.blocks[data.num_blocks - 1].lines[i].frac],
                              moffsets[data.blocks[data.num_blocks - 1].lines[i].frac + 1],
                              &offset2))) {
 	      offset2 += add - moffsets[data.blocks[data.num_blocks - 1].lines[i].frac];
-	      nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset1, eshmemo, (num_ranks + ranks[0] - ranks[lrank_row]) % num_ranks, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+	      nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset1, eshmemo, get_rank_cyclic(parameters->num_sockets_per_node, num_ranks, ranks, lrank_row, lrank_row / parameters->socket_row_size * parameters->socket_row_size), 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
 	    }
+	    offset1 += size;
 	  }
-	  offset1 += size;
 	}
         add += moffsets[data.blocks[data.num_blocks - 1].lines[i].frac + 1] - moffsets[data.blocks[data.num_blocks - 1].lines[i].frac];
       }
@@ -1453,6 +1456,7 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
   }
   ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
   free(moffsets);
+  free(displs_);
   free(displs);
   free(counts);
   free(ranks);
