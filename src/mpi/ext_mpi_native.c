@@ -652,11 +652,11 @@ allreduce_short = 0;
   if (!counts)
     goto error;
   for (i = 0; i < num_sockets_per_node; i++) {
-    counts[(socket_number + i) % num_sockets_per_node] = (count / type_size) / num_sockets_per_node;
+    counts[(num_sockets_per_node - socket_number + i) % num_sockets_per_node] = (count / type_size) / num_sockets_per_node;
     if (i < (count / type_size) % num_sockets_per_node) {
-      counts[(socket_number + i) % num_sockets_per_node]++;
+      counts[(num_sockets_per_node - socket_number + i) % num_sockets_per_node]++;
     }
-    counts[(socket_number + i) % num_sockets_per_node] *= type_size;
+    counts[(num_sockets_per_node - socket_number + i) % num_sockets_per_node] *= type_size;
   }
   msize = counts[0];
   if (!allreduce_short) {
