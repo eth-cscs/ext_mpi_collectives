@@ -372,7 +372,7 @@ nparallel = 2;
   return nbuffer_out;
 }*/
 
-static void rank_order(int size, int num_factors, int *factors, int *ranks) {
+void ext_mpi_rank_order(int size, int num_factors, int *factors, int *ranks) {
   int ranks_new[size], ranks_temp[size], i, j;
   for (i = 0; i < size / abs(factors[0]); i++) {
     for (j = 0; j < abs(factors[0]); j++) {
@@ -384,7 +384,7 @@ static void rank_order(int size, int num_factors, int *factors, int *ranks) {
       for (i = 0; i < size / abs(factors[0]); i++) {
         ranks_temp[i] = ranks_new[i + j * size / abs(factors[0])];
       }
-      rank_order(size / abs(factors[0]), num_factors - 1, factors + 1, ranks_temp);
+      ext_mpi_rank_order(size / abs(factors[0]), num_factors - 1, factors + 1, ranks_temp);
       for (i = 0; i < size / abs(factors[0]); i++) {
         ranks[i + j * size / abs(factors[0])] = ranks_temp[i];
       }
@@ -960,7 +960,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
 	}
 	if (parameters->copyin_method == 6) {
 	  for (i = 1; factors[i] < 0 && i < num_factors; i++);
-	  rank_order(node_size, i - 1, factors + 1, ranks);
+	  ext_mpi_rank_order(node_size, i - 1, factors + 1, ranks);
 	  for (i = 0; i < node_size; i++) {
 	    if (ranks[i] == lrank_row) {
 	      lrank_row = i;
@@ -1139,7 +1139,7 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
     }
     if (parameters->copyin_method == 6) {
       for (i = 1; factors[i] < 0 && i < num_factors; i++);
-      rank_order(node_size, i - 1, factors + 1, ranks);
+      ext_mpi_rank_order(node_size, i - 1, factors + 1, ranks);
       for (i = 0; i < node_size; i++) {
 	if (ranks[i] == lrank_row) {
 	  lrank_row = i;
@@ -1251,7 +1251,7 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
     }
     if (parameters->copyin_method == 6) {
       for (i = 1; factors[i] < 0 && i < num_factors; i++);
-      rank_order(node_size, i - 1, factors + 1, ranks);
+      ext_mpi_rank_order(node_size, i - 1, factors + 1, ranks);
       for (i = 0; i < node_size; i++) {
 	if (ranks[i] == lrank_row) {
 	  lrank_row = i;
@@ -1346,7 +1346,7 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
   }
   if (parameters->copyin_method == 6) {
     for (i = 1; parameters->copyin_factors[i] < 0 && i < parameters->copyin_factors_max; i++);
-    rank_order(num_ranks, i - 1, parameters->copyin_factors + 1, ranks);
+    ext_mpi_rank_order(num_ranks, i - 1, parameters->copyin_factors + 1, ranks);
     for (i = 0; i < num_ranks; i++) {
       if (ranks[i] == lrank_row) {
         lrank_row = i;
