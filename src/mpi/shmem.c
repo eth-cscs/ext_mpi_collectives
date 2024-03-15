@@ -179,14 +179,14 @@ int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, in
   }
   for (k = 0; k < num_sockets_per_node; k++) {
     for (j = 0; j < my_mpi_rank_row % my_cores_per_node_row; j++) {
-      shmem_temp = (*shmem)[0];
-      shmemid_temp = (*shmemid)[0];
-      for (i = my_cores_per_node_row * k; i < my_cores_per_node_row * (k + 1); i++) {
+      shmem_temp = (*shmem)[my_cores_per_node_row * k];
+      shmemid_temp = (*shmemid)[my_cores_per_node_row * k];
+      for (i = my_cores_per_node_row * k; i < my_cores_per_node_row * (k + 1) - 1; i++) {
         (*shmem)[i] = (*shmem)[i + 1];
         (*shmemid)[i] = (*shmemid)[i + 1];
       }
-      (*shmem)[my_cores_per_node_row * num_sockets_per_node - 1] = shmem_temp;
-      (*shmemid)[my_cores_per_node_row * num_sockets_per_node - 1] = shmemid_temp;
+      (*shmem)[my_cores_per_node_row * (k + 1) - 1] = shmem_temp;
+      (*shmemid)[my_cores_per_node_row * (k + 1) - 1] = shmemid_temp;
     }
   }
   memset((void *)((*shmem)[0] + (*size_shared - numfill)), fill, numfill);

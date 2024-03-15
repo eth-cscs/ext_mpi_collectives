@@ -1118,7 +1118,7 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
   for (i = 0; i < counts_max; i++) {
     count += counts[i];
   }
-  for (i = 0; i < node_size; i++) {
+  for (i = 0; i < node_size / counts_max; i++) {
     lcounts[i] = (count / type_size) / (node_size / counts_max);
     if (i < (count / type_size) % (node_size / counts_max)) {
       lcounts[i]++;
