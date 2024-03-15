@@ -38,6 +38,7 @@
 #include "shmem.h"
 #include "ext_mpi_xpmem.h"
 #include "ext_mpi_native_exec.h"
+#include "reduce_copyin.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
@@ -601,7 +602,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
-      *counts = NULL, iret,
+      *counts = NULL, iret, num_ranks, lrank_row, *ranks,
       nbuffer1 = 0, msize, *msizes = NULL, i, allreduce_short = (num_ports[0] > 0), reduction_op;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   struct parameters_block *parameters;
@@ -654,13 +655,30 @@ allreduce_short = 0;
   counts = (int *)malloc(num_sockets_per_node * sizeof(int));
   if (!counts)
     goto error;
-  for (i = 0; i < num_sockets_per_node; i++) {
-    counts[(num_sockets_per_node - socket_number + i) % num_sockets_per_node] = (count / type_size) / num_sockets_per_node;
-    if (i < (count / type_size) % num_sockets_per_node) {
-      counts[(num_sockets_per_node - socket_number + i) % num_sockets_per_node]++;
-    }
-    counts[(num_sockets_per_node - socket_number + i) % num_sockets_per_node] *= type_size;
+  num_ranks = my_cores_per_node_row * num_sockets_per_node;
+  lrank_row = my_lrank_node + socket_number * my_cores_per_node_row;
+  ranks = (int*)malloc(num_ranks * sizeof(int));
+  for (i = 0; i < num_ranks; i++) {
+    ranks[i] = i;
   }
+  if (copyin == 6) {
+    for (i = 1; copyin_factors[i] < 0; i++);
+    ext_mpi_rank_order(num_ranks, i - 1, copyin_factors + 1, ranks);
+    for (i = 0; i < num_ranks; i++) {
+      if (ranks[i] == lrank_row) {
+        lrank_row = i;
+        break;
+      }
+    }
+  }
+  for (i = 0; i < num_sockets_per_node; i++) {
+    counts[(num_sockets_per_node - socket_number + ranks[i]) % num_sockets_per_node] = (count / type_size) / num_sockets_per_node;
+    if (i < (count / type_size) % num_sockets_per_node) {
+      counts[(num_sockets_per_node - socket_number + ranks[i]) % num_sockets_per_node]++;
+    }
+    counts[(num_sockets_per_node - socket_number + ranks[i]) % num_sockets_per_node] *= type_size;
+  }
+  free(ranks);
   msize = counts[0];
   if (!allreduce_short) {
     msizes =
