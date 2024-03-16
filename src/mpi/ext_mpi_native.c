@@ -682,7 +682,7 @@ allreduce_short = 0;
     counts[i] = 0;
   }
   for (i = 0; i < num_ranks; i++) {
-    counts[(num_sockets_per_node - socket_number + i % num_sockets_per_node) % num_sockets_per_node] += countsa[ranks[i]];
+    counts[(num_sockets_per_node - socket_number + ranks[i] % num_sockets_per_node) % num_sockets_per_node] += countsa[i];
   }
   free(displsa);
   free(countsa);
@@ -711,7 +711,7 @@ allreduce_short = 0;
       goto error;
     msizes[0] = msize;
   }
-  MPI_Comm_split(comm_row, socket_number, my_mpi_rank_row, &comm_subrow);
+  PMPI_Comm_split(comm_row, socket_number, my_mpi_rank_row, &comm_subrow);
   if (allreduce_short) {
     nbuffer1 += sprintf(buffer1 + nbuffer1,
                         " PARAMETER COLLECTIVE_TYPE ALLREDUCE_SHORT\n");
