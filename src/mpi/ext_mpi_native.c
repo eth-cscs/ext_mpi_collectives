@@ -602,8 +602,8 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
-      *counts = NULL, iret, num_ranks, lrank_row, *ranks,
-      nbuffer1 = 0, msize, *msizes = NULL, i, allreduce_short = (num_ports[0] > 0), reduction_op;
+      *counts = NULL, iret, num_ranks, lrank_row, *ranks, *countsa, *displsa,
+      nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, i;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   struct parameters_block *parameters;
   MPI_Comm comm_subrow;
@@ -658,6 +658,8 @@ allreduce_short = 0;
   num_ranks = my_cores_per_node_row * num_sockets_per_node;
   lrank_row = my_lrank_node + socket_number * my_cores_per_node_row;
   ranks = (int*)malloc(num_ranks * sizeof(int));
+  countsa = (int*)malloc(num_ranks * sizeof(int));
+  displsa = (int*)malloc((num_ranks + 1) * sizeof(int));
   for (i = 0; i < num_ranks; i++) {
     ranks[i] = i;
   }
@@ -671,13 +673,19 @@ allreduce_short = 0;
       }
     }
   }
-  for (i = 0; i < num_sockets_per_node; i++) {
-    counts[(num_sockets_per_node - socket_number + ranks[i]) % num_sockets_per_node] = (count / type_size) / num_sockets_per_node;
-    if (i < (count / type_size) % num_sockets_per_node) {
-      counts[(num_sockets_per_node - socket_number + ranks[i]) % num_sockets_per_node]++;
-    }
-    counts[(num_sockets_per_node - socket_number + ranks[i]) % num_sockets_per_node] *= type_size;
+  if (copyin_factors[0] < 0) {
+    ext_mpi_sizes_displs(num_ranks, count, type_size, -copyin_factors[0], countsa, displsa);
+  } else {
+    ext_mpi_sizes_displs(num_ranks, count, type_size, 0, countsa, displsa);
   }
+  for (i = 0; i < num_ranks; i++) {
+    counts[i] = 0;
+  }
+  for (i = 0; i < num_ranks; i++) {
+    counts[(num_sockets_per_node - socket_number + i % num_sockets_per_node) % num_sockets_per_node] += countsa[ranks[i]];
+  }
+  free(displsa);
+  free(countsa);
   free(ranks);
   msize = counts[0];
   if (!allreduce_short) {
