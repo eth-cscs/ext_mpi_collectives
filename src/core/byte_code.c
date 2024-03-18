@@ -408,7 +408,7 @@ int ext_mpi_generate_byte_code(char **shmem,
 #endif
       code_put_char(&ip, OPCODE_RETURN, isdryrun);
     }
-    if (estring1 == eset_socket_barrier) {
+    if (estring1 == eset_node_barrier) {
       if (header->num_cores != 1 || num_sockets_per_node != 1) {
 #ifdef GPU_ENABLED
         if (on_gpu) {
@@ -420,7 +420,7 @@ int ext_mpi_generate_byte_code(char **shmem,
           code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
         }
 #endif
-        code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_SET, isdryrun);
+        code_put_char(&ip, OPCODE_NODEBARRIER_ATOMIC_SET, isdryrun);
 	if (header->barrier_shmem_node) {
           code_put_pointer(&ip, header->barrier_shmem_node[0], isdryrun);
 	} else {
@@ -428,9 +428,9 @@ int ext_mpi_generate_byte_code(char **shmem,
 	}
       }
     }
-    if (estring1 == ewait_socket_barrier) {
+    if (estring1 == ewait_node_barrier) {
       if (header->num_cores != 1 || num_sockets_per_node != 1) {
-        code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_WAIT, isdryrun);
+        code_put_char(&ip, OPCODE_NODEBARRIER_ATOMIC_WAIT, isdryrun);
 	if (header->barrier_shmem_node) {
           code_put_pointer(&ip, header->barrier_shmem_node[integer1], isdryrun);
 	} else {

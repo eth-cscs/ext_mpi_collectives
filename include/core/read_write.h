@@ -30,8 +30,8 @@ enum edata_type {
 enum eassembler_type {
   enode_barrier,
   esocket_barrier,
-  eset_socket_barrier,
-  ewait_socket_barrier,
+  eset_node_barrier,
+  ewait_node_barrier,
   ememcpy,
   ememcp_,
   esmemcpy,

@@ -360,16 +360,15 @@ int ext_mpi_simulate_native(char *ip) {
       printf("socket_barrier\n");
 #endif
       break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_SET:
-      i1 = code_get_int(&ip);
+    case OPCODE_NODEBARRIER_ATOMIC_SET:
 #ifdef VERBOSE_PRINT
-      printf("socket_barrier_atomic_set %d\n", i1);
+      printf("node_barrier_atomic_set %d\n", i1);
 #endif
       break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
+    case OPCODE_NODEBARRIER_ATOMIC_WAIT:
       i1 = code_get_int(&ip);
 #ifdef VERBOSE_PRINT
-      printf("socket_barrier_atomic_wait %d\n", i1);
+      printf("node_barrier_atomic_wait %d\n", i1);
 #endif
       break;
     case OPCODE_REDUCE:
@@ -527,10 +526,9 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
       break;
     case OPCODE_SOCKETBARRIER:
       break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_SET:
-      i1 = code_get_int(&ip);
+    case OPCODE_NODEBARRIER_ATOMIC_SET:
       break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
+    case OPCODE_NODEBARRIER_ATOMIC_WAIT:
       i1 = code_get_int(&ip);
       break;
     case OPCODE_REDUCE:
