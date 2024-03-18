@@ -388,18 +388,18 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
       }
       break;
     case OPCODE_SOCKETBARRIER_ATOMIC_SET:
-      socket_barrier_atomic_set(code_get_pointer(&ip), &header->barrier_counter_socket);
+      socket_barrier_atomic_set(code_get_pointer(&ip), &header->barrier_counter_node);
       break;
     case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
       p1 = code_get_pointer(&ip);
       if (active_wait & 2) {
-        socket_barrier_atomic_wait(p1, header->barrier_counter_socket);
+        socket_barrier_atomic_wait(p1, header->barrier_counter_node);
       } else {
         *ip_exec = ip - 1 - sizeof(char *);
-        if (!socket_barrier_atomic_test(p1, header->barrier_counter_socket)) {
+        if (!socket_barrier_atomic_test(p1, header->barrier_counter_node)) {
           return 0;
         } else {
-          socket_barrier_atomic_wait(p1, header->barrier_counter_socket);
+          socket_barrier_atomic_wait(p1, header->barrier_counter_node);
         }
       }
       break;

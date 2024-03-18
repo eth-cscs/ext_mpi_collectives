@@ -476,8 +476,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   sendbufs[0] = (char *)sendbuf;
   recvbufs[0] = recvbuf;
 #else
-  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, (char *)sendbuf, countsa, &sendbufs);
-  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, recvbuf, countsa, &recvbufs);
+  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
+  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
   my_size_shared_buf = shmem_size - barriers_size * 4;
   shmem_size -= barriers_size;
@@ -546,8 +546,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     sendbufs[0] = (char *)sendbuf;
     recvbufs[0] = recvbuf;
 #else
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, (char *)sendbuf, countsa, &sendbufs);
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, recvbuf, countsa, &recvbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
     my_size_shared_buf = shmem_size - barriers_size * 4;
     shmem_size -= barriers_size;
@@ -603,7 +603,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
       *counts = NULL, iret, num_ranks, lrank_row, *ranks, *countsa, *displsa,
-      nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, i;
+      nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, i, j;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   struct parameters_block *parameters;
   MPI_Comm comm_subrow;
@@ -678,11 +678,15 @@ allreduce_short = 0;
   } else {
     ext_mpi_sizes_displs(num_ranks, count, type_size, 0, countsa, displsa);
   }
-  for (i = 0; i < num_ranks; i++) {
+  for (i = 0; i < num_sockets_per_node; i++) {
     counts[i] = 0;
   }
-  for (i = 0; i < num_ranks; i++) {
-    counts[(num_sockets_per_node - socket_number + ranks[i] % num_sockets_per_node) % num_sockets_per_node] += countsa[i];
+  for (j = 0; j < num_sockets_per_node; j++) {
+    for (i = 0; i < num_ranks; i++) {
+      if (i / (num_ranks / num_sockets_per_node) == j) {
+	counts[(num_sockets_per_node - j + socket_number) % num_sockets_per_node] += countsa[ranks[i]];
+      }
+    }
   }
   free(displsa);
   free(countsa);

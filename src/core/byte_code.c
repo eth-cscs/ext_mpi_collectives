@@ -332,12 +332,12 @@ int ext_mpi_generate_byte_code(char **shmem,
     header->barrier_counter_socket = 0;
     header->barrier_counter_node = 0;
     if (shmem) {
-      header->barrier_shmem_node = (char **)malloc(num_sockets_per_node * sizeof(char *));
-      header->barrier_shmem_socket = (char **)malloc(node_num_cores_row * num_sockets_per_node * sizeof(char *));
-      for (i=0; i < num_sockets_per_node; i++) {
-        header->barrier_shmem_node[i] = shmem[i * node_num_cores_row] + my_size_shared_buf + 2 * barriers_size;
+      header->barrier_shmem_node = (char **)malloc(num_cores * num_sockets_per_node * sizeof(char *));
+      header->barrier_shmem_socket = (char **)malloc(num_cores * sizeof(char *));
+      for (i = 0; i < num_cores * num_sockets_per_node; i++) {
+        header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;
       }
-      for (i = 0; i < node_num_cores_row * num_sockets_per_node; i++) {
+      for (i = 0; i < num_cores; i++) {
         header->barrier_shmem_socket[i] = shmem[i] + my_size_shared_buf + barriers_size;
       }
     } else {
@@ -421,8 +421,8 @@ int ext_mpi_generate_byte_code(char **shmem,
         }
 #endif
         code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_SET, isdryrun);
-	if (header->barrier_shmem_socket) {
-          code_put_pointer(&ip, header->barrier_shmem_socket[0], isdryrun);
+	if (header->barrier_shmem_node) {
+          code_put_pointer(&ip, header->barrier_shmem_node[0], isdryrun);
 	} else {
           code_put_pointer(&ip, NULL, isdryrun);
 	}
@@ -431,8 +431,8 @@ int ext_mpi_generate_byte_code(char **shmem,
     if (estring1 == ewait_socket_barrier) {
       if (header->num_cores != 1 || num_sockets_per_node != 1) {
         code_put_char(&ip, OPCODE_SOCKETBARRIER_ATOMIC_WAIT, isdryrun);
-	if (header->barrier_shmem_socket) {
-          code_put_pointer(&ip, header->barrier_shmem_socket[integer1], isdryrun);
+	if (header->barrier_shmem_node) {
+          code_put_pointer(&ip, header->barrier_shmem_node[integer1], isdryrun);
 	} else {
           code_put_pointer(&ip, NULL, isdryrun);
 	}

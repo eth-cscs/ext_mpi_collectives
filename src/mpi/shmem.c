@@ -167,7 +167,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, in
     (*shmemid)[ii] = -1;
 #endif
   }
-  for (j = 0; j < my_cores_per_node_row * ((my_mpi_rank_row % (my_cores_per_node_row * num_sockets_per_node)) / my_cores_per_node_row); j++) {
+  for (j = 0; j < (my_mpi_rank_row % (my_cores_per_node_row * num_sockets_per_node)) / my_cores_per_node_row * my_cores_per_node_row; j++) {
     shmem_temp = (*shmem)[0];
     shmemid_temp = (*shmemid)[0];
     for (i = 0; i < my_cores_per_node_row * num_sockets_per_node - 1; i++) {

@@ -1373,7 +1373,7 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
     ext_mpi_sizes_displs(num_ranks, size, type_size, 0, counts, displs);
   }
   for (i = 0; i < num_ranks; i++) {
-    if (i % parameters->num_sockets_per_node != parameters->socket_number) {
+    if (i / (num_ranks / parameters->num_sockets_per_node) != parameters->socket_number) {
       counts[ranks[i]] = 0;
     }
   }
@@ -1410,9 +1410,11 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
                              &offset1))) {
 	      offset1 += add - moffsets[data.blocks[0].lines[i].frac];
 	      if (parameters->socket_row_size == 1 && parameters->num_sockets_per_node == 1) {
-                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, get_rank_cyclic(parameters->num_sockets_per_node, num_ranks, ranks, lrank_row, lrank_row / parameters->socket_row_size * parameters->socket_row_size), 0, offset1, esendbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+//                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, get_rank_cyclic(parameters->num_sockets_per_node, num_ranks, ranks, lrank_row, lrank_row / parameters->socket_row_size * parameters->socket_row_size), 0, offset1, esendbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, ranks[lrank_row] % parameters->socket_row_size, 0, offset1, esendbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
 	      } else {
-                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, get_rank_cyclic(parameters->num_sockets_per_node, num_ranks, ranks, lrank_row, lrank_row / parameters->socket_row_size * parameters->socket_row_size), 0, offset1, erecvbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+//                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, get_rank_cyclic(parameters->num_sockets_per_node, num_ranks, ranks, lrank_row, lrank_row / parameters->socket_row_size * parameters->socket_row_size), 0, offset1, erecvbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+                nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, ranks[lrank_row] % parameters->socket_row_size, 0, offset1, erecvbufp, 0, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
 	      }
 	    }
 	    offset2 += size;
@@ -1442,7 +1444,8 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
                              moffsets[data.blocks[data.num_blocks - 1].lines[i].frac + 1],
                              &offset2))) {
 	      offset2 += add - moffsets[data.blocks[data.num_blocks - 1].lines[i].frac];
-	      nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset1, eshmemo, get_rank_cyclic(parameters->num_sockets_per_node, num_ranks, ranks, lrank_row, lrank_row / parameters->socket_row_size * parameters->socket_row_size), 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+//	      nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset1, eshmemo, get_rank_cyclic(parameters->num_sockets_per_node, num_ranks, ranks, lrank_row, lrank_row / parameters->socket_row_size * parameters->socket_row_size), 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+	      nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, offset1, eshmemo, ranks[lrank_row] % parameters->socket_row_size, 0, offset2, size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
 	    }
 	    offset1 += size;
 	  }
