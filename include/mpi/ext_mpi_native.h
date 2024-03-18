@@ -64,7 +64,7 @@ int EXT_MPI_Init_native();
 int EXT_MPI_Initialized_native();
 int EXT_MPI_Finalize_native();
 
-void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_EXT_MPI_COMM_WORLD, int *e_tag_max, void (*e_socket_barrier)(char *shmem, int *barrier_count, int socket_rank, int num_cores), void (*e_node_barrier)(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node), void (*e_socket_barrier_atomic_set)(char *shmem, int barrier_count, int entry), void (*e_socket_barrier_atomic_wait)(char *shmem, int *barrier_count, int entry));
+void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_EXT_MPI_COMM_WORLD, int *e_tag_max);
 
 #ifdef __cplusplus
 }

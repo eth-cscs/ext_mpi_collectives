@@ -46,11 +46,6 @@ static int *e_is_initialised = NULL;
 static MPI_Comm *e_EXT_MPI_COMM_WORLD = NULL;
 static int *e_tag_max = NULL;
 
-static void (*e_socket_barrier)(char *shmem, int *barrier_count, int socket_rank, int num_cores);
-static void (*e_node_barrier)(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node);
-static void (*e_socket_barrier_atomic_set)(char *shmem, int barrier_count, int entry);
-static void (*e_socket_barrier_atomic_wait)(char *shmem, int *barrier_count, int entry);
-
 struct comm_comm_blocking {
   int mpi_size_blocking;
   int mpi_rank_blocking;
@@ -249,7 +244,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 }
 
 int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, int num_sockets_per_node, enum ecollective_type collective_type, int i_comm) {
-  ext_mpi_native_export(e_handle_code_max, e_comm_code, e_execution_pointer, e_active_wait, e_is_initialised, e_EXT_MPI_COMM_WORLD, e_tag_max, e_socket_barrier, e_node_barrier, e_socket_barrier_atomic_set, e_socket_barrier_atomic_wait);
+  ext_mpi_native_export(e_handle_code_max, e_comm_code, e_execution_pointer, e_active_wait, e_is_initialised, e_EXT_MPI_COMM_WORLD, e_tag_max);
   add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking, SEND_PTR_CPU, RECV_PTR_CPU);
 #ifdef GPU_ENABLED
   add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking_gpu, SEND_PTR_GPU, RECV_PTR_GPU);

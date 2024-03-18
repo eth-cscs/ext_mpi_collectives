@@ -71,38 +71,6 @@ static int tag_max = 0;
 
 MPI_Comm ext_mpi_COMM_WORLD_dup = MPI_COMM_NULL;
 
-struct comm_comm_blocking {
-  int mpi_size_blocking;
-  int mpi_rank_blocking;
-  char ***send_pointers_allreduce_blocking;
-  int *padding_factor_allreduce_blocking;
-  int *padding_factor_reduce_scatter_block_blocking;
-  int *count_allreduce_blocking;
-  int *count_reduce_scatter_block_blocking;
-  int *count_allgather_blocking;
-  char **shmem_blocking1;
-  char **shmem_blocking2;
-  int *shmem_blocking_shmemid1;
-  int *shmem_blocking_shmemid2;
-  char *locmem_blocking;
-  char **comm_code_allreduce_blocking;
-  char **comm_code_reduce_scatter_block_blocking;
-  char **comm_code_allgather_blocking;
-  char *shmem_socket_blocking;
-  int shmem_socket_blocking_shmemid;
-  int counter_socket_blocking;
-  int socket_rank_blocking;
-  int num_cores_blocking;
-  char **shmem_node_blocking;
-  int *shmem_node_blocking_shmemid;
-  int counter_node_blocking;
-  int num_sockets_per_node_blocking;
-  MPI_Comm comm_blocking;
-  MPI_Comm comm_row_blocking;
-  MPI_Comm comm_column_blocking;
-  void *p_dev_temp;
-};
-
 /*static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
   PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
   if (comm_column != MPI_COMM_NULL) {
@@ -1718,7 +1686,7 @@ int EXT_MPI_Finalize_native() {
   return 0;
 }
 
-void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_ext_mpi_COMM_WORLD_dup, int *e_tag_max, void (*e_socket_barrier)(char *shmem, int *barrier_count, int socket_rank, int num_cores), void (*e_node_barrier)(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node), void (*e_socket_barrier_atomic_set)(char *shmem, int barrier_count, int entry), void (*e_socket_barrier_atomic_wait)(char *shmem, int *barrier_count, int entry)){
+void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_ext_mpi_COMM_WORLD_dup, int *e_tag_max) {
   e_handle_code_max = &handle_code_max;
   e_comm_code = &comm_code;
   e_execution_pointer = &execution_pointer;
