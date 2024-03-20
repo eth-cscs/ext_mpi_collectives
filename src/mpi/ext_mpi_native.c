@@ -39,6 +39,7 @@
 #include "ext_mpi_xpmem.h"
 #include "ext_mpi_native_exec.h"
 #include "reduce_copyin.h"
+#include "hash_table_operator.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
@@ -381,7 +382,7 @@ int EXT_MPI_Done_native(int handle) {
 }
 
 static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
-                         int reduction_op, MPI_Comm comm_row,
+                         int reduction_op, MPI_User_function *func, MPI_Comm comm_row,
                          int my_cores_per_node_row, MPI_Comm comm_column,
                          int my_cores_per_node_column, int alt, int shmem_zero, char *locmem) {
   int i, num_comm_max = -1, my_size_shared_buf = -1, barriers_size,
@@ -479,7 +480,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   }
   code_size = ext_mpi_generate_byte_code(
       shmem, shmem_size, shmemid, buffer_in, sendbufs, recvbufs,
-      my_size_shared_buf, barriers_size, locmem, reduction_op, global_ranks, NULL,
+      my_size_shared_buf, barriers_size, locmem, reduction_op, (void *)func, global_ranks, NULL,
       sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
       my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag);
   if (code_size < 0)
@@ -489,7 +490,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     goto error;
   if (ext_mpi_generate_byte_code(
           shmem, shmem_size, shmemid, buffer_in, sendbufs,
-          recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op,
+          recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op, (void *)func,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
           NULL, my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag) < 0)
@@ -538,7 +539,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
 #endif
     if (ext_mpi_generate_byte_code(
           shmem, shmem_size, shmemid, buffer_in, sendbufs,
-          recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op,
+          recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op, (void *)func,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
           NULL, my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag) < 0)
@@ -603,6 +604,18 @@ allreduce_short = 0;
   }
   if ((op == MPI_SUM) && (datatype == MPI_INT)) {
     reduction_op = OPCODE_REDUCE_SUM_INT;
+  }
+  if ((op != MPI_SUM) && (datatype == MPI_DOUBLE)) {
+    reduction_op = OPCODE_REDUCE_USER_DOUBLE;
+  }
+  if ((op != MPI_SUM) && (datatype == MPI_LONG)) {
+    reduction_op = OPCODE_REDUCE_USER_LONG_INT;
+  }
+  if ((op != MPI_SUM) && (datatype == MPI_FLOAT)) {
+    reduction_op = OPCODE_REDUCE_USER_FLOAT;
+  }
+  if ((op != MPI_SUM) && (datatype == MPI_INT)) {
+    reduction_op = OPCODE_REDUCE_USER_INT;
   }
   MPI_Type_size(datatype, &type_size);
   count *= type_size;
@@ -894,7 +907,7 @@ buffer2 = buffer_temp;
 //int rank;
 //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 //if (rank == 0) printf("%s\n", buffer2);
-  iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
+  iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, ext_mpi_hash_search_operator(&op), comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt, shmem_zero, locmem);
   free(buffer2);
@@ -1173,7 +1186,7 @@ int EXT_MPI_Gatherv_init_native(
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  iret = init_epilogue(buffer2, sendbuf, recvbuf, OPCODE_REDUCE_SUM_CHAR, comm_row,
+  iret = init_epilogue(buffer2, sendbuf, recvbuf, OPCODE_REDUCE_SUM_CHAR, NULL, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt, shmem_zero, locmem);
   free(buffer2);
@@ -1398,7 +1411,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  iret = init_epilogue(buffer1, sendbuf, recvbuf, -1, comm_row,
+  iret = init_epilogue(buffer1, sendbuf, recvbuf, -1, NULL, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt, shmem_zero, locmem);
   free(buffer2);
@@ -1655,7 +1668,7 @@ int EXT_MPI_Reduce_scatter_init_native(
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-  iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, comm_row,
+  iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, NULL, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt, shmem_zero, locmem);
   free(buffer2);

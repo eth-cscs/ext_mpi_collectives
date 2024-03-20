@@ -38,8 +38,10 @@ enum eassembler_type {
   esmemcp_,
   ereduce,
   ereduc_,
+  einvreduce,
   esreduce,
   esreduc_,
+  esinvreduce,
   eirecv,
   eirec_,
   eisend,
@@ -108,8 +110,12 @@ struct data_algorithm_line {
   int *recvfrom_line;
   int reducefrom_max;
   int *reducefrom;
+  int reduceinvfrom_max;
+  int *reduceinvfrom;
   int copyreducefrom_max;
   int *copyreducefrom;
+  int copyreduceinvfrom_max;
+  int *copyreduceinvfrom;
 };
 
 struct data_algorithm_block {

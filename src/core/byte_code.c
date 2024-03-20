@@ -291,7 +291,7 @@ int ext_mpi_generate_byte_code(char **shmem,
                                int shmem_size, int *shmemid,
                                char *buffer_in, char **sendbufs, char **recvbufs,
                                int my_size_shared_buf, int barriers_size, char *locmem,
-                               int reduction_op, int *global_ranks,
+                               int reduction_op, void *func, int *global_ranks,
                                char *code_out, int size_comm, int size_request, void *comm_row,
                                int node_num_cores_row, void *comm_column,
                                int node_num_cores_column,
@@ -324,11 +324,13 @@ int ext_mpi_generate_byte_code(char **shmem,
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   if (isdryrun) {
     header = &header_temp;
+    header->mpi_user_function = func;
     header->num_cores = num_cores;
     header->socket_rank = socket_rank;
     header->num_sockets_per_node = num_sockets_per_node;
   } else {
     header = (struct header_byte_code *)ip;
+    header->mpi_user_function = func;
     header->barrier_counter_socket = 0;
     header->barrier_counter_node = 0;
     if (shmem) {
@@ -556,8 +558,8 @@ int ext_mpi_generate_byte_code(char **shmem,
       code_put_int(&ip, integer2, isdryrun);
     }
 #endif
-    if ((estring1 == ememcpy) || (estring1 == ereduce) ||
-        (estring1 == esreduce) || (estring1 == esmemcpy)) {
+    if ((estring1 == ememcpy) || (estring1 == ereduce) || (estring1 == einvreduce) ||
+        (estring1 == esreduce) || (estring1 == esinvreduce) || (estring1 == esmemcpy)) {
       ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
       estring1 = data_memcpy_reduce.type;
       estring1a = data_memcpy_reduce.buffer_type1;
@@ -571,7 +573,11 @@ int ext_mpi_generate_byte_code(char **shmem,
         if ((estring1 == ememcpy) || (estring1 == esmemcpy)) {
           code_put_char(&ip, OPCODE_MEMCPY, isdryrun);
         } else {
-          code_put_char(&ip, OPCODE_REDUCE, isdryrun);
+	  if (estring1 == ereduce || estring1 == esreduce) {
+            code_put_char(&ip, OPCODE_REDUCE, isdryrun);
+	  } else {
+            code_put_char(&ip, OPCODE_INVREDUCE, isdryrun);
+	  }
           code_put_char(&ip, reduction_op, isdryrun);
           switch (reduction_op) {
           case OPCODE_REDUCE_SUM_DOUBLE:

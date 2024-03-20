@@ -220,7 +220,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   global_ranks =
       (int *)malloc(sizeof(int) * my_mpi_size_row * my_cores_per_node_column);
   code_size = ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, NULL,
-                                         NULL, 0, 0, NULL, reduction_op,
+                                         NULL, 0, 0, NULL, reduction_op, NULL,
                                          global_ranks, NULL, sizeof(MPI_Comm), sizeof(MPI_Request), NULL, 1,
                                          NULL, 1, NULL, NULL, &gpu_byte_code_counter, 0);
   if (code_size < 0)
@@ -229,7 +229,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   if (!ip)
     goto error;
   if (ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, NULL, NULL,
-                                 0, 0, NULL, reduction_op, global_ranks, ip,
+                                 0, 0, NULL, reduction_op, NULL, global_ranks, ip,
                                  sizeof(MPI_Comm), sizeof(MPI_Request), NULL, 1, NULL, 1,
                                  NULL, NULL, &gpu_byte_code_counter, 0) < 0)
     goto error;
@@ -392,6 +392,31 @@ int ext_mpi_simulate_native(char *ip) {
         counters_size_reduce += i1 * sizeof(long int);
 #ifdef VERBOSE_PRINT
         printf("REDUCE_SUM_LONG_INT %p %p %d\n", p1, p2, i1);
+#endif
+        break;
+      }
+      break;
+    case OPCODE_INVREDUCE:
+      instruction2 = code_get_char(&ip);
+      switch (instruction2) {
+      case OPCODE_REDUCE_SUM_DOUBLE:
+        code_get_pointer(&ip);
+        code_get_pointer(&ip);
+        i1 = code_get_int(&ip);
+        counters_num_reduce++;
+        counters_size_reduce += i1 * sizeof(double);
+#ifdef VERBOSE_PRINT
+        printf("INV_REDUCE_SUM_DOUBLE %p %p %d\n", p1, p2, i1);
+#endif
+        break;
+      case OPCODE_REDUCE_SUM_LONG_INT:
+        code_get_pointer(&ip);
+        code_get_pointer(&ip);
+        i1 = code_get_int(&ip);
+        counters_num_reduce++;
+        counters_size_reduce += i1 * sizeof(long int);
+#ifdef VERBOSE_PRINT
+        printf("INV_REDUCE_SUM_LONG_INT %p %p %d\n", p1, p2, i1);
 #endif
         break;
       }

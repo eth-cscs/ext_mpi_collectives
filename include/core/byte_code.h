@@ -29,6 +29,7 @@ struct header_byte_code {
   int num_sockets_per_node;
   char **sendbufs;
   char **recvbufs;
+  void *mpi_user_function;
 #ifdef GPU_ENABLED
   char **shmem_gpu;
   int *shmemid_gpu;
@@ -41,7 +42,7 @@ int ext_mpi_generate_byte_code(char **shmem,
                                int barrier_shmem_size, int *barrier_shmemid,
                                char *buffer_in, char **sendbufs, char **recvbufs,
                                int my_size_shared_buf, int barriers_size, char *locmem,
-                               int reduction_op, int *global_ranks,
+                               int reduction_op, void *func, int *global_ranks,
                                char *code_out, int size_comm, int size_request, void *comm_row,
                                int node_num_cores_row, void *comm_column,
                                int node_num_cores_column,

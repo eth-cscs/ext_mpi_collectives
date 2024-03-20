@@ -9,18 +9,6 @@
 #include <limits.h>
 #include <mpi.h>
 
-#define NUM_BARRIERS 4
-
-#ifndef GPU_ENABLED
-#define SEND_PTR_CPU 0x80000000
-#define RECV_PTR_CPU 0x90000000
-#else
-#define SEND_PTR_GPU 0x80000000
-#define SEND_PTR_CPU 0x90000000
-#define RECV_PTR_GPU 0xa0000000
-#define RECV_PTR_CPU 0xb0000000
-#endif
-
 #ifdef __x86_64__
 #define MEMORY_FENCE() asm volatile("mfence" :: \
                                         : "memory")
@@ -231,6 +219,7 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
   //  char *rlocmem=NULL;
   int i1, i2; //, n_r, s_r, i;
   struct header_byte_code *header;
+  MPI_Datatype datatype;
 #ifdef NCCL_ENABLED
   static int initialised = 0;
   static cudaStream_t stream;
@@ -420,6 +409,66 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
           ((int *)p1)[i2] += ((int *)p2)[i2];
         }
         break;
+      case OPCODE_REDUCE_USER_DOUBLE:
+	datatype = MPI_DOUBLE;
+	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+      case OPCODE_REDUCE_USER_LONG_INT:
+	datatype = MPI_LONG_INT;
+	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+      case OPCODE_REDUCE_USER_FLOAT:
+	datatype = MPI_FLOAT;
+	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+      case OPCODE_REDUCE_USER_INT:
+	datatype = MPI_INT;
+	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+      }
+      break;
+    case OPCODE_INVREDUCE:
+      instruction2 = code_get_char(&ip);
+      p2 = code_get_pointer(&ip);
+      p1 = code_get_pointer(&ip);
+      i1 = code_get_int(&ip);
+      switch (instruction2) {
+      case OPCODE_REDUCE_SUM_DOUBLE:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((double *)p1)[i2] += ((double *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_LONG_INT:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((long int *)p1)[i2] += ((long int *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_FLOAT:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((float *)p1)[i2] += ((float *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_INT:
+        for (i2 = 0; i2 < i1; i2++) {
+          ((int *)p1)[i2] += ((int *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_USER_DOUBLE:
+	datatype = MPI_DOUBLE;
+	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+      case OPCODE_REDUCE_USER_LONG_INT:
+	datatype = MPI_LONG_INT;
+	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+      case OPCODE_REDUCE_USER_FLOAT:
+	datatype = MPI_FLOAT;
+	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+      case OPCODE_REDUCE_USER_INT:
+	datatype = MPI_INT;
+	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
       }
       break;
     case OPCODE_MPISENDRECV:
@@ -693,6 +742,7 @@ int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char
       code_get_pointer(&ip);
       break;
     case OPCODE_REDUCE:
+    case OPCODE_INVREDUCE:
       i2 = code_get_char(&ip);
       p1 = code_get_pointer(&ip);
       normalize_address(count, &p1);
@@ -870,6 +920,40 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
         break;
       }
       break;
+    case OPCODE_INVREDUCE:
+      code_get_char(&ip);
+      p2 = code_get_pointer(&ip);
+      p1 = code_get_pointer(&ip);
+      i1 = code_get_int(&ip) * count;
+      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p1, &i1);
+      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p2, &i1);
+      switch (reduction_op) {
+      case OPCODE_REDUCE_SUM_DOUBLE:
+        i1 /= sizeof(double);
+        for (i2 = 0; i2 < i1; i2++) {
+          ((double *)p1)[i2] += ((double *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_LONG_INT:
+        i1 /= sizeof(long int);
+        for (i2 = 0; i2 < i1; i2++) {
+          ((long int *)p1)[i2] += ((long int *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_FLOAT:
+        i1 /= sizeof(float);
+        for (i2 = 0; i2 < i1; i2++) {
+          ((float *)p1)[i2] += ((float *)p2)[i2];
+        }
+        break;
+      case OPCODE_REDUCE_SUM_INT:
+        i1 /= sizeof(int);
+        for (i2 = 0; i2 < i1; i2++) {
+          ((int *)p1)[i2] += ((int *)p2)[i2];
+        }
+        break;
+      }
+      break;
     case OPCODE_ATTACHED:
       break;
 #ifdef GPU_ENABLED
@@ -984,6 +1068,7 @@ int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, i
       code_get_pointer(&ip);
       break;
     case OPCODE_REDUCE:
+    case OPCODE_INVREDUCE:
       code_get_char(&ip);
       p1 = code_get_pointer(&ip);
       p2 = code_get_pointer(&ip);

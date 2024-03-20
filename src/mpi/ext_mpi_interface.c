@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "hash_table.h"
 #include "hash_table_blocking.h"
+#include "hash_table_operator.h"
 #include "ext_mpi.h"
 #include "ext_mpi_blocking.h"
 #include "ext_mpi_interface.h"
@@ -17,6 +18,7 @@ int MPI_Init(int *argc, char ***argv){
   MPI_Comm comm = MPI_COMM_WORLD;
   int ret = PMPI_Init(argc, argv);
   ext_mpi_hash_init();
+  ext_mpi_hash_init_operator();
   EXT_MPI_Init();
   PMPI_Comm_rank(MPI_COMM_WORLD, &mpi_comm_rank);
   if (mpi_comm_rank == 0) {
@@ -48,6 +50,7 @@ int MPI_Finalize(){
     ext_mpi_hash_done_blocking();
   }
   EXT_MPI_Finalize();
+  ext_mpi_hash_done_operator();
   ext_mpi_hash_done();
   ext_mpi_is_blocking = 0;
   return PMPI_Finalize();
@@ -486,4 +489,16 @@ int MPI_Comm_free(MPI_Comm *comm) {
     remove_comm_from_blocking(comm);
   }
   return PMPI_Comm_free(comm);
+}
+
+int MPI_Op_create(MPI_User_function *function, int commute, MPI_Op *op) {
+  int ret;
+  ret = PMPI_Op_create(function, commute, op);
+  ext_mpi_hash_insert_operator(op, function);
+  return ret;
+}
+
+int MPI_Op_free(MPI_Op *op) {
+  ext_mpi_hash_delete_operator(op);
+  return PMPI_Op_free(op);
 }
