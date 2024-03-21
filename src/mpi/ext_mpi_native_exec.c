@@ -429,8 +429,8 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
       break;
     case OPCODE_INVREDUCE:
       instruction2 = code_get_char(&ip);
-      p2 = code_get_pointer(&ip);
       p1 = code_get_pointer(&ip);
+      p2 = code_get_pointer(&ip);
       i1 = code_get_int(&ip);
       switch (instruction2) {
       case OPCODE_REDUCE_SUM_DOUBLE:
@@ -922,8 +922,8 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       break;
     case OPCODE_INVREDUCE:
       code_get_char(&ip);
-      p2 = code_get_pointer(&ip);
       p1 = code_get_pointer(&ip);
+      p2 = code_get_pointer(&ip);
       i1 = code_get_int(&ip) * count;
       recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p1, &i1);
       recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p2, &i1);
