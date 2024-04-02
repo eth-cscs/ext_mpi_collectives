@@ -328,6 +328,7 @@ int ext_mpi_generate_byte_code(char **shmem,
     header->num_cores = num_cores;
     header->socket_rank = socket_rank;
     header->num_sockets_per_node = num_sockets_per_node;
+    header->function = NULL;
   } else {
     header = (struct header_byte_code *)ip;
     header->mpi_user_function = func;
@@ -368,6 +369,7 @@ int ext_mpi_generate_byte_code(char **shmem,
 #ifdef GPU_ENABLED
     header->gpu_byte_code = NULL;
 #endif
+    header->function = NULL;
   }
 #ifdef GPU_ENABLED
   if (on_gpu) {
@@ -528,6 +530,15 @@ int ext_mpi_generate_byte_code(char **shmem,
     }
     if (estring1 == enode_barrier) {
       code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
+    }
+    if (estring1 == ememory_fence) {
+      code_put_char(&ip, OPCODE_MEMORY_FENCE, isdryrun);
+    }
+    if (estring1 == ememory_fence_store) {
+      code_put_char(&ip, OPCODE_MEMORY_FENCE_STORE, isdryrun);
+    }
+    if (estring1 == ememory_fence_load) {
+      code_put_char(&ip, OPCODE_MEMORY_FENCE_LOAD, isdryrun);
     }
     if (estring1 == esocket_barrier) {
       if (header->num_cores != 1) {

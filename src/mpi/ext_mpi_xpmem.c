@@ -110,6 +110,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
     }
   }
   (*sendrecvbufs)[0] = sendrecvbuf;
+  MPI_Comm_free(&xpmem_comm_node);
   return 0;
 }
 
@@ -137,6 +138,7 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
     }
   }
   free(sendrecvbufs);
+  MPI_Comm_free(&xpmem_comm_node);
   return 0;
 }
 #endif

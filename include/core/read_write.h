@@ -59,7 +59,10 @@ enum eassembler_type {
   enop,
   estage,
   estart,
-  egemv
+  egemv,
+  ememory_fence,
+  ememory_fence_store,
+  ememory_fence_load
 };
 
 struct parameters_block {

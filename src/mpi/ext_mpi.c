@@ -36,6 +36,7 @@ int ext_mpi_not_recursive = -1;
 int ext_mpi_copyin_method = -1;
 int *ext_mpi_copyin_factors = NULL;
 
+int ext_mpi_fast = 0;
 int ext_mpi_verbose = 0;
 int ext_mpi_debug = 1;
 static int is_initialised = 0;
@@ -83,6 +84,18 @@ static int read_env() {
     }
   }
   MPI_Bcast(&ext_mpi_debug, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (mpi_comm_rank == 0) {
+    var = ((c = getenv("EXT_MPI_FAST")) != NULL);
+    if (var) {
+      if (sscanf(c, "%d", &var) >= 1){
+        ext_mpi_fast = var;
+      }
+      if (ext_mpi_verbose) {
+        printf("# EXT_MPI fast %d\n", ext_mpi_fast);
+      }
+    }
+  }
+  MPI_Bcast(&ext_mpi_fast, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_ALTERNATING")) != NULL);
     if (var) {

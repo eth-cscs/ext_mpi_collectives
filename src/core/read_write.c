@@ -1164,6 +1164,15 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case egemv:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " GEMV");
       break;
+    case ememory_fence:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMORY_fence");
+      break;
+    case ememory_fence_store:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMORY_FENCE_STORE");
+      break;
+    case ememory_fence_load:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMORY_FENCE_LOAD");
+      break;
     }
   }
   return nbuffer_out;
@@ -1318,6 +1327,15 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   }
   if (strcmp(cstring1, "GEMV") == 0) {
     return egemv;
+  }
+  if (strcmp(cstring1, "MEMORY_fence") == 0) {
+    return ememory_fence;
+  }
+  if (strcmp(cstring1, "MEMORY_FENCE_STORE") == 0) {
+    return ememory_fence_store;
+  }
+  if (strcmp(cstring1, "MEMORY_FENCE_LOAD") == 0) {
+    return ememory_fence_load;
   }
   return (enop);
 }

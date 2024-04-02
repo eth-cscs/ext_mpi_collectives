@@ -30,6 +30,7 @@ struct header_byte_code {
   char **sendbufs;
   char **recvbufs;
   void *mpi_user_function;
+  void *function;
 #ifdef GPU_ENABLED
   char **shmem_gpu;
   int *shmemid_gpu;
