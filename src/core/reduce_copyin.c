@@ -589,7 +589,7 @@ static int reduce_copies_cyclic(int num_sockets, int socket_size, int num_factor
         nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + i) % socket_size), 0, offset, erecvbufp, 0, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
       }
     }
-    if (expart == 0 || expart == 2) {
+    if ((expart == 0 || expart == 2) && num_sockets > 1) {
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_store);
     }
     for (step = num_factors - 1, gbstep = 1; step >=0; gbstep *= abs(factors[step--])) {
@@ -602,7 +602,7 @@ static int reduce_copies_cyclic(int num_sockets, int socket_size, int num_factor
         }
       }
     }
-    if (expart == 0 || expart == 2) {
+    if ((expart == 0 || expart == 2) && num_sockets > 1) {
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_load);
     }
     if (expart == 0 || expart == 2) {
@@ -740,7 +740,7 @@ static int reduce_copies_recursive(int num_sockets, int socket_size, int num_fac
         nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + i) % socket_size), 0, offset, erecvbufp, 0, 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
       }
     }
-    if (expart == 0 || expart == 2) {
+    if ((expart == 0 || expart == 2) && num_sockets > 1) {
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_store);
     }
     for (step = num_factors - 1, gbstep = 1; step >= 0; gbstep *= abs(factors[step--])) {
@@ -756,7 +756,7 @@ static int reduce_copies_recursive(int num_sockets, int socket_size, int num_fac
         }
       }
     }
-    if (expart == 0 || expart == 2) {
+    if ((expart == 0 || expart == 2) && num_sockets > 1) {
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_load);
     }
     if (expart == 0 || expart == 2) {

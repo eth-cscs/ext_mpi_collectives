@@ -67,7 +67,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
                   my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
   PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
-  *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char **));
+  *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char *));
   PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node);
   PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, xpmem_comm_node);
   size += PAGESIZE;

@@ -880,12 +880,17 @@ buffer2 = buffer_temp;
   if (ext_mpi_generate_allreduce_copyin(buffer1, buffer2) < 0)
     goto error;
   if (my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
-    if (ext_mpi_generate_allreduce_copyin_shmem(buffer2, buffer1) < 0)
-      goto error;
-    if (ext_mpi_generate_raw_code(buffer1, buffer2) < 0)
-      goto error;
-    if (ext_mpi_generate_allreduce_copyout_shmem(buffer2, buffer1) < 0)
-      goto error;
+    if (root > -10 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
+      if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
+        goto error;
+    } else {
+      if (ext_mpi_generate_allreduce_copyin_shmem(buffer2, buffer1) < 0)
+        goto error;
+      if (ext_mpi_generate_raw_code(buffer1, buffer2) < 0)
+        goto error;
+      if (ext_mpi_generate_allreduce_copyout_shmem(buffer2, buffer1) < 0)
+        goto error;
+    }
   } else {
     buffer_temp = buffer1;
     buffer1 = buffer2;

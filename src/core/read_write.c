@@ -1624,9 +1624,7 @@ int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
 }
 
 int ext_mpi_write_irecv_isend(char *buffer_out, struct line_irecv_isend *data, int ascii) {
-  if (data->buffer_type != eshmemo) {
-    return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdddd", data->type, data->buffer_type, data->offset, data->size, data->partner, data->tag);
-  } else if (!data->is_offset) {
+  if (!data->is_offset) {
     return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdddd", data->type, data->buffer_type, data->buffer_number, ecp, data->offset, data->size, data->partner, data->tag);
   } else {
     return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdddd", data->type, data->buffer_type, data->buffer_number, ecpbuffer_offseto, data->offset_number, ecp, data->offset, data->size, data->partner, data->tag);
