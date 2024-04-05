@@ -618,7 +618,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
-      *counts = NULL, iret, num_ranks, lrank_row, *ranks, *countsa, *displsa,
+      *counts = NULL, iret, num_ranks, lrank_row, *ranks, *ranks_inv, *countsa, *displsa,
       nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, i, j;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   struct parameters_block *parameters;
@@ -686,6 +686,7 @@ allreduce_short = 0;
   num_ranks = my_cores_per_node_row * num_sockets_per_node;
   lrank_row = my_lrank_node + socket_number * my_cores_per_node_row;
   ranks = (int*)malloc(num_ranks * sizeof(int));
+  ranks_inv = (int*)malloc(num_ranks * sizeof(int));
   countsa = (int*)malloc(num_ranks * sizeof(int));
   displsa = (int*)malloc((num_ranks + 1) * sizeof(int));
   for (i = 0; i < num_ranks; i++) {
@@ -701,6 +702,9 @@ allreduce_short = 0;
       }
     }
   }
+  for (i = 0; i < num_ranks; i++) {
+    ranks_inv[ranks[i]] = i;
+  }
   if (copyin_factors[0] < 0) {
     ext_mpi_sizes_displs(num_ranks, count, type_size, -copyin_factors[0], countsa, displsa);
   } else {
@@ -712,12 +716,13 @@ allreduce_short = 0;
   for (j = 0; j < num_sockets_per_node; j++) {
     for (i = 0; i < num_ranks; i++) {
       if (i / (num_ranks / num_sockets_per_node) == j) {
-	counts[(num_sockets_per_node - j + socket_number) % num_sockets_per_node] += countsa[ranks[i]];
+	counts[(num_sockets_per_node - j + socket_number) % num_sockets_per_node] += countsa[ranks_inv[i]];
       }
     }
   }
   free(displsa);
   free(countsa);
+  free(ranks_inv);
   free(ranks);
   msize = counts[0];
   if (!allreduce_short) {
