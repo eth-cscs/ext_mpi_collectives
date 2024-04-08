@@ -19,7 +19,7 @@ static int mmsizes(int *msizes, int num_nodes, int msizes_max, int data0) {
 int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   struct line_irecv_isend data_irecv_isend;
   struct line_memcpy_reduce data_memcpy_reduce;
-  int node, num_nodes, size, add, add2, flag, node_rank,
+  int node, num_nodes, size, add, add2, flag, node_rank, middle,
       node_row_size = 1, node_column_size = 1, node_size, buffer_counter,
       size_s, adds, buffer_number;
   int num_comm = 0, num_comms = 0, nbuffer_out = 0, nbuffer_in = 0, *msizes, msizes_max, i, j,
@@ -268,56 +268,86 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
     }
     nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
     for (n = add = 0; n < data.blocks[m].num_lines; n++) {
+      middle = -1;
       for (i = 0; i < data.blocks[m].lines[n].reducefrom_max; i++) {
-        size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
-        add2 = 0;
-        for (k = 0; k < data.blocks[m].lines[n].reducefrom[i]; k++) {
-          add2 += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[k].frac);
-        }
-        data_memcpy_reduce.buffer_type1 = eshmemo;
-        data_memcpy_reduce.buffer_number1 = buffer_number;
-        data_memcpy_reduce.is_offset1 = 1;
-        data_memcpy_reduce.offset_number1 = 0;
-        data_memcpy_reduce.offset1= add;
-        data_memcpy_reduce.buffer_type2 = eshmemo;
-        data_memcpy_reduce.buffer_number2 = buffer_number;
-        data_memcpy_reduce.is_offset2 = 1;
-        data_memcpy_reduce.offset_number2 = 0;
-        data_memcpy_reduce.offset2 = add2;
-        data_memcpy_reduce.size = size;
-        if (node_rank == 0 && size) {
-          data_memcpy_reduce.type = ereduce;
-        } else {
-          data_memcpy_reduce.type = ereduc_;
-        }
-        nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+	if (data.blocks[m].lines[n].reducefrom[i] == n) {
+	  middle = i;
+	}
       }
-      add += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
-    }
-    for (n = add = 0; n < data.blocks[m].num_lines; n++) {
-      for (i = 0; i < data.blocks[m].lines[n].reduceinvfrom_max; i++) {
-        size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
-        add2 = 0;
-        for (k = 0; k < data.blocks[m].lines[n].reducefrom[i]; k++) {
-          add2 += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[k].frac);
+      if (middle < 0) {
+        for (i = 0; i < data.blocks[m].lines[n].reducefrom_max; i++) {
+          size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
+          add2 = 0;
+          for (k = 0; k < data.blocks[m].lines[n].reducefrom[i]; k++) {
+            add2 += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[k].frac);
+          }
+          data_memcpy_reduce.buffer_type1 = eshmemo;
+          data_memcpy_reduce.buffer_number1 = buffer_number;
+          data_memcpy_reduce.is_offset1 = 1;
+          data_memcpy_reduce.offset_number1 = 0;
+          data_memcpy_reduce.offset1= add;
+          data_memcpy_reduce.buffer_type2 = eshmemo;
+          data_memcpy_reduce.buffer_number2 = buffer_number;
+          data_memcpy_reduce.is_offset2 = 1;
+          data_memcpy_reduce.offset_number2 = 0;
+          data_memcpy_reduce.offset2 = add2;
+          data_memcpy_reduce.size = size;
+          if (node_rank == 0 && size) {
+            data_memcpy_reduce.type = ereduce;
+          } else {
+            data_memcpy_reduce.type = ereduc_;
+          }
+          nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         }
-        data_memcpy_reduce.buffer_type1 = eshmemo;
-        data_memcpy_reduce.buffer_number1 = buffer_number;
-        data_memcpy_reduce.is_offset1 = 1;
-        data_memcpy_reduce.offset_number1 = 0;
-        data_memcpy_reduce.offset1= add;
-        data_memcpy_reduce.buffer_type2 = eshmemo;
-        data_memcpy_reduce.buffer_number2 = buffer_number;
-        data_memcpy_reduce.is_offset2 = 1;
-        data_memcpy_reduce.offset_number2 = 0;
-        data_memcpy_reduce.offset2 = add2;
-        data_memcpy_reduce.size = size;
-        if (node_rank == 0 && size) {
-          data_memcpy_reduce.type = einvreduce;
-        } else {
-          data_memcpy_reduce.type = ereduc_;
+      } else {
+        for (i = middle + 1; i < data.blocks[m].lines[n].reducefrom_max; i++) {
+          size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
+          add2 = 0;
+          for (k = 0; k < data.blocks[m].lines[n].reducefrom[i]; k++) {
+            add2 += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[k].frac);
+          }
+          data_memcpy_reduce.buffer_type1 = eshmemo;
+          data_memcpy_reduce.buffer_number1 = buffer_number;
+          data_memcpy_reduce.is_offset1 = 1;
+          data_memcpy_reduce.offset_number1 = 0;
+          data_memcpy_reduce.offset1= add;
+          data_memcpy_reduce.buffer_type2 = eshmemo;
+          data_memcpy_reduce.buffer_number2 = buffer_number;
+          data_memcpy_reduce.is_offset2 = 1;
+          data_memcpy_reduce.offset_number2 = 0;
+          data_memcpy_reduce.offset2 = add2;
+          data_memcpy_reduce.size = size;
+          if (node_rank == 0 && size) {
+            data_memcpy_reduce.type = ereduce;
+          } else {
+            data_memcpy_reduce.type = ereduc_;
+          }
+          nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
         }
-        nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+        for (i = middle - 1; i >= 0; i--) {
+          size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
+          add2 = 0;
+          for (k = 0; k < data.blocks[m].lines[n].reducefrom[i]; k++) {
+            add2 += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[k].frac);
+          }
+          data_memcpy_reduce.buffer_type1 = eshmemo;
+          data_memcpy_reduce.buffer_number1 = buffer_number;
+          data_memcpy_reduce.is_offset1 = 1;
+          data_memcpy_reduce.offset_number1 = 0;
+          data_memcpy_reduce.offset1= add;
+          data_memcpy_reduce.buffer_type2 = eshmemo;
+          data_memcpy_reduce.buffer_number2 = buffer_number;
+          data_memcpy_reduce.is_offset2 = 1;
+          data_memcpy_reduce.offset_number2 = 0;
+          data_memcpy_reduce.offset2 = add2;
+          data_memcpy_reduce.size = size;
+          if (node_rank == 0 && size) {
+            data_memcpy_reduce.type = einvreduce;
+          } else {
+            data_memcpy_reduce.type = ereduc_;
+          }
+          nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+        }
       }
       add += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
     }
@@ -348,41 +378,6 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
 	} else {
           if (node_rank == 0 && size) {
             data_memcpy_reduce.type = ereduce;
-          } else {
-            data_memcpy_reduce.type = ereduc_;
-          }
-        }
-        nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
-      }
-      add += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
-    }
-    for (n = add = 0; n < data.blocks[m].num_lines; n++) {
-      for (i = 0; i < data.blocks[m].lines[n].copyreduceinvfrom_max; i++) {
-        size = mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[n].frac);
-        add2 = 0;
-        for (k = 0; k < data.blocks[m].lines[n].copyreduceinvfrom[i]; k++) {
-          add2 += mmsizes(msizes, num_nodes / node_size, msizes_max, data.blocks[m].lines[k].frac);
-        }
-        data_memcpy_reduce.buffer_type1 = eshmemo;
-        data_memcpy_reduce.buffer_number1 = buffer_number;
-        data_memcpy_reduce.is_offset1 = 1;
-        data_memcpy_reduce.offset_number1 = 0;
-        data_memcpy_reduce.offset1= add;
-        data_memcpy_reduce.buffer_type2 = eshmemo;
-        data_memcpy_reduce.buffer_number2 = buffer_number;
-        data_memcpy_reduce.is_offset2 = 1;
-        data_memcpy_reduce.offset_number2 = 0;
-        data_memcpy_reduce.offset2 = add2;
-        data_memcpy_reduce.size = size;
-	if (i == 0) {
-          if (node_rank == 0 && size) {
-            data_memcpy_reduce.type = ememcpy;
-          } else {
-            data_memcpy_reduce.type = ememcp_;
-          }
-	} else {
-          if (node_rank == 0 && size) {
-            data_memcpy_reduce.type = einvreduce;
           } else {
             data_memcpy_reduce.type = ereduc_;
           }

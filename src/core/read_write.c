@@ -734,12 +734,8 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
   data->sendto_line = NULL;
   data->reducefrom_max = 0;
   data->reducefrom = NULL;
-  data->reduceinvfrom_max = 0;
-  data->reduceinvfrom = NULL;
   data->copyreducefrom_max = 0;
   data->copyreducefrom = NULL;
-  data->copyreduceinvfrom_max = 0;
-  data->copyreduceinvfrom = NULL;
   string_temp = strstr(string_in, "RECVFROM ");
   if (string_temp) {
     data->recvfrom_max = read_int_tuple_series(string_temp + strlen("RECVFROM "),
@@ -755,15 +751,6 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
       free(data->recvfrom_node);
       free(data->recvfrom_line);
       return data->reducefrom_max;
-    }
-  }
-  string_temp = strstr(string_in, "REDUCEINVFROM ");
-  if (string_temp) {
-    data->reduceinvfrom_max = read_int_series(string_temp + strlen("REDUCEINVFROM "), &data->reduceinvfrom);
-    if (data->reduceinvfrom_max < 0) {
-      free(data->recvfrom_node);
-      free(data->recvfrom_line);
-      return data->reduceinvfrom_max;
     }
   }
   string_temp = strstr(string_in, "SENDTO ");
@@ -787,18 +774,6 @@ int ext_mpi_read_stage_line(char *string_in, struct data_algorithm_line *data) {
       free(data->sendto_node);
       free(data->sendto_line);
       return data->copyreducefrom_max;
-    }
-  }
-  string_temp = strstr(string_in, "COPYreduceINVFROM ");
-  if (string_temp) {
-    data->copyreduceinvfrom_max = read_int_series(string_temp + strlen("COPYreduceINVFROM "), &data->copyreduceinvfrom);
-    if (data->copyreduceinvfrom_max < 0) {
-      free(data->recvfrom_node);
-      free(data->recvfrom_line);
-      free(data->reducefrom);
-      free(data->sendto_node);
-      free(data->sendto_line);
-      return data->copyreduceinvfrom_max;
     }
   }
   return 0;
@@ -1013,12 +988,6 @@ int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int as
             nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].reducefrom[k]);
           }
         }
-        if (data.blocks[i].lines[j].reduceinvfrom_max > 0) {
-          nbuffer_out += sprintf(buffer_out + nbuffer_out, " REDUCEINVFROM");
-          for (k = 0; k < data.blocks[i].lines[j].reduceinvfrom_max; k++) {
-            nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].reduceinvfrom[k]);
-          }
-        }
         if (data.blocks[i].lines[j].sendto_max > 0) {
           nbuffer_out += sprintf(buffer_out + nbuffer_out, " SENDTO");
           for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
@@ -1029,12 +998,6 @@ int ext_mpi_write_algorithm(struct data_algorithm data, char *buffer_out, int as
           nbuffer_out += sprintf(buffer_out + nbuffer_out, " COPYreduceFROM");
           for (k = 0; k < data.blocks[i].lines[j].copyreducefrom_max; k++) {
             nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].copyreducefrom[k]);
-          }
-        }
-        if (data.blocks[i].lines[j].copyreduceinvfrom_max > 0) {
-          nbuffer_out += sprintf(buffer_out + nbuffer_out, " COPYreduceINVFROM");
-          for (k = 0; k < data.blocks[i].lines[j].copyreduceinvfrom_max; k++) {
-            nbuffer_out += sprintf(buffer_out + nbuffer_out, " %d", data.blocks[i].lines[j].copyreduceinvfrom[k]);
           }
         }
         nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
