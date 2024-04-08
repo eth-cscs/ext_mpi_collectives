@@ -103,27 +103,27 @@ int ext_mpi_generate_rank_permutation_forward(char *buffer_in, char *buffer_out)
     printf("wrong number of message sizes\n");
     exit(2);
   }
-  rank_perm = (int *)malloc(msizes_max * sizeof(int));
-  if (!rank_perm)
-    goto error;
-  flag = 0;
-  for (i = 0; i < msizes_max; i++) {
-    if (msizes[i] != msizes[0]) {
-      flag = 1;
-    }
-  }
-  if (flag) {
-    rank_perm_heuristic(num_nodes, msizes, rank_perm);
-  } else {
-    for (i = 0; i < msizes_max; i++) {
-      rank_perm[i] = i;
-    }
-  }
-  if (parameters->rank_perm_max) {
+  if (!rank_perm || parameters->rank_perm_max == 0) {
     free(parameters->rank_perm);
+    rank_perm = (int *)malloc(msizes_max * sizeof(int));
+    if (!rank_perm)
+      goto error;
+    flag = 0;
+    for (i = 0; i < msizes_max; i++) {
+      if (msizes[i] != msizes[0]) {
+        flag = 1;
+      }
+    }
+    if (flag) {
+      rank_perm_heuristic(num_nodes, msizes, rank_perm);
+    } else {
+      for (i = 0; i < msizes_max; i++) {
+        rank_perm[i] = i;
+      }
+    }
+    parameters->rank_perm_max = msizes_max;
+    parameters->rank_perm = rank_perm;
   }
-  parameters->rank_perm_max = msizes_max;
-  parameters->rank_perm = rank_perm;
   parameters->message_sizes =
       (int *)malloc(sizeof(int) * parameters->message_sizes_max);
   if (!parameters->message_sizes)

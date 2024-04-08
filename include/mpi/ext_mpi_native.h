@@ -56,7 +56,6 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts, con
                                  int copyin, int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem);
 int EXT_MPI_Start_native(int handle);
 int EXT_MPI_Test_native(int handle);
-int EXT_MPI_Progress_native();
 int EXT_MPI_Wait_native(int handle);
 int EXT_MPI_Done_native(int handle);
 

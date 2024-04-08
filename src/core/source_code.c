@@ -15,13 +15,13 @@ int ext_mpi_generate_source_code(char **shmem,
                                int node_num_cores_row, void *comm_column,
                                int node_num_cores_column,
                                int *shmemid_gpu, char **shmem_gpu, int *gpu_byte_code_counter, int tag, int id) {
-  FILE *fp;
+  FILE *fp, *fpi;
   struct line_memcpy_reduce data_memcpy_reduce;
   struct line_irecv_isend data_irecv_isend;
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-      ascii, num_cores, socket_rank, num_sockets_per_node, i;
+      ascii, num_cores, socket_rank, num_sockets_per_node, case_count = 0, i;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
   struct parameters_block *parameters;
@@ -35,6 +35,8 @@ int ext_mpi_generate_source_code(char **shmem,
   memset(&header_temp, 0, sizeof(struct header_byte_code));
   sprintf(str, "source_code_%d_%d.c", socket_rank, id);
   fp = fopen(str, "w+");
+  sprintf(str, "source_code_%d_%d.i", socket_rank, id);
+  fpi = fopen(str, "w+");
   fprintf(fp, "#include <stdlib.h>\n");
   fprintf(fp, "#include <limits.h>\n");
   fprintf(fp, "#include <string.h>\n\n");
@@ -51,8 +53,13 @@ int ext_mpi_generate_source_code(char **shmem,
   fprintf(fp, "#define memory_fence_store() __atomic_thread_fence(__ATOMIC_RELEASE)\n");
   fprintf(fp, "#endif\n");
 
-  fprintf(fp, "void func_source_%d() {\n", id);
+  fprintf(fp, "int func_source_%d(int jmp, int wait) {\n", id);
   fprintf(fp, "  int i;\n");
+  fprintf(fp, "  if (wait) {\n");
+  fprintf(fp, "  switch(jmp) {\n");
+  fprintf(fpi, "  switch(jmp) {\n");
+  fprintf(fp, "  case %d:\n", case_count);
+  fprintf(fpi, "  case %d:\n", case_count++);
   if (isdryrun) {
     header = &header_temp;
     header->mpi_user_function = func;
@@ -97,13 +104,19 @@ int ext_mpi_generate_source_code(char **shmem,
     buffer_in += integer1;
     ext_mpi_read_assembler_line(line, 0, "sd", &estring1, &integer1);
     if (estring1 == ereturn) {
-      fprintf(fp, "  return;\n");
+      fprintf(fp, "  }\n");
+      fprintf(fpi, "  }\n");
+      fprintf(fp, "  } else {\n");
+      fprintf(fp, "#include \"source_code_%d_%d.i\"\n", socket_rank, id);
+      fprintf(fp, "  }\n");
+      fprintf(fp, "  return 0;\n");
       fprintf(fp, "}\n");
     }
     if (estring1 == eset_node_barrier) {
       if (header->num_cores != 1 || num_sockets_per_node != 1) {
 	if (header->barrier_shmem_node) {
-	  fprintf(fp, "  (*((int *)(%p)))++;\n", header->barrier_shmem_node[0]);
+	  fprintf(fp, "    (*((int *)(%p)))++;\n", header->barrier_shmem_node[0]);
+	  fprintf(fpi, "    (*((int *)(%p)))++;\n", header->barrier_shmem_node[0]);
 	}
       }
     }
@@ -111,7 +124,12 @@ int ext_mpi_generate_source_code(char **shmem,
       if (header->num_cores != 1 || num_sockets_per_node != 1) {
         code_put_char(&ip, OPCODE_NODEBARRIER_ATOMIC_WAIT, isdryrun);
 	if (header->barrier_shmem_node) {
-	  fprintf(fp, "  while ((unsigned int)(*((volatile int*)(%p)) - *((int *)(%p))) > INT_MAX);\n", header->barrier_shmem_node[integer1], header->barrier_shmem_node[0]);
+          fprintf(fp, "  case %d:\n", case_count);
+          fprintf(fpi, "  case %d:\n", case_count);
+	  fprintf(fp, "    while ((unsigned int)(*((volatile int*)(%p)) - *((int *)(%p))) > INT_MAX);\n", header->barrier_shmem_node[integer1], header->barrier_shmem_node[0]);
+	  fprintf(fpi, "    if ((unsigned int)(*((volatile int*)(%p)) - *((int *)(%p))) > INT_MAX) {\n", header->barrier_shmem_node[integer1], header->barrier_shmem_node[0]);
+	  fprintf(fpi, "      return %d;\n", case_count++);
+	  fprintf(fpi, "    }\n");
 	}
       }
     }
@@ -180,13 +198,16 @@ int ext_mpi_generate_source_code(char **shmem,
       }
     }
     if (estring1 == ememory_fence) {
-      fprintf(fp, "  memory_fence();\n");
+      fprintf(fp, "    memory_fence();\n");
+      fprintf(fpi, "    memory_fence();\n");
     }
     if (estring1 == ememory_fence_store) {
-      fprintf(fp, "  memory_fence_store();\n");
+      fprintf(fp, "    memory_fence_store();\n");
+      fprintf(fpi, "    memory_fence_store();\n");
     }
     if (estring1 == ememory_fence_load) {
-      fprintf(fp, "  memory_fence_load();\n");
+      fprintf(fp, "    memory_fence_load();\n");
+      fprintf(fpi, "    memory_fence_load();\n");
     }
     if ((estring1 == ememcpy) || (estring1 == ereduce) || (estring1 == einvreduce) ||
         (estring1 == esreduce) || (estring1 == esinvreduce) || (estring1 == esmemcpy)) {
@@ -198,39 +219,48 @@ int ext_mpi_generate_source_code(char **shmem,
       integer2 = data_memcpy_reduce.offset2;
       integer3 = data_memcpy_reduce.size;
         if ((estring1 == ememcpy) || (estring1 == esmemcpy)) {
-	  fprintf(fp, "  memcpy((void *)");
+	  fprintf(fp, "    memcpy((void *)");
+	  fprintf(fpi, "    memcpy((void *)");
           if (estring1a == esendbufp) {
 	    if (sendbufs) {
               fprintf(fp, "%p", (void *)(sendbufs[data_memcpy_reduce.buffer_number1] + integer1));
+              fprintf(fpi, "%p", (void *)(sendbufs[data_memcpy_reduce.buffer_number1] + integer1));
 	    }
           } else {
             if (estring1a == erecvbufp) {
 	      if (recvbufs) {
 	        fprintf(fp, "%p", (void *)(recvbufs[data_memcpy_reduce.buffer_number1] + integer1));
+	        fprintf(fpi, "%p", (void *)(recvbufs[data_memcpy_reduce.buffer_number1] + integer1));
 	      }
             } else {
               if (shmem) {
 	        fprintf(fp, "%p", (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1));
+	        fprintf(fpi, "%p", (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1));
 	      }
             }
           }
 	  fprintf(fp, ", (void *)");
+	  fprintf(fpi, ", (void *)");
           if (estring2 == esendbufp) {
 	    if (sendbufs) {
 	      fprintf(fp, "%p", (void *)(sendbufs[data_memcpy_reduce.buffer_number2] + integer2));
+	      fprintf(fpi, "%p", (void *)(sendbufs[data_memcpy_reduce.buffer_number2] + integer2));
 	    }
           } else {
             if (estring2 == erecvbufp) {
 	      if (recvbufs) {
 	        fprintf(fp, "%p", (void *)(recvbufs[data_memcpy_reduce.buffer_number2] + integer2));
+	        fprintf(fpi, "%p", (void *)(recvbufs[data_memcpy_reduce.buffer_number2] + integer2));
 	      }
             } else {
               if (shmem) {
 	        fprintf(fp, "%p", (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2));
+	        fprintf(fpi, "%p", (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2));
 	      }
             }
           }
 	  fprintf(fp, ", %d);\n", integer3);
+	  fprintf(fpi, ", %d);\n", integer3);
 	} else {
           switch (reduction_op) {
           case OPCODE_REDUCE_SUM_DOUBLE:
@@ -246,68 +276,86 @@ int ext_mpi_generate_source_code(char **shmem,
             integer3 /= sizeof(int);
             break;
           }
-	  fprintf(fp, "  for (i = 0; i < %d; i++) {\n", integer3);
+	  fprintf(fp, "    for (i = 0; i < %d; i++) {\n", integer3);
+	  fprintf(fpi, "    for (i = 0; i < %d; i++) {\n", integer3);
           switch (reduction_op) {
           case OPCODE_REDUCE_SUM_DOUBLE:
-            fprintf(fp, "    ((double *)(");
+            fprintf(fp, "      ((double *)(");
+            fprintf(fpi, "      ((double *)(");
             break;
           case OPCODE_REDUCE_SUM_LONG_INT:
-            fprintf(fp, "    ((long int *)(");
+            fprintf(fp, "      ((long int *)(");
+            fprintf(fpi, "      ((long int *)(");
             break;
           case OPCODE_REDUCE_SUM_FLOAT:
-            fprintf(fp, "    ((float *)(");
+            fprintf(fp, "      ((float *)(");
+            fprintf(fpi, "      ((float *)(");
             break;
           case OPCODE_REDUCE_SUM_INT:
-            fprintf(fp, "    ((int *)(");
+            fprintf(fp, "      ((int *)(");
+            fprintf(fpi, "      ((int *)(");
             break;
           }
           if (estring1a == esendbufp) {
 	    if (sendbufs) {
               fprintf(fp, "%p", (void *)(sendbufs[data_memcpy_reduce.buffer_number1] + integer1));
+              fprintf(fpi, "%p", (void *)(sendbufs[data_memcpy_reduce.buffer_number1] + integer1));
 	    }
           } else {
             if (estring1a == erecvbufp) {
 	      if (recvbufs) {
 	        fprintf(fp, "%p", (void *)(recvbufs[data_memcpy_reduce.buffer_number1] + integer1));
+	        fprintf(fpi, "%p", (void *)(recvbufs[data_memcpy_reduce.buffer_number1] + integer1));
 	      }
             } else {
               if (shmem) {
 	        fprintf(fp, "%p", (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1));
+	        fprintf(fpi, "%p", (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1));
 	      }
             }
           }
 	  fprintf(fp, "))[i] += ");
+	  fprintf(fpi, "))[i] += ");
           switch (reduction_op) {
           case OPCODE_REDUCE_SUM_DOUBLE:
             fprintf(fp, "((double *)(");
+            fprintf(fpi, "((double *)(");
             break;
           case OPCODE_REDUCE_SUM_LONG_INT:
             fprintf(fp, "((long int *)(");
+            fprintf(fpi, "((long int *)(");
             break;
           case OPCODE_REDUCE_SUM_FLOAT:
             fprintf(fp, "((float *)(");
+            fprintf(fpi, "((float *)(");
             break;
           case OPCODE_REDUCE_SUM_INT:
             fprintf(fp, "((int *)(");
+            fprintf(fpi, "((int *)(");
             break;
           }
           if (estring2 == esendbufp) {
 	    if (sendbufs) {
 	      fprintf(fp, "%p", (void *)(sendbufs[data_memcpy_reduce.buffer_number2] + integer2));
+	      fprintf(fpi, "%p", (void *)(sendbufs[data_memcpy_reduce.buffer_number2] + integer2));
 	    }
           } else {
             if (estring2 == erecvbufp) {
 	      if (recvbufs) {
 	        fprintf(fp, "%p", (void *)(recvbufs[data_memcpy_reduce.buffer_number2] + integer2));
+	        fprintf(fpi, "%p", (void *)(recvbufs[data_memcpy_reduce.buffer_number2] + integer2));
 	      }
             } else {
               if (shmem) {
 	        fprintf(fp, "%p", (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2));
+	        fprintf(fpi, "%p", (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2));
 	      }
             }
           }
 	  fprintf(fp, "))[i];\n");
-	  fprintf(fp, "  }\n");
+	  fprintf(fpi, "))[i];\n");
+	  fprintf(fp, "    }\n");
+	  fprintf(fpi, "    }\n");
 	}
     }
   }
@@ -332,6 +380,7 @@ int ext_mpi_generate_source_code(char **shmem,
     }
   }
   ip += size_comm + sizeof(void*);
+  fclose(fpi);
   fclose(fp);
   sprintf(str, "gcc -O2 -fpic -c source_code_%d_%d.c", socket_rank, id);
   system(str);

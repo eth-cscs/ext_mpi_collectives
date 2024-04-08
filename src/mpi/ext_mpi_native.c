@@ -67,6 +67,7 @@ ncclComm_t ext_mpi_nccl_comm;
 
 static int handle_code_max = 100;
 static char **comm_code = NULL;
+static int *execution_pointer_func = NULL;
 static char **execution_pointer = NULL;
 static int *active_wait = NULL;
 static int is_initialised = 0;
@@ -139,11 +140,12 @@ error:
 
 static int get_handle() {
   char **comm_code_old = NULL, **execution_pointer_old = NULL;
-  int *active_wait_old = NULL, handle, i;
+  int *active_wait_old = NULL, handle, *execution_pointer_func_old, i;
   if (comm_code == NULL) {
     comm_code = (char **)malloc(sizeof(char *) * handle_code_max);
     if (!comm_code)
       goto error;
+    execution_pointer_func = (int *)malloc(sizeof(int) * handle_code_max);
     execution_pointer = (char **)malloc(sizeof(char *) * handle_code_max);
     if (!execution_pointer)
       goto error;
@@ -163,11 +165,15 @@ static int get_handle() {
   if (handle >= handle_code_max - 2) {
     if (comm_code[handle] != NULL) {
       comm_code_old = comm_code;
+      execution_pointer_func_old = execution_pointer_func;
       execution_pointer_old = execution_pointer;
       active_wait_old = active_wait;
       handle_code_max *= 2;
       comm_code = (char **)malloc(sizeof(char *) * handle_code_max);
       if (!comm_code)
+        goto error;
+      execution_pointer_func = (int *)malloc(sizeof(int) * handle_code_max);
+      if (!execution_pointer_func)
         goto error;
       execution_pointer = (char **)malloc(sizeof(char *) * handle_code_max);
       if (!execution_pointer)
@@ -182,10 +188,12 @@ static int get_handle() {
       }
       for (i = 0; i < handle_code_max / 2; i++) {
         comm_code[i] = comm_code_old[i];
+        execution_pointer_func[i] = execution_pointer_func_old[i];
         execution_pointer[i] = execution_pointer_old[i];
         active_wait[i] = active_wait_old[i];
       }
       free(active_wait_old);
+      free(execution_pointer_func_old);
       free(execution_pointer_old);
       free(comm_code_old);
       handle += 2;
@@ -212,30 +220,30 @@ int EXT_MPI_Start_native(int handle) {
     execution_pointer[handle] = execution_pointer[handle + 1];
     execution_pointer[handle + 1] = hcomm;
   }
+  active_wait[handle] = 0;
+  execution_pointer_func[handle] = 0;
   execution_pointer[handle] =
       comm_code[handle] + sizeof(struct header_byte_code);
-  active_wait[handle] = 0;
   return (0);
 }
 
 int EXT_MPI_Test_native(int handle) {
-  active_wait[handle] = 1;
-  if (execution_pointer[handle]) {
-    ext_mpi_exec_native(comm_code[handle], &execution_pointer[handle],
-                        active_wait[handle]);
-  }
-  return (execution_pointer[handle] == NULL);
-}
-
-int EXT_MPI_Progress_native() {
-  int ret = 0, handle;
-  for (handle = 0; handle < handle_code_max; handle += 2) {
-    if (execution_pointer[handle]) {
-      ret += ext_mpi_exec_native(comm_code[handle], &execution_pointer[handle],
-                                 active_wait[handle]);
+  if (((struct header_byte_code *)(comm_code[handle]))->function) {
+    if (execution_pointer_func[handle] != -1) {
+      execution_pointer_func[handle] = ((int (*)(int, int))(((struct header_byte_code *)(comm_code[handle]))->function))(execution_pointer_func[handle], 0);
+      if (!execution_pointer_func[handle]) {
+	execution_pointer_func[handle] = -1;
+      }
     }
+    return (execution_pointer_func[handle] != -1);
+  } else {
+    active_wait[handle] = 1;
+    if (execution_pointer[handle]) {
+      ext_mpi_exec_native(comm_code[handle], &execution_pointer[handle],
+                          active_wait[handle]);
+    }
+    return (execution_pointer[handle] == NULL);
   }
-  return (ret);
 }
 
 int EXT_MPI_Wait_native(int handle) {
@@ -245,15 +253,15 @@ int EXT_MPI_Wait_native(int handle) {
     active_wait[handle] = 2;
   }
   if (((struct header_byte_code *)(comm_code[handle]))->function) {
-    ((void (*)(void))(((struct header_byte_code *)(comm_code[handle]))->function))();
+    execution_pointer_func[handle] = ((int (*)(int, int))(((struct header_byte_code *)(comm_code[handle]))->function))(execution_pointer_func[handle], 1);
   } else {
-  if (execution_pointer[handle]) {
-    ext_mpi_exec_native(comm_code[handle], &execution_pointer[handle],
-                        active_wait[handle]);
-  }
+    if (execution_pointer[handle]) {
+      ext_mpi_exec_native(comm_code[handle], &execution_pointer[handle],
+                          active_wait[handle]);
+    }
   }
   active_wait[handle] = 0;
-  return (0);
+  return 0;
 }
 
 int EXT_MPI_Done_native(int handle) {
@@ -382,6 +390,7 @@ int EXT_MPI_Done_native(int handle) {
     }
   }
   free(active_wait);
+  free(execution_pointer_func);
   free(execution_pointer);
   free(comm_code);
   comm_code = NULL;
@@ -619,7 +628,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
       *counts = NULL, iret, num_ranks, lrank_row, *ranks, *ranks_inv, *countsa, *displsa,
-      nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, i, j;
+      nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, factors_max, *factors, i, j;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   struct parameters_block *parameters;
   MPI_Comm comm_subrow;
@@ -831,11 +840,32 @@ allreduce_short = 0;
   //nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER ASCII\n");
   free(msizes);
   msizes = NULL;
-//  if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
-//    goto error;
-buffer_temp = buffer1;
-buffer1 = buffer2;
-buffer2 = buffer_temp;
+  if (!not_recursive) {
+    for (factors_max = 0; num_ports[factors_max]; factors_max++);
+    for (i = 0; num_ports[i] < 0; i++);
+    factors = (int*)malloc(factors_max * sizeof(int));
+    for (factors_max = 0; num_ports[factors_max + i]; factors_max++){
+      factors[factors_max] = num_ports[factors_max + i] + 1;
+    }
+    ranks = (int*)malloc(my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) * sizeof(int));
+    for (i = 0; i < my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node); i++) {
+      ranks[i] = i;
+    }
+    ext_mpi_rank_order(my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node), factors_max, factors, ranks);
+    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER RANK_PERM");
+    for (i = 0; i < my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node); i++) {
+      nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", ranks[i]);
+    }
+    nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
+    free(ranks);
+    free(factors);
+    if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
+      goto error;
+  } else {
+    buffer_temp = buffer1;
+    buffer1 = buffer2;
+    buffer2 = buffer_temp;
+  }
   if (not_recursive) {
     if (ext_mpi_generate_allreduce(buffer2, buffer1) < 0)
       goto error;
@@ -848,11 +878,14 @@ buffer2 = buffer_temp;
     *padding_factor = ext_mpi_greatest_common_divisor(parameters->message_sizes_max, parameters->socket_row_size);
     ext_mpi_delete_parameters(parameters);
   }
-//  if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
-//    goto error;
-buffer_temp = buffer1;
-buffer1 = buffer2;
-buffer2 = buffer_temp;
+  if (!not_recursive) {
+    if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
+      goto error;
+  } else {
+    buffer_temp = buffer1;
+    buffer1 = buffer2;
+    buffer2 = buffer_temp;
+  }
   if (my_mpi_size_row / my_cores_per_node_row > 1 && ((root >= 0) || (root <= -10))) {
     if (root >= 0) {
       if (ext_mpi_generate_backward_interpreter(buffer2, buffer1, comm_row) < 0)

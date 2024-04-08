@@ -59,8 +59,10 @@ static int read_env() {
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_NOT_RECURSIVE")) != NULL);
     if (var) {
-      ext_mpi_not_recursive = 1;
-      printf("# EXT_MPI not recursive\n");
+      if (sscanf(c, "%d", &var) >= 1){
+        ext_mpi_not_recursive = var;
+        printf("# EXT_MPI not recursive = %d\n", ext_mpi_not_recursive);
+      }
     }
   }
   MPI_Bcast(&ext_mpi_not_recursive, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -1008,8 +1010,6 @@ int EXT_MPI_Test(int handle) {
     return -1;
   }
 }
-
-int EXT_MPI_Progress() { return (EXT_MPI_Progress_native()); }
 
 int EXT_MPI_Wait(int handle) {
   if (handle >= 0) {
