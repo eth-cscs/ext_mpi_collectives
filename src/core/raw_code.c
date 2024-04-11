@@ -69,7 +69,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
   for (m = 1; m < data.num_blocks; m++) {
     if (m > 1) {
       nbuffer_out += ext_mpi_write_assembler_line(
-          buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+          buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier_small);
     }
     buffer_counter = 1;
     for (o = 0; o < num_nodes; o++) {
@@ -176,7 +176,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       }
       if (add) {
         nbuffer_out += ext_mpi_write_assembler_line(
-            buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+            buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier_small);
         data_irecv_isend.type = eisend;
         data_irecv_isend.buffer_type = eshmemo;
         data_irecv_isend.buffer_number = buffer_number;
@@ -192,7 +192,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
       }
       if (adds) {
         nbuffer_out += ext_mpi_write_assembler_line(
-            buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+            buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier_small);
         data_irecv_isend.type = eisen_;
         data_irecv_isend.buffer_type = eshmemo;
         data_irecv_isend.buffer_number = buffer_number;
@@ -214,7 +214,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         start = 0;
 #endif
     //    }
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier_small);
     num_comm = num_comms = 0;
     buffer_counter = 1;
     for (o = 0; o < num_nodes; o++) {
@@ -266,7 +266,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
         buffer_counter++;
       }
     }
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier_small);
     for (n = add = 0; n < data.blocks[m].num_lines; n++) {
       middle = -1;
       for (i = 0; i < data.blocks[m].lines[n].reducefrom_max; i++) {

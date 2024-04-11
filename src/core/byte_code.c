@@ -301,7 +301,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   char line[1000], *ip = code_out;
   enum eassembler_type estring1a, estring1, estring2;
   int integer1, integer2, integer3, integer4, isdryrun = (code_out == NULL),
-      ascii, num_cores, socket_rank, num_sockets_per_node, i;
+      ascii, num_cores, socket_rank, num_sockets_per_node, num_cores_socket_barrier, num_cores_socket_barrier_small, i, j;
   struct header_byte_code header_temp;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
@@ -318,6 +318,8 @@ int ext_mpi_generate_byte_code(char **shmem,
   vector_length = parameters->counts[0];
 #endif
   num_cores = parameters->socket_row_size*parameters->socket_column_size;
+  num_cores_socket_barrier = parameters->socket_size_barrier;
+  num_cores_socket_barrier_small = parameters->socket_size_barrier_small;
   socket_rank = parameters->socket_rank;
   num_sockets_per_node = parameters->num_sockets_per_node;
   ext_mpi_delete_parameters(parameters);
@@ -329,23 +331,48 @@ int ext_mpi_generate_byte_code(char **shmem,
     header->socket_rank = socket_rank;
     header->num_sockets_per_node = num_sockets_per_node;
     header->function = NULL;
+    header->num_cores_socket_barrier = num_cores_socket_barrier;
+    header->num_cores_socket_barrier_small = num_cores_socket_barrier_small;
   } else {
     header = (struct header_byte_code *)ip;
     header->mpi_user_function = func;
     header->barrier_counter_socket = 0;
     header->barrier_counter_node = 0;
+    header->num_cores_socket_barrier = num_cores_socket_barrier;
+    header->num_cores_socket_barrier_small = num_cores_socket_barrier_small;
     if (shmem) {
       header->barrier_shmem_node = (char **)malloc(num_cores * num_sockets_per_node * sizeof(char *));
       header->barrier_shmem_socket = (char **)malloc(num_cores * sizeof(char *));
+      header->barrier_shmem_socket_small = (char **)malloc(num_cores * sizeof(char *));
       for (i = 0; i < num_cores * num_sockets_per_node; i++) {
         header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;
       }
-      for (i = 0; i < num_cores; i++) {
-        header->barrier_shmem_socket[i] = shmem[i] + my_size_shared_buf + barriers_size;
+      for (i = 0; i < num_cores_socket_barrier; i++) {
+	if (socket_rank >= num_cores_socket_barrier) {
+	  j = 0;
+	} else {
+	  j = i;
+	  if (j + socket_rank >= num_cores_socket_barrier) {
+	    j = (j + num_cores - num_cores_socket_barrier) % num_cores;
+	  }
+	}
+        header->barrier_shmem_socket[i] = shmem[j] + my_size_shared_buf + barriers_size;
+      }
+      for (i = 0; i < num_cores_socket_barrier_small; i++) {
+	if (socket_rank >= num_cores_socket_barrier_small) {
+	  j = 0;
+	} else {
+	  j = i;
+	  if (j + socket_rank >= num_cores_socket_barrier_small) {
+	    j = (j + num_cores - num_cores_socket_barrier_small) % num_cores;
+	  }
+	}
+        header->barrier_shmem_socket_small[i] = shmem[j] + my_size_shared_buf + barriers_size;
       }
     } else {
       header->barrier_shmem_node = NULL;
       header->barrier_shmem_socket = NULL;
+      header->barrier_shmem_socket_small = NULL;
     }
     header->barrier_shmem_size = barriers_size;
     header->shmemid = shmemid;
@@ -553,6 +580,11 @@ int ext_mpi_generate_byte_code(char **shmem,
         }
 #endif
         code_put_char(&ip, OPCODE_SOCKETBARRIER, isdryrun);
+      }
+    }
+    if (estring1 == esocket_barrier_small) {
+      if (header->num_cores != 1) {
+        code_put_char(&ip, OPCODE_SOCKETBSMALL, isdryrun);
       }
     }
 #ifdef GPU_ENABLED

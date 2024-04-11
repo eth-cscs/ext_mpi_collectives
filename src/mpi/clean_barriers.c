@@ -16,7 +16,7 @@ static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
 
 int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
                    MPI_Comm comm_column) {
-  int nbuffer_out = 0, nbuffer_in = 0, i, flag, flag2 = 0, integer1, rank;
+  int nbuffer_out = 0, nbuffer_in = 0, i, flag, flag2 = 0, flag3, integer1, rank, nbuffer_out_old;
   char line[1000];
   enum eassembler_type estring1;
   struct parameters_block *parameters;
@@ -26,7 +26,7 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
   i = global_min(i, comm_row, comm_column);
   if (i < 0)
     goto error;
-  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
+  nbuffer_out_old = nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   i = 0;
   if (PMPI_Comm_split(comm_row, rank / parameters->socket_row_size,
                       rank % parameters->socket_row_size,
@@ -51,21 +51,24 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
       if (ext_mpi_read_assembler_line(line, 0, "sd", &estring1, &integer1) != -1) {
         if (!((estring1 == enop) ||
               ((estring1 == ewaitany) && (integer1 == 0)))) {
-          if (estring1 != esocket_barrier) {
-            nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
-                                              parameters->ascii_out);
+          if (estring1 != esocket_barrier_small && estring1 != esocket_barrier) {
+	    nbuffer_out_old = nbuffer_out;
+            nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line, parameters->ascii_out);
             flag2 = 0;
           } else {
             PMPI_Allreduce(MPI_IN_PLACE, &flag2, 1, MPI_INT, MPI_MIN, comm_rowl);
-            if (comm_column != MPI_COMM_NULL) {
-              PMPI_Allreduce(MPI_IN_PLACE, &flag2, 1, MPI_INT, MPI_MIN,
-                             comm_columnl);
-            }
-            if (!flag2) {
-              nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
-                                                parameters->ascii_out);
-              flag2 = 1;
-            }
+	    flag3 = estring1 == esocket_barrier && flag2;
+	    PMPI_Allreduce(MPI_IN_PLACE, &flag3, 1, MPI_INT, MPI_MIN, comm_rowl);
+	    if (flag3) {
+              nbuffer_out = nbuffer_out_old + ext_mpi_write_line(buffer_out + nbuffer_out_old, line, parameters->ascii_out);
+	    } else {
+              if (!flag2) {
+	        nbuffer_out_old = nbuffer_out;
+                nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
+                                                  parameters->ascii_out);
+                flag2 = 1;
+              }
+	    }
           }
         }
       }

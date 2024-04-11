@@ -30,6 +30,7 @@ enum edata_type {
 enum eassembler_type {
   enode_barrier,
   esocket_barrier,
+  esocket_barrier_small,
   eset_node_barrier,
   ewait_node_barrier,
   ememcpy,
@@ -73,6 +74,8 @@ struct parameters_block {
   int socket_rank;
   int socket_row_size;
   int socket_column_size;
+  int socket_size_barrier;
+  int socket_size_barrier_small;
   int num_sockets_per_node;
   int *counts;
   int counts_max;

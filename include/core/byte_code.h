@@ -15,6 +15,7 @@ struct header_byte_code {
   int barrier_counter_socket;
   int barrier_counter_node;
   char **barrier_shmem_socket;
+  char **barrier_shmem_socket_small;
   int barrier_shmem_size;
   char **barrier_shmem_node;
   int *shmemid;
@@ -23,6 +24,8 @@ struct header_byte_code {
   int node_num_cores_row;
   int node_num_cores_column;
   int num_cores;
+  int num_cores_socket_barrier;
+  int num_cores_socket_barrier_small;
   int socket_rank;
   int node_sockets;
   int tag;

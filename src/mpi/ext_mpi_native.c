@@ -34,6 +34,7 @@
 #include "use_sendbuf_recvbuf.h"
 #include "swap_copyin.h"
 #include "no_socket_barriers.h"
+#include "no_waitall_zero.h"
 #include "waitany.h"
 #include "reduce_scatter_single_node.h"
 #include "padding_factor.h"
@@ -318,6 +319,7 @@ int EXT_MPI_Done_native(int handle) {
   free(locmem);
   free(((struct header_byte_code *)comm_code[handle])->barrier_shmem_node);
   free(((struct header_byte_code *)comm_code[handle])->barrier_shmem_socket);
+  free(((struct header_byte_code *)comm_code[handle])->barrier_shmem_socket_small);
   free(comm_code[handle]);
   comm_code[handle] = NULL;
   ip = comm_code[handle + 1];
@@ -367,6 +369,7 @@ int EXT_MPI_Done_native(int handle) {
     free(locmem);
     free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_node);
     free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_socket);
+    free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_socket_small);
     free(comm_code[handle + 1]);
     comm_code[handle + 1] = NULL;
   }
@@ -628,7 +631,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
       *counts = NULL, iret, num_ranks, lrank_row, *ranks, *ranks_inv, *countsa, *displsa,
-      nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, factors_max, *factors, i, j;
+      nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, factors_max, *factors, socket_size_barrier = 0, socket_size_barrier_small = 0, i, j;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   struct parameters_block *parameters;
   MPI_Comm comm_subrow;
@@ -726,8 +729,15 @@ allreduce_short = 0;
     for (i = 0; i < num_ranks; i++) {
       if (i / (num_ranks / num_sockets_per_node) == j) {
 	counts[(num_sockets_per_node - j + socket_number) % num_sockets_per_node] += countsa[ranks_inv[i]];
+	if (!((num_sockets_per_node - j + socket_number) % num_sockets_per_node) && countsa[ranks_inv[i]]) {
+	  socket_size_barrier++;
+	}
       }
     }
+  }
+  for (i = 0; num_ports[i]; i++) {
+    if (abs(num_ports[i]) > socket_size_barrier) socket_size_barrier = abs(num_ports[i]);
+    if (abs(num_ports[i]) > socket_size_barrier_small) socket_size_barrier_small = abs(num_ports[i]);
   }
   free(displsa);
   free(countsa);
@@ -775,6 +785,10 @@ allreduce_short = 0;
                       my_cores_per_node_row);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
                       my_cores_per_node_column);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_SIZE_BARRIER %d\n",
+                      socket_size_barrier);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_SIZE_BSMALL %d\n",
+                      socket_size_barrier_small);
   nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE_SOCKETS %d\n",
                       num_sockets_per_node);
   nbuffer1 +=
@@ -971,6 +985,11 @@ allreduce_short = 0;
 #ifdef GPU_ENABLED
   }
 #endif
+  if (ext_mpi_generate_no_waitall_zero(buffer2, buffer1) < 0)
+    goto error;
+  buffer_temp = buffer2;
+  buffer2 = buffer1;
+  buffer1 = buffer_temp;
   if (ext_mpi_clean_barriers(buffer2, buffer1, comm_subrow, comm_column) < 0)
     goto error;
   if (alt) {
@@ -980,13 +999,11 @@ allreduce_short = 0;
     if (ext_mpi_generate_dummy(buffer1, buffer2) < 0)
       goto error;
   }
-  if (my_cores_per_node_row*my_cores_per_node_column == 1){
-    if (ext_mpi_generate_no_socket_barriers(buffer2, buffer1) < 0)
-      goto error;
-    buffer_temp = buffer2;
-    buffer2 = buffer1;
-    buffer1 = buffer_temp;
-  }
+  if (ext_mpi_generate_no_socket_barriers(buffer2, buffer1) < 0)
+    goto error;
+  buffer_temp = buffer2;
+  buffer2 = buffer1;
+  buffer1 = buffer_temp;
   if (root > -10 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
     if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;

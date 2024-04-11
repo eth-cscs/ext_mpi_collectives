@@ -52,7 +52,7 @@ exit(9);
   return 0;
 }
 
-static void socket_barrier(int **shmem, int *barrier_count, int socket_rank, int num_cores) {
+static void socket_barrier(int **shmem, int *barrier_count, int num_cores) {
   int step, *p, bc;
   memory_fence_store();
   for (step = 1; step < num_cores; step <<= 1) {
@@ -64,7 +64,7 @@ static void socket_barrier(int **shmem, int *barrier_count, int socket_rank, int
   memory_fence_load();
 }
 
-static int socket_barrier_test(int **shmem, int barrier_count, int socket_rank, int num_cores) {
+static int socket_barrier_test(int **shmem, int barrier_count, int num_cores) {
   int step, *p;
   memory_fence_store();
   for (step = 1; step < num_cores; step <<= 1) {
@@ -339,15 +339,30 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
     case OPCODE_SOCKETBARRIER:
       if (active_wait & 2) {
         socket_barrier((int **)header->barrier_shmem_socket, &header->barrier_counter_socket,
-                       header->socket_rank, header->num_cores);
+                       header->num_cores_socket_barrier);
       } else {
         *ip_exec = ip - 1;
         if (!socket_barrier_test((int **)header->barrier_shmem_socket, header->barrier_counter_socket,
-                                 header->socket_rank, header->num_cores)) {
+                                 header->num_cores_socket_barrier)) {
           return 0;
         } else {
           socket_barrier((int **)header->barrier_shmem_socket, &header->barrier_counter_socket,
-                         header->socket_rank, header->num_cores);
+                         header->num_cores_socket_barrier);
+        }
+      }
+      break;
+    case OPCODE_SOCKETBSMALL:
+      if (active_wait & 2) {
+        socket_barrier((int **)header->barrier_shmem_socket_small, &header->barrier_counter_socket,
+                       header->num_cores_socket_barrier_small);
+      } else {
+        *ip_exec = ip - 1;
+        if (!socket_barrier_test((int **)header->barrier_shmem_socket_small, header->barrier_counter_socket,
+                                 header->num_cores_socket_barrier_small)) {
+          return 0;
+        } else {
+          socket_barrier((int **)header->barrier_shmem_socket_small, &header->barrier_counter_socket,
+                         header->num_cores_socket_barrier_small);
         }
       }
       break;
@@ -741,6 +756,8 @@ int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char
       break;
     case OPCODE_SOCKETBARRIER:
       break;
+    case OPCODE_SOCKETBSMALL:
+      break;
     case OPCODE_NODEBARRIER:
       break;
     case OPCODE_NODEBARRIER_ATOMIC_SET:
@@ -889,7 +906,10 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       exit(9);
       break;
     case OPCODE_SOCKETBARRIER:
-      socket_barrier((int **)shmem_socket, counter_socket, socket_rank, num_cores);
+      socket_barrier((int **)shmem_socket, counter_socket, num_cores);
+      break;
+    case OPCODE_SOCKETBSMALL:
+      socket_barrier((int **)shmem_socket, counter_socket, num_cores);
       break;
     case OPCODE_NODEBARRIER:
       node_barrier((int **)shmem_node, counter_node, socket_rank, num_sockets_per_node);
@@ -1081,6 +1101,8 @@ int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, i
       exit(9);
       break;
     case OPCODE_SOCKETBARRIER:
+      break;
+    case OPCODE_SOCKETBSMALL:
       break;
     case OPCODE_NODEBARRIER:
       break;

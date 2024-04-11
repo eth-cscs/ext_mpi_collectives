@@ -1,12 +1,12 @@
-#include "no_socket_barriers.h"
+#include "no_waitall_zero.h"
 #include "constants.h"
 #include "read_write.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int ext_mpi_generate_no_socket_barriers(char *buffer_in, char *buffer_out) {
-  int nbuffer_out = 0, nbuffer_in = 0, i, flag;
+int ext_mpi_generate_no_waitall_zero(char *buffer_in, char *buffer_out) {
+  int nbuffer_out = 0, nbuffer_in = 0, integer1, i, flag;
   char line[1000];
   enum eassembler_type estring1;
   struct parameters_block *parameters;
@@ -19,7 +19,8 @@ int ext_mpi_generate_no_socket_barriers(char *buffer_in, char *buffer_out) {
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag) {
       if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
-        if ((estring1 != esocket_barrier && estring1 != esocket_barrier_small) || parameters->socket_size_barrier != 1) {
+        ext_mpi_read_assembler_line(line, 0, "sd", &estring1, &integer1);
+        if (estring1 != ewaitall || integer1) {
           nbuffer_out += ext_mpi_write_line(buffer_out + nbuffer_out, line,
                                             parameters->ascii_out);
         }

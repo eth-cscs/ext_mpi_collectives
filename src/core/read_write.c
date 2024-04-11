@@ -197,6 +197,8 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->socket_rank = 0;
   (*parameters)->socket_row_size = 1;
   (*parameters)->socket_column_size = 1;
+  (*parameters)->socket_size_barrier = 0;
+  (*parameters)->socket_size_barrier_small = 0;
   (*parameters)->num_sockets_per_node = 1;
   (*parameters)->copyin_method = 0;
   (*parameters)->copyin_factors = NULL;
@@ -264,6 +266,12 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
         }
         if (strcmp(string2, "SOCKET_COLUMN_SIZE") == 0) {
           (*parameters)->socket_column_size = integer1;
+        }
+        if (strcmp(string2, "SOCKET_SIZE_BARRIER") == 0) {
+          (*parameters)->socket_size_barrier = integer1;
+        }
+        if (strcmp(string2, "SOCKET_SIZE_BSMALL") == 0) {
+          (*parameters)->socket_size_barrier_small = integer1;
         }
         if (strcmp(string2, "NODE_SOCKETS") == 0) {
           (*parameters)->num_sockets_per_node = integer1;
@@ -521,6 +529,12 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
   nbuffer_out +=
       sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
               parameters->socket_column_size);
+  nbuffer_out +=
+      sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_SIZE_BARRIER %d\n",
+              parameters->socket_size_barrier);
+  nbuffer_out +=
+      sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_SIZE_BSMALL %d\n",
+              parameters->socket_size_barrier_small);
   nbuffer_out +=
       sprintf(buffer_out + nbuffer_out, " PARAMETER NODE_SOCKETS %d\n",
               parameters->num_sockets_per_node);
@@ -1037,6 +1051,9 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case esocket_barrier:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER");
       break;
+    case esocket_barrier_small:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BSMALL");
+      break;
     case eset_node_barrier:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_NODE_BARRIER");
       break;
@@ -1203,6 +1220,9 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   }
   if (strcmp(cstring1, "SOCKET_BARRIER") == 0) {
     return esocket_barrier;
+  }
+  if (strcmp(cstring1, "SOCKET_BSMALL") == 0) {
+    return esocket_barrier_small;
   }
   if (strcmp(cstring1, "SET_NODE_BARRIER") == 0) {
     return eset_node_barrier;
