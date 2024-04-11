@@ -334,6 +334,7 @@ int ext_mpi_generate_byte_code(char **shmem,
     header->num_cores_socket_barrier = num_cores_socket_barrier;
     header->num_cores_socket_barrier_small = num_cores_socket_barrier_small;
   } else {
+    memset(ip, 0, sizeof(struct header_byte_code));
     header = (struct header_byte_code *)ip;
     header->mpi_user_function = func;
     header->barrier_counter_socket = 0;
@@ -369,10 +370,6 @@ int ext_mpi_generate_byte_code(char **shmem,
 	}
         header->barrier_shmem_socket_small[i] = shmem[j] + my_size_shared_buf + barriers_size;
       }
-    } else {
-      header->barrier_shmem_node = NULL;
-      header->barrier_shmem_socket = NULL;
-      header->barrier_shmem_socket_small = NULL;
     }
     header->barrier_shmem_size = barriers_size;
     header->shmemid = shmemid;

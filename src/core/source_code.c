@@ -68,6 +68,7 @@ int ext_mpi_generate_source_code(char **shmem,
     header->num_sockets_per_node = num_sockets_per_node;
     header->function = NULL;
   } else {
+    memset(ip, 0, sizeof(struct header_byte_code));
     header = (struct header_byte_code *)ip;
     header->mpi_user_function = func;
     header->barrier_counter_socket = 0;
@@ -81,9 +82,6 @@ int ext_mpi_generate_source_code(char **shmem,
       for (i = 0; i < num_cores; i++) {
         header->barrier_shmem_socket[i] = shmem[i] + my_size_shared_buf + barriers_size;
       }
-    } else {
-      header->barrier_shmem_node = NULL;
-      header->barrier_shmem_socket = NULL;
     }
     header->barrier_shmem_size = barriers_size;
     header->shmemid = shmemid;
@@ -382,9 +380,9 @@ int ext_mpi_generate_source_code(char **shmem,
   ip += size_comm + sizeof(void*);
   fclose(fpi);
   fclose(fp);
-  sprintf(str, "gcc -O2 -fpic -c source_code_%d_%d.c", socket_rank, id);
+  sprintf(str, "gcc -O2 -w -fpic -c source_code_%d_%d.c", socket_rank, id);
   system(str);
-  sprintf(str, "gcc -shared -o compiled_code_%d.so source_code_%d_*.o", socket_rank, socket_rank);
+  sprintf(str, "gcc -shared -w -o compiled_code_%d.so source_code_%d_*.o", socket_rank, socket_rank);
   system(str);
   return (ip - code_out);
 }
