@@ -735,6 +735,7 @@ allreduce_short = 0;
       }
     }
   }
+socket_size_barrier = num_ranks / num_sockets_per_node;
   for (i = 0; num_ports[i]; i++) {
     if (abs(num_ports[i]) > socket_size_barrier) socket_size_barrier = abs(num_ports[i]);
     if (abs(num_ports[i]) > socket_size_barrier_small) socket_size_barrier_small = abs(num_ports[i]);
@@ -932,7 +933,7 @@ allreduce_short = 0;
   if (ext_mpi_generate_allreduce_copyin(buffer1, buffer2) < 0)
     goto error;
   if (my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
-    if (root > -10 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
+    if (root > -10 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) {
       if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
         goto error;
     } else {
@@ -967,6 +968,9 @@ allreduce_short = 0;
       goto error;
     if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
       goto error;
+/*buffer_temp = buffer2;
+buffer2 = buffer1;
+buffer1 = buffer_temp;*/
   }
   if (waitany&&!not_recursive) {
     if (ext_mpi_generate_waitany(buffer2, buffer1) < 0)
@@ -1004,7 +1008,7 @@ allreduce_short = 0;
   buffer_temp = buffer2;
   buffer2 = buffer1;
   buffer1 = buffer_temp;
-  if (root > -10 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1) {
+  if (root > -10 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) {
     if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;

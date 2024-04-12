@@ -680,7 +680,7 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
     group_size = ext_mpi_num_ports_factors(message_size, 0, comm, my_cores_per_node_row, num_sockets_per_node_, minimum_computation, &num_ports, &groups);
   }
   alt = ext_mpi_get_param(ext_mpi_alternating, comm, info, "ext_mpi_alternating", count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1);
-  not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size!=comm_size_row/my_cores_per_node_row));
+  not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size != comm_size_row / (num_sockets_per_node_ * my_cores_per_node_row)));
   bit_identical = ext_mpi_get_param(ext_mpi_bit_identical, comm, info, "ext_mpi_bit_identical", 0);
   bit_reproducible = ext_mpi_get_param(ext_mpi_bit_reproducible, comm, info, "ext_mpi_bit_reproducible", 1);
   num_sockets_per_node = num_sockets_per_node_;
@@ -774,7 +774,7 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
     group_size = ext_mpi_num_ports_factors(message_size, 0, comm, my_cores_per_node, num_sockets_per_node_, minimum_computation, &num_ports, &groups);
   }
   alt = ext_mpi_get_param(ext_mpi_alternating, comm, info, "ext_mpi_alternating", count * type_size < 10000000 && my_cores_per_node > 1);
-  not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size!=comm_size_row/my_cores_per_node));
+  not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size != comm_size_row / (num_sockets_per_node_ * my_cores_per_node)));
   bit_reproducible = ext_mpi_get_param(ext_mpi_bit_reproducible, comm, info, "ext_mpi_bit_reproducible", 1);
   num_sockets_per_node = num_sockets_per_node_;
   if (ext_mpi_copyin_method >= 0) {
