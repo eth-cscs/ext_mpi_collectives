@@ -735,11 +735,17 @@ allreduce_short = 0;
       }
     }
   }
-socket_size_barrier = num_ranks / num_sockets_per_node;
+  if (copyin_factors[0] < 0 && count <= type_size * abs(copyin_factors[0])) {
+    socket_size_barrier = 0;
+  } else {
+    socket_size_barrier = num_ranks / num_sockets_per_node;
+  }
   for (i = 0; num_ports[i]; i++) {
     if (abs(num_ports[i]) > socket_size_barrier) socket_size_barrier = abs(num_ports[i]);
     if (abs(num_ports[i]) > socket_size_barrier_small) socket_size_barrier_small = abs(num_ports[i]);
   }
+  if (socket_size_barrier > num_ranks) socket_size_barrier = num_ranks;
+  if (socket_size_barrier_small > num_ranks) socket_size_barrier_small = num_ranks;
   free(displsa);
   free(countsa);
   free(ranks_inv);
@@ -968,9 +974,6 @@ socket_size_barrier = num_ranks / num_sockets_per_node;
       goto error;
     if (ext_mpi_generate_optimise_buffers2(buffer1, buffer2) < 0)
       goto error;
-/*buffer_temp = buffer2;
-buffer2 = buffer1;
-buffer1 = buffer_temp;*/
   }
   if (waitany&&!not_recursive) {
     if (ext_mpi_generate_waitany(buffer2, buffer1) < 0)

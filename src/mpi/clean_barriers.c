@@ -26,7 +26,6 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
   i = global_min(i, comm_row, comm_column);
   if (i < 0)
     goto error;
-  nbuffer_out_old = nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   i = 0;
   if (PMPI_Comm_split(comm_row, rank / parameters->socket_row_size,
                       rank % parameters->socket_row_size,
@@ -44,6 +43,9 @@ int ext_mpi_clean_barriers(char *buffer_in, char *buffer_out, MPI_Comm comm_row,
     if (i < 0)
       goto error;
   }
+  PMPI_Allreduce(MPI_IN_PLACE, &parameters->socket_size_barrier, 1, MPI_INT, MPI_MAX, comm_rowl);
+  PMPI_Allreduce(MPI_IN_PLACE, &parameters->socket_size_barrier_small, 1, MPI_INT, MPI_MAX, comm_rowl);
+  nbuffer_out_old = nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   do {
     nbuffer_in += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
