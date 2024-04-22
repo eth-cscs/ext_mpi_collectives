@@ -54,8 +54,6 @@
 ncclComm_t ext_mpi_nccl_comm;
 #endif
 
-#define NUM_BARRIERS 4
-
 #ifndef GPU_ENABLED
 #define SEND_PTR_CPU 0x80000000
 #define RECV_PTR_CPU 0x90000000
@@ -268,7 +266,7 @@ int EXT_MPI_Wait_native(int handle) {
 int EXT_MPI_Done_native(int handle) {
   char **shmem;
   char *ip, *locmem;
-  int shmem_size, *shmemid, i;
+  int *shmem_sizes, *shmemid, i;
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column, shmem_comm_node_row2,
       shmem_comm_node_column2;
   struct header_byte_code *header;
@@ -276,8 +274,8 @@ int EXT_MPI_Done_native(int handle) {
   ip = comm_code[handle];
   header = (struct header_byte_code *)ip;
   shmem = header->shmem;
-  shmem_size = header->barrier_shmem_size;
   shmemid = header->shmemid;
+  shmem_sizes = header->shmem_sizes;
   locmem = header->locmem;
   if (*((void **)(ip + header->size_to_return))) {
     shmem_comm_node_row = *((MPI_Comm *)(ip + header->size_to_return + sizeof(void*)));
@@ -307,7 +305,7 @@ int EXT_MPI_Done_native(int handle) {
     free(header->gpu_byte_code);
   }
 #endif
-  ext_mpi_destroy_shared_memory(shmem_size, header->num_sockets_per_node * header->node_num_cores_row, shmemid, shmem, comm_code[handle]);
+  ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, shmem_sizes, shmemid, shmem, comm_code[handle]);
 #ifndef XPMEM
   free(header->sendbufs);
   free(header->recvbufs);
@@ -326,8 +324,8 @@ int EXT_MPI_Done_native(int handle) {
   if (ip) {
     header = (struct header_byte_code *)ip;
     shmem = header->shmem;
-    shmem_size = header->barrier_shmem_size;
     shmemid = header->shmemid;
+    shmem_sizes = header->shmem_sizes;
     locmem = header->locmem;
     if (*((void **)(ip + header->size_to_return))) {
       shmem_comm_node_row2 = *((MPI_Comm *)(ip + header->size_to_return + sizeof(void*)));
@@ -357,7 +355,7 @@ int EXT_MPI_Done_native(int handle) {
       free(header->gpu_byte_code);
     }
 #endif
-    ext_mpi_destroy_shared_memory(shmem_size, header->num_sockets_per_node * header->node_num_cores_row, shmemid, shmem, comm_code[handle + 1]);
+    ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, shmem_sizes, shmemid, shmem, comm_code[handle + 1]);
 #ifndef XPMEM
     free(header->sendbufs);
     free(header->recvbufs);
@@ -406,11 +404,10 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                          int reduction_op, MPI_User_function *func, MPI_Comm comm_row,
                          int my_cores_per_node_row, MPI_Comm comm_column,
                          int my_cores_per_node_column, int alt, int shmem_zero, char *locmem) {
-  int i, num_comm_max = -1, my_size_shared_buf = -1, barriers_size,
-         nbuffer_in = 0, tag, not_locmem;
+  int i, num_comm_max = -1, barriers_size, nbuffer_in = 0, tag, not_locmem;
   char *ip, **sendbufs, **recvbufs, str[1000];
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row, socket_rank;
-  int locmem_size, shmem_size = 0, *shmemid = NULL, num_sockets_per_node = 1;
+  int locmem_size, shmem_size = 0, *shmem_sizes = NULL, *shmemid = NULL, num_sockets_per_node = 1;
   char **shmem = NULL;
   MPI_Comm shmem_comm_node_row;
   int gpu_byte_code_counter = 0;
@@ -427,7 +424,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     goto error;
   MPI_Comm_size(comm_row, &my_mpi_size_row);
   num_comm_max = parameters->locmem_max;
-  my_size_shared_buf = parameters->shmem_max;
+  shmem_size = parameters->shmem_max;
   num_sockets_per_node = parameters->num_sockets_per_node;
   socket_rank = parameters->socket_rank;
 #ifdef XPMEM
@@ -443,11 +440,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   }
   if (!locmem)
     goto error;
-  barriers_size = (num_sockets_per_node < my_cores_per_node_row * my_cores_per_node_column? my_cores_per_node_row * my_cores_per_node_column : num_sockets_per_node) *
-                   (NUM_BARRIERS + 1) * CACHE_LINE_SIZE * sizeof(int);
-  barriers_size += NUM_BARRIERS * CACHE_LINE_SIZE * sizeof(int);
-  barriers_size = (barriers_size/(CACHE_LINE_SIZE * sizeof(int)) + 1) * (CACHE_LINE_SIZE * sizeof(int));
-  shmem_size = my_size_shared_buf + barriers_size * 4;
+  barriers_size = sizeof(int);
+  if (CACHE_LINE_SIZE > barriers_size) barriers_size = CACHE_LINE_SIZE;
+  shmem_size += barriers_size * 2;
   if (shmem_zero) {
     shmem = (char **)malloc(sizeof(char *) * 8);
     for (i = 0; i < 8; i++) {
@@ -456,7 +451,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     shmemid = NULL;
   } else {
     if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node,
-                                    &shmem_size, &shmemid, &shmem, 0, barriers_size * 4, &shmem_comm_node_row) < 0)
+                                    shmem_size, &shmem_sizes, &shmemid, &shmem, &shmem_comm_node_row) < 0)
       goto error_shared;
   }
 #ifndef XPMEM
@@ -470,8 +465,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
   ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
-  my_size_shared_buf = shmem_size - barriers_size * 4;
-  shmem_size -= barriers_size;
 #ifdef GPU_ENABLED
   if (gpu_is_device_pointer(recvbuf)) {
     if (shmem_zero) {
@@ -480,7 +473,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     } else {
       ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
                                       comm_column, my_cores_per_node_column,
-                                      shmem_size - barriers_size, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
+                                      shmem_size - barriers_size * 2, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
     }
   }
 #endif
@@ -501,8 +494,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     tag = 0;
   }
   code_size = ext_mpi_generate_byte_code(
-      shmem, shmem_size, shmemid, buffer_in, sendbufs, recvbufs,
-      my_size_shared_buf, barriers_size, locmem, reduction_op, (void *)func, global_ranks, NULL,
+      shmem, shmemid, shmem_sizes, buffer_in, sendbufs, recvbufs,
+      barriers_size, locmem, reduction_op, (void *)func, global_ranks, NULL,
       sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
       my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag);
   if (code_size < 0)
@@ -512,16 +505,16 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     goto error;
   if (ext_mpi_fast) {
   if (ext_mpi_generate_source_code(
-          shmem, shmem_size, shmemid, buffer_in, sendbufs,
-          recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op, (void *)func,
+          shmem, shmemid, shmem_sizes, buffer_in, sendbufs,
+          recvbufs, barriers_size, locmem, reduction_op, (void *)func,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
           NULL, my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag, handle) < 0)
     goto error;
   } else {
   if (ext_mpi_generate_byte_code(
-          shmem, shmem_size, shmemid, buffer_in, sendbufs,
-          recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op, (void *)func,
+          shmem, shmemid, shmem_sizes, buffer_in, sendbufs,
+          recvbufs, barriers_size, locmem, reduction_op, (void *)func,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
           NULL, my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag) < 0)
@@ -531,12 +524,11 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     ip = comm_code[handle + 1] = (char *)malloc(code_size);
     if (!ip)
       goto error;
-    shmem_size = my_size_shared_buf + barriers_size * 4;
     if (shmem_zero) {
       shmemid = NULL;
     } else {
       if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node, 
-                                      &shmem_size, &shmemid, &shmem, 0, barriers_size * 4, &shmem_comm_node_row) < 0)
+                                      shmem_size, &shmem_sizes, &shmemid, &shmem, &shmem_comm_node_row) < 0)
         goto error_shared;
     }
 #ifndef XPMEM
@@ -550,8 +542,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
     ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
-    my_size_shared_buf = shmem_size - barriers_size * 4;
-    shmem_size -= barriers_size;
     if (not_locmem) {
       locmem = (char *)malloc(locmem_size);
     }
@@ -565,22 +555,22 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       } else {
         ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
                                         comm_column, my_cores_per_node_column,
-                                        shmem_size - barriers_size, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
+                                        shmem_size - barriers_size * 2, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
       }
     }
 #endif
     if (ext_mpi_fast) {
     if (ext_mpi_generate_source_code(
-          shmem, shmem_size, shmemid, buffer_in, sendbufs,
-          recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op, (void *)func,
+          shmem, shmemid, shmem_sizes, buffer_in, sendbufs,
+          recvbufs, barriers_size, locmem, reduction_op, (void *)func,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
           NULL, my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag, handle + 1) < 0)
       goto error;
     } else {
     if (ext_mpi_generate_byte_code(
-          shmem, shmem_size, shmemid, buffer_in, sendbufs,
-          recvbufs, my_size_shared_buf, barriers_size, locmem, reduction_op, (void *)func,
+          shmem, shmemid, shmem_sizes, buffer_in, sendbufs,
+          recvbufs, barriers_size, locmem, reduction_op, (void *)func,
           global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
           NULL, my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag) < 0)
@@ -612,11 +602,11 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   }
   return handle;
 error:
-  ext_mpi_destroy_shared_memory(shmem_size, num_sockets_per_node * my_cores_per_node_row, shmemid, shmem, comm_code[handle]);
+  ext_mpi_destroy_shared_memory(num_sockets_per_node * my_cores_per_node_row, shmem_sizes, shmemid, shmem, comm_code[handle]);
   free(global_ranks);
   return ERROR_MALLOC;
 error_shared:
-  ext_mpi_destroy_shared_memory(shmem_size, num_sockets_per_node * my_cores_per_node_row, shmemid, shmem, comm_code[handle]);
+  ext_mpi_destroy_shared_memory(num_sockets_per_node * my_cores_per_node_row, shmem_sizes, shmemid, shmem, comm_code[handle]);
   free(global_ranks);
   return ERROR_SHMEM;
 }
@@ -965,7 +955,7 @@ allreduce_short = 0;
    }
    exit(9);
    */
-  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1, &comm_subrow) < 0)
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
@@ -1252,7 +1242,7 @@ int EXT_MPI_Gatherv_init_native(
     goto error;
   if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1, &comm_row) < 0)
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
@@ -1497,7 +1487,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
     goto error;
   if (ext_mpi_generate_reduce_copyout(buffer2, buffer1) < 0)
     goto error;
-  if (ext_mpi_generate_buffer_offset(buffer1, buffer2) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer1, buffer2, &comm_row) < 0)
     goto error;
   if (ext_mpi_generate_no_offset(buffer2, buffer1) < 0)
     goto error;
@@ -1741,7 +1731,7 @@ int EXT_MPI_Reduce_scatter_init_native(
     if (ext_mpi_generate_reduce_scatter_single_node(buffer1, buffer2) < 0)
       goto error;
   }
-  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1, &comm_row) < 0)
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;

@@ -7,9 +7,9 @@ extern "C" {
 #endif
 
 int ext_mpi_generate_source_code(char **shmem,
-                               int barrier_shmem_size, int *barrier_shmemid,
+                               int *shmemid, int *shmem_sizes,
                                char *buffer_in, char **sendbufs, char **recvbufs,
-                               int my_size_shared_buf, int barriers_size, char *locmem,
+                               int barriers_size, char *locmem,
                                int reduction_op, void *func, int *global_ranks,
                                char *code_out, int size_comm, int size_request, void *comm_row,
                                int node_num_cores_row, void *comm_column,

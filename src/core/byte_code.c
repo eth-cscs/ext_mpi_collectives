@@ -288,9 +288,9 @@ static void flush_complete(char **ip, struct gpu_stream **streams,
 #endif
 
 int ext_mpi_generate_byte_code(char **shmem,
-                               int shmem_size, int *shmemid,
+                               int *shmemid, int *shmem_sizes,
                                char *buffer_in, char **sendbufs, char **recvbufs,
-                               int my_size_shared_buf, int barriers_size, char *locmem,
+                               int barriers_size, char *locmem,
                                int reduction_op, void *func, int *global_ranks,
                                char *code_out, int size_comm, int size_request, void *comm_row,
                                int node_num_cores_row, void *comm_column,
@@ -346,7 +346,7 @@ int ext_mpi_generate_byte_code(char **shmem,
       header->barrier_shmem_socket = (char **)malloc(num_cores * sizeof(char *));
       header->barrier_shmem_socket_small = (char **)malloc(num_cores * sizeof(char *));
       for (i = 0; i < num_cores * num_sockets_per_node; i++) {
-        header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;
+        header->barrier_shmem_node[i] = shmem[i] + shmem_sizes[i] - barriers_size;
       }
       for (i = 0; i < num_cores_socket_barrier; i++) {
 	if (socket_rank >= num_cores_socket_barrier) {
@@ -357,7 +357,7 @@ int ext_mpi_generate_byte_code(char **shmem,
 	    j = (j + num_cores - num_cores_socket_barrier) % num_cores;
 	  }
 	}
-        header->barrier_shmem_socket[i] = shmem[j] + my_size_shared_buf + barriers_size;
+        header->barrier_shmem_socket[i] = shmem[j] + shmem_sizes[j] - 2 * barriers_size;
       }
       for (i = 0; i < num_cores_socket_barrier_small; i++) {
 	if (socket_rank >= num_cores_socket_barrier_small) {
@@ -368,13 +368,13 @@ int ext_mpi_generate_byte_code(char **shmem,
 	    j = (j + num_cores - num_cores_socket_barrier_small) % num_cores;
 	  }
 	}
-        header->barrier_shmem_socket_small[i] = shmem[j] + my_size_shared_buf + barriers_size;
+        header->barrier_shmem_socket_small[i] = shmem[j] + shmem_sizes[j] - 2 * barriers_size;
       }
     }
-    header->barrier_shmem_size = barriers_size;
-    header->shmemid = shmemid;
-    header->locmem = locmem;
     header->shmem = shmem;
+    header->shmemid = shmemid;
+    header->shmem_sizes = shmem_sizes;
+    header->locmem = locmem;
     header->sendbufs = sendbufs;
     header->recvbufs = recvbufs;
 #ifdef GPU_ENABLED

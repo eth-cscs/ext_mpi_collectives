@@ -7,9 +7,9 @@
 #include <string.h>
 
 int ext_mpi_generate_source_code(char **shmem,
-                               int shmem_size, int *shmemid,
+                               int *shmemid, int *shmem_sizes,
                                char *buffer_in, char **sendbufs, char **recvbufs,
-                               int my_size_shared_buf, int barriers_size, char *locmem,
+                               int barriers_size, char *locmem,
                                int reduction_op, void *func, int *global_ranks,
                                char *code_out, int size_comm, int size_request, void *comm_row,
                                int node_num_cores_row, void *comm_column,
@@ -77,16 +77,16 @@ int ext_mpi_generate_source_code(char **shmem,
       header->barrier_shmem_node = (char **)malloc(num_cores * num_sockets_per_node * sizeof(char *));
       header->barrier_shmem_socket = (char **)malloc(num_cores * sizeof(char *));
       for (i = 0; i < num_cores * num_sockets_per_node; i++) {
-        header->barrier_shmem_node[i] = shmem[i] + my_size_shared_buf + 2 * barriers_size;
+        header->barrier_shmem_node[i] = shmem[i] + shmem_sizes[i] - barriers_size;
       }
       for (i = 0; i < num_cores; i++) {
-        header->barrier_shmem_socket[i] = shmem[i] + my_size_shared_buf + barriers_size;
+        header->barrier_shmem_socket[i] = shmem[i] + shmem_sizes[i] - 2 * barriers_size;
       }
     }
-    header->barrier_shmem_size = barriers_size;
-    header->shmemid = shmemid;
-    header->locmem = locmem;
     header->shmem = shmem;
+    header->shmemid = shmemid;
+    header->shmem_sizes = shmem_sizes;
+    header->locmem = locmem;
     header->sendbufs = sendbufs;
     header->recvbufs = recvbufs;
     header->node_num_cores_row = node_num_cores_row;

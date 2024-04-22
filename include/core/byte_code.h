@@ -16,11 +16,11 @@ struct header_byte_code {
   int barrier_counter_node;
   char **barrier_shmem_socket;
   char **barrier_shmem_socket_small;
-  int barrier_shmem_size;
   char **barrier_shmem_node;
-  int *shmemid;
-  char *locmem;
   char **shmem;
+  int *shmemid;
+  int *shmem_sizes;
+  char *locmem;
   int node_num_cores_row;
   int node_num_cores_column;
   int num_cores;
@@ -43,9 +43,9 @@ struct header_byte_code {
 };
 
 int ext_mpi_generate_byte_code(char **shmem,
-                               int barrier_shmem_size, int *barrier_shmemid,
+                               int *shmemid, int *shmem_sizes,
                                char *buffer_in, char **sendbufs, char **recvbufs,
-                               int my_size_shared_buf, int barriers_size, char *locmem,
+                               int barriers_size, char *locmem,
                                int reduction_op, void *func, int *global_ranks,
                                char *code_out, int size_comm, int size_request, void *comm_row,
                                int node_num_cores_row, void *comm_column,
