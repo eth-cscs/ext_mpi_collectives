@@ -48,7 +48,7 @@ void ext_mpi_hash_insert_operator(MPI_Op *key, MPI_User_function *data) {
 
    int hashIndex = hashCode(key);
 
-   while(hashArray[hashIndex] != NULL && hashArray[hashIndex]->key != MPI_COMM_NULL) {
+   while(hashArray[hashIndex] != NULL && hashArray[hashIndex]->key != MPI_OP_NULL) {
       ++hashIndex;
 		
       hashIndex %= SIZE;
@@ -88,7 +88,7 @@ int ext_mpi_hash_init_operator(){
     return ERROR_MALLOC;
   }
   dummyItem->data = NULL;  
-  dummyItem->key = MPI_COMM_NULL; 
+  dummyItem->key = MPI_OP_NULL; 
   return 0;
 }
 
