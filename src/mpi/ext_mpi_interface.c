@@ -138,6 +138,22 @@ int MPI_Start(MPI_Request *request){
   }
 }
 
+int MPI_Startall(int count, MPI_Request array_of_requests[]){
+  int handle, ret, i;
+  for (i = 0; i < count; i++) {
+    handle = ext_mpi_hash_search(&array_of_requests[i]);
+    if (handle >= 0) {
+      EXT_MPI_Start(handle);
+    } else {
+      ret = PMPI_Start(&array_of_requests[i]);
+      if (ret != MPI_SUCCESS) {
+	return ret;
+      }
+    }
+  }
+  return MPI_SUCCESS;
+}
+
 int MPI_Wait(MPI_Request *request, MPI_Status *status){
   int handle=ext_mpi_hash_search(request);
   if (handle >= 0){
