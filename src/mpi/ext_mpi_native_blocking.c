@@ -10,8 +10,6 @@
 #include "constants.h"
 #include "ext_mpi_native.h"
 #include "waitany.h"
-#include "messages_shared_memory.h"
-#include "optimise_multi_socket.h"
 #include "padding_factor.h"
 #include "shmem.h"
 #include "ext_mpi_native_exec.h"
@@ -26,8 +24,6 @@
 #include <nccl.h>
 ncclComm_t ext_mpi_nccl_comm;
 #endif
-
-#define NUM_BARRIERS 4
 
 #ifndef GPU_ENABLED
 #define SEND_PTR_CPU 0x80000000
@@ -48,11 +44,6 @@ static int *e_is_initialised = NULL;
 static MPI_Comm *e_EXT_MPI_COMM_WORLD = NULL;
 static int *e_tag_max = NULL;
 
-static void (*e_socket_barrier)(char *shmem, int *barrier_count, int socket_rank, int num_cores);
-static void (*e_node_barrier)(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node);
-static void (*e_socket_barrier_atomic_set)(char *shmem, int barrier_count, int entry);
-static void (*e_socket_barrier_atomic_wait)(char *shmem, int *barrier_count, int entry);
-
 struct comm_comm_blocking {
   int mpi_size_blocking;
   int mpi_rank_blocking;
@@ -64,7 +55,6 @@ struct comm_comm_blocking {
   int *count_allgather_blocking;
   char **shmem_blocking1;
   char **shmem_blocking2;
-//  int shmem_blocking_num_segments;
   int *shmem_blocking_shmemid1;
   int *shmem_blocking_shmemid2;
   char *locmem_blocking;
@@ -72,12 +62,11 @@ struct comm_comm_blocking {
   char **comm_code_reduce_scatter_block_blocking;
   char **comm_code_allgather_blocking;
   char **shmem_socket_blocking;
-  int shmem_socket_blocking_shmemid;
+  int *shmem_socket_blocking_shmemid;
   int counter_socket_blocking;
   int socket_rank_blocking;
   int num_cores_blocking;
   char **shmem_node_blocking;
-  int shmem_node_blocking_num_segments;
   int *shmem_node_blocking_shmemid;
   int counter_node_blocking;
   int num_sockets_per_node_blocking;
@@ -133,8 +122,8 @@ static int add_blocking_member(int count, MPI_Datatype datatype, int handle, cha
 }
 
 static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, int num_sockets_per_node, enum ecollective_type collective_type, int i_comm, struct comm_comm_blocking ***comms_blocking, long int send_ptr, long int recv_ptr) {
-  int handle, size_shared = 1024*1024, *loc_shmemid, *recvcounts, *displs, padding_factor, type_size, i, j, *numbers, j_;
-  char **shmem_local, *comm_code_temp;
+  int handle, size_shared = 1024*1024, *recvcounts, *displs, padding_factor, type_size, i, j, *numbers, j_;
+  char *comm_code_temp;
   struct header_byte_code *header;
   MPI_Type_size(datatype, &type_size);
   if (!(*comms_blocking)) {
@@ -173,22 +162,20 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     header->size_to_return = sizeof(struct header_byte_code);
     *((MPI_Comm *)(comm_code_temp+header->size_to_return)) = comm;
     *((MPI_Comm *)(comm_code_temp+header->size_to_return+sizeof(MPI_Comm))) = MPI_COMM_NULL;
-    ext_mpi_setup_shared_memory(&(*comms_blocking)[i_comm]->comm_row_blocking, &(*comms_blocking)[i_comm]->comm_column_blocking, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &loc_shmemid, &shmem_local, 0, size_shared, &comm_code_temp);
-    (*comms_blocking)[i_comm]->shmem_socket_blocking_shmemid = loc_shmemid[0];
-    free(loc_shmemid);
-    (*comms_blocking)[i_comm]->shmem_socket_blocking = shmem_local;
-    free(shmem_local);
+// FIXME
+//    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, 1, &size_shared, &(*comms_blocking)[i_comm]->shmem_socket_blocking_shmemid, &(*comms_blocking)[i_comm]->shmem_socket_blocking, 0, size_shared, &((*comms_blocking)[i_comm]->comm_blocking));
     (*comms_blocking)[i_comm]->counter_socket_blocking = 0;
     (*comms_blocking)[i_comm]->num_cores_blocking = my_cores_per_node;
     (*comms_blocking)[i_comm]->socket_rank_blocking = (*comms_blocking)[i_comm]->mpi_rank_blocking % (*comms_blocking)[i_comm]->num_cores_blocking;
-    (*comms_blocking)[i_comm]->shmem_node_blocking_num_segments = num_sockets_per_node;
-    ext_mpi_setup_shared_memory(&(*comms_blocking)[i_comm]->comm_row_blocking, &(*comms_blocking)[i_comm]->comm_column_blocking, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, (*comms_blocking)[i_comm]->shmem_node_blocking_num_segments, &(*comms_blocking)[i_comm]->shmem_node_blocking_shmemid, &(*comms_blocking)[i_comm]->shmem_node_blocking, 0, size_shared, &comm_code_temp);
+// FIXME
+//    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, 1, &size_shared, &(*comms_blocking)[i_comm]->shmem_node_blocking_shmemid, &(*comms_blocking)[i_comm]->shmem_node_blocking, 0, size_shared, &((*comms_blocking)[i_comm]->comm_blocking));
     (*comms_blocking)[i_comm]->counter_node_blocking = 0;
     (*comms_blocking)[i_comm]->num_sockets_per_node_blocking = 1;
     size_shared = 1024 * 1024 * 1024 / 8;
 #ifndef GPU_ENABLED
-    ext_mpi_setup_shared_memory(&(*comms_blocking)[i_comm]->comm_row_blocking, &(*comms_blocking)[i_comm]->comm_column_blocking, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid1, &(*comms_blocking)[i_comm]->shmem_blocking1, 0, size_shared, &comm_code_temp);
-    ext_mpi_setup_shared_memory(&(*comms_blocking)[i_comm]->comm_row_blocking, &(*comms_blocking)[i_comm]->comm_column_blocking, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, &size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid2, &(*comms_blocking)[i_comm]->shmem_blocking2, 0, size_shared, &comm_code_temp);
+// FIXME
+//    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, 1, &size_shared, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid1, &(*comms_blocking)[i_comm]->shmem_blocking1, 0, size_shared, &((*comms_blocking)[i_comm]->comm_blocking));
+//    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, 1, &size_shared, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid2, &(*comms_blocking)[i_comm]->shmem_blocking2, 0, size_shared, &((*comms_blocking)[i_comm]->comm_blocking));
 #else
     ext_mpi_gpu_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid1, &(*comms_blocking)[i_comm]->shmem_blocking1);
     ext_mpi_gpu_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid2, &(*comms_blocking)[i_comm]->shmem_blocking2);
@@ -254,7 +241,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 }
 
 int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, int num_sockets_per_node, enum ecollective_type collective_type, int i_comm) {
-  ext_mpi_native_export(e_handle_code_max, e_comm_code, e_execution_pointer, e_active_wait, e_is_initialised, e_EXT_MPI_COMM_WORLD, e_tag_max, e_socket_barrier, e_node_barrier, e_socket_barrier_atomic_set, e_socket_barrier_atomic_wait);
+  ext_mpi_native_export(e_handle_code_max, e_comm_code, e_execution_pointer, e_active_wait, e_is_initialised, e_EXT_MPI_COMM_WORLD, e_tag_max);
   add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking, SEND_PTR_CPU, RECV_PTR_CPU);
 #ifdef GPU_ENABLED
   add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking_gpu, SEND_PTR_GPU, RECV_PTR_GPU);
@@ -264,8 +251,7 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
 
 static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comms_blocking) {
   struct header_byte_code *header;
-  int *loc_shmemid, i;
-  char **loc_shmem;
+  int i;
   header = (struct header_byte_code *)malloc(sizeof(struct header_byte_code) + 2 * sizeof(MPI_Comm));
   header->size_to_return = sizeof(struct header_byte_code);
   *((MPI_Comm *)(((char *)header)+header->size_to_return)) = (*comms_blocking)[i_comm]->comm_row_blocking;
@@ -276,8 +262,9 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
   free((*comms_blocking)[i_comm]->count_reduce_scatter_block_blocking);
   free((*comms_blocking)[i_comm]->count_allgather_blocking);
 #ifndef GPU_ENABLED
-  ext_mpi_destroy_shared_memory(0, 1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid1, (*comms_blocking)[i_comm]->shmem_blocking1, (char *)header);
-  ext_mpi_destroy_shared_memory(0, 1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid2, (*comms_blocking)[i_comm]->shmem_blocking2, (char *)header);
+// FIXME
+//  ext_mpi_destroy_shared_memory(0, 1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid1, (*comms_blocking)[i_comm]->shmem_blocking1, (char *)header);
+//  ext_mpi_destroy_shared_memory(0, 1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid2, (*comms_blocking)[i_comm]->shmem_blocking2, (char *)header);
 #else
   if ((*comms_blocking)[i_comm]->shmem_blocking_shmemid1) {
     ext_mpi_gpu_destroy_shared_memory(1, (*comms_blocking)[i_comm]->shmem_blocking_shmemid1, (*comms_blocking)[i_comm]->shmem_blocking1, (char *)header);
@@ -287,13 +274,9 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
   }
 #endif
   free((*comms_blocking)[i_comm]->locmem_blocking);
-  loc_shmemid = (int *)malloc(1 * sizeof(int));
-  *loc_shmemid = (*comms_blocking)[i_comm]->shmem_socket_blocking_shmemid;
-  loc_shmem = (char **)malloc(1 * sizeof(char *));
-/*FIXME*/
-//  *loc_shmem = (*comms_blocking)[i_comm]->shmem_socket_blocking;
-//  ext_mpi_destroy_shared_memory(0, 1, loc_shmemid, loc_shmem, (char *)header);
-  ext_mpi_destroy_shared_memory(0, (*comms_blocking)[i_comm]->shmem_node_blocking_num_segments, (*comms_blocking)[i_comm]->shmem_node_blocking_shmemid, (*comms_blocking)[i_comm]->shmem_node_blocking, (char *)header);
+// FIXME
+//  ext_mpi_destroy_shared_memory(0, (*comms_blocking)[i_comm]->num_cores_blocking, (*comms_blocking)[i_comm]->shmem_socket_blocking_shmemid, (*comms_blocking)[i_comm]->shmem_socket_blocking, (char *)header);
+//  ext_mpi_destroy_shared_memory(0, (*comms_blocking)[i_comm]->num_cores_blocking, (*comms_blocking)[i_comm]->shmem_node_blocking_shmemid, (*comms_blocking)[i_comm]->shmem_node_blocking, (char *)header);
   free(header);
   for (i = 0; i < 101; i++) {
     free((*comms_blocking)[i_comm]->send_pointers_allreduce_blocking[i]);

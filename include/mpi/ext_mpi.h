@@ -85,7 +85,6 @@ int EXT_MPI_Scatterv_init(const void *sendbuf, const int *sendcounts, const int 
                           int root, MPI_Comm comm, MPI_Info info, int *handle);
 int EXT_MPI_Start(int handle);
 int EXT_MPI_Test(int handle);
-int EXT_MPI_Progress();
 int EXT_MPI_Wait(int handle);
 int EXT_MPI_Done(int handle);
 

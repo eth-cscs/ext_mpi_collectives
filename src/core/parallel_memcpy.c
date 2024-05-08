@@ -18,7 +18,6 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   node_row_size = parameters->socket_row_size;
   node_column_size = parameters->socket_column_size;
   node_rank = parameters->socket_rank;
@@ -41,13 +40,71 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
   }
   node_size = node_row_size * node_column_size;
   do {
+    flag3 = ext_mpi_read_line(buffer_in + i, line, parameters->ascii_in);
+    ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
+    data_memcpy_reduce_ = data_memcpy_reduce;
+    if ((flag3 > 0) && (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0)) {
+      reset = 0;
+      flag = 0;
+      if (estring1 == esocket_barrier || estring1 == esocket_barrier_small) {
+        reset = 1;
+        flag = 1;
+      }
+      if (data_memcpy_reduce_old.offset1 != data_memcpy_reduce.offset1) {
+        data_memcpy_reduce_old.offset1 = data_memcpy_reduce.offset1;
+        reset = 1;
+      }
+      if (reset) {
+        p1 = 0;
+        if (flag) {
+          p1 += ext_mpi_read_line(buffer_in + i + p1, line2,
+                                  parameters->ascii_in);
+        }
+        flag = 1;
+        data_memcpy_reduce_old.size = 0;
+        while (flag) {
+          p1 += flag = ext_mpi_read_line(buffer_in + i + p1, line2,
+                                         parameters->ascii_in);
+          ext_mpi_read_memcpy_reduce(line2, &data_memcpy_reduce);
+          if ((flag > 0) && (ext_mpi_read_assembler_line(line2, 0, "s", &estring1) >= 0)) {
+            if (estring1 == esocket_barrier || estring1 == esocket_barrier_small) {
+              flag = 0;
+            }
+            if (data_memcpy_reduce_old.offset1 != data_memcpy_reduce.offset1) {
+              flag = 0;
+            }
+            if (flag) {
+              if ((data_memcpy_reduce.type == ememcpy) || (data_memcpy_reduce.type == ememcp_) ||
+                  (data_memcpy_reduce.type == ereduce) || (data_memcpy_reduce.type == ereduc_)) {
+                if ((data_memcpy_reduce.buffer_type1 == eshmemo) && (data_memcpy_reduce.buffer_type2 == eshmemo)) {
+                  if (data_memcpy_reduce.size > data_memcpy_reduce_old.size) {
+                    data_memcpy_reduce_old.size = data_memcpy_reduce.size;
+                  }
+                }
+              }
+            }
+          } else {
+            flag = 0;
+          }
+        }
+        data_memcpy_reduce = data_memcpy_reduce_;
+      }
+      if (data_memcpy_reduce_old.size / type_size > parameters->socket_size_barrier) parameters->socket_size_barrier = data_memcpy_reduce_old.size / type_size;
+      if (parameters->socket_size_barrier > parameters->socket_row_size) parameters->socket_size_barrier = parameters->socket_row_size;
+      if (data_memcpy_reduce_old.size / type_size > parameters->socket_size_barrier_small) parameters->socket_size_barrier_small = data_memcpy_reduce_old.size / type_size;
+      if (parameters->socket_size_barrier_small > parameters->socket_row_size) parameters->socket_size_barrier_small = parameters->socket_row_size;
+    }
+    i += flag3;
+  } while (flag3);
+  nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
+  do {
     flag3 = ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce);
     data_memcpy_reduce_ = data_memcpy_reduce;
     if ((flag3 > 0) && (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0)) {
       reset = 0;
       flag = 0;
-      if (estring1 == esocket_barrier) {
+      if (estring1 == esocket_barrier || estring1 == esocket_barrier_small) {
         reset = 1;
         flag = 1;
       }
@@ -68,7 +125,7 @@ int ext_mpi_generate_parallel_memcpy(char *buffer_in, char *buffer_out) {
                                          parameters->ascii_in);
           ext_mpi_read_memcpy_reduce(line2, &data_memcpy_reduce);
           if ((flag > 0) && (ext_mpi_read_assembler_line(line2, 0, "s", &estring1) >= 0)) {
-            if (estring1 == esocket_barrier) {
+            if (estring1 == esocket_barrier || estring1 == esocket_barrier_small) {
               flag = 0;
             }
             if (data_memcpy_reduce_old.offset1 != data_memcpy_reduce.offset1) {

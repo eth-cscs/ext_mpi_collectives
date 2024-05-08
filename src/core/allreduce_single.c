@@ -375,9 +375,9 @@ int ext_mpi_generate_allreduce_single(char *buffer_in, char *buffer_out) {
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   if (parameters->collective_type == collective_type_allgatherv) {
-    i = allgather_core(&data, parameters->num_sockets, parameters->num_ports, parameters->socket);
+    i = allgather_core(&data, parameters->num_nodes, parameters->num_ports, parameters->node);
   } else {
-    i = allreduce_core(&data, parameters->num_sockets, parameters->num_ports, parameters->socket);
+    i = allreduce_core(&data, parameters->num_nodes, parameters->num_ports, parameters->node);
   }
   if (i < 0)
     goto error;

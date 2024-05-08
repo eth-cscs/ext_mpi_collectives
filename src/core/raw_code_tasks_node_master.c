@@ -18,7 +18,7 @@ int ext_mpi_generate_raw_code_tasks_node_master(char *buffer_in, char *buffer_ou
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
-  num_nodes = parameters->num_sockets;
+  num_nodes = parameters->num_nodes;
   node_rank = parameters->socket_rank;
   node_row_size = parameters->socket_row_size;
   node_column_size = parameters->socket_column_size;

@@ -13,7 +13,7 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
   enum eassembler_type estring1;
   nbuffer_in += ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
-  for (i = 0; i < parameters->num_sockets; i++) {
+  for (i = 0; i < parameters->num_nodes; i++) {
     buffer_in_size += parameters->message_sizes[i];
   }
   for (i = 0; parameters->num_ports[i]; i++)

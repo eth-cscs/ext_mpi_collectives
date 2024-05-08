@@ -51,9 +51,9 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
       values[i][j] = 0;
     }
   }
-  k = parameters->socket == parameters->root;
+  k = parameters->node == parameters->root;
   if (parameters->root <= -10) {
-    k = parameters->socket == (-10 - parameters->root);
+    k = parameters->node == (-10 - parameters->root);
   }
   for (i = 0; i < data.blocks[0].num_lines; i++) {
     for (j = 0; j < data.blocks[0].lines[i].recvfrom_max; j++) {
@@ -95,7 +95,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
   }
   j = 0;
   for (i = 0; i < max_lines; i++) {
-    recv_values[i] = (int *)malloc(sizeof(int) * parameters->num_sockets * parameters->socket_row_size);
+    recv_values[i] = (int *)malloc(sizeof(int) * parameters->num_nodes * parameters->socket_row_size);
     if (!recv_values[i])
       j = ERROR_MALLOC;
   }
@@ -122,7 +122,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
       for (j = 0; j < data.blocks[i].num_lines; j++) {
         for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
 	  partner = data.blocks[i].lines[j].recvfrom_node[k];
-          if (partner == parameters->socket) {
+          if (partner == parameters->node) {
 	    printf("logical error 1 forward_interpreter\n");
 	    exit(1);
           } else {
@@ -133,7 +133,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
       for (j = 0; j < data.blocks[i].num_lines; j++) {
         for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
 	  partner = data.blocks[i].lines[j].sendto_node[k];
-          if (partner != parameters->socket) {
+          if (partner != parameters->node) {
             MPI_Isend(&values[i][j], 1, MPI_INT, partner * parameters->socket_row_size + parameters->socket_rank, 0, comm_row, &request[l++]);
           } else {
 	    printf("logical error 2 forward_interpreter\n");
@@ -145,7 +145,7 @@ int ext_mpi_generate_forward_interpreter(char *buffer_in, char *buffer_out,
       for (j = 0; j < data.blocks[i].num_lines; j++) {
         for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
 	  partner = data.blocks[i].lines[j].recvfrom_node[k];
-          if (partner != parameters->socket && partner >= 0) {
+          if (partner != parameters->node && partner >= 0) {
             if (recv_values[j][partner]) {
               values[i][j] = 2;
             } else {

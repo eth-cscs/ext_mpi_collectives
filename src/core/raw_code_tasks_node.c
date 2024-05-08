@@ -7,20 +7,21 @@
 
 int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
   int *nodes_recv = NULL, *nodes_send = NULL, node_rank, node_row_size = 1,
-      node_column_size = 1, node_size;
-  int node, num_nodes;
-  int nbuffer_out = 0, nbuffer_in = 0, i, j, k, l;
+      node_column_size = 1, node_size, socket_number, node, num_nodes,
+      nbuffer_out = 0, nbuffer_in = 0, num_sockets_per_node, i, j, k, l,
+      *rank_perm = NULL, *rank_back_perm = NULL, msizes_max = -1;
   struct data_algorithm data, data_org;
   struct parameters_block *parameters;
-  int *rank_perm = NULL, *rank_back_perm = NULL, msizes_max = -1;
   data.num_blocks = data_org.num_blocks = 0;
   data.blocks = data_org.blocks = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
-  node = parameters->socket;
-  num_nodes = parameters->num_sockets;
+  node = parameters->node;
+  num_nodes = parameters->num_nodes;
+  socket_number = parameters->socket_number;
+  num_sockets_per_node = parameters->num_sockets_per_node;
   node_rank = parameters->socket_rank;
   node_row_size = parameters->socket_row_size;
   node_column_size = parameters->socket_column_size;
@@ -221,6 +222,26 @@ int ext_mpi_generate_raw_code_tasks_node(char *buffer_in, char *buffer_out) {
             k--;
           }
         }
+      }
+    }
+    for (j = 0; j < data.blocks[i].num_lines; j++) {
+      for (k = 0; k < data.blocks[i].lines[j].recvfrom_max; k++) {
+        if (data.blocks[i].lines[j].recvfrom_node[k] <= -10) {
+          data.blocks[i].lines[j].recvfrom_node[k] = -10 - data.blocks[i].lines[j].recvfrom_node[k];
+	  data.blocks[i].lines[j].recvfrom_node[k] = data.blocks[i].lines[j].recvfrom_node[k] / node_row_size * node_row_size * num_sockets_per_node + data.blocks[i].lines[j].recvfrom_node[k] % node_row_size + socket_number * node_row_size;
+          data.blocks[i].lines[j].recvfrom_node[k] = -10 - data.blocks[i].lines[j].recvfrom_node[k];
+        } else if (data.blocks[i].lines[j].recvfrom_node[k] >= 0) {
+	  data.blocks[i].lines[j].recvfrom_node[k] = data.blocks[i].lines[j].recvfrom_node[k] / node_row_size * node_row_size * num_sockets_per_node + data.blocks[i].lines[j].recvfrom_node[k] % node_row_size + socket_number * node_row_size;
+	}
+      }
+      for (k = 0; k < data.blocks[i].lines[j].sendto_max; k++) {
+        if (data.blocks[i].lines[j].sendto_node[k] <= -10) {
+          data.blocks[i].lines[j].sendto_node[k] = -10 - data.blocks[i].lines[j].sendto_node[k];
+	  data.blocks[i].lines[j].sendto_node[k] = data.blocks[i].lines[j].sendto_node[k] / node_row_size * node_row_size * num_sockets_per_node + data.blocks[i].lines[j].sendto_node[k] % node_row_size + socket_number * node_row_size;
+          data.blocks[i].lines[j].sendto_node[k] = -10 - data.blocks[i].lines[j].sendto_node[k];
+        } else if (data.blocks[i].lines[j].sendto_node[k] >= 0) {
+	  data.blocks[i].lines[j].sendto_node[k] = data.blocks[i].lines[j].sendto_node[k] / node_row_size * node_row_size * num_sockets_per_node + data.blocks[i].lines[j].sendto_node[k] % node_row_size + socket_number * node_row_size;
+	}
       }
     }
   }

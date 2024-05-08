@@ -10,7 +10,7 @@ extern "C" {
 
 #ifdef XPMEM
 int ext_mpi_init_xpmem(MPI_Comm comm);
-int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *sendrecvbuf, int size, char ***sendrecvbufs);
+int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num_sockets, char *sendrecvbuf, int size, char ***sendrecvbufs);
 int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **sendrecvbufs);
 #endif
 

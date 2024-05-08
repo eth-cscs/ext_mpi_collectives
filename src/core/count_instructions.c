@@ -138,8 +138,8 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
     nbuffer1 += sprintf(buffer1 + nbuffer1,
                         " PARAMETER COLLECTIVE_TYPE ALLREDUCE_GROUP\n");
   }
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET %d\n", my_node);
-  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_SOCKETS %d\n",
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NODE %d\n", my_node);
+  nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER NUM_NODES %d\n",
                       my_mpi_size_row / my_cores_per_node_row);
   nbuffer1 +=
       sprintf(buffer1 + nbuffer1, " PARAMETER SOCKET_RANK %d\n", my_lrank_node);
@@ -203,7 +203,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
     goto error;
   if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_buffer_offset(buffer2, buffer1) < 0)
+  if (ext_mpi_generate_buffer_offset(buffer2, buffer1, NULL) < 0)
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)
     goto error;
@@ -220,7 +220,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   global_ranks =
       (int *)malloc(sizeof(int) * my_mpi_size_row * my_cores_per_node_column);
   code_size = ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, NULL,
-                                         NULL, 0, 0, NULL, reduction_op,
+                                         NULL, 0, NULL, reduction_op, NULL,
                                          global_ranks, NULL, sizeof(MPI_Comm), sizeof(MPI_Request), NULL, 1,
                                          NULL, 1, NULL, NULL, &gpu_byte_code_counter, 0);
   if (code_size < 0)
@@ -229,7 +229,7 @@ int ext_mpi_allreduce_init_draft(void *sendbuf, void *recvbuf, int count,
   if (!ip)
     goto error;
   if (ext_mpi_generate_byte_code(NULL, 0, 0, buffer1, NULL, NULL,
-                                 0, 0, NULL, reduction_op, global_ranks, ip,
+                                 0, NULL, reduction_op, NULL, global_ranks, ip,
                                  sizeof(MPI_Comm), sizeof(MPI_Request), NULL, 1, NULL, 1,
                                  NULL, NULL, &gpu_byte_code_counter, 0) < 0)
     goto error;
@@ -360,16 +360,15 @@ int ext_mpi_simulate_native(char *ip) {
       printf("socket_barrier\n");
 #endif
       break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_SET:
-      i1 = code_get_int(&ip);
+    case OPCODE_NODEBARRIER_ATOMIC_SET:
 #ifdef VERBOSE_PRINT
-      printf("socket_barrier_atomic_set %d\n", i1);
+      printf("node_barrier_atomic_set %d\n", i1);
 #endif
       break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
+    case OPCODE_NODEBARRIER_ATOMIC_WAIT:
       i1 = code_get_int(&ip);
 #ifdef VERBOSE_PRINT
-      printf("socket_barrier_atomic_wait %d\n", i1);
+      printf("node_barrier_atomic_wait %d\n", i1);
 #endif
       break;
     case OPCODE_REDUCE:
@@ -393,6 +392,31 @@ int ext_mpi_simulate_native(char *ip) {
         counters_size_reduce += i1 * sizeof(long int);
 #ifdef VERBOSE_PRINT
         printf("REDUCE_SUM_LONG_INT %p %p %d\n", p1, p2, i1);
+#endif
+        break;
+      }
+      break;
+    case OPCODE_INVREDUCE:
+      instruction2 = code_get_char(&ip);
+      switch (instruction2) {
+      case OPCODE_REDUCE_SUM_DOUBLE:
+        code_get_pointer(&ip);
+        code_get_pointer(&ip);
+        i1 = code_get_int(&ip);
+        counters_num_reduce++;
+        counters_size_reduce += i1 * sizeof(double);
+#ifdef VERBOSE_PRINT
+        printf("INV_REDUCE_SUM_DOUBLE %p %p %d\n", p1, p2, i1);
+#endif
+        break;
+      case OPCODE_REDUCE_SUM_LONG_INT:
+        code_get_pointer(&ip);
+        code_get_pointer(&ip);
+        i1 = code_get_int(&ip);
+        counters_num_reduce++;
+        counters_size_reduce += i1 * sizeof(long int);
+#ifdef VERBOSE_PRINT
+        printf("INV_REDUCE_SUM_LONG_INT %p %p %d\n", p1, p2, i1);
 #endif
         break;
       }
@@ -527,10 +551,9 @@ int ext_mpi_count_native(char *ip, double *counts, int *num_steps) {
       break;
     case OPCODE_SOCKETBARRIER:
       break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_SET:
-      i1 = code_get_int(&ip);
+    case OPCODE_NODEBARRIER_ATOMIC_SET:
       break;
-    case OPCODE_SOCKETBARRIER_ATOMIC_WAIT:
+    case OPCODE_NODEBARRIER_ATOMIC_WAIT:
       i1 = code_get_int(&ip);
       break;
     case OPCODE_REDUCE:

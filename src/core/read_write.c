@@ -191,11 +191,14 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   (*parameters)->iocounts = NULL;
   (*parameters)->iocounts_max = 0;
   (*parameters)->collective_type = collective_type_allreduce_group;
-  (*parameters)->socket = 0;
-  (*parameters)->num_sockets = 0;
+  (*parameters)->node = 0;
+  (*parameters)->num_nodes = 0;
+  (*parameters)->socket_number = 0;
   (*parameters)->socket_rank = 0;
   (*parameters)->socket_row_size = 1;
   (*parameters)->socket_column_size = 1;
+  (*parameters)->socket_size_barrier = 0;
+  (*parameters)->socket_size_barrier_small = 0;
   (*parameters)->num_sockets_per_node = 1;
   (*parameters)->copyin_method = 0;
   (*parameters)->copyin_factors = NULL;
@@ -246,11 +249,14 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
         if (strcmp(string2, "ROOT") == 0) {
           (*parameters)->root = integer1;
         }
-        if (strcmp(string2, "SOCKET") == 0) {
-          (*parameters)->socket = integer1;
+        if (strcmp(string2, "NODE") == 0) {
+          (*parameters)->node = integer1;
         }
-        if (strcmp(string2, "NUM_SOCKETS") == 0) {
-          (*parameters)->num_sockets = integer1;
+        if (strcmp(string2, "NUM_NODES") == 0) {
+          (*parameters)->num_nodes = integer1;
+        }
+        if (strcmp(string2, "SOCKET_NUMBER") == 0) {
+          (*parameters)->socket_number = integer1;
         }
         if (strcmp(string2, "SOCKET_RANK") == 0) {
           (*parameters)->socket_rank = integer1;
@@ -260,6 +266,12 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
         }
         if (strcmp(string2, "SOCKET_COLUMN_SIZE") == 0) {
           (*parameters)->socket_column_size = integer1;
+        }
+        if (strcmp(string2, "SOCKET_SIZE_BARRIER") == 0) {
+          (*parameters)->socket_size_barrier = integer1;
+        }
+        if (strcmp(string2, "SOCKET_SIZE_BSMALL") == 0) {
+          (*parameters)->socket_size_barrier_small = integer1;
         }
         if (strcmp(string2, "NODE_SOCKETS") == 0) {
           (*parameters)->num_sockets_per_node = integer1;
@@ -503,10 +515,12 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     break;
   default: ;
   }
-  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET %d\n",
-                         parameters->socket);
-  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NUM_SOCKETS %d\n",
-                         parameters->num_sockets);
+  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NODE %d\n",
+                         parameters->node);
+  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER NUM_NODES %d\n",
+                         parameters->num_nodes);
+  nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_NUMBER %d\n",
+                         parameters->socket_number);
   nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_RANK %d\n",
                          parameters->socket_rank);
   nbuffer_out +=
@@ -515,6 +529,12 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
   nbuffer_out +=
       sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_COLUMN_SIZE %d\n",
               parameters->socket_column_size);
+  nbuffer_out +=
+      sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_SIZE_BARRIER %d\n",
+              parameters->socket_size_barrier);
+  nbuffer_out +=
+      sprintf(buffer_out + nbuffer_out, " PARAMETER SOCKET_SIZE_BSMALL %d\n",
+              parameters->socket_size_barrier_small);
   nbuffer_out +=
       sprintf(buffer_out + nbuffer_out, " PARAMETER NODE_SOCKETS %d\n",
               parameters->num_sockets_per_node);
@@ -1031,11 +1051,14 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case esocket_barrier:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BARRIER");
       break;
-    case eset_socket_barrier:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_SOCKET_BARRIER");
+    case esocket_barrier_small:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SOCKET_BSMALL");
       break;
-    case ewait_socket_barrier:
-      nbuffer_out += sprintf(buffer_out + nbuffer_out, " WAIT_SOCKET_BARRIER");
+    case eset_node_barrier:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SET_NODE_BARRIER");
+      break;
+    case ewait_node_barrier:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " WAIT_NODE_BARRIER");
       break;
     case ememcpy:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMCPY");
@@ -1055,11 +1078,17 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case ereduc_:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " REDUC_");
       break;
+    case einvreduce:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " INVREDUCE");
+      break;
     case esreduce:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SREDUCE");
       break;
     case esreduc_:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SREDUC_");
+      break;
+    case esinvreduce:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SINVREDUCE");
       break;
     case eirecv:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " IRECV");
@@ -1114,6 +1143,15 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
       break;
     case egemv:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " GEMV");
+      break;
+    case ememory_fence:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMORY_fence");
+      break;
+    case ememory_fence_store:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMORY_FENCE_STORE");
+      break;
+    case ememory_fence_load:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " MEMORY_FENCE_LOAD");
       break;
     }
   }
@@ -1183,11 +1221,14 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   if (strcmp(cstring1, "SOCKET_BARRIER") == 0) {
     return esocket_barrier;
   }
-  if (strcmp(cstring1, "SET_SOCKET_BARRIER") == 0) {
-    return eset_socket_barrier;
+  if (strcmp(cstring1, "SOCKET_BSMALL") == 0) {
+    return esocket_barrier_small;
   }
-  if (strcmp(cstring1, "WAIT_SOCKET_BARRIER") == 0) {
-    return ewait_socket_barrier;
+  if (strcmp(cstring1, "SET_NODE_BARRIER") == 0) {
+    return eset_node_barrier;
+  }
+  if (strcmp(cstring1, "WAIT_NODE_BARRIER") == 0) {
+    return ewait_node_barrier;
   }
   if (strcmp(cstring1, "MEMCPY") == 0) {
     return ememcpy;
@@ -1207,11 +1248,17 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   if (strcmp(cstring1, "REDUC_") == 0) {
     return ereduc_;
   }
+  if (strcmp(cstring1, "INVREDUCE") == 0) {
+    return einvreduce;
+  }
   if (strcmp(cstring1, "SREDUCE") == 0) {
     return esreduce;
   }
   if (strcmp(cstring1, "SREDUC_") == 0) {
     return esreduc_;
+  }
+  if (strcmp(cstring1, "SINVREDUCE") == 0) {
+    return esinvreduce;
   }
   if (strcmp(cstring1, "IRECV") == 0) {
     return eirecv;
@@ -1263,6 +1310,15 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   }
   if (strcmp(cstring1, "GEMV") == 0) {
     return egemv;
+  }
+  if (strcmp(cstring1, "MEMORY_fence") == 0) {
+    return ememory_fence;
+  }
+  if (strcmp(cstring1, "MEMORY_FENCE_STORE") == 0) {
+    return ememory_fence_store;
+  }
+  if (strcmp(cstring1, "MEMORY_FENCE_LOAD") == 0) {
+    return ememory_fence_load;
   }
   return (enop);
 }
@@ -1551,9 +1607,7 @@ int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data) {
 }
 
 int ext_mpi_write_irecv_isend(char *buffer_out, struct line_irecv_isend *data, int ascii) {
-  if (data->buffer_type != eshmemo) {
-    return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdddd", data->type, data->buffer_type, data->offset, data->size, data->partner, data->tag);
-  } else if (!data->is_offset) {
+  if (!data->is_offset) {
     return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdddd", data->type, data->buffer_type, data->buffer_number, ecp, data->offset, data->size, data->partner, data->tag);
   } else {
     return ext_mpi_write_assembler_line(buffer_out, ascii, "ssdsdsdddd", data->type, data->buffer_type, data->buffer_number, ecpbuffer_offseto, data->offset_number, ecp, data->offset, data->size, data->partner, data->tag);

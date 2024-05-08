@@ -36,6 +36,7 @@ int ext_mpi_not_recursive = -1;
 int ext_mpi_copyin_method = -1;
 int *ext_mpi_copyin_factors = NULL;
 
+int ext_mpi_fast = 0;
 int ext_mpi_verbose = 0;
 int ext_mpi_debug = 1;
 static int is_initialised = 0;
@@ -58,8 +59,10 @@ static int read_env() {
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_NOT_RECURSIVE")) != NULL);
     if (var) {
-      ext_mpi_not_recursive = 1;
-      printf("# EXT_MPI not recursive\n");
+      if (sscanf(c, "%d", &var) >= 1){
+        ext_mpi_not_recursive = var;
+        printf("# EXT_MPI not recursive = %d\n", ext_mpi_not_recursive);
+      }
     }
   }
   MPI_Bcast(&ext_mpi_not_recursive, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -83,6 +86,18 @@ static int read_env() {
     }
   }
   MPI_Bcast(&ext_mpi_debug, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (mpi_comm_rank == 0) {
+    var = ((c = getenv("EXT_MPI_FAST")) != NULL);
+    if (var) {
+      if (sscanf(c, "%d", &var) >= 1){
+        ext_mpi_fast = var;
+      }
+      if (ext_mpi_verbose) {
+        printf("# EXT_MPI fast %d\n", ext_mpi_fast);
+      }
+    }
+  }
+  MPI_Bcast(&ext_mpi_fast, 1, MPI_INT, 0, MPI_COMM_WORLD);
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_ALTERNATING")) != NULL);
     if (var) {
@@ -665,7 +680,7 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
     group_size = ext_mpi_num_ports_factors(message_size, 0, comm, my_cores_per_node_row, num_sockets_per_node_, minimum_computation, &num_ports, &groups);
   }
   alt = ext_mpi_get_param(ext_mpi_alternating, comm, info, "ext_mpi_alternating", count * type_size < 10000000 && my_cores_per_node_row * my_cores_per_node_column > 1);
-  not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size!=comm_size_row/my_cores_per_node_row));
+  not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size != comm_size_row / (num_sockets_per_node_ * my_cores_per_node_row)));
   bit_identical = ext_mpi_get_param(ext_mpi_bit_identical, comm, info, "ext_mpi_bit_identical", 0);
   bit_reproducible = ext_mpi_get_param(ext_mpi_bit_reproducible, comm, info, "ext_mpi_bit_reproducible", 1);
   num_sockets_per_node = num_sockets_per_node_;
@@ -759,7 +774,7 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
     group_size = ext_mpi_num_ports_factors(message_size, 0, comm, my_cores_per_node, num_sockets_per_node_, minimum_computation, &num_ports, &groups);
   }
   alt = ext_mpi_get_param(ext_mpi_alternating, comm, info, "ext_mpi_alternating", count * type_size < 10000000 && my_cores_per_node > 1);
-  not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size!=comm_size_row/my_cores_per_node));
+  not_recursive = ext_mpi_get_param(ext_mpi_not_recursive, comm, info, "ext_mpi_not_recursive", (group_size != comm_size_row / (num_sockets_per_node_ * my_cores_per_node)));
   bit_reproducible = ext_mpi_get_param(ext_mpi_bit_reproducible, comm, info, "ext_mpi_bit_reproducible", 1);
   num_sockets_per_node = num_sockets_per_node_;
   if (ext_mpi_copyin_method >= 0) {
@@ -995,8 +1010,6 @@ int EXT_MPI_Test(int handle) {
     return -1;
   }
 }
-
-int EXT_MPI_Progress() { return (EXT_MPI_Progress_native()); }
 
 int EXT_MPI_Wait(int handle) {
   if (handle >= 0) {

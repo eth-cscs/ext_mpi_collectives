@@ -41,7 +41,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
 //  parameters->node /= (parameters->num_nodes / parameters->message_sizes_max);
 //  parameters->num_nodes = parameters->message_sizes_max;
-  num_nodes = parameters->num_sockets;
+  num_nodes = parameters->num_nodes;
   node_rank = parameters->socket_rank;
   // FIXME
   //  node_row_size=parameters->node_row_size;
@@ -54,7 +54,7 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
   counts = parameters->counts;
   iocounts_max = parameters->iocounts_max;
   iocounts = parameters->iocounts;
-  if (!parameters->on_gpu && parameters->num_sockets == 1 && parameters->message_sizes[0] <= CACHE_LINE_SIZE - OFFSET_FAST) {
+  if (!parameters->on_gpu && parameters->num_nodes == 1 && parameters->message_sizes[0] <= CACHE_LINE_SIZE - OFFSET_FAST) {
     fast = 1;
   }
   switch (parameters->data_type) {
@@ -132,10 +132,10 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
     if ((parameters->root == -1) ||
         ((parameters->root < 0) &&
          (-10 - parameters->root !=
-          parameters->socket * parameters->socket_row_size +
+          parameters->node * parameters->socket_row_size +
               parameters->socket_rank % parameters->socket_row_size)) ||
         (parameters->root ==
-         parameters->socket * parameters->socket_row_size +
+         parameters->node * parameters->socket_row_size +
              parameters->socket_rank % parameters->socket_row_size)) {
       if (parameters->copyin_method < 5) {
         add2 = 0;

@@ -1,4 +1,4 @@
-#include "buffer_offset.h"
+#include "no_waitall_zero.h"
 #include "read_write.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
   buffer_in[fread(buffer_in, 1, MAX_BUFFER_SIZE, stdin)] = 0;
   if (argc > 1)
     ext_mpi_switch_to_ascii(buffer_in);
-  nbuffer_out = ext_mpi_generate_buffer_offset(buffer_in, buffer_out, NULL);
+  nbuffer_out = ext_mpi_generate_no_waitall_zero(buffer_in, buffer_out);
   fwrite(buffer_out, 1, nbuffer_out, stdout);
   free(buffer_out);
   free(buffer_in);

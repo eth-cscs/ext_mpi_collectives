@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int allgather_core(struct data_algorithm *data, int num_sockets, int *num_ports, int task) {
+static int allgather_core(struct data_algorithm *data, int num_nodes, int *num_ports, int task) {
   int gbstep, i, step, line, gbstep_next;
   for (step = 0; num_ports[step]; step++);
   data->num_blocks = 0;
@@ -74,7 +74,7 @@ static int allgather_core(struct data_algorithm *data, int num_sockets, int *num
   return 0;
 }
 
-static int reduce_scatter_core(struct data_algorithm *data, int num_sockets, int *num_ports, int task) {
+static int reduce_scatter_core(struct data_algorithm *data, int num_nodes, int *num_ports, int task) {
   int gbstep, i, step, line, gbstep_next, lines_base, last_round;
   for (step = 0; num_ports[step]; step++);
   data->num_blocks = 0;
@@ -219,7 +219,7 @@ static int reduce_scatter_core(struct data_algorithm *data, int num_sockets, int
   return 0;
 }
 
-static int allreduce_core(struct data_algorithm *data, int num_sockets, int *num_ports, int task) {
+static int allreduce_core(struct data_algorithm *data, int num_nodes, int *num_ports, int task) {
   int gbstep, i, step, line, gbstep_next, lines_base, last_round, gbstep_middle;
   for (step = 0; num_ports[step]; step++);
   data->num_blocks = 0;
@@ -464,14 +464,14 @@ int ext_mpi_generate_allreduce_recursive(char *buffer_in, char *buffer_out) {
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   if (parameters->collective_type == collective_type_allgatherv) {
-    i = allgather_core(&data, parameters->num_sockets, parameters->num_ports, parameters->socket);
+    i = allgather_core(&data, parameters->num_nodes, parameters->num_ports, parameters->node);
   } else {
     for (i = 0; parameters->num_ports[i]; i++)
       ;
     if (parameters->num_ports[i - 1] < 0) {
-      i = reduce_scatter_core(&data, parameters->num_sockets, parameters->num_ports, parameters->socket);
+      i = reduce_scatter_core(&data, parameters->num_nodes, parameters->num_ports, parameters->node);
     } else {
-      i = allreduce_core(&data, parameters->num_sockets, parameters->num_ports, parameters->socket);
+      i = allreduce_core(&data, parameters->num_nodes, parameters->num_ports, parameters->node);
     }
   }
   if (i < 0)

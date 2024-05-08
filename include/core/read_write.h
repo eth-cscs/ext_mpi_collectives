@@ -30,16 +30,19 @@ enum edata_type {
 enum eassembler_type {
   enode_barrier,
   esocket_barrier,
-  eset_socket_barrier,
-  ewait_socket_barrier,
+  esocket_barrier_small,
+  eset_node_barrier,
+  ewait_node_barrier,
   ememcpy,
   ememcp_,
   esmemcpy,
   esmemcp_,
   ereduce,
   ereduc_,
+  einvreduce,
   esreduce,
   esreduc_,
+  esinvreduce,
   eirecv,
   eirec_,
   eisend,
@@ -57,16 +60,22 @@ enum eassembler_type {
   enop,
   estage,
   estart,
-  egemv
+  egemv,
+  ememory_fence,
+  ememory_fence_store,
+  ememory_fence_load
 };
 
 struct parameters_block {
   enum ecollective_type collective_type;
-  int socket;
-  int num_sockets;
+  int node;
+  int num_nodes;
+  int socket_number;
   int socket_rank;
   int socket_row_size;
   int socket_column_size;
+  int socket_size_barrier;
+  int socket_size_barrier_small;
   int num_sockets_per_node;
   int *counts;
   int counts_max;

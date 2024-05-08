@@ -52,10 +52,10 @@ int ext_mpi_init_xpmem(MPI_Comm comm) {
   return 0;
 }
 
-int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *sendrecvbuf, int size, char ***sendrecvbufs) {
+int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num_sockets, char *sendrecvbuf, int size, char ***sendrecvbufs) {
   MPI_Comm xpmem_comm_node;
   struct xpmem_addr addr;
-  int my_mpi_rank, my_mpi_size, i, j;
+  int my_mpi_rank, my_mpi_size, i, j, k;
   char *a;
   if (!sendrecvbuf) {
     sendrecvbufs = NULL;
@@ -67,7 +67,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *s
                   my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
   PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
-  *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char **));
+  *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char *));
   PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node);
   PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, xpmem_comm_node);
   size += PAGESIZE;
@@ -93,14 +93,24 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, char *s
       }
     }
   }
-  for (i = 0; i < my_mpi_rank; i++) {
+  for (j = 0; j < my_mpi_rank / (my_mpi_size / num_sockets) * (my_mpi_size / num_sockets); j++) {
     a = (*sendrecvbufs)[0];
-    for (j = 1; j < my_mpi_size; j++) {
-      (*sendrecvbufs)[j - 1] = (*sendrecvbufs)[j];
+    for (i = 0; i < my_mpi_size - 1; i++) {
+      (*sendrecvbufs)[i] = (*sendrecvbufs)[i + 1];
     }
     (*sendrecvbufs)[my_mpi_size - 1] = a;
   }
+  for (k = 0; k < num_sockets; k++) {
+    for (j = 0; j < my_mpi_rank % (my_mpi_size / num_sockets); j++) {
+      a = (*sendrecvbufs)[(my_mpi_size / num_sockets) * k];
+      for (i = (my_mpi_size / num_sockets) * k; i < (my_mpi_size / num_sockets) * (k + 1) - 1; i++) {
+	(*sendrecvbufs)[i] = (*sendrecvbufs)[i + 1];
+      }
+      (*sendrecvbufs)[(my_mpi_size / num_sockets) * (k + 1) - 1] = a;
+    }
+  }
   (*sendrecvbufs)[0] = sendrecvbuf;
+  MPI_Comm_free(&xpmem_comm_node);
   return 0;
 }
 
@@ -128,6 +138,7 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
     }
   }
   free(sendrecvbufs);
+  MPI_Comm_free(&xpmem_comm_node);
   return 0;
 }
 #endif

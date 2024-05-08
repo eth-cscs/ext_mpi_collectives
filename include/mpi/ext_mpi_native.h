@@ -56,7 +56,6 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts, con
                                  int copyin, int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem);
 int EXT_MPI_Start_native(int handle);
 int EXT_MPI_Test_native(int handle);
-int EXT_MPI_Progress_native();
 int EXT_MPI_Wait_native(int handle);
 int EXT_MPI_Done_native(int handle);
 
@@ -64,7 +63,7 @@ int EXT_MPI_Init_native();
 int EXT_MPI_Initialized_native();
 int EXT_MPI_Finalize_native();
 
-void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_EXT_MPI_COMM_WORLD, int *e_tag_max, void (*e_socket_barrier)(char *shmem, int *barrier_count, int socket_rank, int num_cores), void (*e_node_barrier)(char **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node), void (*e_socket_barrier_atomic_set)(char *shmem, int barrier_count, int entry), void (*e_socket_barrier_atomic_wait)(char *shmem, int *barrier_count, int entry));
+void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_EXT_MPI_COMM_WORLD, int *e_tag_max);
 
 #ifdef __cplusplus
 }
