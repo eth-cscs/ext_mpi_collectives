@@ -9,165 +9,165 @@
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 8 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-8                       7.22
+8                       5.28
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 16 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 16 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-16                      7.81
+16                      6.05
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 32 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 32 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-32                      8.81
+32                      6.80
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 64 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 64 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-64                     11.24
+64                      7.72
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 128 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 128 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-128                    12.51
+128                     8.32
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 256 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 256 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-256                    13.01
+256                     8.88
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 512 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 512 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-512                    13.49
+512                     9.15
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 1024 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 1024 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-1024                   13.54
+1024                    9.37
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 2048 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 2048 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-2048                   14.21
+2048                    9.60
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 4096 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 4096 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-4096                   16.80
+4096                    9.22
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 8192 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 8192 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-8192                   24.25
+8192                   11.11
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 16384 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 16384 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-16384                  34.23
+16384                  15.87
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 32768 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 32768 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-32768                  53.93
+32768                  23.18
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 65536 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 65536 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-65536                  93.72
+65536                  41.56
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 131072 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 131072 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-131072                171.76
+131072                 67.26
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 262144 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 262144 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-262144                325.68
+262144                128.98
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 524288 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 524288 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-524288                673.92
+524288                278.31
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 1048576 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 1048576 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-1048576              1343.38
+1048576               576.92
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 2097152 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 2097152 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-2097152              4100.41
+2097152              1241.16
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 4194304 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 4194304 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-4194304             12796.66
+4194304              5059.08
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 8388608 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 8388608 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-8388608             38947.24
+8388608             19778.63
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 16777216 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 16777216 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-16777216            83539.54
+16777216            48144.69
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 33554432 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 33554432 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-33554432           146913.27
+33554432            86489.35
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 67108864 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
 # EXT_MPI MPI tasks per socket: 128
 # EXT_MPI allreduce parameters 1 67108864 1 128 ports 1(-1)
 # EXT_MPI allreduce parameters copyin 6;1 -2 -2 -2 -2 -2 -2 -2 2 2 2 2 2 2 2
-67108864           285443.24
+67108864           171430.73
