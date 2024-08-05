@@ -485,7 +485,7 @@ static int get_rank_cyclic(int num_sockets, int num_ranks, int *ranks, int rank,
 }
 
 static int wait_allgather_cyclic(int num_sockets, int socket_size, int rank, int factor, int gbstep, int num_ranks, int *ranks, int *sizes, char *buffer_out, int ascii){
-  int nbuffer_out = 0, substep, size_local, flag, radix = 4, i;
+  int nbuffer_out = 0, substep, size_local, flag, radix = 4, lgbstep, i;
   if (ranks) {
     flag = 0;
     for (substep = 1; substep < factor; substep++) {
@@ -503,17 +503,21 @@ static int wait_allgather_cyclic(int num_sockets, int socket_size, int rank, int
     }
   } else {
     flag = 0;
-    for (substep = 1; substep < factor; substep *= radix) {
-      if (substep > 1) {
+    for (lgbstep = 1; lgbstep < factor; lgbstep *= radix) {
+      if (lgbstep > 1) {
         nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_node_barrier);
       }
-      size_local = 0;
-      for (i = 0; i + gbstep * substep / factor < socket_size && i < gbstep / factor; i++) {
-        size_local += sizes[(2 * socket_size + rank + gbstep * substep / factor + i) % socket_size];
+      for (substep = 1; substep < radix; substep++) {
+        size_local = 0;
+        for (i = 0; i + gbstep * lgbstep * substep / factor < socket_size && i < gbstep / factor; i++) {
+          size_local += sizes[(2 * socket_size + rank + gbstep * lgbstep * substep / factor + i) % socket_size];
+        }
       }
-      if (size_local > 0) {
-        nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_node_barrier, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, ((socket_size + gbstep * substep / factor) % socket_size + rank) % socket_size));
-        flag = 1;
+      for (substep = 1; substep < radix; substep++) {
+        if (size_local > 0) {
+          nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_node_barrier, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, ((socket_size + gbstep * lgbstep * substep / factor) % socket_size + rank) % socket_size));
+          flag = 1;
+	}
       }
     }
     if (flag) {
