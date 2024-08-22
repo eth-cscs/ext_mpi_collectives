@@ -33,3 +33,17 @@ for i in $(seq 1 10);
 do
   srun --cpu_bind=rank --mpi=pmi2 --nodes=1 --ntasks-per-node=288 --account=csstaff --constraint=gpu --partition=normal /capstor/scratch/cscs/ajocksch/install_osu_ext_mpi_todi/libexec/osu-micro-benchmarks/mpi/collective/osu_allreduce_persistent -m 8:67108864 -T mpi_float | tee todi_ext_mpi_288_4_$i.txt
 done
+
+export EXT_MPI_COPYIN='6;1 -72 -4 4 72'
+
+for i in $(seq 1 10);
+do
+  srun --cpu_bind=rank --mpi=pmi2 --nodes=1 --ntasks-per-node=288 --account=csstaff --constraint=gpu --partition=normal /capstor/scratch/cscs/ajocksch/install_osu_ext_mpi_todi/libexec/osu-micro-benchmarks/mpi/collective/osu_allreduce_persistent -m 8:67108864 -T mpi_float | tee todi_ext_mpi_288_6_$i.txt
+done
+
+export EXT_MPI_COPYIN='6;1 -288 288'
+
+for i in $(seq 1 10);
+do
+  srun --cpu_bind=rank --mpi=pmi2 --nodes=1 --ntasks-per-node=288 --account=csstaff --constraint=gpu --partition=normal /capstor/scratch/cscs/ajocksch/install_osu_ext_mpi_todi/libexec/osu-micro-benchmarks/mpi/collective/osu_allreduce_persistent -m 8:67108864 -T mpi_float | tee todi_ext_mpi_288_8_$i.txt
+done
