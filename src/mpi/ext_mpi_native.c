@@ -121,7 +121,10 @@ static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
     PMPI_Bcast(lglobal_ranks, my_cores_per_node_column, MPI_INT, 0,
                my_comm_node);
     PMPI_Barrier(my_comm_node);
-    PMPI_Comm_free(&my_comm_node);
+    if (PMPI_Comm_free(&my_comm_node) != MPI_SUCCESS) {
+      printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+      exit(1);
+    }
     PMPI_Gather(lglobal_ranks, my_cores_per_node_column, MPI_INT, global_ranks,
                 my_cores_per_node_column, MPI_INT, 0, comm_row);
     free(lglobal_ranks);
@@ -377,17 +380,29 @@ int EXT_MPI_Done_native(int handle) {
     }
   }
   if (shmem_comm_node_row != MPI_COMM_NULL) {
-    PMPI_Comm_free(&shmem_comm_node_row);
+    if (PMPI_Comm_free(&shmem_comm_node_row) != MPI_SUCCESS) {
+      printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+      exit(1);
+    }
   }
   if (shmem_comm_node_column != MPI_COMM_NULL) {
-    PMPI_Comm_free(&shmem_comm_node_column);
+    if (PMPI_Comm_free(&shmem_comm_node_column) != MPI_SUCCESS) {
+      printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+      exit(1);
+    }
   }
   if (ip) {
     if (shmem_comm_node_row2 != MPI_COMM_NULL) {
-      PMPI_Comm_free(&shmem_comm_node_row2);
+      if (PMPI_Comm_free(&shmem_comm_node_row2) != MPI_SUCCESS) {
+        printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+        exit(1);
+      }
     }
     if (shmem_comm_node_column2 != MPI_COMM_NULL) {
-      PMPI_Comm_free(&shmem_comm_node_column2);
+      if (PMPI_Comm_free(&shmem_comm_node_column2) != MPI_SUCCESS) {
+        printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+        exit(1);
+      }
     }
   }
   free(active_wait);
@@ -1016,14 +1031,20 @@ allreduce_short = 0;
                        my_cores_per_node_column, alt, shmem_zero, locmem);
   free(buffer2);
   free(buffer1);
-  MPI_Comm_free(&comm_subrow);
+  if (PMPI_Comm_free(&comm_subrow) != MPI_SUCCESS) {
+    printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+    exit(1);
+  }
   return iret;
 error:
   free(msizes);
   free(counts);
   free(buffer2);
   free(buffer1);
-  MPI_Comm_free(&comm_subrow);
+  if (PMPI_Comm_free(&comm_subrow) != MPI_SUCCESS) {
+    printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+    exit(1);
+  }
   return ERROR_MALLOC;
 }
 
@@ -1799,7 +1820,10 @@ int EXT_MPI_Init_native() {
 int EXT_MPI_Initialized_native() { return is_initialised; }
 
 int EXT_MPI_Finalize_native() {
-  PMPI_Comm_free(&ext_mpi_COMM_WORLD_dup);
+  if (PMPI_Comm_free(&ext_mpi_COMM_WORLD_dup) != MPI_SUCCESS) {
+    printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+    exit(1);
+  }
   return 0;
 }
 

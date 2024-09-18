@@ -47,7 +47,10 @@ int ext_mpi_init_xpmem(MPI_Comm comm) {
       ext_mpi_all_xpmem_id[i] = -1;
     }
   }
-  PMPI_Comm_free(&xpmem_comm_node);
+  if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
+    printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
+    exit(1);
+  }
   free(all_global_xpmem_id);
   return 0;
 }
@@ -58,7 +61,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
   int my_mpi_rank, my_mpi_size, i, j, k;
   char *a;
   if (!sendrecvbuf) {
-    sendrecvbufs = NULL;
+    *sendrecvbufs = NULL;
     return -1;
   }
   PMPI_Comm_rank(comm, &my_mpi_rank);
@@ -110,7 +113,10 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
     }
   }
   (*sendrecvbufs)[0] = sendrecvbuf;
-  MPI_Comm_free(&xpmem_comm_node);
+  if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
+    printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
+    exit(1);
+  }
   return 0;
 }
 
@@ -138,7 +144,10 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
     }
   }
   free(sendrecvbufs);
-  MPI_Comm_free(&xpmem_comm_node);
+  if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
+    printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
+    exit(1);
+  }
   return 0;
 }
 #endif
