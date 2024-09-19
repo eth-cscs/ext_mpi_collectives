@@ -10,7 +10,7 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out, MPI_Comm *
   struct line_irecv_isend data_irecv_isend;
   int nbuffer_out = 0, nbuffer_in = 0, nbuffer_in2 = 0, o1,
       buffer_offset_max = -1, locmem_max = 0, flag, i, j;
-  long int **buffer_offset, **buffer_offset2, *shmem_max = NULL;
+  long int **buffer_offset = NULL, **buffer_offset2 = NULL, *shmem_max = NULL;
   char line[1000];
   struct parameters_block *parameters;
   enum eassembler_type estring1;
@@ -120,6 +120,9 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out, MPI_Comm *
       }
       if (shmem_max[j] > buffer_offset2[j][buffer_offset_max - 1]) {
         buffer_offset2[j][buffer_offset_max - 1] = shmem_max[j];
+      }
+      if (shmem_max[j] < buffer_offset2[j][buffer_offset_max - 1]) {
+        shmem_max[j] = buffer_offset2[j][buffer_offset_max - 1];
       }
     }
   }

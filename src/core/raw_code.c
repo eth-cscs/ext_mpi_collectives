@@ -134,7 +134,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
               data_memcpy_reduce.buffer_number1 = buffer_number;
               data_memcpy_reduce.is_offset1 = 1;
               data_memcpy_reduce.offset_number1 = buffer_counter;
-              data_memcpy_reduce.offset1= add;
+              data_memcpy_reduce.offset1 = add;
               data_memcpy_reduce.buffer_type2 = eshmemo;
               data_memcpy_reduce.buffer_number2 = buffer_number;
               data_memcpy_reduce.is_offset2 = 1;
@@ -157,7 +157,7 @@ int ext_mpi_generate_raw_code(char *buffer_in, char *buffer_out) {
               data_memcpy_reduce.buffer_number1 = buffer_number;
               data_memcpy_reduce.is_offset1 = 1;
               data_memcpy_reduce.offset_number1 = buffer_counter;
-              data_memcpy_reduce.offset1= adds;
+              data_memcpy_reduce.offset1 = adds;
               data_memcpy_reduce.buffer_type2 = eshmemo;
               data_memcpy_reduce.buffer_number2 = buffer_number;
               data_memcpy_reduce.is_offset2 = 1;
