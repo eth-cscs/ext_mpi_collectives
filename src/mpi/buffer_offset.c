@@ -24,8 +24,10 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out, MPI_Comm *
     nbuffer_in2 += flag =
         ext_mpi_read_line(buffer_in + nbuffer_in2, line, parameters->ascii_in);
     if (ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce) >= 0) {
-      if ((data_memcpy_reduce.type == ememcpy) || (data_memcpy_reduce.type == ereduce) ||
-          (data_memcpy_reduce.type == esmemcpy) || (data_memcpy_reduce.type == esreduce)) {
+      if (data_memcpy_reduce.type == ememcpy || data_memcpy_reduce.type == ereduce ||
+          data_memcpy_reduce.type == esmemcpy || data_memcpy_reduce.type == esreduce ||
+	  data_memcpy_reduce.type == ememcp_ || data_memcpy_reduce.type == ereduc_ ||
+          data_memcpy_reduce.type == esmemcp_ || data_memcpy_reduce.type == esreduc_) {    
         if (data_memcpy_reduce.buffer_type1 == eshmemo && data_memcpy_reduce.is_offset1 && data_memcpy_reduce.offset_number1 > buffer_offset_max) {
           buffer_offset_max = data_memcpy_reduce.offset_number1;
         }
@@ -34,7 +36,8 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out, MPI_Comm *
         }
       }
     } else if (ext_mpi_read_irecv_isend(line, &data_irecv_isend) >= 0) {
-      if (data_irecv_isend.type == eisend || data_irecv_isend.type == eirecv) {
+      if (data_irecv_isend.type == eisend || data_irecv_isend.type == eirecv ||
+          data_irecv_isend.type == eisen_ || data_irecv_isend.type == eirec_) {
 	if (data_irecv_isend.buffer_type == eshmemo && data_irecv_isend.is_offset && data_irecv_isend.offset_number > buffer_offset_max) {
 	  buffer_offset_max = data_irecv_isend.offset_number;
 	}

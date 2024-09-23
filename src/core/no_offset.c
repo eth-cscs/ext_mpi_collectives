@@ -20,7 +20,8 @@ data_memcpy_reduce.type = enop;
         ext_mpi_read_line(buffer_in + nbuffer_in, line, parameters->ascii_in);
     if (flag > 0) {
       if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
-        if ((estring1 == eirecv || estring1 == eisend) &&
+        if ((estring1 == eirecv || estring1 == eisend ||
+	     estring1 == eirec_ || estring1 == eisen_) &&
             (ext_mpi_read_irecv_isend(line, &data_irecv_isend) >= 0)) {
           if (data_irecv_isend.is_offset) {
             data_irecv_isend.is_offset = 0;
@@ -31,8 +32,10 @@ data_memcpy_reduce.type = enop;
             }
           }
           nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
-        } else if (((estring1 == ememcpy) || (estring1 == ereduce) ||
-                   (estring1 == esmemcpy) || (estring1 == esreduce)) &&
+        } else if ((estring1 == ememcpy || estring1 == ereduce ||
+                    estring1 == esmemcpy || estring1 == esreduce ||
+		    estring1 == ememcp_ || estring1 == ereduc_ ||
+                    estring1 == esmemcp_ || estring1 == esreduc_) &&
                    (ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce) >= 0)) {
           if (data_memcpy_reduce.is_offset1) {
             data_memcpy_reduce.is_offset1 = 0;
