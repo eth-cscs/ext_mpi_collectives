@@ -14,6 +14,8 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
                                     int size_shared, int num_segments, int **shmemid_gpu,
                                     char ***shmem_gpu);
 int ext_mpi_gpu_destroy_shared_memory(int num_segments, int *shmemid_gpu, char **shmem_gpu, char *comm_code);
+int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_sockets, char *sendrecvbuf, int size, char ***sendrecvbufs);
+int ext_mpi_sendrecvbuf_done_gpu(MPI_Comm comm, int my_cores_per_node, char **sendrecvbufs);
 
 #ifdef __cplusplus
 }
