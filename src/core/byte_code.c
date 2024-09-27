@@ -685,10 +685,10 @@ int ext_mpi_generate_byte_code(char **shmem,
           reduce = 1;
         }
         if (estring1a == esendbufp) {
-          p1 = sendbuf + integer1;
+          p1 = sendbufs[data_memcpy_reduce.buffer_number1] + integer1;
         } else {
           if (estring1a == erecvbufp) {
-            p1 = recvbuf + integer1;
+            p1 = recvbufs[data_memcpy_reduce.buffer_number1] + integer1;
           } else {
             if (shmem) {
               p1 = (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1);
@@ -698,10 +698,10 @@ int ext_mpi_generate_byte_code(char **shmem,
           }
         }
         if (estring2 == esendbufp) {
-          p2 = sendbuf + integer2;
+          p2 = sendbufs[data_memcpy_reduce.buffer_number2] + integer2;
         } else {
           if (estring2 == erecvbufp) {
-            p2 = recvbuf + integer2;
+            p2 = recvbufs[data_memcpy_reduce.buffer_number2] + integer2;
           } else {
             if (shmem) {
               p2 = (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2);

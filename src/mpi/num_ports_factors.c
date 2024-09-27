@@ -66,7 +66,7 @@ void ext_mpi_set_ports_single_node(int num_sockets_per_node, int *num_ports, int
 
 static int get_group_size(int *num_ports, int *groups){
   int group_size, i;
-  if (num_ports[1]) {
+  if (num_ports[0]) {
     group_size = 1;
   } else {
     group_size = 0;

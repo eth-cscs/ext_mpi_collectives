@@ -441,12 +441,12 @@ int ext_mpi_allreduce_init_debug(const void *sendbuf, void *recvbuf, int count,
       ext_mpi_gpu_memcpy_hd(recvbuf_ref, recvbuf_hh, count * type_size);
     }
     if (type_size == sizeof(long int)){
-      PMPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, comm_row);
+      PMPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_LONG, op, comm);
       if (ext_mpi_allreduce_init_general(sendbuf_h, recvbuf, count, MPI_LONG, op, comm, info, handle)<0)
         goto error;
     }else{
-      PMPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_INT, op, comm_row);
-      if (etx_mpi_allreduce_init_general(sendbuf_h, recvbuf, count, MPI_INT, op, comm, info, handle)<0)
+      PMPI_Allreduce(sendbuf_h, recvbuf_ref, count, MPI_INT, op, comm);
+      if (ext_mpi_allreduce_init_general(sendbuf_h, recvbuf, count, MPI_INT, op, comm, info, handle)<0)
         goto error;
     }
     if (EXT_MPI_Start(*handle) < 0)
@@ -719,7 +719,7 @@ int ext_mpi_bcast_init_debug(void *buffer, int count, MPI_Datatype datatype,
       ((long int *)buffer_hh)[i] = world_rankd * count + i + 73;
     }
     ext_mpi_gpu_memcpy_hd(buffer_ref, buffer_hh, count * type_size);
-    MPI_Bcast(buffer_hh, count, MPI_LONG, root, comm_row);
+    MPI_Bcast(buffer_hh, count, MPI_LONG, root, comm);
     if (ext_mpi_bcast_init_general(buffer_ref, count, datatype, root, comm, info, handle) < 0)
     if (EXT_MPI_Start(*handle) < 0)
       goto error;

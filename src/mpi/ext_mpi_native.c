@@ -877,16 +877,22 @@ allreduce_short = 0;
     for (i = 0; i < my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node); i++) {
       ranks[i] = i;
     }
-    ext_mpi_rank_order(my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node), factors_max, factors, ranks);
-    nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER RANK_PERM");
-    for (i = 0; i < my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node); i++) {
-      nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", ranks[i]);
+    if (my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
+      ext_mpi_rank_order(my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node), factors_max, factors, ranks);
+      nbuffer1 += sprintf(buffer1 + nbuffer1, " PARAMETER RANK_PERM");
+      for (i = 0; i < my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node); i++) {
+        nbuffer1 += sprintf(buffer1 + nbuffer1, " %d", ranks[i]);
+      }
+      nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
+      if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
+        goto error;
+    } else {
+      buffer_temp = buffer1;
+      buffer1 = buffer2;
+      buffer2 = buffer_temp;
     }
-    nbuffer1 += sprintf(buffer1 + nbuffer1, "\n");
     free(ranks);
     free(factors);
-    if (ext_mpi_generate_rank_permutation_forward(buffer1, buffer2) < 0)
-      goto error;
   } else {
     buffer_temp = buffer1;
     buffer1 = buffer2;
@@ -904,7 +910,7 @@ allreduce_short = 0;
     *padding_factor = ext_mpi_greatest_common_divisor(parameters->message_sizes_max, parameters->socket_row_size);
     ext_mpi_delete_parameters(parameters);
   }
-  if (!not_recursive) {
+  if (!not_recursive && my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
     if (ext_mpi_generate_rank_permutation_backward(buffer1, buffer2) < 0)
       goto error;
   } else {
