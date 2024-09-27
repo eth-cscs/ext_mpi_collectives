@@ -273,6 +273,9 @@ int EXT_MPI_Done_native(int handle) {
   MPI_Comm shmem_comm_node_row, shmem_comm_node_column, shmem_comm_node_row2,
       shmem_comm_node_column2;
   struct header_byte_code *header;
+#ifdef GPU_ENABLED
+  int gpu_is_device_p;
+#endif
   EXT_MPI_Wait_native(handle);
   ip = comm_code[handle];
   header = (struct header_byte_code *)ip;
@@ -310,7 +313,8 @@ int EXT_MPI_Done_native(int handle) {
 #endif
   ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, shmem_sizes, shmemid, shmem, comm_code[handle]);
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(header->recvbufs[0])) {
+  gpu_is_device_p = gpu_is_device_pointer(header->recvbufs[0]);
+  if (gpu_is_device_p) {
     ext_mpi_sendrecvbuf_done_gpu(shmem_comm_node_row, header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
     ext_mpi_sendrecvbuf_done_gpu(shmem_comm_node_row, header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
   } else {
@@ -369,10 +373,7 @@ int EXT_MPI_Done_native(int handle) {
 #endif
     ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, shmem_sizes, shmemid, shmem, comm_code[handle + 1]);
 #ifdef GPU_ENABLED
-    if (gpu_is_device_pointer(header->recvbufs[0])) {
-      ext_mpi_sendrecvbuf_done_gpu(shmem_comm_node_row2, header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
-      ext_mpi_sendrecvbuf_done_gpu(shmem_comm_node_row2, header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
-    } else {
+    if (!gpu_is_device_p) {
 #endif
 #ifndef XPMEM
     free(header->sendbufs);
@@ -572,8 +573,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       goto error;
 #ifdef GPU_ENABLED
     if (gpu_is_device_pointer(recvbuf)) {
-      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
-      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
       if (shmem_zero) {
         shmem_gpu = shmem;
         shmemid_gpu = NULL;

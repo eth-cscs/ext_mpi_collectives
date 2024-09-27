@@ -2,6 +2,11 @@
 #include "constants.h"
 #include "byte_code.h"
 #include "ext_mpi_native_exec.h"
+#ifdef GPU_ENABLED
+#include "gpu_core.h"
+#include "gpu_shmem.h"
+#include "cuda_gemv.h"
+#endif
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
