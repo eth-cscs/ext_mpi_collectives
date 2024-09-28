@@ -25,9 +25,9 @@ int main(int argc, char *argv[]) {
   double timer = 0.0;
   double avg_time = 0.0, max_time = 0.0, min_time = 0.0;
   void *sendbuf, *recvbuf;
-#ifdef GPU_ENABLED
-  void *sendbuf_device, *recvbuf_device;
-#endif
+//#ifdef GPU_ENABLED
+//  void *sendbuf_device, *recvbuf_device;
+//#endif
   MPI_Comm new_comm;
   MPI_Request request;
   MPI_Info info;
@@ -47,16 +47,24 @@ int main(int argc, char *argv[]) {
   if (in_place) {
     sendbuf = MPI_IN_PLACE;
   } else {
+#ifndef GPU_ENABLED
     sendbuf = malloc(bufsize);
+#else
+    cudaMalloc(&sendbuf, bufsize);
+#endif
   }
+#ifndef GPU_ENABLED
   recvbuf = malloc(bufsize);
+#else
+  cudaMalloc(&recvbuf, bufsize);
+#endif
   counts = (int*)malloc(numprocs*sizeof(int));
   displs = (int*)malloc(numprocs*sizeof(int));
 
-#ifdef GPU_ENABLED
-  cudaMalloc(&sendbuf_device, bufsize);
-  cudaMalloc(&recvbuf_device, bufsize);
-#endif
+//#ifdef GPU_ENABLED
+//  cudaMalloc(&sendbuf_device, bufsize);
+//  cudaMalloc(&recvbuf_device, bufsize);
+//#endif
 
   if (rank == 0) {
     printf("# num_tasks message_size avg_time_ref min_time_ref max_time_ref avg_time min_time max_time\n");
@@ -125,14 +133,14 @@ int main(int argc, char *argv[]) {
             t_start = MPI_Wtime();
             switch (COLLECTIVE_TYPE){
               case 0:
-#ifdef GPU_ENABLED
-          cudaMemcpy(sendbuf, sendbuf_device, size * type_size, cudaMemcpyDeviceToHost);
-#endif
+//#ifdef GPU_ENABLED
+//          cudaMemcpy(sendbuf, sendbuf_device, size * type_size, cudaMemcpyDeviceToHost);
+//#endif
               MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
                             new_comm);
-#ifdef GPU_ENABLED
-          cudaMemcpy(recvbuf_device, recvbuf, size * type_size, cudaMemcpyHostToDevice);
-#endif
+//#ifdef GPU_ENABLED
+//          cudaMemcpy(recvbuf_device, recvbuf, size * type_size, cudaMemcpyHostToDevice);
+//#endif
               break;
               case 1:
               MPI_Reduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, 0,
@@ -161,14 +169,14 @@ int main(int argc, char *argv[]) {
             MPI_Barrier(new_comm);
 
             t_start = MPI_Wtime();
-#ifdef GPU_ENABLED
-          cudaMemcpy(sendbuf, sendbuf_device, size * type_size, cudaMemcpyDeviceToHost);
-#endif
+//#ifdef GPU_ENABLED
+//          cudaMemcpy(sendbuf, sendbuf_device, size * type_size, cudaMemcpyDeviceToHost);
+//#endif
             MPI_Start(&request);
             MPI_Wait(&request, MPI_STATUS_IGNORE);
-#ifdef GPU_ENABLED
-          cudaMemcpy(recvbuf_device, recvbuf, size * type_size, cudaMemcpyHostToDevice);
-#endif
+//#ifdef GPU_ENABLED
+//          cudaMemcpy(recvbuf_device, recvbuf, size * type_size, cudaMemcpyHostToDevice);
+//#endif
             t_stop = MPI_Wtime();
             timer += t_stop - t_start;
 
@@ -219,14 +227,22 @@ int main(int argc, char *argv[]) {
 
   free(displs);
   free(counts);
-#ifdef GPU_ENABLED
-  cudaFree(sendbuf_device);
-  cudaFree(recvbuf_device);
-#endif
+//#ifdef GPU_ENABLED
+//  cudaFree(sendbuf_device);
+//  cudaFree(recvbuf_device);
+//#endif
   if (!in_place) {
+#ifndef GPU_ENABLED
     free(sendbuf);
+#else
+    cudaFree(sendbuf);
+#endif
   }
+#ifndef GPU_ENABLED
   free(recvbuf);
+#else
+  cudaFree(recvbuf);
+#endif
 
   MPI_Finalize();
 

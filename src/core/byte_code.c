@@ -483,7 +483,7 @@ int ext_mpi_generate_byte_code(char **shmem,
         code_put_pointer(&ip, header->locmem, isdryrun);
       }
 #ifdef GPU_ENABLED
-      if (on_gpu && (header->num_cores == 1 && num_sockets_per_node == 1)) {
+      if (on_gpu && !(header->num_cores == 1 && num_sockets_per_node == 1)) {
         code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
       }
 #endif
@@ -518,7 +518,7 @@ int ext_mpi_generate_byte_code(char **shmem,
       integer4 = data_irecv_isend.tag;
       if (estring1 == eisend) {
 #ifdef GPU_ENABLED
-        if (on_gpu && (header->num_cores == 1 && num_sockets_per_node == 1) && isend) {
+        if (on_gpu && !(header->num_cores == 1 && num_sockets_per_node == 1) && isend) {
           code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
           isend = 0;
         }

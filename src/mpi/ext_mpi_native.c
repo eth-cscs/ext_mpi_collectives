@@ -297,7 +297,7 @@ int EXT_MPI_Done_native(int handle) {
 #ifdef GPU_ENABLED
   if (header->shmem_gpu) {
     if (header->shmemid_gpu) {
-      ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
+      ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
     }
     header->shmem_gpu = NULL;
     header->shmemid_gpu = NULL;
@@ -357,7 +357,7 @@ int EXT_MPI_Done_native(int handle) {
 #ifdef GPU_ENABLED
     if (header->shmem_gpu) {
       if (header->shmemid_gpu) {
-        ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
+        ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
       }
       header->shmem_gpu = NULL;
       header->shmemid_gpu = NULL;
@@ -493,7 +493,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       shmemid_gpu = NULL;
     } else {
       ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
-                                      comm_column, my_cores_per_node_column,
                                       shmem_size - barriers_size * 2, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
     }
   } else {
@@ -578,7 +577,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
         shmemid_gpu = NULL;
       } else {
         ext_mpi_gpu_setup_shared_memory(comm_row, my_cores_per_node_row,
-                                        comm_column, my_cores_per_node_column,
                                         shmem_size - barriers_size * 2, num_sockets_per_node, &shmemid_gpu, &shmem_gpu);
       }
     } else {
