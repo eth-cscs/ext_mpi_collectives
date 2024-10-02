@@ -12,13 +12,19 @@
 #ifdef GPU_ENABLED
 struct mem_addresses {
   void *dest, *src;
-  int size, reduce;
+  int size, start, reduce, number;
   struct mem_addresses *next;
+};
+
+struct gpu_stream {
+  int number;
+  struct mem_addresses *mem_read_write;
+  struct gpu_stream *next;
 };
 
 static int gpu_add_to_mem_addresses_range(struct mem_addresses **list,
                                           void *dest, void *src, int size,
-                                          int reduce) {
+                                          int reduce, int number) {
   struct mem_addresses *p, *p2;
   p = (struct mem_addresses *)malloc(sizeof(struct mem_addresses));
   if (!p)
@@ -27,6 +33,8 @@ static int gpu_add_to_mem_addresses_range(struct mem_addresses **list,
   p->src = src;
   p->size = size;
   p->reduce = reduce;
+  p->number = number;
+  p->start = 0;
   if (!(*list)) {
     p->next = *list;
     *list = p;
@@ -52,6 +60,33 @@ static void gpu_delete_mem_addresses_range(struct mem_addresses **list) {
   }
 }
 
+static void gpu_merge_streams(struct gpu_stream *stream1, struct gpu_stream *stream2) {
+  struct gpu_stream *stream3;
+  struct mem_addresses *p1, *p2, *p3;
+  p1 = stream1->mem_read_write;
+  p2 = stream2->mem_read_write;
+  while (p2) {
+    while (p1->next && p1->next->number < p2->number) {
+      p1 = p1->next;
+    }
+    if (p1->next) {
+      p3 = p1->next->next;
+      p1->next = p2;
+      p1->next->next = p3;
+    } else {
+      p1->next = p2;
+      p1->next->next = NULL;
+    }
+    p2 = p2->next;
+  }
+  stream3 = stream1;
+  while (stream3->next != stream2) {
+    stream3 = stream3->next;
+  }
+  stream3->next = stream3->next->next;
+  free(stream2);
+}
+
 static int gpu_is_in_mem_addresses_range(struct mem_addresses *list, void *dest,
                                          void *src, int size) {
   while (list) {
@@ -60,7 +95,9 @@ static int gpu_is_in_mem_addresses_range(struct mem_addresses *list, void *dest,
         ((((char *)dest + size) > (char *)list->dest) &&
             ((char *)dest < ((char *)list->dest + list->size))) ||
         ((((char *)src + size) > (char *)list->dest) &&
-            ((char *)src < ((char *)list->dest + list->size)))) {
+            ((char *)src < ((char *)list->dest + list->size))) ||
+        ((((char *)src + size) > (char *)list->src) &&
+            ((char *)src < ((char *)list->src + list->size)))) {
       return 1;
     } else {
       list = list->next;
@@ -69,47 +106,127 @@ static int gpu_is_in_mem_addresses_range(struct mem_addresses *list, void *dest,
   return 0;
 }
 
-struct gpu_stream {
-  int number;
-  struct mem_addresses *mem_read_write;
-  struct gpu_stream *next;
-};
+static void gpu_byte_code_arrange(struct gpu_stream *streams) {
+  struct gpu_stream *stream1, *stream2;
+  struct mem_addresses *p1, *p2;
+  int flag = 1, i;
+  while (flag) {
+    flag = 0;
+    stream1 = streams;
+    while (stream1) {
+      stream2 = stream1->next;
+      while (stream2) {
+	p1 = stream2->mem_read_write;
+	while (p1) {
+	  if (1 || gpu_is_in_mem_addresses_range(stream1->mem_read_write, p1->dest, p1->src, p1->size)) {
+	    gpu_merge_streams(stream1, stream2);
+	    p1 = NULL;
+	    stream1 = stream2 = NULL;
+	    flag = 1;
+	  } else {
+	    p1 = p1->next;
+	  }
+	}
+	if (stream2) stream2 = stream2->next;
+      }
+      if (stream1) stream1 = stream1->next;
+    }
+  }
+  stream1 = streams;
+  while (stream1) {
+    flag = 1;
+    while (flag) {
+      flag = 0;
+      p1 = stream1->mem_read_write;
+      while (p1) {
+        p2 = p1->next;
+        while (p2) {
+	  if (p1->src < p2->src && p1->src + p1->size > p2->src) {
+            i = p2->src - p1->src;
+	    p2->start += i;
+	    p2->size += i;
+	    p2->src -= i;
+	    p2->dest -= i;
+            flag = 1;
+	  }
+	  if (p1->dest < p2->src && p1->dest + p1->size > p2->src) {
+            i = p2->src - p1->dest;
+	    p2->start += i;
+	    p2->size += i;
+	    p2->src -= i;
+	    p2->dest -= i;
+            flag = 1;
+	  }
+	  if (p1->src < p2->dest && p1->src + p1->size > p2->dest) {
+            i = p2->dest - p1->src;
+	    p2->start += i;
+	    p2->size += i;
+	    p2->src -= i;
+	    p2->dest -= i;
+            flag = 1;
+	  }
+	  if (p1->dest < p2->dest && p1->dest + p1->size > p2->dest)  {
+            i = p2->dest - p1->dest;
+	    p2->start += i;
+	    p2->size += i;
+	    p2->src -= i;
+	    p2->dest -= i;
+            flag = 1;
+	  }
+          if (p2->src < p1->src && p2->src + p2->size > p1->src) {
+            i = p1->src - p2->src;
+	    p1->start += i;
+	    p1->size += i;
+	    p1->src -= i;
+	    p1->dest -= i;
+            flag = 1;
+	  }
+          if (p2->dest < p1->src && p2->dest + p2->size > p1->src) {
+            i = p1->src - p2->dest;
+	    p1->start += i;
+	    p1->size += i;
+	    p1->src -= i;
+	    p1->dest -= i;
+            flag = 1;
+	  }
+	  if (p2->src < p1->dest && p2->src + p2->size > p1->dest) {
+            i = p1->dest - p2->src;
+	    p1->start += i;
+	    p1->size += i;
+	    p1->src -= i;
+	    p1->dest -= i;
+            flag = 1;
+	  }
+	  if (p2->dest < p1->dest && p2->dest + p2->size > p1->dest) {
+            i = p1->dest - p2->dest;
+	    p1->start += i;
+	    p1->size += i;
+	    p1->src -= i;
+	    p1->dest -= i;
+            flag = 1;
+	  }
+          p2 = p2->next;
+        }
+        p1 = p1->next;
+      }
+    }
+    if (stream1) stream1 = stream1->next;
+  }
+}
 
 static int gpu_add_stream_and_get_stream_number(struct gpu_stream **streams,
                                                 void *dest, void *src,
-                                                int count, int reduce) {
+                                                int count, int reduce, int number) {
   struct gpu_stream *lstreams, *lstreamst;
-  int number = -1;
-  lstreams = *streams;
-  while (lstreams) {
-    if (gpu_is_in_mem_addresses_range(lstreams->mem_read_write, dest, src,
-                                      count)) {
-      number = lstreams->number;
-      lstreamst = lstreams->next;
-      while (lstreamst) {
-        if (gpu_is_in_mem_addresses_range(lstreamst->mem_read_write, dest, src,
-                                          count)) {
-          return -1;
-        }
-        lstreamst = lstreamst->next;
-      }
-      gpu_add_to_mem_addresses_range(&lstreams->mem_read_write, dest, src,
-                                     count, reduce);
-      return number;
-    }
-    if (lstreams->number > number) {
-      number = lstreams->number;
-    }
-    lstreams = lstreams->next;
-  }
-  number++;
+  int stream_number;
+  stream_number = number;
   lstreams = (struct gpu_stream *)malloc(sizeof(struct gpu_stream));
   if (!lstreams)
     return ERROR_MALLOC;
-  lstreams->number = number;
+  lstreams->number = stream_number;
   lstreams->mem_read_write = NULL;
   gpu_add_to_mem_addresses_range(&lstreams->mem_read_write, dest, src, count,
-                                 reduce);
+                                 reduce, number);
   if (!(*streams)) {
     lstreams->next = *streams;
     *streams = lstreams;
@@ -121,7 +238,7 @@ static int gpu_add_stream_and_get_stream_number(struct gpu_stream **streams,
     }
     lstreamst->next = lstreams;
   }
-  return number;
+  return stream_number;
 }
 
 static void gpu_delete_streams(struct gpu_stream **streams) {
@@ -162,7 +279,7 @@ static int gpu_get_num_entries(struct gpu_stream *streams) {
 }
 
 static int gpu_get_entry(struct gpu_stream *streams, int stream, int entry,
-                         void **dest, void **src, int *count, int *reduce) {
+                         void **dest, void **src, int *count, int *reduce, int *start) {
   struct mem_addresses *p;
   int i;
   for (i = 0; (i < stream) && streams; i++) {
@@ -180,6 +297,7 @@ static int gpu_get_entry(struct gpu_stream *streams, int stream, int entry,
   *src = p->src;
   *count = p->size;
   *reduce = p->reduce;
+  *start = p->start;
   return 1;
 }
 
@@ -187,8 +305,9 @@ static void gpu_byte_code_flush1(struct gpu_stream *streams,
                                  char *gpu_byte_code, int gpu_byte_code_counter,
                                  int type_size) {
   long int lcount, max_size;
-  int num_entries, num_streams, stream, entry, count, reduce;
+  int num_entries, num_streams, stream, entry, count, reduce, start;
   void *dest, *src;
+  gpu_byte_code_arrange(streams);
   if (gpu_byte_code) {
     gpu_byte_code += gpu_byte_code_counter;
     num_streams = ((int *)gpu_byte_code)[1] = gpu_get_num_streams(streams);
@@ -197,7 +316,7 @@ static void gpu_byte_code_flush1(struct gpu_stream *streams,
     for (entry = 0; entry < num_entries; entry++) {
       for (stream = 0; stream < num_streams; stream++) {
         if (gpu_get_entry(streams, stream, entry, &dest, &src, &count,
-                          &reduce)) {
+                          &reduce, &start)) {
           count /= type_size;
           lcount = count;
           if (reduce) {
@@ -205,15 +324,20 @@ static void gpu_byte_code_flush1(struct gpu_stream *streams,
           }
           ((void **)(gpu_byte_code + 2 * sizeof(int) + sizeof(long int) +
                      (entry * num_streams + stream) *
-                         (2 * sizeof(void *) + sizeof(long int))))[0] = dest;
+                         (2 * sizeof(void *) + 2 * sizeof(long int))))[0] = dest;
           ((void **)(gpu_byte_code + 2 * sizeof(int) + sizeof(long int) +
                      (entry * num_streams + stream) *
-                         (2 * sizeof(void *) + sizeof(long int))))[1] = src;
+                         (2 * sizeof(void *) + 2 * sizeof(long int))))[1] = src;
           ((long int *)(gpu_byte_code + 2 * sizeof(int) + sizeof(long int) +
                         2 * sizeof(void *) +
                         (entry * num_streams + stream) *
-                            (2 * sizeof(void *) + sizeof(long int))))[0] =
+                            (2 * sizeof(void *) + 2 * sizeof(long int))))[0] =
               lcount;
+          ((long int *)(gpu_byte_code + 2 * sizeof(int) + sizeof(long int) +
+                        2 * sizeof(void *) +
+                        (entry * num_streams + stream) *
+                            (2 * sizeof(void *) + 2 * sizeof(long int))))[1] =
+              start / type_size;
           if (labs(lcount) > max_size) {
             max_size = labs(lcount);
           }
@@ -234,17 +358,17 @@ static void gpu_byte_code_flush2(struct gpu_stream **streams,
   if (num_entries) {
     jump = 2 * sizeof(int) + sizeof(long int) +
            (num_entries + 1) * num_streams *
-               (2 * sizeof(char *) + sizeof(long int));
+               (2 * sizeof(char *) + 2 * sizeof(long int));
     *gpu_byte_code_counter += jump;
   }
   gpu_delete_streams(streams);
 }
 
 static int gpu_byte_code_add(struct gpu_stream **streams, void *dest, void *src,
-                             int count, int reduce) {
+                             int count, int reduce, int number) {
   int num_stream;
   num_stream =
-      gpu_add_stream_and_get_stream_number(streams, dest, src, count, reduce);
+      gpu_add_stream_and_get_stream_number(streams, dest, src, count, reduce, number);
   if (num_stream < 0) {
     return -1;
   }
@@ -306,7 +430,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
   char *gpu_byte_code = NULL;
-  int on_gpu, reduce, isend = 1, added = 0, vector_length;
+  int on_gpu, reduce, isend = 1, added = 0, vector_length, memopt_number = 1;
   struct gpu_stream *streams = NULL;
   void *p1, *p2;
 #endif
@@ -710,10 +834,10 @@ int ext_mpi_generate_byte_code(char **shmem,
 	    }
           }
         }
-        if (gpu_byte_code_add(&streams, p1, p2, integer3, reduce) < 0) {
+        if (gpu_byte_code_add(&streams, p1, p2, integer3, reduce, memopt_number++) < 0) {
           flush_complete(&ip, &streams, header->gpu_byte_code, gpu_byte_code,
                          gpu_byte_code_counter, reduction_op, isdryrun);
-          gpu_byte_code_add(&streams, p1, p2, integer3, reduce);
+          gpu_byte_code_add(&streams, p1, p2, integer3, reduce, memopt_number - 1);
         }
         added = 1;
       }

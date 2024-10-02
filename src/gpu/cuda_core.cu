@@ -54,7 +54,7 @@ void ext_mpi_gpu_synchronize() {
 
 template <typename vartype> __global__ void gpu_copy_reduce_kernel(char *data) {
   int num_streams, index, offset, num_stream, i;
-  long int max_size, size;
+  long int max_size, size, start;
   char *ldata, *p1, *p2;
   num_streams = *((int *)(data + sizeof(int)));
   max_size = *((long int *)(data + 2 * sizeof(int)));
@@ -66,24 +66,25 @@ template <typename vartype> __global__ void gpu_copy_reduce_kernel(char *data) {
     index = 0;
     ldata = data + 2 * sizeof(int) + sizeof(long int) +
             (num_streams * index + num_stream) *
-                (sizeof(char *) * 2 + sizeof(long int));
+                (sizeof(char *) * 2 + sizeof(long int) * 2);
     p1 = *((char **)ldata);
     while (p1) {
       p2 = *((char **)(ldata + sizeof(char *)));
       size = *((long int *)(ldata + 2 * sizeof(char *)));
+      start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int)));
       if (size >= 0) {
-        if (offset < size) {
+        if (offset >= start && offset < size) {
           ((vartype *)p1)[offset] = ((vartype *)p2)[offset];
         }
       } else {
-        if (offset < -size) {
+        if (offset >= start && offset < -size) {
           ((vartype *)p1)[offset] += ((vartype *)p2)[offset];
         }
       }
       index++;
       ldata = data + 2 * sizeof(int) + sizeof(long int) +
               (num_streams * index + num_stream) *
-                  (sizeof(char *) * 2 + sizeof(long int));
+                  (sizeof(char *) * 2 + sizeof(long int) * 2);
       p1 = *((char **)ldata);
     }
   }
