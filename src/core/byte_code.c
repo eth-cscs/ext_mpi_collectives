@@ -69,15 +69,15 @@ static void gpu_merge_streams(struct gpu_stream *stream1, struct gpu_stream *str
     while (p1->next && p1->next->number < p2->number) {
       p1 = p1->next;
     }
+    p3 = p2->next;
     if (p1->next) {
-      p3 = p1->next->next;
+      p2->next = p1->next;
       p1->next = p2;
-      p1->next->next = p3;
     } else {
       p1->next = p2;
-      p1->next->next = NULL;
+      p2->next = NULL;
     }
-    p2 = p2->next;
+    p2 = p3;
   }
   stream3 = stream1;
   while (stream3->next != stream2) {
@@ -106,111 +106,113 @@ static int gpu_is_in_mem_addresses_range(struct mem_addresses *list, void *dest,
   return 0;
 }
 
+static int gpu_shift_memory_blocks(struct gpu_stream *streams) {
+  struct mem_addresses *p1, *p2;
+  int ret = 0, i;
+  while (streams) {
+    p1 = streams->mem_read_write;
+    while (p1) {
+      p2 = p1->next;
+      while (p2) {
+	if (p1->src < p2->src && p1->src + p1->size > p2->src) {
+          i = p2->src - p1->src;
+	  p2->start += i;
+	  p2->size += i;
+	  p2->src -= i;
+	  p2->dest -= i;
+          ret = 1;
+	}
+	if (p1->dest < p2->src && p1->dest + p1->size > p2->src) {
+          i = p2->src - p1->dest;
+	  p2->start += i;
+	  p2->size += i;
+	  p2->src -= i;
+	  p2->dest -= i;
+          ret = 1;
+	}
+	if (p1->src < p2->dest && p1->src + p1->size > p2->dest) {
+          i = p2->dest - p1->src;
+	  p2->start += i;
+	  p2->size += i;
+	  p2->src -= i;
+	  p2->dest -= i;
+          ret = 1;
+	}
+	if (p1->dest < p2->dest && p1->dest + p1->size > p2->dest)  {
+          i = p2->dest - p1->dest;
+	  p2->start += i;
+	  p2->size += i;
+	  p2->src -= i;
+	  p2->dest -= i;
+          ret = 1;
+	}
+        if (p2->src < p1->src && p2->src + p2->size > p1->src) {
+          i = p1->src - p2->src;
+	  p1->start += i;
+	  p1->size += i;
+	  p1->src -= i;
+	  p1->dest -= i;
+          ret = 1;
+	}
+        if (p2->dest < p1->src && p2->dest + p2->size > p1->src) {
+          i = p1->src - p2->dest;
+	  p1->start += i;
+	  p1->size += i;
+	  p1->src -= i;
+	  p1->dest -= i;
+          ret = 1;
+	}
+	if (p2->src < p1->dest && p2->src + p2->size > p1->dest) {
+          i = p1->dest - p2->src;
+	  p1->start += i;
+	  p1->size += i;
+	  p1->src -= i;
+	  p1->dest -= i;
+          ret = 1;
+	}
+	if (p2->dest < p1->dest && p2->dest + p2->size > p1->dest) {
+          i = p1->dest - p2->dest;
+	  p1->start += i;
+	  p1->size += i;
+	  p1->src -= i;
+	  p1->dest -= i;
+          ret = 1;
+	}
+        p2 = p2->next;
+      }
+      p1 = p1->next;
+    }
+    if (streams) streams = streams->next;
+  }
+  return ret;
+}
+
 static void gpu_byte_code_arrange(struct gpu_stream *streams) {
   struct gpu_stream *stream1, *stream2;
-  struct mem_addresses *p1, *p2;
-  int flag = 1, i;
+  struct mem_addresses *p;
+  int flag = 1;
   while (flag) {
     flag = 0;
     stream1 = streams;
     while (stream1) {
       stream2 = stream1->next;
       while (stream2) {
-	p1 = stream2->mem_read_write;
-	while (p1) {
-	  if (1 || gpu_is_in_mem_addresses_range(stream1->mem_read_write, p1->dest, p1->src, p1->size)) {
+	p = stream2->mem_read_write;
+	while (p) {
+	  if (gpu_is_in_mem_addresses_range(stream1->mem_read_write, p->dest, p->src, p->size)) {
 	    gpu_merge_streams(stream1, stream2);
-	    p1 = NULL;
+	    p = NULL;
 	    stream1 = stream2 = NULL;
 	    flag = 1;
 	  } else {
-	    p1 = p1->next;
+	    p = p->next;
 	  }
 	}
 	if (stream2) stream2 = stream2->next;
       }
       if (stream1) stream1 = stream1->next;
     }
-  }
-  stream1 = streams;
-  while (stream1) {
-    flag = 1;
-    while (flag) {
-      flag = 0;
-      p1 = stream1->mem_read_write;
-      while (p1) {
-        p2 = p1->next;
-        while (p2) {
-	  if (p1->src < p2->src && p1->src + p1->size > p2->src) {
-            i = p2->src - p1->src;
-	    p2->start += i;
-	    p2->size += i;
-	    p2->src -= i;
-	    p2->dest -= i;
-            flag = 1;
-	  }
-	  if (p1->dest < p2->src && p1->dest + p1->size > p2->src) {
-            i = p2->src - p1->dest;
-	    p2->start += i;
-	    p2->size += i;
-	    p2->src -= i;
-	    p2->dest -= i;
-            flag = 1;
-	  }
-	  if (p1->src < p2->dest && p1->src + p1->size > p2->dest) {
-            i = p2->dest - p1->src;
-	    p2->start += i;
-	    p2->size += i;
-	    p2->src -= i;
-	    p2->dest -= i;
-            flag = 1;
-	  }
-	  if (p1->dest < p2->dest && p1->dest + p1->size > p2->dest)  {
-            i = p2->dest - p1->dest;
-	    p2->start += i;
-	    p2->size += i;
-	    p2->src -= i;
-	    p2->dest -= i;
-            flag = 1;
-	  }
-          if (p2->src < p1->src && p2->src + p2->size > p1->src) {
-            i = p1->src - p2->src;
-	    p1->start += i;
-	    p1->size += i;
-	    p1->src -= i;
-	    p1->dest -= i;
-            flag = 1;
-	  }
-          if (p2->dest < p1->src && p2->dest + p2->size > p1->src) {
-            i = p1->src - p2->dest;
-	    p1->start += i;
-	    p1->size += i;
-	    p1->src -= i;
-	    p1->dest -= i;
-            flag = 1;
-	  }
-	  if (p2->src < p1->dest && p2->src + p2->size > p1->dest) {
-            i = p1->dest - p2->src;
-	    p1->start += i;
-	    p1->size += i;
-	    p1->src -= i;
-	    p1->dest -= i;
-            flag = 1;
-	  }
-	  if (p2->dest < p1->dest && p2->dest + p2->size > p1->dest) {
-            i = p1->dest - p2->dest;
-	    p1->start += i;
-	    p1->size += i;
-	    p1->src -= i;
-	    p1->dest -= i;
-            flag = 1;
-	  }
-          p2 = p2->next;
-        }
-        p1 = p1->next;
-      }
-    }
-    if (stream1) stream1 = stream1->next;
+    flag |= gpu_shift_memory_blocks(streams);
   }
 }
 
