@@ -772,6 +772,11 @@ allreduce_short = 0;
   }
   if (socket_size_barrier > num_ranks) socket_size_barrier = num_ranks;
   if (socket_size_barrier_small > num_ranks) socket_size_barrier_small = num_ranks;
+#ifdef GPU_ENABLED
+  if (gpu_is_device_pointer(recvbuf) && my_cores_per_node_row == 1) {
+    socket_size_barrier = socket_size_barrier_small = 1;
+  }
+#endif
   free(displsa);
   free(countsa);
   free(ranks_inv);

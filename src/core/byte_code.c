@@ -12,7 +12,7 @@
 #ifdef GPU_ENABLED
 struct mem_addresses {
   void *dest, *src;
-  int size, start, reduce, number;
+  int size, start, reduce, number, dest_shadow, src_shadow;
   struct mem_addresses *next;
 };
 
@@ -35,6 +35,7 @@ static int gpu_add_to_mem_addresses_range(struct mem_addresses **list,
   p->reduce = reduce;
   p->number = number;
   p->start = 0;
+  p->dest_shadow = p->src_shadow = 0;
   if (!(*list)) {
     p->next = *list;
     *list = p;
@@ -114,20 +115,22 @@ static int gpu_shift_memory_blocks(struct gpu_stream *streams) {
     while (p1) {
       p2 = p1->next;
       while (p2) {
-	if (p1->dest < p2->src && p1->dest + p1->size > p2->src) {
-          i = p2->src - p1->dest;
+	if (p1->dest + p1->dest_shadow < p2->src + p2->src_shadow && p1->dest + p1->size > p2->src + p2->src_shadow) {
+          i = p2->src + p2->src_shadow - p1->dest - p1->dest_shadow;
 	  p2->start += i;
 	  p2->size += i;
 	  p2->src -= i;
 	  p2->dest -= i;
+	  p2->dest_shadow += i;
           ret = 1;
 	}
-	if (p2->src < p1->dest && p2->src + p2->size > p1->dest) {
-          i = p1->dest - p2->src;
+	if (p2->src + p2->src_shadow < p1->dest + p1->dest_shadow && p2->src + p2->size > p1->dest + p1->dest_shadow) {
+          i = p1->dest + p1->dest_shadow - p2->src - p2->src_shadow;
 	  p1->start += i;
 	  p1->size += i;
 	  p1->src -= i;
 	  p1->dest -= i;
+	  p1->src_shadow += i;
           ret = 1;
 	}
         p2 = p2->next;

@@ -5,6 +5,9 @@
 #include "ext_mpi.h"
 #include "constants.h"
 #include "debug_persistent.h"
+#ifdef GPU_ENABLED
+#include "gpu_core.h"
+#endif
 
 int ext_mpi_allgatherv_init_debug(const void *sendbuf, int sendcount,
                                   MPI_Datatype sendtype, void *recvbuf,
