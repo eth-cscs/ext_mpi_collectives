@@ -1,0 +1,221 @@
+# EXT_MPI verbose
+
+# OSU MPI Allreduce Persistent Latency Test v7.4
+# Datatype: MPI_FLOAT.
+# Size       Avg Latency(us)
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 8 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 8 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+8                      11.87
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 16 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 16 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+16                     12.02
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 32 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 32 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+32                     13.36
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 64 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 64 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+64                     20.56
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 128 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 128 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+128                    28.05
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 256 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 256 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+256                    18.04
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 512 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 512 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+512                    33.20
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 1024 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 1024 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+1024                   58.19
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 2048 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 2048 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+2048                   29.99
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 4096 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 4096 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+4096                   32.78
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 8192 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 8192 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+8192                   40.34
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 16384 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 16384 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+16384                  33.81
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 32768 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 32768 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+32768                  39.70
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 65536 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 65536 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+65536                 247.68
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 131072 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 131072 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+131072                285.53
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 262144 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 262144 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+262144                585.58
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 524288 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 524288 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+524288               1376.28
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 1048576 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 1048576 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+1048576              3039.86
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 2097152 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 2097152 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+2097152              6025.44
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 4194304 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 4194304 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+4194304             11820.63
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 8388608 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 8388608 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+8388608             24413.75
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 16777216 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 16777216 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+16777216            49184.05
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 33554432 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 33554432 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+33554432           105963.52
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 67108864 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+# EXT_MPI MPI tasks per socket: 72
+# recursive
+# EXT_MPI allreduce parameters 16 67108864 1 72 ports 4(3)
+# EXT_MPI allreduce parameters copyin 6;-64 -9 -8 -4 4 8 9
+67108864           221243.82
