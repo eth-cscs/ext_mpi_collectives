@@ -91,6 +91,17 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
     (*parameters)->rank_perm = NULL;
     (*parameters)->iocounts = NULL;
     (*parameters)->shmem_buffer_offset = NULL;
+    (*parameters)->mem_partner = NULL;
+    if ((*parameters)->mem_partner_max) {
+      (*parameters)->mem_partner =
+          (int *)malloc(sizeof(int) * ((*parameters)->mem_partner_max + 1));
+      if (!(*parameters)->mem_partner)
+        goto error;
+      memcpy((*parameters)->mem_partner, buffer_in + nbuffer_in,
+             sizeof(int) * (*parameters)->mem_partner_max);
+      (*parameters)->mem_partner[(*parameters)->mem_partner_max] = 0;
+      nbuffer_in += sizeof(int) * (*parameters)->mem_partner_max;
+    }
     if ((*parameters)->counts_max) {
       (*parameters)->counts =
           (int *)malloc(sizeof(int) * ((*parameters)->counts_max + 1));
@@ -178,6 +189,8 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   if (!buffer_in_pcopy)
     return ERROR_MALLOC;
   buffer_in_copy = buffer_in_pcopy;
+  (*parameters)->mem_partner = NULL;
+  (*parameters)->mem_partner_max = 0;
   (*parameters)->counts = NULL;
   (*parameters)->counts_max = 0;
   (*parameters)->num_ports = NULL;
@@ -307,6 +320,17 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
           if ((*parameters)->counts_max < 0)
             goto error;
         }
+        if (strcmp(string2, "MEM_PARTNER") == 0) {
+          free((*parameters)->mem_partner);
+          while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
+                 (*buffer_in_copy != '-') && (*buffer_in_copy != '\0')) {
+            buffer_in_copy++;
+          }
+          (*parameters)->mem_partner_max =
+              read_int_series(buffer_in_copy, &((*parameters)->mem_partner));
+          if ((*parameters)->mem_partner_max < 0)
+            goto error;
+        }
         if (strcmp(string2, "NUM_PORTS") == 0) {
           free((*parameters)->num_ports);
           free((*parameters)->groups);
@@ -432,6 +456,11 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     nbuffer_out++;
     memcpy(buffer_out + nbuffer_out, parameters, sizeof(*parameters));
     nbuffer_out += sizeof(*parameters);
+    if (parameters->mem_partner_max) {
+      memcpy(buffer_out + nbuffer_out, parameters->mem_partner,
+             sizeof(int) * parameters->mem_partner_max);
+      nbuffer_out += sizeof(int) * parameters->mem_partner_max;
+    }
     if (parameters->counts_max) {
       memcpy(buffer_out + nbuffer_out, parameters->counts,
              sizeof(int) * parameters->counts_max);
@@ -544,6 +573,14 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
   if ((parameters->root >= 0) || (parameters->root <= -10)) {
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER ROOT %d\n",
                            parameters->root);
+  }
+  if (parameters->mem_partner_max > 0) {
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER MEM_PARTNER");
+    for (i = 0; i < parameters->mem_partner_max; i++) {
+      nbuffer_out +=
+          sprintf(buffer_out + nbuffer_out, " %d", parameters->mem_partner[i]);
+    }
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
   }
   if (parameters->counts_max > 0) {
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER COUNTS");

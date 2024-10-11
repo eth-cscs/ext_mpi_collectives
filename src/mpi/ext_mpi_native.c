@@ -43,6 +43,7 @@
 #include "ext_mpi_native_exec.h"
 #include "reduce_copyin.h"
 #include "hash_table_operator.h"
+#include "count_mem_partners.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
@@ -439,8 +440,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                          int reduction_op, MPI_User_function *func, MPI_Comm comm_row,
                          int my_cores_per_node_row, MPI_Comm comm_column,
                          int my_cores_per_node_column, int alt, int shmem_zero, char *locmem) {
-  int i, num_comm_max = -1, barriers_size, nbuffer_in = 0, tag, not_locmem;
-  char *ip, **sendbufs, **recvbufs, str[1000];
+  int i, num_comm_max = -1, barriers_size = 1, nbuffer_in = 0, tag = -1, not_locmem;
+  char *ip, **sendbufs = NULL, **recvbufs = NULL, str[1000];
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row, my_mpi_rank, socket_rank, flag;
   int locmem_size, shmem_size = 0, *shmem_sizes = NULL, *shmemid = NULL, num_sockets_per_node = 1;
   char **shmem = NULL;
@@ -461,6 +462,25 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   shmem_size = parameters->shmem_max;
   num_sockets_per_node = parameters->num_sockets_per_node;
   socket_rank = parameters->socket_rank;
+  code_size = ext_mpi_generate_byte_code(
+      shmem, shmemid, shmem_sizes, buffer_in, sendbufs, recvbufs,
+      barriers_size, locmem, reduction_op, (void *)func, global_ranks, NULL,
+      sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
+      my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, 0, tag);
+  flag = code_size == -7;
+  MPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm_row);
+  if (flag) {
+    if (ext_mpi_verbose && my_mpi_rank == 0) {
+      printf("# fallback gpu_memcpy\n");
+    }
+    code_size = ext_mpi_generate_byte_code(
+        shmem, shmemid, shmem_sizes, buffer_in, sendbufs, recvbufs,
+        barriers_size, locmem, reduction_op, (void *)func, global_ranks, NULL,
+        sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
+        my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, 1, tag);
+  }
+  if (code_size < 0)
+    goto error;
   countsa = 0;
   for (i = 0; i < parameters->counts_max; i++) {
     countsa += parameters->counts[i];
@@ -529,25 +549,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   } else {
     tag = 0;
   }
-  code_size = ext_mpi_generate_byte_code(
-      shmem, shmemid, shmem_sizes, buffer_in, sendbufs, recvbufs,
-      barriers_size, locmem, reduction_op, (void *)func, global_ranks, NULL,
-      sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
-      my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, 0, tag);
-  flag = code_size == -7;
-  MPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm_row);
-  if (flag) {
-    if (ext_mpi_verbose && my_mpi_rank == 0) {
-      printf("# fallback gpu_memcpy\n");
-    }
-    code_size = ext_mpi_generate_byte_code(
-        shmem, shmemid, shmem_sizes, buffer_in, sendbufs, recvbufs,
-        barriers_size, locmem, reduction_op, (void *)func, global_ranks, NULL,
-        sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
-        my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, 1, tag);
-  }
-  if (code_size < 0)
-    goto error;
   ip = comm_code[handle] = (char *)malloc(code_size);
   if (!ip)
     goto error;
@@ -1010,14 +1011,21 @@ allreduce_short = 0;
   }
   if (ext_mpi_generate_allreduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  /*
-     int mpi_rank;
+  if (recvbuf) {
+    if (ext_mpi_generate_count_mem_partners(buffer2, buffer1) < 0)
+        goto error;
+    buffer_temp = buffer1;
+    buffer1 = buffer2;
+    buffer2 = buffer_temp;
+  }
+  
+/*   int mpi_rank;
    MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
-   if (mpi_rank ==0){
-   printf("%s",buffer1);
+   if (mpi_rank == 0){
+   printf("%s",buffer2);
    }
-   exit(9);
-   */
+   exit(9);*/
+   
   if (ext_mpi_generate_buffer_offset(buffer2, buffer1, &comm_subrow) < 0)
     goto error;
   if (ext_mpi_generate_no_offset(buffer1, buffer2) < 0)

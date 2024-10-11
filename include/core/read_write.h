@@ -92,6 +92,8 @@ struct parameters_block {
   int copyin_method;
   int *copyin_factors;
   int copyin_factors_max;
+  int *mem_partner;
+  int mem_partner_max;
   enum edata_type data_type;
   int verbose;
   int in_place;
