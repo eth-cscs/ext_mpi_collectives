@@ -1011,7 +1011,7 @@ allreduce_short = 0;
   }
   if (ext_mpi_generate_allreduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  if (recvbuf && mem_partners) {
+  if (!recvbuf) {
     ext_mpi_read_parameters(buffer1, &parameters2);
     if (ext_mpi_generate_count_mem_partners(buffer2, buffer1) < 0)
         goto error;

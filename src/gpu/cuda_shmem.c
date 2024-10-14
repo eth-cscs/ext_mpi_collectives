@@ -174,6 +174,8 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
 	  printf("error cudaIpcOpenMemHandle in cuda_shmem.c\n");
 	  exit(1);
         }
+      } else {
+	(*sendrecvbufs)[i] = NULL;
       }
     }
   }
