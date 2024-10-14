@@ -76,7 +76,7 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
       if (((char *)(&shmemid_gpu))[j]) flag = 1;
     }
     if (flag) {
-      if (mem_partners_l && mem_partners_l[i]) {
+      if (!mem_partners_l || (mem_partners_l && mem_partners_l[i])) {
         if ((*shmem_gpu)[i] == NULL) {
           if (cudaIpcOpenMemHandle((void **)&((*shmem_gpu)[i]), shmemid_gpu,
 				   cudaIpcMemLazyEnablePeerAccess) != 0)
