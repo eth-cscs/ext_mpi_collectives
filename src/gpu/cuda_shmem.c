@@ -134,7 +134,6 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
   PMPI_Comm_size(gpu_comm_node, &my_mpi_size);
   shmemid_gpu = (struct cudaIpcMemHandle_st*)malloc(sizeof(struct cudaIpcMemHandle_st) * my_mpi_size);
   *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char *));
-  PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, gpu_comm_node);
   PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, gpu_comm_node);
   if (mem_partners) {
     mem_partners_l = (int*)malloc(sizeof(int) * my_mpi_size);
