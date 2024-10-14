@@ -91,16 +91,16 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
     (*parameters)->rank_perm = NULL;
     (*parameters)->iocounts = NULL;
     (*parameters)->shmem_buffer_offset = NULL;
-    (*parameters)->mem_partner = NULL;
-    if ((*parameters)->mem_partner_max) {
-      (*parameters)->mem_partner =
-          (int *)malloc(sizeof(int) * ((*parameters)->mem_partner_max + 1));
-      if (!(*parameters)->mem_partner)
+    (*parameters)->mem_partners = NULL;
+    if ((*parameters)->mem_partners_max) {
+      (*parameters)->mem_partners =
+          (int *)malloc(sizeof(int) * ((*parameters)->mem_partners_max + 1));
+      if (!(*parameters)->mem_partners)
         goto error;
-      memcpy((*parameters)->mem_partner, buffer_in + nbuffer_in,
-             sizeof(int) * (*parameters)->mem_partner_max);
-      (*parameters)->mem_partner[(*parameters)->mem_partner_max] = 0;
-      nbuffer_in += sizeof(int) * (*parameters)->mem_partner_max;
+      memcpy((*parameters)->mem_partners, buffer_in + nbuffer_in,
+             sizeof(int) * (*parameters)->mem_partners_max);
+      (*parameters)->mem_partners[(*parameters)->mem_partners_max] = 0;
+      nbuffer_in += sizeof(int) * (*parameters)->mem_partners_max;
     }
     if ((*parameters)->counts_max) {
       (*parameters)->counts =
@@ -189,8 +189,8 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   if (!buffer_in_pcopy)
     return ERROR_MALLOC;
   buffer_in_copy = buffer_in_pcopy;
-  (*parameters)->mem_partner = NULL;
-  (*parameters)->mem_partner_max = 0;
+  (*parameters)->mem_partners = NULL;
+  (*parameters)->mem_partners_max = 0;
   (*parameters)->counts = NULL;
   (*parameters)->counts_max = 0;
   (*parameters)->num_ports = NULL;
@@ -321,14 +321,14 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
             goto error;
         }
         if (strcmp(string2, "MEM_PARTNER") == 0) {
-          free((*parameters)->mem_partner);
+          free((*parameters)->mem_partners);
           while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
                  (*buffer_in_copy != '-') && (*buffer_in_copy != '\0')) {
             buffer_in_copy++;
           }
-          (*parameters)->mem_partner_max =
-              read_int_series(buffer_in_copy, &((*parameters)->mem_partner));
-          if ((*parameters)->mem_partner_max < 0)
+          (*parameters)->mem_partners_max =
+              read_int_series(buffer_in_copy, &((*parameters)->mem_partners));
+          if ((*parameters)->mem_partners_max < 0)
             goto error;
         }
         if (strcmp(string2, "NUM_PORTS") == 0) {
@@ -456,10 +456,10 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     nbuffer_out++;
     memcpy(buffer_out + nbuffer_out, parameters, sizeof(*parameters));
     nbuffer_out += sizeof(*parameters);
-    if (parameters->mem_partner_max) {
-      memcpy(buffer_out + nbuffer_out, parameters->mem_partner,
-             sizeof(int) * parameters->mem_partner_max);
-      nbuffer_out += sizeof(int) * parameters->mem_partner_max;
+    if (parameters->mem_partners_max) {
+      memcpy(buffer_out + nbuffer_out, parameters->mem_partners,
+             sizeof(int) * parameters->mem_partners_max);
+      nbuffer_out += sizeof(int) * parameters->mem_partners_max;
     }
     if (parameters->counts_max) {
       memcpy(buffer_out + nbuffer_out, parameters->counts,
@@ -574,11 +574,11 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER ROOT %d\n",
                            parameters->root);
   }
-  if (parameters->mem_partner_max > 0) {
+  if (parameters->mem_partners_max > 0) {
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER MEM_PARTNER");
-    for (i = 0; i < parameters->mem_partner_max; i++) {
+    for (i = 0; i < parameters->mem_partners_max; i++) {
       nbuffer_out +=
-          sprintf(buffer_out + nbuffer_out, " %d", parameters->mem_partner[i]);
+          sprintf(buffer_out + nbuffer_out, " %d", parameters->mem_partners[i]);
     }
     nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
   }
@@ -683,6 +683,7 @@ int ext_mpi_delete_parameters(struct parameters_block *parameters) {
   free(parameters->message_sizes);
   free(parameters->copyin_factors);
   free(parameters->rank_perm);
+  free(parameters->mem_partners);
   free(parameters);
   return 0;
 }

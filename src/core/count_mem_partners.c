@@ -31,15 +31,15 @@ int ext_mpi_generate_count_mem_partners(char *buffer_in, char *buffer_out) {
   ext_mpi_delete_parameters(parameters);
   nbuffer_in = 0;
   nbuffer_in += ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
-  free(parameters->mem_partner);
-  parameters->mem_partner_max = 0;
-  parameters->mem_partner = (int*)malloc(sizeof(int) * parameters->socket_row_size * parameters->num_sockets_per_node);
+  free(parameters->mem_partners);
+  parameters->mem_partners_max = 0;
+  parameters->mem_partners = (int*)malloc(sizeof(int) * parameters->socket_row_size * parameters->num_sockets_per_node);
   for (i = 0; i < parameters->socket_row_size * parameters->num_sockets_per_node; i++) {
-    if (partner[i]) parameters->mem_partner[parameters->mem_partner_max++] = i;
+    if (partner[i]) parameters->mem_partners[parameters->mem_partners_max++] = i;
   }
-  if (!parameters->mem_partner_max) {
-    free(parameters->mem_partner);
-    parameters->mem_partner = NULL;
+  if (!parameters->mem_partners_max) {
+    free(parameters->mem_partners);
+    parameters->mem_partners = NULL;
   }
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
   do {

@@ -794,30 +794,38 @@ int ext_mpi_generate_byte_code(char **shmem,
           reduce = 1;
         }
         if (estring1a == esendbufp) {
-          p1 = sendbufs[data_memcpy_reduce.buffer_number1] + integer1;
-        } else {
-          if (estring1a == erecvbufp) {
-            p1 = recvbufs[data_memcpy_reduce.buffer_number1] + integer1;
-          } else {
-            if (shmem) {
-              p1 = (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1);
-	    } else {
-              p1 = (void *)(NULL + integer1);
-	    }
-          }
+	  if (sendbufs) {
+	    p1 = sendbufs[data_memcpy_reduce.buffer_number1] + integer1;
+	  } else {
+	    p1 = NULL;
+	  }
+        } else if (estring1a == erecvbufp) {
+	  if (recvbufs) {
+	    p1 = recvbufs[data_memcpy_reduce.buffer_number1] + integer1;
+	  } else {
+	    p1 = NULL;
+	  }
+        } else if (shmem) {
+	  p1 = (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1);
+	} else {
+	  p1 = (void *)(NULL + integer1);
         }
         if (estring2 == esendbufp) {
-          p2 = sendbufs[data_memcpy_reduce.buffer_number2] + integer2;
-        } else {
-          if (estring2 == erecvbufp) {
-            p2 = recvbufs[data_memcpy_reduce.buffer_number2] + integer2;
+	  if (sendbufs) {
+	    p2 = sendbufs[data_memcpy_reduce.buffer_number2] + integer2;
           } else {
-            if (shmem) {
-              p2 = (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2);
-	    } else {
-              p2 = (void *)(NULL + integer2);
-	    }
-          }
+	    p2 = NULL;
+	  }
+        } else if (estring2 == erecvbufp) {
+	  if (recvbufs) {
+	    p2 = recvbufs[data_memcpy_reduce.buffer_number2] + integer2;
+          } else {
+	    p2 = NULL;
+	  }
+        } else if (shmem) {
+          p2 = (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2);
+	} else {
+          p2 = (void *)(NULL + integer2);
         }
         if (gpu_byte_code_add(&streams, p1, p2, integer3, reduce, memopt_number++, gpu_fallback) < 0) {
           if (flush_complete(&ip, &streams, header->gpu_byte_code, gpu_byte_code, gpu_byte_code_counter, reduction_op, isdryrun) < 0) goto failed;

@@ -177,8 +177,8 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 //    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, 1, &size_shared, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid1, &(*comms_blocking)[i_comm]->shmem_blocking1, 0, size_shared, &((*comms_blocking)[i_comm]->comm_blocking));
 //    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, 1, &size_shared, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid2, &(*comms_blocking)[i_comm]->shmem_blocking2, 0, size_shared, &((*comms_blocking)[i_comm]->comm_blocking));
 #else
-    ext_mpi_gpu_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid1, &(*comms_blocking)[i_comm]->shmem_blocking1);
-    ext_mpi_gpu_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid2, &(*comms_blocking)[i_comm]->shmem_blocking2);
+    ext_mpi_gpu_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid1, &(*comms_blocking)[i_comm]->shmem_blocking1, NULL);
+    ext_mpi_gpu_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, size_shared, 1, &(*comms_blocking)[i_comm]->shmem_blocking_shmemid2, &(*comms_blocking)[i_comm]->shmem_blocking2, NULL);
 #endif
     free(comm_code_temp);
     (*comms_blocking)[i_comm]->locmem_blocking = (char *)malloc(1024 * sizeof(MPI_Request));
