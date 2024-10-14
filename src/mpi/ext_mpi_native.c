@@ -485,7 +485,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   for (i = 0; i < parameters->counts_max; i++) {
     countsa += parameters->counts[i];
   }
-  ext_mpi_delete_parameters(parameters);
   locmem_size = num_comm_max * sizeof(MPI_Request);
   if (not_locmem) {
     locmem = (char *)malloc(locmem_size);
@@ -632,6 +631,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   } else {
     comm_code[handle + 1] = NULL;
   }
+  ext_mpi_delete_parameters(parameters);
   if (shmem_zero) {
     free(shmem);
   }
@@ -676,7 +676,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
       *counts = NULL, iret, num_ranks, lrank_row, *ranks, *ranks_inv, *countsa, *displsa, *mem_partners = NULL,
       nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, factors_max, *factors, socket_size_barrier = 0, socket_size_barrier_small = 0, i, j;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
-  struct parameters_block *parameters;
+  struct parameters_block *parameters, *parameters2;
   MPI_Comm comm_subrow;
   if (allreduce_short) {
     for (i = 0; groups[i]; i++) {
@@ -1012,18 +1012,18 @@ allreduce_short = 0;
   if (ext_mpi_generate_allreduce_copyout(buffer1, buffer2) < 0)
     goto error;
   if (recvbuf && mem_partners) {
-    ext_mpi_read_parameters(buffer1, &parameters);
+    ext_mpi_read_parameters(buffer1, &parameters2);
     if (ext_mpi_generate_count_mem_partners(buffer2, buffer1) < 0)
         goto error;
     buffer_temp = buffer1;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
-    mem_partners = (int*)malloc(sizeof(int) * (parameters->mem_partners_max + 1));
-    for (i = 0; i < parameters->mem_partners_max; i++) {
-      mem_partners[i] = parameters->mem_partners[i];
+    mem_partners = (int*)malloc(sizeof(int) * (parameters2->mem_partners_max + 1));
+    for (i = 0; i < parameters2->mem_partners_max; i++) {
+      mem_partners[i] = parameters2->mem_partners[i];
     }
     mem_partners[i] = -1;
-    ext_mpi_delete_parameters(parameters);
+    ext_mpi_delete_parameters(parameters2);
   }
   
 /*   int mpi_rank;
