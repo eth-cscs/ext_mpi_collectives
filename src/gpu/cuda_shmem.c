@@ -46,8 +46,8 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
         (*shmemidi_gpu)[i] |= 1;
       }
     }
-    MPI_Bcast(&shmemid_gpu, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, i, my_comm_node);
-    MPI_Barrier(my_comm_node);
+    PMPI_Bcast(&shmemid_gpu, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, i, my_comm_node);
+    PMPI_Barrier(my_comm_node);
     flag = 0;
     for (j = 0; j < sizeof(struct cudaIpcMemHandle_st); j++) {
       if (((char *)(&shmemid_gpu))[j]) flag = 1;
@@ -65,7 +65,7 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
       (*shmem_gpu)[i] = NULL;
       (*shmemidi_gpu)[i] |= 2;
     }
-    MPI_Barrier(my_comm_node);
+    PMPI_Barrier(my_comm_node);
   }
   PMPI_Comm_free(&my_comm_node);
   for (j = 0; j < (my_mpi_rank_row % (my_cores_per_node_row * num_segments)) / my_cores_per_node_row * my_cores_per_node_row; j++) {

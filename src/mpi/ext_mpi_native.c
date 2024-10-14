@@ -358,7 +358,7 @@ int EXT_MPI_Done_native(int handle) {
     ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle + 1]);
 #ifdef GPU_ENABLED
     if (header->shmem_gpu) {
-      if (header->shmemid_gpu && header->shmem_sizes) {
+      if (header->shmemid_gpu) {
         ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
       }
       header->shmem_gpu = NULL;
@@ -509,7 +509,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (gpu_is_device_pointer(recvbuf)) {
     ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs, mem_partners);
     ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs, mem_partners);
-    if (shmem_zero || !parameters->shmem_max) {
+    if (shmem_zero) {
       shmem_gpu = shmem;
       shmemid_gpu = NULL;
     } else {
