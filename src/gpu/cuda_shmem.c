@@ -119,7 +119,7 @@ int ext_mpi_gpu_destroy_shared_memory(int my_cores_per_node, int *shmemid_gpu, c
 
 int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_sockets, char *sendrecvbuf, int size, char ***sendrecvbufs, int *mem_partners) {
   MPI_Comm gpu_comm_node;
-  struct cudaIpcMemHandle_st shmemid_gpu;
+  struct cudaIpcMemHandle_st *shmemid_gpu;
   int my_mpi_rank, my_mpi_size, i, j, k, *mem_partners_l = NULL, temp;
   char *a;
   if (!sendrecvbuf) {
@@ -132,6 +132,7 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
                   my_mpi_rank % my_cores_per_node, &gpu_comm_node);
   PMPI_Comm_rank(gpu_comm_node, &my_mpi_rank);
   PMPI_Comm_size(gpu_comm_node, &my_mpi_size);
+  shmemid_gpu = (struct cudaIpcMemHandle_st*)malloc(sizeof(struct cudaIpcMemHandle_st) * my_mpi_size);
   *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char *));
   PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, gpu_comm_node);
   PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, gpu_comm_node);
@@ -160,17 +161,19 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
   }
   for (i = 0; i < my_mpi_size; i++) {
     if (i == my_mpi_rank) {
-      if (cudaIpcGetMemHandle(&shmemid_gpu, (void *)sendrecvbuf) != 0) {
+      if (cudaIpcGetMemHandle(&shmemid_gpu[i], (void *)sendrecvbuf) != 0) {
 	printf("error cudaIpcGetMemHandle in cuda_shmem.c\n");
 	exit(1);
       }
     }
-    MPI_Bcast(&shmemid_gpu, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, i, gpu_comm_node);
+    MPI_Bcast(&shmemid_gpu[i], sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, i, gpu_comm_node);
+  }
+  for (i = 0; i < my_mpi_size; i++) {
     if (i == my_mpi_rank) {
       (*sendrecvbufs)[i] = sendrecvbuf;
     } else {
       if (!mem_partners_l || (mem_partners_l && mem_partners_l[i])) {
-        if (cudaIpcOpenMemHandle((void **)&((*sendrecvbufs)[i]), shmemid_gpu, cudaIpcMemLazyEnablePeerAccess) != 0) {
+        if (cudaIpcOpenMemHandle((void **)&((*sendrecvbufs)[i]), shmemid_gpu[i], cudaIpcMemLazyEnablePeerAccess) != 0) {
 	  printf("error cudaIpcOpenMemHandle in cuda_shmem.c\n");
 	  exit(1);
         }
@@ -180,6 +183,7 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
     }
   }
   free(mem_partners_l);
+  free(shmemid_gpu);
   for (j = 0; j < my_mpi_rank / (my_mpi_size / num_sockets) * (my_mpi_size / num_sockets); j++) {
     a = (*sendrecvbufs)[0];
     for (i = 0; i < my_mpi_size - 1; i++) {
