@@ -6,6 +6,9 @@
 for i in `seq 1 4`
 do
   ./average.sh AMD_HPE_MPI_ext_mpi/4_nodes/eiger_hpe_mpi_ext_mpi_128_4nodes_"$i"_* > AMD_HPE_MPI_ext_mpi_128_4nodes_$i.txt
+done
+for i in `seq 1 6`
+do
   ./average.sh Grace_HPE_MPI_ext_mpi/4_nodes/todi_hpe_mpi_ext_mpi_288_4nodes_"$i"_* > Grace_HPE_MPI_ext_mpi_288_4nodes_$i.txt
 done
 
