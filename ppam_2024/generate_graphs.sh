@@ -1,5 +1,17 @@
 #!/bin/bash
 
+./average.sh AMD_HPE_MPI/4_nodes/eiger_hpe_mpi_128_4nodes_1*.txt > AMD_HPE_MPI_4nodes.txt
+./average.sh Grace_HPE_MPI/4_nodes/todi_hpe_mpi_288_4nodes_1_*.txt > Grace_HPE_MPI_4nodes.txt
+
+for i in `seq 1 4`
+do
+  ./average.sh AMD_HPE_MPI_ext_mpi/4_nodes/eiger_hpe_mpi_ext_mpi_128_4nodes_"$i"_* > AMD_HPE_MPI_ext_mpi_128_4nodes_$i.txt
+  ./average.sh Grace_HPE_MPI_ext_mpi/4_nodes/todi_hpe_mpi_ext_mpi_288_4nodes_"$i"_* > Grace_HPE_MPI_ext_mpi_288_4nodes_$i.txt
+done
+
+./minimum.sh AMD_HPE_MPI_ext_mpi_128_4nodes_?.txt > AMD_HPE_MPI_ext_mpi_128_4nodes.txt
+./minimum.sh Grace_HPE_MPI_ext_mpi_288_4nodes_?.txt > Grace_HPE_MPI_ext_mpi_288_4nodes.txt
+
 for tasks in 127 128
 do
   ./average.sh AMD_MPICH/$tasks/pilatus_mpich_"$tasks"_* > AMD_mpich_blocking_$tasks.txt
