@@ -31,7 +31,9 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
               flag = 0;
             }else{
               if ((data_memcpy_reduce.buffer_type1==eshmemo)&&(data_memcpy_reduce.offset1+data_memcpy_reduce.size<=buffer_in_size)){
-                data_memcpy_reduce.buffer_type1=esendbufp;
+                if (parameters->socket_row_size == 1 && parameters->num_sockets_per_node == 1) {
+		  data_memcpy_reduce.buffer_type1=esendbufp;
+		}
                 flag = 2;
               } else if ((data_memcpy_reduce.buffer_type1==eshmemo)&&(data_memcpy_reduce.offset1+data_memcpy_reduce.size<=2*buffer_in_size)){
                 data_memcpy_reduce.buffer_type1=erecvbufp;
@@ -43,7 +45,9 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
                 flag = 2;
               }
               if ((data_memcpy_reduce.buffer_type2==eshmemo)&&(data_memcpy_reduce.offset2+data_memcpy_reduce.size<=buffer_in_size)){
-                data_memcpy_reduce.buffer_type2=esendbufp;
+                if (parameters->socket_row_size == 1 && parameters->num_sockets_per_node == 1) {
+                  data_memcpy_reduce.buffer_type2=esendbufp;
+		}
                 flag = 2;
               } else if ((data_memcpy_reduce.buffer_type2==eshmemo)&&(data_memcpy_reduce.offset2+data_memcpy_reduce.size<=2*buffer_in_size)){
                 data_memcpy_reduce.buffer_type2=erecvbufp;
@@ -63,7 +67,9 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
         }else if ((estring1 == eirecv) || (estring1 == eirec_) || (estring1 == eisend) || (estring1 == eisen_)){
           if (ext_mpi_read_irecv_isend(line, &data_irecv_isend) >= 0) {
             if ((data_irecv_isend.buffer_type==eshmemo)&&(data_irecv_isend.offset+data_irecv_isend.size<=buffer_in_size)){
-              data_irecv_isend.buffer_type=esendbufp;
+              if (parameters->socket_row_size == 1 && parameters->num_sockets_per_node == 1) {
+                data_irecv_isend.buffer_type=esendbufp;
+	      }
               nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
               flag = 0;
             } else if ((data_irecv_isend.buffer_type==eshmemo)&&(data_irecv_isend.offset+data_irecv_isend.size<=2*buffer_in_size)){
