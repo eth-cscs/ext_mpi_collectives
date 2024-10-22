@@ -658,7 +658,11 @@ int ext_mpi_generate_byte_code(char **shmem,
         }
       }
       code_put_int(&ip, integer2, isdryrun);
-      code_put_int(&ip, global_ranks[integer3], isdryrun);
+      if (global_ranks) {
+        code_put_int(&ip, global_ranks[integer3], isdryrun);
+      } else {
+        code_put_int(&ip, -1, isdryrun);
+      }
       code_put_pointer(&ip, header->locmem + size_request * integer4, isdryrun);
     }
     if (estring1 == enode_barrier) {
