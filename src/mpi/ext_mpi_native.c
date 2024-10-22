@@ -1078,7 +1078,7 @@ allreduce_short = 0;
   buffer_temp = buffer2;
   buffer2 = buffer1;
   buffer1 = buffer_temp;
-  if (root > -10 && !not_recursive && (my_cores_per_node_row * my_cores_per_node_column == 1 || copyin == 7) && num_sockets_per_node == 1) {
+  if (root > -10 && !not_recursive && ((my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) || copyin == 7)) {
     if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;
