@@ -1069,8 +1069,9 @@ allreduce_short = 0;
     if (ext_mpi_generate_no_first_barrier(buffer1, buffer2) < 0)
       goto error;
   } else {
-    if (ext_mpi_generate_dummy(buffer1, buffer2) < 0)
-      goto error;
+    buffer_temp = buffer2;
+    buffer2 = buffer1;
+    buffer1 = buffer_temp;
   }
   if (ext_mpi_generate_no_socket_barriers(buffer2, buffer1) < 0)
     goto error;

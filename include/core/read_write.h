@@ -53,6 +53,7 @@ enum eassembler_type {
   esendbufp,
   erecvbufp,
   elocmemp,
+  eshmem_tempp,
   eshmemo,
   ecpbuffer_offseto,
   ecp,

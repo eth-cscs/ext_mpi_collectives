@@ -1158,6 +1158,9 @@ static int write_eassembler_type(char *buffer_out, enum eassembler_type string1,
     case elocmemp:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " LOCMEM+");
       break;
+    case eshmem_tempp:
+      nbuffer_out += sprintf(buffer_out + nbuffer_out, " SHMETMP[");
+      break;
     case eshmemo:
       nbuffer_out += sprintf(buffer_out + nbuffer_out, " SHMEM[");
       break;
@@ -1321,6 +1324,9 @@ static enum eassembler_type read_assembler_type(char *cstring1) {
   }
   if (strcmp(cstring1, "LOCMEM+") == 0) {
     return elocmemp;
+  }
+  if (strcmp(cstring1, "SHMETMP[") == 0) {
+    return eshmem_tempp;
   }
   if (strcmp(cstring1, "SHMEM[") == 0) {
     return eshmemo;

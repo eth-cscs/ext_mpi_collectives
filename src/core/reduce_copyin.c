@@ -937,6 +937,7 @@ static int reduce_copies_tree(int num_sockets, int socket_size, int num_factors,
 static int reduce_copies_one_socket(int copyin_method, int num_sockets, int socket_size, int num_factors, int *factors, int add, int size, int type_size, int rank, int num_ranks, int *ranks, int first_call, int in_out, int one_node, char *buffer_out, int ascii) {
   int nbuffer_out = 0, size_local, add_local, num_factors_loc, socket_size_loc, ranks_loc[num_ranks], rank_loc = -1, ranks_loci[num_ranks], rank_loci = -1, sizes[socket_size], displs[socket_size], i;
   enum eassembler_type buf = eshmemo;
+  if (num_sockets > 1) buf = eshmem_tempp;
   if (one_node) buf = erecvbufp;
   for (num_factors_loc = 1; num_factors_loc < num_factors && factors[num_factors_loc] != 1; num_factors_loc++);
   if (num_factors_loc != num_factors) {
@@ -967,7 +968,7 @@ static int reduce_copies_one_socket(int copyin_method, int num_sockets, int sock
         } else if (copyin_method == 6) {
           nbuffer_out += reduce_copies_recursive(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 1, first_call, buffer_out + nbuffer_out, ascii);
         } else {
-          nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 1, first_call || buf == eshmemo, buf, buffer_out + nbuffer_out, ascii);
+          nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 1, first_call || buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
 	}
       }
       if (num_factors_loc != num_factors) {
@@ -989,7 +990,7 @@ static int reduce_copies_one_socket(int copyin_method, int num_sockets, int sock
         } else if (copyin_method == 6) {
           nbuffer_out += reduce_copies_recursive(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 2, 0, buffer_out + nbuffer_out, ascii);
         } else {
-          nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 2, buf == eshmemo, buf, buffer_out + nbuffer_out, ascii);
+          nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 2, buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
 	}
       }
     }
@@ -1011,7 +1012,7 @@ static int reduce_copies_one_socket(int copyin_method, int num_sockets, int sock
           } else if (copyin_method == 6) {
 	    nbuffer_out += reduce_copies_recursive(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 1, first_call, buffer_out + nbuffer_out, ascii);
           } else {
-	    nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 1, first_call || buf == eshmemo, buf, buffer_out + nbuffer_out, ascii);
+	    nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 1, first_call || buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
 	  }
 	}
         if (num_factors_loc != num_factors) {
@@ -1033,7 +1034,7 @@ static int reduce_copies_one_socket(int copyin_method, int num_sockets, int sock
           } else if (copyin_method == 6) {
 	    nbuffer_out += reduce_copies_recursive(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 2, 0, buffer_out + nbuffer_out, ascii);
           } else {
-	    nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 2, buf == eshmemo, buf, buffer_out + nbuffer_out, ascii);
+	    nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 2, buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
 	  }
 	}
       }
