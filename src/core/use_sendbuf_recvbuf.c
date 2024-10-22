@@ -21,9 +21,11 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
     case data_type_int:
     case data_type_float:
       type_size = 4;
+      break;
     case data_type_long_int:
     case data_type_double:
       type_size = 8;
+      break;
     default:
       type_size = 1;
   }
@@ -64,6 +66,11 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
       }
     }
   }
+  buffer_socket_size = counts[0];
+  buffer_socket_offset = 0;
+  for (i = 1; i <= parameters->socket_number; i++) {
+    buffer_socket_offset += counts[parameters->num_sockets_per_node - i];
+  }
   free(displsa);
   free(countsa);
   free(ranks_inv);
@@ -99,9 +106,9 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
 		data_memcpy_reduce.offset1 = 0;
               }
               flag = 2;
-            } else if (data_memcpy_reduce.buffer_type1==eshmemo) {
+            } else if (data_memcpy_reduce.buffer_type1 == eshmemo) {
 	      if (copyin7) {
-	        data_memcpy_reduce.offset1 += buffer_in_size - buffer_socket_size;
+	        data_memcpy_reduce.offset1 -= buffer_in_size - buffer_socket_offset;
                 flag = 2;
 	      }
 	    }
@@ -125,7 +132,7 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
               flag = 2;
 	    } else if (data_memcpy_reduce.buffer_type2==eshmemo) {
               if (copyin7) {
-                data_memcpy_reduce.offset2 += buffer_in_size - buffer_socket_size;
+                data_memcpy_reduce.offset2 -= buffer_in_size - buffer_socket_offset;
                 flag = 2;
               }
             }
@@ -165,7 +172,7 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
               flag = 0;
 	    } else if (data_irecv_isend.buffer_type==eshmemo) {
 	      if (copyin7) {
-                data_irecv_isend.offset += buffer_in_size - buffer_socket_size;
+                data_irecv_isend.offset -= buffer_in_size - buffer_socket_offset;
               }
             }
           }
