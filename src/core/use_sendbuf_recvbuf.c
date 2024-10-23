@@ -34,43 +34,52 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
   ranks_inv = (int*)malloc(parameters->socket_row_size * parameters->num_sockets_per_node * sizeof(int));
   countsa = (int*)malloc(parameters->socket_row_size * parameters->num_sockets_per_node * sizeof(int));
   displsa = (int*)malloc((parameters->socket_row_size * parameters->num_sockets_per_node + 1) * sizeof(int));
-  for (i = 0; i < parameters->socket_row_size; i++) {
+  for (i = 0; i < parameters->socket_row_size * parameters->num_sockets_per_node; i++) {
     ranks[i] = i;
   }
   lrank_row = parameters->socket_rank + parameters->socket_number * parameters->socket_row_size;
-  if (parameters->copyin_method == 6) {
+  if (parameters->copyin_method == 6 || parameters->copyin_method == 7) {
     for (i = 1; parameters->copyin_factors[i] < 0; i++);
-    ext_mpi_rank_order(parameters->socket_row_size, i - 1, parameters->copyin_factors + 1, ranks);
-    for (i = 0; i < parameters->socket_row_size; i++) {
+    ext_mpi_rank_order(parameters->socket_row_size * parameters->num_sockets_per_node, i - 1, parameters->copyin_factors + 1, ranks);
+    for (i = 0; i < parameters->socket_row_size * parameters->num_sockets_per_node; i++) {
       if (ranks[i] == lrank_row) {
         lrank_row = i;
         break;
       }
     }
   }
-  for (i = 0; i < parameters->socket_row_size; i++) {
+  for (i = 0; i < parameters->socket_row_size * parameters->num_sockets_per_node; i++) {
     ranks_inv[ranks[i]] = i;
   }
+  j = 0;
+  for (i = 0; i < parameters->counts_max; i ++) {
+    j += parameters->counts[i];
+  }
   if (parameters->copyin_factors[0] < 0) {
-    ext_mpi_sizes_displs(parameters->socket_row_size * parameters->num_sockets_per_node, buffer_in_size, type_size, -parameters->copyin_factors[0], countsa, displsa);
+    ext_mpi_sizes_displs(parameters->socket_row_size * parameters->num_sockets_per_node, j, type_size, -parameters->copyin_factors[0], countsa, displsa);
   } else {
-    ext_mpi_sizes_displs(parameters->socket_row_size * parameters->num_sockets_per_node, buffer_in_size, type_size, 0, countsa, displsa);
+    ext_mpi_sizes_displs(parameters->socket_row_size * parameters->num_sockets_per_node, j, type_size, 0, countsa, displsa);
   }
   for (i = 0; i < parameters->num_sockets_per_node; i++) {
     counts[i] = 0;
   }
   for (j = 0; j < parameters->num_sockets_per_node; j++) {
-    for (i = 0; i < parameters->socket_row_size; i++) {
-      if (i / (parameters->socket_row_size / parameters->num_sockets_per_node) == j) {
+    for (i = 0; i < parameters->socket_row_size * parameters->num_sockets_per_node; i++) {
+      if (i / parameters->socket_row_size == j) {
         counts[(parameters->num_sockets_per_node - j + parameters->socket_number) % parameters->num_sockets_per_node] += countsa[ranks_inv[i]];
       }
     }
   }
-  buffer_socket_size = counts[0];
+  buffer_socket_size = parameters->counts[0];
   buffer_socket_offset = 0;
-  for (i = 1; i <= parameters->socket_number; i++) {
-    buffer_socket_offset += counts[parameters->num_sockets_per_node - i];
+  for (i = 0; i < parameters->socket_number; i++) {
+//    buffer_socket_offset += counts[parameters->num_sockets_per_node - i];
+//    buffer_socket_offset += counts[(parameters->num_sockets_per_node + i) % parameters->num_sockets_per_node];
+    buffer_socket_offset += parameters->counts[(parameters->num_sockets_per_node + i + 1) % parameters->num_sockets_per_node];
   }
+//printf("cccc %d %d %d %d %d %d %d %d %d %d %d %d %d\n", parameters->socket_number, counts[0], counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], counts[7], counts[8], counts[9], counts[10], counts[11]);
+//printf("bbbb %d %d %d %d %d %d %d %d %d %d %d %d %d\n", parameters->socket_number, countsa[0], countsa[1], countsa[2], countsa[3], countsa[4], countsa[5], countsa[6], countsa[7], countsa[8], countsa[9], countsa[10], countsa[11]);
+//printf("aaaa %d %d %d %d\n", parameters->socket_number, buffer_socket_offset, buffer_socket_size, buffer_in_size);
   free(displsa);
   free(countsa);
   free(ranks_inv);
@@ -88,51 +97,49 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
       if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
         if (estring1 == ememcpy || estring1 == ememcp_ || estring1 == ereduce || estring1 == ereduc_ || estring1 == esmemcpy || estring1 == esmemcp_ || estring1 == esreduce || estring1 == esreduc_) {
           if (ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce) >= 0) {
-            if ((data_memcpy_reduce.buffer_type1==eshmemo)&&(data_memcpy_reduce.offset1+data_memcpy_reduce.size<=buffer_in_size)){
+            if (data_memcpy_reduce.buffer_type1 == eshmemo && data_memcpy_reduce.offset1 + data_memcpy_reduce.size <= buffer_in_size && !copyin7){
               if (parameters->socket_row_size == 1 && parameters->num_sockets_per_node == 1) {
 		data_memcpy_reduce.buffer_type1 = esendbufp;
                 flag = 2;
-	      } else if (copyin7) {
-		data_memcpy_reduce.offset1 += buffer_socket_offset;
-                flag = 2;
 	      }
-            } else if ((data_memcpy_reduce.buffer_type1==eshmemo)&&(data_memcpy_reduce.offset1+data_memcpy_reduce.size<=2*buffer_in_size)){
+            } else if (data_memcpy_reduce.buffer_type1 == eshmemo && data_memcpy_reduce.offset1 + data_memcpy_reduce.size <= 2 * buffer_in_size && !copyin7){
               data_memcpy_reduce.buffer_type1 = erecvbufp;
-              if (big_recvbuf && !copyin7) {
+              if (big_recvbuf) {
                 data_memcpy_reduce.offset1 -= buffer_in_size;
-	      } else if (copyin7) {
-                data_memcpy_reduce.offset1 += buffer_socket_offset;
 	      } else {
 		data_memcpy_reduce.offset1 = 0;
               }
               flag = 2;
-            } else if (data_memcpy_reduce.buffer_type1 == eshmemo) {
-	      if (copyin7) {
-	        data_memcpy_reduce.offset1 -= buffer_in_size - buffer_socket_offset;
+            } else if (copyin7) {
+	      if (data_memcpy_reduce.buffer_type1 == eshmemo && !(data_memcpy_reduce.offset1 + data_memcpy_reduce.size <= buffer_in_size) && data_memcpy_reduce.offset1 + data_memcpy_reduce.size <= 2 * buffer_in_size) {
+                data_memcpy_reduce.buffer_type1 = erecvbufp;
+                data_memcpy_reduce.offset1 += buffer_socket_offset - buffer_in_size;
                 flag = 2;
-	      }
+              } else if (data_memcpy_reduce.buffer_type1 == eshmemo) {
+                data_memcpy_reduce.offset1 += buffer_socket_offset;
+                flag = 2;
+              }
 	    }
-            if ((data_memcpy_reduce.buffer_type2==eshmemo)&&(data_memcpy_reduce.offset2+data_memcpy_reduce.size<=buffer_in_size)){
+            if (data_memcpy_reduce.buffer_type2 == eshmemo && data_memcpy_reduce.offset2 + data_memcpy_reduce.size <= buffer_in_size && !copyin7){
               if (parameters->socket_row_size == 1 && parameters->num_sockets_per_node == 1) {
                 data_memcpy_reduce.buffer_type2 = esendbufp;
                 flag = 2;
-	      } else if (copyin7) {
-		data_memcpy_reduce.offset2 += buffer_socket_offset;
-                flag = 2;
 	      }
-            } else if ((data_memcpy_reduce.buffer_type2==eshmemo)&&(data_memcpy_reduce.offset2+data_memcpy_reduce.size<=2*buffer_in_size)){
+            } else if (data_memcpy_reduce.buffer_type2 == eshmemo && data_memcpy_reduce.offset2 + data_memcpy_reduce.size <= 2 * buffer_in_size && !copyin7){
               data_memcpy_reduce.buffer_type2 = erecvbufp;
-              if (big_recvbuf && !copyin7) {
+              if (big_recvbuf) {
                 data_memcpy_reduce.offset2 -= buffer_in_size;
-	      } else if (7) {
-                data_memcpy_reduce.offset2 += buffer_socket_offset;
 	      } else {
 	        data_memcpy_reduce.offset2 = 0;
               }
               flag = 2;
-	    } else if (data_memcpy_reduce.buffer_type2==eshmemo) {
-              if (copyin7) {
-                data_memcpy_reduce.offset2 -= buffer_in_size - buffer_socket_offset;
+	    } else if (copyin7) {
+	      if (data_memcpy_reduce.buffer_type2 == eshmemo && !(data_memcpy_reduce.offset2 + data_memcpy_reduce.size <= buffer_in_size) && data_memcpy_reduce.offset2 + data_memcpy_reduce.size <= 2 * buffer_in_size) {
+                data_memcpy_reduce.buffer_type2 = erecvbufp;
+                data_memcpy_reduce.offset2 += buffer_socket_offset - buffer_in_size;
+                flag = 2;
+              } else if (data_memcpy_reduce.buffer_type2 == eshmemo) {
+                data_memcpy_reduce.offset2 += buffer_socket_offset;
                 flag = 2;
               }
             }
@@ -151,29 +158,32 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
           }
         } else if ((estring1 == eirecv) || (estring1 == eirec_) || (estring1 == eisend) || (estring1 == eisen_)){
           if (ext_mpi_read_irecv_isend(line, &data_irecv_isend) >= 0) {
-            if ((data_irecv_isend.buffer_type==eshmemo)&&(data_irecv_isend.offset+data_irecv_isend.size<=buffer_in_size)){
+            if (data_irecv_isend.buffer_type == eshmemo && data_irecv_isend.offset + data_irecv_isend.size <= buffer_in_size && !copyin7){
               if (parameters->socket_row_size == 1 && parameters->num_sockets_per_node == 1) {
                 data_irecv_isend.buffer_type = esendbufp;
-	      } else if (copyin7) {
-		data_irecv_isend.offset += buffer_socket_offset;
 	      }
               nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
               flag = 0;
-            } else if ((data_irecv_isend.buffer_type==eshmemo)&&(data_irecv_isend.offset+data_irecv_isend.size<=2*buffer_in_size)){
-              data_irecv_isend.buffer_type=erecvbufp;
+            } else if (data_irecv_isend.buffer_type == eshmemo && data_irecv_isend.offset + data_irecv_isend.size <= 2 * buffer_in_size && !copyin7){
+              data_irecv_isend.buffer_type = erecvbufp;
               if (big_recvbuf) {
                 data_irecv_isend.offset -= buffer_in_size;
-	      } else if (big_recvbuf && !copyin7) {
-		data_irecv_isend.offset += buffer_socket_offset;
 	      } else {
                 data_irecv_isend.offset = 0;
               }
               nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
               flag = 0;
-	    } else if (data_irecv_isend.buffer_type==eshmemo) {
-	      if (copyin7) {
-                data_irecv_isend.offset -= buffer_in_size - buffer_socket_offset;
-              }
+	    } else if (copyin7) {
+	      if (data_irecv_isend.buffer_type == eshmemo && !(data_irecv_isend.offset + data_irecv_isend.size <= buffer_in_size) && data_irecv_isend.offset + data_irecv_isend.size <= 2 * buffer_in_size) {
+                data_irecv_isend.buffer_type = erecvbufp;
+	        data_irecv_isend.offset += buffer_socket_offset - buffer_in_size;
+                nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
+                flag = 0;
+	      } else if (data_irecv_isend.buffer_type == eshmemo) {
+	        data_irecv_isend.offset += buffer_socket_offset;
+                nbuffer_out += ext_mpi_write_irecv_isend(buffer_out + nbuffer_out, &data_irecv_isend, parameters->ascii_out);
+                flag = 0;
+	      }
             }
           }
         }

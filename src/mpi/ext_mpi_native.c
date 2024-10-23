@@ -747,7 +747,7 @@ allreduce_short = 0;
   for (i = 0; i < num_ranks; i++) {
     ranks[i] = i;
   }
-  if (copyin == 6) {
+  if (copyin == 6 || copyin == 7) {
     for (i = 1; copyin_factors[i] < 0; i++);
     ext_mpi_rank_order(num_ranks, i - 1, copyin_factors + 1, ranks);
     for (i = 0; i < num_ranks; i++) {
@@ -1078,7 +1078,7 @@ allreduce_short = 0;
   buffer_temp = buffer2;
   buffer2 = buffer1;
   buffer1 = buffer_temp;
-  if (root > -10 && !not_recursive && ((my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) || copyin == 7)) {
+  if (root > -10 && !not_recursive && ((my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) || (copyin == 7 && my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1))) {
     if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;

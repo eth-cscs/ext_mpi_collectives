@@ -1576,7 +1576,7 @@ static int generate_allreduce_copyinout_shmem(char *buffer_in, char *buffer_out,
   for (i = 0; i < num_ranks; i++) {
     ranks[i] = i;
   }
-  if (parameters->copyin_method == 6) {
+  if (parameters->copyin_method == 6 || parameters->copyin_method == 7) {
     for (i = 1; parameters->copyin_factors[i] < 0 && i < parameters->copyin_factors_max; i++);
     ext_mpi_rank_order(num_ranks, i - 1, parameters->copyin_factors + 1, ranks);
     for (i = 0; i < num_ranks; i++) {
