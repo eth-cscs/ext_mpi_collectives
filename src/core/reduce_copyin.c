@@ -990,6 +990,9 @@ static int reduce_copies_one_socket(int copyin_method, int num_sockets, int sock
         } else if (copyin_method == 6) {
           nbuffer_out += reduce_copies_recursive(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 2, 0, buffer_out + nbuffer_out, ascii);
         } else {
+	  if (!one_node) {
+	    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", esocket_barrier);
+	  }
           nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 2, buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
 	}
       }
@@ -1034,6 +1037,9 @@ static int reduce_copies_one_socket(int copyin_method, int num_sockets, int sock
           } else if (copyin_method == 6) {
 	    nbuffer_out += reduce_copies_recursive(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 2, 0, buffer_out + nbuffer_out, ascii);
           } else {
+	    if (!one_node) {
+	      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", esocket_barrier);
+	    }
 	    nbuffer_out += reduce_copies_tree(num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 2, buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
 	  }
 	}
