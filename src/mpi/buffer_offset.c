@@ -144,8 +144,8 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out, MPI_Comm *
   }
   parameters->shmem_max = shmem_max[0];
   if (parameters->copyin_method == 7 && parameters->num_sockets_per_node > 1) {
-    for (i = 0; i < parameters->message_sizes_max; i++) {
-      parameters->shmem_max += parameters->message_sizes[i]*8;
+    for (i = 0; i < parameters->counts_max; i++) {
+      parameters->shmem_max += parameters->counts[i];
     }
   }
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
