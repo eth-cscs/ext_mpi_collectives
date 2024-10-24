@@ -450,7 +450,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   char **shmem_gpu = NULL;
   int *shmemid_gpu = NULL;
   struct parameters_block *parameters;
+#if defined GPU_ENABLED || defined XPMEM
   int countsa;
+#endif
   not_locmem = (locmem == NULL);
   handle = get_handle();
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
@@ -481,10 +483,12 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   }
   if (code_size < 0)
     goto error;
+#if defined GPU_ENABLED || defined XPMEM
   countsa = 0;
   for (i = 0; i < parameters->counts_max; i++) {
     countsa += parameters->counts[i];
   }
+#endif
   locmem_size = num_comm_max * sizeof(MPI_Request);
   if (not_locmem) {
     locmem = (char *)malloc(locmem_size);

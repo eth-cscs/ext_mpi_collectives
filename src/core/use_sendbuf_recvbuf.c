@@ -7,7 +7,7 @@
 int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
   struct line_memcpy_reduce data_memcpy_reduce;
   struct line_irecv_isend data_irecv_isend;
-  int buffer_in_size = 0, nbuffer_in = 0, nbuffer_out = 0, flag, flag3, big_recvbuf, buffer_socket_offset = 0, buffer_socket_size = 0, copyin7, i;
+  int buffer_in_size = 0, nbuffer_in = 0, nbuffer_out = 0, flag, flag3, big_recvbuf, buffer_socket_offset, copyin7, i;
   char line[1000];
   struct parameters_block *parameters;
   enum eassembler_type estring1;
@@ -16,7 +16,6 @@ int ext_mpi_generate_use_sendbuf_recvbuf(char *buffer_in, char *buffer_out) {
   for (i = 0; i < parameters->num_nodes; i++) {
     buffer_in_size += parameters->message_sizes[i];
   }
-  buffer_socket_size = parameters->counts[0];
   buffer_socket_offset = 0;
   for (i = 0; i < parameters->socket_number; i++) {
     buffer_socket_offset += parameters->counts[(parameters->num_sockets_per_node + i + 1) % parameters->num_sockets_per_node];
