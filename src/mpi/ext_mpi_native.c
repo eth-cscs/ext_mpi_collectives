@@ -499,8 +499,10 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (CACHE_LINE_SIZE > barriers_size) barriers_size = CACHE_LINE_SIZE;
   shmem_size += barriers_size * 2;
   if (shmem_zero) {
+    shmem_sizes = (int*)malloc(sizeof(int) * 8);
     shmem = (char **)malloc(sizeof(char *) * 8);
     for (i = 0; i < 8; i++) {
+      shmem_sizes[i] = shmem_size;
       shmem[i] = (char *)(((long int)i) << 28);
     }
     shmemid = NULL;
@@ -638,6 +640,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   ext_mpi_delete_parameters(parameters);
   if (shmem_zero) {
     free(shmem);
+    free(shmem_sizes);
   }
   free(global_ranks);
   if (ext_mpi_fast) {
@@ -1895,12 +1898,12 @@ int EXT_MPI_Finalize_native() {
   return 0;
 }
 
-void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_ext_mpi_COMM_WORLD_dup, int *e_tag_max) {
-  e_handle_code_max = &handle_code_max;
-  e_comm_code = &comm_code;
-  e_execution_pointer = &execution_pointer;
-  e_active_wait = &active_wait;
-  e_is_initialised = &is_initialised;
-  e_ext_mpi_COMM_WORLD_dup = &ext_mpi_COMM_WORLD_dup;
-  e_tag_max = &tag_max;
+void ext_mpi_native_export(int **e_handle_code_max, char ****e_comm_code, char ****e_execution_pointer, int ***e_active_wait, int **e_is_initialised, MPI_Comm **e_ext_mpi_COMM_WORLD_dup, int **e_tag_max) {
+  *e_handle_code_max = &handle_code_max;
+  *e_comm_code = &comm_code;
+  *e_execution_pointer = &execution_pointer;
+  *e_active_wait = &active_wait;
+  *e_is_initialised = &is_initialised;
+  *e_ext_mpi_COMM_WORLD_dup = &ext_mpi_COMM_WORLD_dup;
+  *e_tag_max = &tag_max;
 }

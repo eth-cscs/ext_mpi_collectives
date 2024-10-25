@@ -63,7 +63,7 @@ int EXT_MPI_Init_native();
 int EXT_MPI_Initialized_native();
 int EXT_MPI_Finalize_native();
 
-void ext_mpi_native_export(int *e_handle_code_max, char ***e_comm_code, char ***e_execution_pointer, int **e_active_wait, int *e_is_initialised, MPI_Comm *e_EXT_MPI_COMM_WORLD, int *e_tag_max);
+void ext_mpi_native_export(int **e_handle_code_max, char ****e_comm_code, char ****e_execution_pointer, int ***e_active_wait, int **e_is_initialised, MPI_Comm **e_EXT_MPI_COMM_WORLD, int **e_tag_max);
 
 #ifdef __cplusplus
 }
