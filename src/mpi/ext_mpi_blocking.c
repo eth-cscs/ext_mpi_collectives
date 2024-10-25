@@ -35,10 +35,11 @@ extern int ext_mpi_not_recursive;
 static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
   char *sendbuf = NULL, *recvbuf = NULL, data_num_ports[1000], data_copyin_factors[1000];
   FILE * data = fopen("./blocking_4.txt", "r");
-  int message_size, type_size, *num_ports = NULL, *groups = NULL, copyin_method, *copyin_factors = NULL;
+  int message_size, type_size, *num_ports = NULL, *groups = NULL, copyin_method, *copyin_factors = NULL, num_sockets_per_node = 1, i;
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
   int my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, abs(ext_mpi_num_sockets_per_node));
+  if (ext_mpi_num_sockets_per_node > 0) num_sockets_per_node = ext_mpi_num_sockets_per_node;
   sendbuf = (char *)malloc(1024 * 1024 * 1024);
   if (!sendbuf)
     goto error;
@@ -47,12 +48,16 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
     goto error;
   MPI_Type_size(datatype, &type_size);
   while (fscanf(data, "%d %s %s", &message_size, data_num_ports, data_copyin_factors) == 3) {
+    for (i = 0; data_num_ports[i]; i++) {
+      if (data_num_ports[i] == '_') data_num_ports[i] = ' ';
+    }
+    for (i = 0; data_copyin_factors[i]; i++) {
+      if (data_copyin_factors[i] == '_') data_copyin_factors[i] = ' ';
+    }
     ext_mpi_scan_ports_groups(data_num_ports, &num_ports, &groups);
     ext_mpi_scan_copyin(data_copyin_factors, &copyin_method, &copyin_factors);
-    if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, ext_mpi_num_sockets_per_node, collective_type_allreduce, i_comm) < 0)
+    if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, i_comm) < 0)
       goto error;
-/*    if (EXT_MPI_Add_blocking_native(counts[j], MPI_LONG, MPI_SUM, comm, my_cores_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 0, 0, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, i_comm) < 0)
-      goto error;*/
   }
   free(groups);
   free(num_ports);
