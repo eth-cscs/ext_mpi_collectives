@@ -18,7 +18,7 @@ void ext_mpi_node_barrier_mpi(MPI_Comm shmem_comm_node_row,
     } else {
       shmem_comm_node_row = MPI_COMM_NULL;
     }
-    if (*((void **)(comm_code+header->size_to_return+sizeof(MPI_Comm)+2*sizeof(void*)))) {
+    if (*((void **)(comm_code+header->size_to_return+sizeof(MPI_Comm)+sizeof(void*)))) {
       shmem_comm_node_column = *((MPI_Comm *)(comm_code+header->size_to_return+sizeof(MPI_Comm)+2*sizeof(void*)));
     } else {
       shmem_comm_node_column = MPI_COMM_NULL;

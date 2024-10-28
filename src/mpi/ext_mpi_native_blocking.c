@@ -154,11 +154,13 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     memset((*comms_blocking)[i_comm]->padding_factor_allreduce_blocking, 0, 100 * sizeof(int));
     (*comms_blocking)[i_comm]->padding_factor_reduce_scatter_block_blocking = (int *)malloc(100 * sizeof(int));
     memset((*comms_blocking)[i_comm]->padding_factor_reduce_scatter_block_blocking, 0, 100 * sizeof(int));
-    comm_code_temp = (char *)malloc(sizeof(struct header_byte_code) + 2 * sizeof(MPI_Comm));
+    comm_code_temp = (char *)malloc(sizeof(struct header_byte_code) + 2 * sizeof(MPI_Comm) + 2 * sizeof(void*));
     header = (struct header_byte_code *)comm_code_temp;
     header->size_to_return = sizeof(struct header_byte_code);
-    *((MPI_Comm *)(comm_code_temp+header->size_to_return)) = comm;
-    *((MPI_Comm *)(comm_code_temp+header->size_to_return+sizeof(MPI_Comm))) = MPI_COMM_NULL;
+    *((void **)(comm_code_temp + header->size_to_return)) = &header;
+    *((void **)(comm_code_temp + header->size_to_return + sizeof(MPI_Comm) + sizeof(void*))) = NULL;
+    *((MPI_Comm *)(comm_code_temp + header->size_to_return + sizeof(void*))) = comm;
+    *((MPI_Comm *)(comm_code_temp + header->size_to_return + sizeof(MPI_Comm) + 2 * sizeof(void*))) = MPI_COMM_NULL;
     ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, num_sockets_per_node, size_shared, &(*comms_blocking)[i_comm]->sizes_shared_socket, &(*comms_blocking)[i_comm]->shmem_socket_blocking_shmemid, &(*comms_blocking)[i_comm]->shmem_socket_blocking, &((*comms_blocking)[i_comm]->comm_row_blocking));
     (*comms_blocking)[i_comm]->counter_socket_blocking = 0;
     (*comms_blocking)[i_comm]->num_cores_blocking = my_cores_per_node;
@@ -191,11 +193,11 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	j = (*comms_blocking)[i_comm]->mpi_size_blocking / (*comms_blocking)[i_comm]->num_cores_blocking;
       }
       handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, (*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor);
-      numbers = (int *)malloc(1024 * 1024 * sizeof(int));
+/*      numbers = (int *)malloc(1024 * 1024 * sizeof(int));
       j_ = ext_mpi_exec_padding((*e_comm_code)[handle], (char *)(send_ptr), (char *)(recv_ptr), NULL, numbers);
       j_ = ext_mpi_prime_factor_padding(j_, numbers);
       padding_factor = ext_mpi_padding_factor(j_, comm);
-      free(numbers);
+      free(numbers);*/
       for (i = 0; (*comms_blocking)[i_comm]->comm_code_allreduce_blocking[i]; i++)
         ;
       (*comms_blocking)[i_comm]->padding_factor_allreduce_blocking[i] = j / padding_factor;
@@ -250,10 +252,10 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
 static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comms_blocking) {
   struct header_byte_code *header;
   int i;
-  header = (struct header_byte_code *)malloc(sizeof(struct header_byte_code) + 2 * sizeof(MPI_Comm));
+  header = (struct header_byte_code *)malloc(sizeof(struct header_byte_code) + 2 * sizeof(MPI_Comm) + 2 * sizeof(void*));
   header->size_to_return = sizeof(struct header_byte_code);
-  *((void**)(((char *)header) + header->size_to_return + sizeof(void*))) = NULL;
-  *((void**)(((char *)header) + header->size_to_return + sizeof(MPI_Comm) + 2 * sizeof(void*))) = NULL;
+  *((void**)(((char *)header) + header->size_to_return)) = &header;
+  *((void**)(((char *)header) + header->size_to_return + sizeof(MPI_Comm) + sizeof(void*))) = NULL;
   *((MPI_Comm *)(((char *)header) + header->size_to_return + sizeof(void*))) = (*comms_blocking)[i_comm]->comm_row_blocking;
   *((MPI_Comm *)(((char *)header) + header->size_to_return + sizeof(MPI_Comm) + 2 * sizeof(void*))) = (*comms_blocking)[i_comm]->comm_column_blocking;
   free((*comms_blocking)[i_comm]->padding_factor_allreduce_blocking);
