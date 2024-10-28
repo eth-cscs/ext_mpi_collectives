@@ -252,8 +252,10 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
   int i;
   header = (struct header_byte_code *)malloc(sizeof(struct header_byte_code) + 2 * sizeof(MPI_Comm));
   header->size_to_return = sizeof(struct header_byte_code);
-  *((MPI_Comm *)(((char *)header)+header->size_to_return)) = (*comms_blocking)[i_comm]->comm_row_blocking;
-  *((MPI_Comm *)(((char *)header)+header->size_to_return+sizeof(MPI_Comm))) = (*comms_blocking)[i_comm]->comm_column_blocking;
+  *((void**)(((char *)header) + header->size_to_return + sizeof(void*))) = NULL;
+  *((void**)(((char *)header) + header->size_to_return + sizeof(MPI_Comm) + 2 * sizeof(void*))) = NULL;
+  *((MPI_Comm *)(((char *)header) + header->size_to_return + sizeof(void*))) = (*comms_blocking)[i_comm]->comm_row_blocking;
+  *((MPI_Comm *)(((char *)header) + header->size_to_return + sizeof(MPI_Comm) + 2 * sizeof(void*))) = (*comms_blocking)[i_comm]->comm_column_blocking;
   free((*comms_blocking)[i_comm]->padding_factor_allreduce_blocking);
   free((*comms_blocking)[i_comm]->padding_factor_reduce_scatter_block_blocking);
   free((*comms_blocking)[i_comm]->count_allreduce_blocking);
