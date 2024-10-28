@@ -834,10 +834,10 @@ int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char
   return 0;
 }
 
-int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, void **shmem_blocking, const void *sendbuf, void *recvbuf, int count, int reduction_op, int count_io, char **send_pointers, void *p_dev_temp) {
+int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, void **shmem_blocking, const void *sendbuf, void *recvbuf, int count, int reduction_op, int count_io, void *p_dev_temp) {
   char instruction;
   void *p1, *p2;
-  int i1, i2, send_pointer = 0;
+  int i1, i2;
 #ifdef GPU_ENABLED
   char instruction2;
 #endif
@@ -881,11 +881,6 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       i1 = code_get_int(&ip) * count;
       i2 = code_get_int(&ip);
       recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p1, &i1);
-      if (send_pointers && send_pointers[send_pointer]) {
-	p2 = send_pointers[send_pointer];
-        recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p2, &i1);
-	send_pointer++;
-      }
 #ifdef NCCL_ENABLED
       code_get_pointer(&ip);
       ncclSend((const void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);

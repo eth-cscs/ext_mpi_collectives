@@ -927,7 +927,7 @@ static int reduce_copies_tree(int num_sockets, int socket_size, int num_factors,
       nbuffer_out += wait_allgather_recursive(factors[num_factors - 1], ranks_waitl, buffer_out + nbuffer_out, ascii);
     }
   } else {
-    printf("not implemented\n"); exit(1);
+    printf("reduce_copies_tree not implemented\n"); exit(1);
   }
   free(rstarts);
   free(ranks_wait);
