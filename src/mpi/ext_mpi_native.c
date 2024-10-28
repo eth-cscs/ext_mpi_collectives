@@ -512,9 +512,11 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       goto error_shared;
   }
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(recvbuf)) {
-    ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs, mem_partners);
-    ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs, mem_partners);
+  if (gpu_is_device_pointer(recvbuf) || recvbuf == (void*)RECV_PTR_GPU) {
+    if (recvbuf != (void*)RECV_PTR_GPU) {
+      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs, mem_partners);
+      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs, mem_partners);
+    }
     if (shmem_zero) {
       shmem_gpu = shmem;
       shmemid_gpu = NULL;

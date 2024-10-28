@@ -1138,6 +1138,7 @@ int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, i
     case OPCODE_GPUKERNEL:
       instruction2 = code_get_char(&ip);
       p1 = code_get_pointer(&ip);
+      code_get_int(&ip);
       break;
 #endif
     default:

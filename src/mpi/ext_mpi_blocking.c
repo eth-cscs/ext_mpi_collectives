@@ -58,10 +58,10 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
     ext_mpi_scan_copyin(data_copyin_factors, &copyin_method, &copyin_factors);
     if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, i_comm) < 0)
       goto error;
+    free(groups);
+    free(num_ports);
+    free(copyin_factors);
   }
-  free(groups);
-  free(num_ports);
-  free(copyin_factors);
   free(recvbuf);
   free(sendbuf);
   fclose(data);
