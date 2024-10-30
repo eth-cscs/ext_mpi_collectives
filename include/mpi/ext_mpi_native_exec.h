@@ -4,16 +4,6 @@
 
 #include <mpi.h>
 
-#ifndef GPU_ENABLED
-#define SEND_PTR_CPU 0x80000000
-#define RECV_PTR_CPU 0x90000000
-#else
-#define SEND_PTR_GPU 0x80000000
-#define SEND_PTR_CPU 0x90000000
-#define RECV_PTR_GPU 0xa0000000
-#define RECV_PTR_CPU 0xb0000000
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif

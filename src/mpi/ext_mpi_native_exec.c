@@ -555,36 +555,36 @@ static int gpu_is_device_pointer(void *buf) {
 
 static void normalize_address(int count, void **address) {
   long int i;
-  i = (long int)(*address) >> 28;
-  *address = (void *)(((long int)(*address) & 0xFFFFFFF) / count + (i << 28));
+  i = (unsigned long int)(*address) >> 60;
+  *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) / count + (i << 60));
 }
 
 static void recalculate_address_io(const void *sendbuf, void *recvbuf, int count, void **shmem, int size_io, void **address, int *size) {
   long int i;
-  i = (long int)(*address) >> 28;
+  i = (unsigned long int)(*address) >> 60;
   switch (i) {
 #ifdef GPU_ENABLED
-    case (SEND_PTR_GPU >> 28):
+    case (SEND_PTR_GPU >> 60):
 #endif
-    case (SEND_PTR_CPU >> 28):
-      *address = (void *)(((long int)(*address) & 0xFFFFFFF) * count + (long int)(sendbuf));
+    case (SEND_PTR_CPU >> 60):
+      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(sendbuf));
       if ((char *)(*address) + *size > (char *)sendbuf + size_io) {
         *size = (char *)sendbuf + size_io - (char *)(*address);
         if (*size < 0) *size = 0;
       }
       break;
 #ifdef GPU_ENABLED
-    case (RECV_PTR_GPU >> 28):
+    case (RECV_PTR_GPU >> 60):
 #endif
-    case (RECV_PTR_CPU >> 28):
-      *address = (void *)(((long int)(*address) & 0xFFFFFFF) * count + (long int)(recvbuf));
+    case (RECV_PTR_CPU >> 60):
+      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(recvbuf));
       if ((char *)(*address) + *size > (char *)recvbuf + size_io) {
         *size = (char *)recvbuf + size_io - (char *)(*address);
         if (*size < 0) *size = 0;
       }
       break;
     default:
-      *address = (void *)(((long int)(*address) & 0xFFFFFFF) * count + (long int)(shmem[i]));
+      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(shmem[i]));
   }
 }
 
@@ -1028,18 +1028,18 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
 
 static long int exec_padding_address(void *p, void *sendbuf, void *recvbuf, void **shmem) {
   long int i;
-  i = (long int)(p) >> 28;
+  i = (unsigned long int)(p) >> 60;
   switch (i) {
 #ifdef GPU_ENABLED
-    case (SEND_PTR_GPU >> 28):
+    case (SEND_PTR_GPU >> 60):
 #endif
-    case (SEND_PTR_CPU >> 28):
+    case (SEND_PTR_CPU >> 60):
       return p - sendbuf;
       break;
 #ifdef GPU_ENABLED
-    case (RECV_PTR_GPU >> 28):
+    case (RECV_PTR_GPU >> 60):
 #endif
-    case (RECV_PTR_CPU >> 28):
+    case (RECV_PTR_CPU >> 60):
       return p - recvbuf;
       break;
     default:

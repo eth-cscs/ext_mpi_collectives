@@ -55,16 +55,6 @@
 ncclComm_t ext_mpi_nccl_comm;
 #endif
 
-#ifndef GPU_ENABLED
-#define SEND_PTR_CPU 0x80000000
-#define RECV_PTR_CPU 0x90000000
-#else
-#define SEND_PTR_GPU 0x80000000
-#define SEND_PTR_CPU 0x90000000
-#define RECV_PTR_GPU 0xa0000000
-#define RECV_PTR_CPU 0xb0000000
-#endif
-
 static int handle_code_max = 100;
 static char **comm_code = NULL;
 static int *execution_pointer_func = NULL;
@@ -503,7 +493,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     shmem = (char **)malloc(sizeof(char *) * 8);
     for (i = 0; i < 8; i++) {
       shmem_sizes[i] = shmem_size;
-      shmem[i] = (char *)(((long int)i) << 28);
+      shmem[i] = (char *)(((unsigned long int)i) << 60);
     }
     shmemid = NULL;
   } else {

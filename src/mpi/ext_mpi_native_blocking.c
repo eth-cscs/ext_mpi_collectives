@@ -26,16 +26,6 @@
 ncclComm_t ext_mpi_nccl_comm;
 #endif
 
-#ifndef GPU_ENABLED
-#define SEND_PTR_CPU 0x80000000
-#define RECV_PTR_CPU 0x90000000
-#else
-#define SEND_PTR_GPU 0x80000000
-#define SEND_PTR_CPU 0x90000000
-#define RECV_PTR_GPU 0xa0000000
-#define RECV_PTR_CPU 0xb0000000
-#endif
-
 static int *e_handle_code_max = NULL;
 static char ***e_comm_code = NULL;
 static char ***e_execution_pointer = NULL;
