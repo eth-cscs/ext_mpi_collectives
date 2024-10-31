@@ -571,7 +571,11 @@ int ext_mpi_generate_byte_code(char **shmem,
       if (header->num_cores != 1 || num_sockets_per_node != 1) {
         code_put_char(&ip, OPCODE_NODEBARRIER_ATOMIC_WAIT, isdryrun);
 	if (header->barrier_shmem_node) {
-          code_put_pointer(&ip, header->barrier_shmem_node[integer1], isdryrun);
+	  if (recvbufs && !((unsigned long int)recvbufs[0] & 0xF000000000000000)) {
+            code_put_pointer(&ip, header->barrier_shmem_node[integer1], isdryrun);
+	  } else {
+            code_put_pointer(&ip, (void*)(NULL + integer1), isdryrun);
+	  }
 	} else {
           code_put_pointer(&ip, NULL, isdryrun);
 	}

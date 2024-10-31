@@ -554,7 +554,7 @@ static void recalculate_address_io(void **sendbufs, void **recvbufs, int count, 
     case (SEND_PTR_GPU >> 60):
 #endif
     case (SEND_PTR_CPU >> 60):
-      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(sendbufs[j]));
+      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFF) * count + (unsigned long int)(sendbufs[j]));
       if ((char *)(*address) + *size > (char *)sendbufs[j] + size_io) {
         *size = (char *)sendbufs[j] + size_io - (char *)(*address);
         if (*size < 0) *size = 0;
@@ -564,14 +564,18 @@ static void recalculate_address_io(void **sendbufs, void **recvbufs, int count, 
     case (RECV_PTR_GPU >> 60):
 #endif
     case (RECV_PTR_CPU >> 60):
-      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(recvbufs[j]));
+      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFF) * count + (unsigned long int)(recvbufs[j]));
       if ((char *)(*address) + *size > (char *)recvbufs[j] + size_io) {
         *size = (char *)recvbufs[j] + size_io - (char *)(*address);
         if (*size < 0) *size = 0;
       }
       break;
+    case 0:
+      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFF) * count + (unsigned long int)(shmem[j]));
+      break;
     default:
-      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(shmem[j]));
+      printf("error in recalculate_address_io file ext_mpi_native_exec.c\n");
+      exit(1);
   }
 }
 
@@ -902,10 +906,12 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       node_barrier((int **)shmem_node, counter_node, socket_rank, num_sockets_per_node);
       break;
     case OPCODE_NODEBARRIER_ATOMIC_SET:
-      node_barrier_atomic_set((int *)code_get_pointer(&ip), counter_socket);
+      code_get_pointer(&ip);
+      node_barrier_atomic_set((int *)(shmem_node[0]), counter_node);
       break;
     case OPCODE_NODEBARRIER_ATOMIC_WAIT:
-      node_barrier_atomic_wait((int *)code_get_pointer(&ip), *counter_socket);
+      i1 = (long int)code_get_pointer(&ip);
+      node_barrier_atomic_wait((int *)(shmem_node[i1]), *counter_node);
       break;
     case OPCODE_REDUCE:
       code_get_char(&ip);
