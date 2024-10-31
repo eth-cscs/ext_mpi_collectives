@@ -79,13 +79,9 @@ MPI_Comm ext_mpi_COMM_WORLD_dup = MPI_COMM_NULL;
 
 #ifdef GPU_ENABLED
 static int gpu_is_device_pointer(void *buf) {
-#ifdef GPU_ENABLED
-  if ((void *)(SEND_PTR_CPU) == buf || (void *)(RECV_PTR_CPU) == buf) return 0;
-  if ((void *)(SEND_PTR_GPU) == buf || (void *)(RECV_PTR_GPU) == buf) return 1;
+  if (SEND_PTR_CPU == ((unsigned long int)buf & 0xF000000000000000) || RECV_PTR_CPU == ((unsigned long int)buf & 0xF000000000000000)) return 0;
+  if (SEND_PTR_GPU == ((unsigned long int)buf & 0xF000000000000000) || RECV_PTR_GPU == ((unsigned long int)buf & 0xF000000000000000)) return 1;
   return ext_mpi_gpu_is_device_pointer(buf);
-#else
-  return 0;
-#endif
 }
 #endif
 
@@ -489,12 +485,24 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (CACHE_LINE_SIZE > barriers_size) barriers_size = CACHE_LINE_SIZE;
   shmem_size += barriers_size * 2;
   if (shmem_zero) {
-    shmem_sizes = (int*)malloc(sizeof(int) * 8);
-    shmem = (char **)malloc(sizeof(char *) * 8);
-    for (i = 0; i < 8; i++) {
+    shmem_sizes = (int*)malloc(sizeof(int) * 0xFFF);
+    shmem = (char **)malloc(sizeof(char *) * 0xFFF);
+    sendbufs = (char **)malloc(sizeof(char *) * 0xFFF);
+    recvbufs = (char **)malloc(sizeof(char *) * 0xFFF);
+    for (i = 0; i < 0xFFF; i++) {
       shmem_sizes[i] = shmem_size;
-      shmem[i] = (char *)(((unsigned long int)i) << 60);
+      shmem[i] = (char *)(((unsigned long int)i) << 48);
+      sendbufs[i] = (char *)(((unsigned long int)i) << 48) + SEND_PTR_CPU;
+      recvbufs[i] = (char *)(((unsigned long int)i) << 48) + RECV_PTR_CPU;
     }
+#ifdef GPU_ENABLED
+    if (gpu_is_device_pointer(recvbuf)) {
+      for (i = 0; i < 0xFFF; i++) {
+        sendbufs[i] = (char *)(((unsigned long int)i) << 48) + SEND_PTR_GPU;
+        recvbufs[i] = (char *)(((unsigned long int)i) << 48) + RECV_PTR_GPU;
+       }
+     }
+#endif
     shmemid = NULL;
   } else {
     if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node,
@@ -502,8 +510,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       goto error_shared;
   }
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(recvbuf) || recvbuf == (void*)RECV_PTR_GPU) {
-    if (recvbuf != (void*)RECV_PTR_GPU) {
+  if (gpu_is_device_pointer(recvbuf) || ((unsigned long int)recvbufs[0] & 0xF000000000000000) == RECV_PTR_GPU) {
+    if (((unsigned long int)recvbufs[0] & 0xF000000000000000) != RECV_PTR_GPU) {
       ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs, mem_partners);
       ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs, mem_partners);
     }
@@ -516,17 +524,19 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     }
   } else {
 #endif
+  if (!shmem_zero) {
 #ifndef XPMEM
-  sendbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
-  recvbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
-  memset(sendbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
-  memset(recvbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
-  sendbufs[0] = (char *)sendbuf;
-  recvbufs[0] = recvbuf;
+    sendbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+    recvbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+    memset(sendbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+    memset(recvbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+    sendbufs[0] = (char *)sendbuf;
+    recvbufs[0] = recvbuf;
 #else
-  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
-  ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
+  }
 #ifdef GPU_ENABLED
   }
 #endif
@@ -594,17 +604,19 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       }
     } else {
 #endif
+    if (!shmem_zero) {
 #ifndef XPMEM
-    sendbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
-    recvbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
-    memset(sendbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
-    memset(recvbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
-    sendbufs[0] = (char *)sendbuf;
-    recvbufs[0] = recvbuf;
+      sendbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+      recvbufs = (char **)malloc(num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+      memset(sendbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+      memset(recvbufs, 0, num_sockets_per_node * my_cores_per_node_row * sizeof(char *));
+      sendbufs[0] = (char *)sendbuf;
+      recvbufs[0] = recvbuf;
 #else
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
+      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
+      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
+    }
 #ifdef GPU_ENABLED
     }
 #endif
@@ -631,6 +643,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   }
   ext_mpi_delete_parameters(parameters);
   if (shmem_zero) {
+    free(recvbufs);
+    free(sendbufs);
     free(shmem);
     free(shmem_sizes);
   }

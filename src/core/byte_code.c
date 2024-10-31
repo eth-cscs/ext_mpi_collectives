@@ -513,7 +513,7 @@ int ext_mpi_generate_byte_code(char **shmem,
       if (!gpu_byte_code)
         goto error;
       memset(gpu_byte_code, 0, *gpu_byte_code_counter);
-      if (recvbufs) {
+      if (recvbufs && recvbufs[0] && ((unsigned long int)recvbufs[0] & 0xF000000000000000) != RECV_PTR_GPU) {
         ext_mpi_gpu_malloc((void **)&header->gpu_byte_code, *gpu_byte_code_counter);
       } else {
 	header->gpu_byte_code = malloc(*gpu_byte_code_counter);
@@ -801,13 +801,13 @@ int ext_mpi_generate_byte_code(char **shmem,
 	  if (sendbufs) {
 	    p1 = sendbufs[data_memcpy_reduce.buffer_number1] + integer1;
 	  } else {
-	    p1 = NULL;
+	    p1 = (void *)(NULL + integer1);
 	  }
         } else if (estring1a == erecvbufp) {
 	  if (recvbufs) {
 	    p1 = recvbufs[data_memcpy_reduce.buffer_number1] + integer1;
 	  } else {
-	    p1 = NULL;
+	    p1 = (void *)(NULL + integer1);
 	  }
         } else if (shmem) {
 	  p1 = (void *)(shmem[data_memcpy_reduce.buffer_number1] + integer1);
@@ -818,13 +818,13 @@ int ext_mpi_generate_byte_code(char **shmem,
 	  if (sendbufs) {
 	    p2 = sendbufs[data_memcpy_reduce.buffer_number2] + integer2;
           } else {
-	    p2 = NULL;
+	    p2 = (void *)(NULL + integer2);
 	  }
         } else if (estring2 == erecvbufp) {
 	  if (recvbufs) {
 	    p2 = recvbufs[data_memcpy_reduce.buffer_number2] + integer2;
           } else {
-	    p2 = NULL;
+	    p2 = (void *)(NULL + integer2);
 	  }
         } else if (shmem) {
           p2 = (void *)(shmem[data_memcpy_reduce.buffer_number2] + integer2);
@@ -843,7 +843,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   }
 #ifdef GPU_ENABLED
   if (!isdryrun && on_gpu) {
-    if (recvbufs) {
+    if (recvbufs && recvbufs[0] && ((unsigned long int)recvbufs[0] & 0xF000000000000000) != RECV_PTR_GPU) {
       ext_mpi_gpu_memcpy_hd(header->gpu_byte_code, gpu_byte_code, *gpu_byte_code_counter);
     } else {
       memcpy(header->gpu_byte_code, gpu_byte_code, *gpu_byte_code_counter);

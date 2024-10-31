@@ -541,35 +541,22 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
   return 0;
 }
 
-#ifdef GPU_ENABLED
-static int gpu_is_device_pointer(void *buf) {
-#ifdef GPU_ENABLED
-  if ((void *)(SEND_PTR_CPU) == buf || (void *)(RECV_PTR_CPU) == buf) return 0;
-  if ((void *)(SEND_PTR_GPU) == buf || (void *)(RECV_PTR_GPU) == buf) return 1;
-  return ext_mpi_gpu_is_device_pointer(buf);
-#else
-  return 0;
-#endif
-}
-#endif
-
 static void normalize_address(int count, void **address) {
-  long int i;
-  i = (unsigned long int)(*address) >> 60;
-  *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) / count + (i << 60));
+  *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFF) / count + (unsigned long int)(*address) & 0xFFFF000000000000);
 }
 
-static void recalculate_address_io(const void *sendbuf, void *recvbuf, int count, void **shmem, int size_io, void **address, int *size) {
-  long int i;
+static void recalculate_address_io(void **sendbufs, void **recvbufs, int count, void **shmem, int size_io, void **address, int *size) {
+  long int i, j;
   i = (unsigned long int)(*address) >> 60;
+  j = ((unsigned long int)(*address) >> 48) & 0xFFF;
   switch (i) {
 #ifdef GPU_ENABLED
     case (SEND_PTR_GPU >> 60):
 #endif
     case (SEND_PTR_CPU >> 60):
-      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(sendbuf));
-      if ((char *)(*address) + *size > (char *)sendbuf + size_io) {
-        *size = (char *)sendbuf + size_io - (char *)(*address);
+      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(sendbufs[j]));
+      if ((char *)(*address) + *size > (char *)sendbufs[j] + size_io) {
+        *size = (char *)sendbufs[j] + size_io - (char *)(*address);
         if (*size < 0) *size = 0;
       }
       break;
@@ -577,14 +564,14 @@ static void recalculate_address_io(const void *sendbuf, void *recvbuf, int count
     case (RECV_PTR_GPU >> 60):
 #endif
     case (RECV_PTR_CPU >> 60):
-      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(recvbuf));
-      if ((char *)(*address) + *size > (char *)recvbuf + size_io) {
-        *size = (char *)recvbuf + size_io - (char *)(*address);
+      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(recvbufs[j]));
+      if ((char *)(*address) + *size > (char *)recvbufs[j] + size_io) {
+        *size = (char *)recvbufs[j] + size_io - (char *)(*address);
         if (*size < 0) *size = 0;
       }
       break;
     default:
-      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(shmem[i]));
+      *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFFFFF) * count + (unsigned long int)(shmem[j]));
   }
 }
 
@@ -614,7 +601,7 @@ static void gpu_normalize_addresses(int count, void *p) {
   }
 }
 
-static void gpu_recalculate_addresses(void *p_ref, const void *sendbuf, void *recvbuf, int count, void **shmem_blocking, int count_io, int instruction, void *p_dev) {
+static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvbufs, int count, void **shmem_blocking, int count_io, int instruction, void *p_dev) {
   char *ldata, *lldata, p_temp[10000], *p1, *p2;
   long int size;
   int num_streams, num_stream, index, count2, index_max;
@@ -647,12 +634,12 @@ static void gpu_recalculate_addresses(void *p_ref, const void *sendbuf, void *re
       p2 = *((char **)(ldata + sizeof(char *)));
       size = *((long int *)(ldata + 2 * sizeof(char *)));
       if (size >= 0) {
-        recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, (void **)&p1, (int *)&size);
-        recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, (void **)&p2, (int *)&size);
+        recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, (void **)&p1, (int *)&size);
+        recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, (void **)&p2, (int *)&size);
       } else {
         size = -size;
-        recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, (void **)&p1, (int *)&size);
-        recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, (void **)&p2, (int *)&size);
+        recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, (void **)&p1, (int *)&size);
+        recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, (void **)&p2, (int *)&size);
         size = -size;
       }
       *((char **)lldata) = p1 - (char *)p_ref + (char *)p_dev;
@@ -834,7 +821,7 @@ int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char
   return 0;
 }
 
-int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, void **shmem_blocking, const void *sendbuf, void *recvbuf, int count, int reduction_op, int count_io, void *p_dev_temp) {
+int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, void **shmem_blocking, void **sendbufs, void **recvbufs, int count, int reduction_op, int count_io, void *p_dev_temp) {
   char instruction;
   void *p1, *p2;
   int i1, i2;
@@ -859,15 +846,15 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       p1 = code_get_pointer(&ip);
       p2 = code_get_pointer(&ip);
       i1 = code_get_int(&ip) * count;
-      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p1, &i1);
-      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p2, &i1);
+      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p1, &i1);
+      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p2, &i1);
       memcpy((void *)p1, (void *)p2, i1);
       break;
     case OPCODE_MPIIRECV:
       p1 = code_get_pointer(&ip);
       i1 = code_get_int(&ip) * count;
       i2 = code_get_int(&ip);
-      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p1, &i1);
+      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p1, &i1);
 #ifdef NCCL_ENABLED
       code_get_pointer(&ip);
       ncclRecv((void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
@@ -880,7 +867,7 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       p1 = code_get_pointer(&ip);
       i1 = code_get_int(&ip) * count;
       i2 = code_get_int(&ip);
-      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p1, &i1);
+      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p1, &i1);
 #ifdef NCCL_ENABLED
       code_get_pointer(&ip);
       ncclSend((const void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
@@ -925,8 +912,8 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       p1 = code_get_pointer(&ip);
       p2 = code_get_pointer(&ip);
       i1 = code_get_int(&ip) * count;
-      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p1, &i1);
-      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p2, &i1);
+      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p1, &i1);
+      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p2, &i1);
       switch (reduction_op) {
       case OPCODE_REDUCE_SUM_DOUBLE:
         i1 /= sizeof(double);
@@ -959,8 +946,8 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       p1 = code_get_pointer(&ip);
       p2 = code_get_pointer(&ip);
       i1 = code_get_int(&ip) * count;
-      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p1, &i1);
-      recalculate_address_io(sendbuf, recvbuf, count, shmem_blocking, count_io, &p2, &i1);
+      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p1, &i1);
+      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p2, &i1);
       switch (reduction_op) {
       case OPCODE_REDUCE_SUM_DOUBLE:
         i1 /= sizeof(double);
@@ -1006,7 +993,7 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
     case OPCODE_GPUKERNEL:
       instruction2 = code_get_char(&ip);
       p1 = code_get_pointer(&ip);
-      gpu_recalculate_addresses(p1, sendbuf, recvbuf, count, shmem_blocking, count_io, instruction2, p_dev_temp);
+      gpu_recalculate_addresses(p1, sendbufs, recvbufs, count, shmem_blocking, count_io, instruction2, p_dev_temp);
       ext_mpi_gpu_copy_reduce(instruction2, p_dev_temp, code_get_int(&ip));
       break;
 #endif
@@ -1027,8 +1014,9 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
 }
 
 static long int exec_padding_address(void *p, void *sendbuf, void *recvbuf, void **shmem) {
-  long int i;
+  long int i, j;
   i = (unsigned long int)(p) >> 60;
+  j = ((unsigned long int)(p) >> 48) & 0xFFF;
   switch (i) {
 #ifdef GPU_ENABLED
     case (SEND_PTR_GPU >> 60):
@@ -1046,7 +1034,7 @@ static long int exec_padding_address(void *p, void *sendbuf, void *recvbuf, void
       if (!shmem) {
         return p - NULL;
       } else {
-        return p - shmem[i];
+        return p - shmem[j];
       }
   }
 }
