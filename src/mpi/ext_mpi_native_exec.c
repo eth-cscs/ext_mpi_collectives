@@ -569,24 +569,27 @@ static void recalculate_address_io(void **sendbufs, void **recvbufs, int count, 
 #ifdef GPU_ENABLED
 static void gpu_normalize_addresses(int count, void *p) {
   char *ldata, *p1, *p2;
-  long int size;
+  long int size, start;
   int num_streams, num_stream, index;
   num_streams = *((int *)(p + sizeof(int)));
   for (num_stream = 0; num_stream < num_streams; num_stream++) {
     index = 0;
-    ldata = p + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int));
+    ldata = p + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int) * 2);
     p1 = *((char **)ldata);
     while (p1) {
       p2 = *((char **)(ldata + sizeof(char *)));
       size = *((long int *)(ldata + 2 * sizeof(char *)));
+      start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int)));
       normalize_address(count, (void **)&p1);
       normalize_address(count, (void **)&p2);
       size /= count;
+      start /= count;
       *((char **)ldata) = p1;
       *((char **)(ldata + sizeof(char *))) = p2;
       *((long int *)(ldata + 2 * sizeof(char *))) = size;
+      *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int))) = start;
       index++;
-      ldata = p + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int));
+      ldata = p + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int) * 2);
       p1 = *((char **)ldata);
     }
   }
@@ -594,7 +597,7 @@ static void gpu_normalize_addresses(int count, void *p) {
 
 static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvbufs, int count, void **shmem_blocking, int count_io, int instruction, void *p_dev) {
   char *ldata, *lldata, p_temp[10000], *p1, *p2;
-  long int size;
+  long int size, start;
   int num_streams, num_stream, index, count2, index_max;
   switch (instruction) {
   case OPCODE_REDUCE_SUM_DOUBLE:
@@ -618,12 +621,13 @@ static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvb
   index_max = 0;
   for (num_stream = 0; num_stream < num_streams; num_stream++) {
     index = 0;
-    ldata = p_ref + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int));
-    lldata = p_temp + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int));
+    ldata = p_ref + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int) * 2);
+    lldata = p_temp + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int) * 2);
     p1 = *((char **)ldata);
     while (p1) {
       p2 = *((char **)(ldata + sizeof(char *)));
       size = *((long int *)(ldata + 2 * sizeof(char *)));
+      start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int)));
       if (size >= 0) {
         recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, (void **)&p1, (int *)&size);
         recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, (void **)&p2, (int *)&size);
@@ -636,10 +640,12 @@ static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvb
       *((char **)lldata) = p1 - (char *)p_ref + (char *)p_dev;
       *((char **)(lldata + sizeof(char *))) = p2 - (char *)p_ref + (char *)p_dev;
       size /= count2;
+      start /= count2;
       *((long int *)(lldata + 2 * sizeof(char *))) = size;
+      *((long int *)(lldata + 2 * sizeof(char *) + sizeof(long int))) = start;
       index++;
-      ldata = p_ref + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int));
-      lldata = p_temp + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int));
+      ldata = p_ref + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int) * 2);
+      lldata = p_temp + 2 * sizeof(int) + sizeof(long int) + (num_streams * index + num_stream) * (sizeof(char *) * 2 + sizeof(long int) * 2);
       p1 = *((char **)ldata);
     }
     *((char **)lldata) = NULL;
@@ -647,7 +653,7 @@ static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvb
       index_max = index;
     }
   }
-  ext_mpi_gpu_memcpy_hd(p_dev, p_temp, 2 * sizeof(int) + sizeof(long int) + (num_streams + 1) * index_max * (sizeof(char *) * 2 + sizeof(long int)) + 2 * sizeof(char *) + sizeof(long int));
+  ext_mpi_gpu_memcpy_hd(p_dev, p_temp, 2 * sizeof(int) + sizeof(long int) + (num_streams + 1) * index_max * (sizeof(char *) * 2 + sizeof(long int) * 2) + 2 * sizeof(char *) + sizeof(long int));
 }
 #endif
 

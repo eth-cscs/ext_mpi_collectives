@@ -8,6 +8,7 @@
 #endif
 #include "gpu_shmem.h"
 #include "shmem.h"
+#include "ext_mpi_native_exec.h"
 
 int ext_mpi_gpu_sizeof_memhandle() { return (sizeof(struct cudaIpcMemHandle_st)); }
 
@@ -169,7 +170,7 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
     } else {
       if (!mem_partners_l || (mem_partners_l && mem_partners_l[i])) {
         if (cudaIpcOpenMemHandle((void **)&((*sendrecvbufs)[i]), shmemid_gpu[i], cudaIpcMemLazyEnablePeerAccess) != 0) {
-	  printf("error cudaIpcOpenMemHandle in cuda_shmem.c\n");
+	  printf("error 1 cudaIpcOpenMemHandle in cuda_shmem.c\n");
 	  exit(1);
         }
       } else {
@@ -220,7 +221,7 @@ int ext_mpi_sendrecvbuf_done_gpu(MPI_Comm comm, int my_cores_per_node, char **se
     addr = sendrecvbufs[i];
     if (addr) {
       if (cudaIpcCloseMemHandle((void *)(addr)) != 0) {
-        printf("error cudaIpcCloseMemHandle in cuda_shmem.c\n");
+        printf("error 1 cudaIpcCloseMemHandle in cuda_shmem.c\n");
         exit(1);
       }
     }
@@ -229,6 +230,66 @@ int ext_mpi_sendrecvbuf_done_gpu(MPI_Comm comm, int my_cores_per_node, char **se
   if (PMPI_Comm_free(&gpu_comm_node) != MPI_SUCCESS) {
     printf("error PMPI_Comm_free in cuda_shmem.c\n");
     exit(1);
+  }
+  return 0;
+}
+
+int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
+  int i, j;
+  my_mpi_rank = my_mpi_rank % my_cores_per_node;
+  if (cudaIpcGetMemHandle(&(((struct cudaIpcMemHandle_st*)shmem[0])[0]), (void *)sendbuf) != 0) {
+    printf("error 2 cudaIpcGetMemHandle in cuda_shmem.c\n");
+    exit(1);
+  }
+  if (cudaIpcGetMemHandle(&(((struct cudaIpcMemHandle_st*)shmem[0])[1]), (void *)recvbuf) != 0) {
+    printf("error 3 cudaIpcGetMemHandle in cuda_shmem.c\n");
+    exit(1);
+  }
+  sendbufs[0] = sendbuf;
+  recvbufs[0] = recvbuf;
+  shmem_node[0][0] = ++(*counter);
+  memory_fence_store();
+  for (i = 0; (j = mem_partners[i]) >= 0; i++) {
+    if (j > 0) {
+      while ((unsigned int)(*((volatile int*)(shmem_node[j])) - *counter) > INT_MAX);
+    }
+  }
+  memory_fence_load();
+  for (i = 0; (j = mem_partners[i]) >= 0; i++) {
+    if (j > 0) {
+      if (cudaIpcOpenMemHandle((void **)&(sendbufs[j]), ((struct cudaIpcMemHandle_st*)shmem[j])[0], cudaIpcMemLazyEnablePeerAccess) != 0) {
+        printf("error 2 cudaIpcOpenMemHandle in cuda_shmem.c\n");
+        exit(1);
+      }
+      if (cudaIpcOpenMemHandle((void **)&(recvbufs[j]), ((struct cudaIpcMemHandle_st*)shmem[j])[1], cudaIpcMemLazyEnablePeerAccess) != 0) {
+        printf("error 3 cudaIpcOpenMemHandle in cuda_shmem.c\n");
+        exit(1);
+      }
+    }
+  }
+  return 0;
+}
+
+int ext_mpi_sendrecvbuf_done_gpu_blocking(char **sendbufs, char **recvbufs, int *mem_partners) {
+  int i, j;
+  char *addr;
+  for (i = 0; (j = mem_partners[i]) >= 0; i++) {
+    if (j > 0) {
+      addr = sendbufs[j];
+      if (addr) {
+        if (cudaIpcCloseMemHandle((void *)(addr)) != 0) {
+          printf("error 2 cudaIpcCloseMemHandle in cuda_shmem.c\n");
+          exit(1);
+        }
+      }
+      addr = recvbufs[j];
+      if (addr) {
+        if (cudaIpcCloseMemHandle((void *)(addr)) != 0) {
+          printf("error 3 cudaIpcCloseMemHandle in cuda_shmem.c\n");
+          exit(1);
+        }
+      }
+    }
   }
   return 0;
 }
