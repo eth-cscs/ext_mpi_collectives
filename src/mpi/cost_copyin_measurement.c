@@ -42,7 +42,7 @@ static double execution_time(const void *sendbuf, void *recvbuf, int count, MPI_
   MPI_Comm_rank(comm_row, &mpi_rank_row);
   handle = EXT_MPI_Allreduce_init_native(sendbuf, recvbuf, count, datatype, op,
     comm_row_, my_cores_per_node_row, comm_column_, my_cores_per_node_column, num_ports_,
-    groups_, copyin_method, copyin_factors, 1, 0, 0, 0, 0, num_sockets_per_node, 0, NULL, NULL);
+    groups_, copyin_method, copyin_factors, 1, 0, 0, 0, 0, num_sockets_per_node, 0, NULL, NULL, NULL);
   iterations = 10;
   flag = 1;
   while (flag) {

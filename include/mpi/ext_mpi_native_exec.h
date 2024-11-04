@@ -17,4 +17,17 @@ int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, i
 }
 #endif
 
+#ifdef __x86_64__
+#define memory_fence() asm volatile("mfence" :: \
+                                        : "memory")
+#define memory_fence_load() asm volatile("lfence" :: \
+                                      : "memory")
+#define memory_fence_store() asm volatile("sfence" :: \
+                                       : "memory")
+#else
+#define memory_fence() __atomic_thread_fence(__ATOMIC_ACQ_REL)
+#define memory_fence_load() __atomic_thread_fence(__ATOMIC_ACQUIRE)
+#define memory_fence_store() __atomic_thread_fence(__ATOMIC_RELEASE)
+#endif
+
 #endif

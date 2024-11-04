@@ -683,7 +683,7 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *num_ports,
                                int *groups, int copyin, int *copyin_factors,
-                               int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
+                               int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor, int **mem_partners_back) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
       *counts = NULL, iret, num_ranks, lrank_row, *ranks, *ranks_inv, *countsa, *displsa, *mem_partners = NULL,
@@ -1110,7 +1110,11 @@ allreduce_short = 0;
     printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
     exit(1);
   }
-  free(mem_partners);
+  if (mem_partners_back) {
+    *mem_partners_back = mem_partners;
+  } else {
+    free(mem_partners);
+  }
   return iret;
 error:
   free(msizes);
@@ -1133,11 +1137,11 @@ int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   int *groups, int copyin,
                                   int *copyin_factors,
                                   int alt, int bit, int waitany,
-                                  int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
+                                  int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor, int **mem_partners) {
   return (EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, -1, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, copyin, copyin_factors, alt, bit, waitany, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, padding_factor));
+      groups, copyin, copyin_factors, alt, bit, waitany, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, padding_factor, mem_partners));
 }
 
 int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
@@ -1149,7 +1153,7 @@ int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
   return (EXT_MPI_Reduce_init_native(
       buffer, buffer, count, datatype, MPI_OP_NULL, -10 - root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, copyin, copyin_factors, alt, 0, 0, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL));
+      groups, copyin, copyin_factors, alt, 0, 0, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL, NULL));
 }
 
 int EXT_MPI_Gatherv_init_native(

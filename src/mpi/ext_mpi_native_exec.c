@@ -14,19 +14,6 @@
 #include <limits.h>
 #include <mpi.h>
 
-#ifdef __x86_64__
-#define memory_fence() asm volatile("mfence" :: \
-                                        : "memory")
-#define memory_fence_load() asm volatile("lfence" :: \
-                                      : "memory")
-#define memory_fence_store() asm volatile("sfence" :: \
-                                       : "memory")
-#else
-#define memory_fence() __atomic_thread_fence(__ATOMIC_ACQ_REL)
-#define memory_fence_load() __atomic_thread_fence(__ATOMIC_ACQUIRE)
-#define memory_fence_store() __atomic_thread_fence(__ATOMIC_RELEASE)
-#endif
-
 extern MPI_Comm ext_mpi_COMM_WORLD_dup;
 
 static void node_barrier(int **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node) {
@@ -542,7 +529,7 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
 }
 
 static void normalize_address(int count, void **address) {
-  *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFF) / count + (unsigned long int)(*address) & 0xFFFF000000000000);
+  *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFF) / count | ((unsigned long int)(*address) & 0xFFFF000000000000));
 }
 
 static void recalculate_address_io(void **sendbufs, void **recvbufs, int count, void **shmem, int size_io, void **address, int *size) {

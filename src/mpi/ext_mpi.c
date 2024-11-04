@@ -722,7 +722,7 @@ int ext_mpi_allreduce_init_general(const void *sendbuf, void *recvbuf, int count
       sendbuf, recvbuf, count, datatype, op, comm, my_cores_per_node_row,
       MPI_COMM_NULL, my_cores_per_node_column, num_ports, groups,
       copyin_method, copyin_factors, alt,
-      bit_identical, !bit_reproducible, not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
+      bit_identical, !bit_reproducible, not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
@@ -812,7 +812,7 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
       sendbuf, recvbuf, count, datatype, op, root, comm,
       my_cores_per_node, MPI_COMM_NULL, 1, num_ports,
       groups, copyin_method, copyin_factors, alt,
-      0, !bit_reproducible, not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
+      0, !bit_reproducible, not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
