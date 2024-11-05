@@ -485,19 +485,20 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (CACHE_LINE_SIZE > barriers_size) barriers_size = CACHE_LINE_SIZE;
   shmem_size += barriers_size * 2;
   if (shmem_zero) {
-    shmem_sizes = (int*)malloc(sizeof(int) * 0xFFF);
-    shmem = (char **)malloc(sizeof(char *) * 0xFFF);
-    sendbufs = (char **)malloc(sizeof(char *) * 0xFFF);
-    recvbufs = (char **)malloc(sizeof(char *) * 0xFFF);
-    for (i = 0; i < 0xFFF; i++) {
+    shmem_sizes = (int*)malloc(sizeof(int) * 0x1000);
+    shmem = (char **)malloc(sizeof(char *) * 0x1000);
+    sendbufs = (char **)malloc(sizeof(char *) * 0x1000);
+    recvbufs = (char **)malloc(sizeof(char *) * 0x1000);
+    for (i = 0; i < 0x1000; i++) {
       shmem_sizes[i] = shmem_size;
-      shmem[i] = (char *)(((unsigned long int)i) << 48);
+      shmem[i] = (char *)(((unsigned long int)i) << 48) + SHMEM_PTR_CPU;
       sendbufs[i] = (char *)(((unsigned long int)i) << 48) + SEND_PTR_CPU;
       recvbufs[i] = (char *)(((unsigned long int)i) << 48) + RECV_PTR_CPU;
     }
 #ifdef GPU_ENABLED
     if (gpu_is_device_pointer(recvbuf)) {
-      for (i = 0; i < 0xFFF; i++) {
+      for (i = 0; i < 0x1000; i++) {
+        shmem[i] = (char *)(((unsigned long int)i) << 48) + SHMEM_PTR_GPU;
         sendbufs[i] = (char *)(((unsigned long int)i) << 48) + SEND_PTR_GPU;
         recvbufs[i] = (char *)(((unsigned long int)i) << 48) + RECV_PTR_GPU;
        }

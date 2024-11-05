@@ -557,7 +557,10 @@ static void recalculate_address_io(void **sendbufs, void **recvbufs, int count, 
         if (*size < 0) *size = 0;
       }
       break;
-    case 0:
+#ifdef GPU_ENABLED
+    case (SHMEM_PTR_GPU >> 60):
+#endif
+    case (SHMEM_PTR_CPU >> 60):
       *address = (void *)(((unsigned long int)(*address) & 0xFFFFFFFFFFFF) * count + (unsigned long int)(shmem[j]));
       break;
     default:
@@ -582,8 +585,8 @@ static void gpu_normalize_addresses(int count, void *p) {
       start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int)));
       normalize_address(count, (void **)&p1);
       normalize_address(count, (void **)&p2);
-      size /= count;
-      start /= count;
+//      size /= count;
+//      start /= count;
       *((char **)ldata) = p1;
       *((char **)(ldata + sizeof(char *))) = p2;
       *((long int *)(ldata + 2 * sizeof(char *))) = size;
@@ -637,10 +640,10 @@ static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvb
         recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, (void **)&p2, (int *)&size);
         size = -size;
       }
-      *((char **)lldata) = p1 - (char *)p_ref + (char *)p_dev;
-      *((char **)(lldata + sizeof(char *))) = p2 - (char *)p_ref + (char *)p_dev;
-      size /= count2;
-      start /= count2;
+      *((char **)lldata) = p1;
+      *((char **)(lldata + sizeof(char *))) = p2;
+//      size /= count2;
+//      start /= count2;
       *((long int *)(lldata + 2 * sizeof(char *))) = size;
       *((long int *)(lldata + 2 * sizeof(char *) + sizeof(long int))) = start;
       index++;
@@ -903,7 +906,7 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       node_barrier_atomic_set((int *)(shmem_node[0]), counter_node);
       break;
     case OPCODE_NODEBARRIER_ATOMIC_WAIT:
-      i1 = (long int)code_get_pointer(&ip);
+      i1 = (unsigned long int)code_get_pointer(&ip);
       node_barrier_atomic_wait((int *)(shmem_node[i1]), *counter_node);
       break;
     case OPCODE_REDUCE:
@@ -1029,12 +1032,18 @@ static long int exec_padding_address(void *p, void *sendbuf, void *recvbuf, void
     case (RECV_PTR_CPU >> 60):
       return p - recvbuf;
       break;
-    default:
+#ifdef GPU_ENABLED
+    case (SHMEM_PTR_GPU >> 60):
+#endif
+    case (SHMEM_PTR_CPU >> 60):
       if (!shmem) {
         return p - NULL;
       } else {
         return p - shmem[j];
       }
+      break;
+    default:
+      exit(1);
   }
 }
 
@@ -1045,6 +1054,7 @@ int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, i
 #ifdef GPU_ENABLED
   char instruction2;
 #endif
+  printf("not implemented\n"); exit(1);
   ip += sizeof(struct header_byte_code);
   do {
     instruction = code_get_char(&ip);
