@@ -93,8 +93,10 @@ struct parameters_block {
   int copyin_method;
   int *copyin_factors;
   int copyin_factors_max;
-  int *mem_partners;
-  int mem_partners_max;
+  int *mem_partners_send;
+  int mem_partners_send_max;
+  int *mem_partners_recv;
+  int mem_partners_recv_max;
   enum edata_type data_type;
   int verbose;
   int in_place;

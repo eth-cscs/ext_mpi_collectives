@@ -174,7 +174,7 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
   return 0;
 }
 
-int ext_mpi_sendrecvbuf_init_xpmem_blocking(int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
+int ext_mpi_sendrecvbuf_init_xpmem_blocking(int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
   struct xpmem_addr addr;
   int i, j;
   char *a;
@@ -185,16 +185,15 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(int my_mpi_rank, int my_cores_per_no
   recvbufs[0] = shmem[0][1] = recvbuf;
   shmem_node[0][0] = ++(*counter);
   memory_fence_store();
-  for (i = 0; (j = mem_partners[i]) >= 0; i++) {
+  for (i = 0; (j = mem_partners_send[i]) >= 0; i++) {
     if (j > 0) {
       while ((unsigned int)(*((volatile int*)(shmem_node[j])) - *counter) > INT_MAX);
     }
   }
   memory_fence_load();
-  for (i = 0; (j = mem_partners[i]) >= 0; i++) {
+  for (i = 0; (j = mem_partners_send[i]) >= 0; i++) {
     if (j > 0) {
       sendbufs[j] = shmem[j][0];
-      recvbufs[j] = shmem[j][1];
       if (ext_mpi_all_xpmem_id_permutated[j] != -1) {
         addr.offset = (unsigned long int)(sendbufs[j]);
 	addr.offset &= 0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1);
@@ -210,6 +209,11 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(int my_mpi_rank, int my_cores_per_no
 	  sendbufs[j] = sendbuf;
         }
       }
+    }
+  }
+  for (i = 0; (j = mem_partners_recv[i]) >= 0; i++) {
+    if (j > 0) {
+      recvbufs[j] = shmem[j][1];
       if (ext_mpi_all_xpmem_id_permutated[j] != -1) {
         addr.offset = (unsigned long int)(recvbufs[j]);
 	addr.offset &= 0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1);
@@ -230,18 +234,22 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(int my_mpi_rank, int my_cores_per_no
   return 0;
 }
 
-int ext_mpi_sendrecvbuf_done_xpmem_blocking(char **sendbufs, char **recvbufs, int *mem_partners) {
+int ext_mpi_sendrecvbuf_done_xpmem_blocking(char **sendbufs, char **recvbufs, int *mem_partners_send, int *mem_partners_recv) {
   int i;
   char *addr;
-  for (i = 0; mem_partners[i] >= 0; i++) {
-    if (mem_partners[i] > 0) {
-      addr = recvbufs[mem_partners[i]];
+  for (i = 0; mem_partners_recv[i] >= 0; i++) {
+    if (mem_partners_recv[i] > 0) {
+      addr = recvbufs[mem_partners_send[i]];
       addr = (char *)((unsigned long int)addr & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
       if (xpmem_detach(addr) != 0) {
         printf("error xpmem_detach\n");
         exit(1);
       }
-      addr = sendbufs[mem_partners[i]];
+    }
+  }
+  for (i = 0; mem_partners_send[i] >= 0; i++) {
+    if (mem_partners_send[i] > 0) {
+      addr = sendbufs[mem_partners_recv[i]];
       addr = (char *)((unsigned long int)addr & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
       if (xpmem_detach(addr) != 0) {
         printf("error xpmem_detach\n");

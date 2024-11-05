@@ -91,16 +91,27 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
     (*parameters)->rank_perm = NULL;
     (*parameters)->iocounts = NULL;
     (*parameters)->shmem_buffer_offset = NULL;
-    (*parameters)->mem_partners = NULL;
-    if ((*parameters)->mem_partners_max) {
-      (*parameters)->mem_partners =
-          (int *)malloc(sizeof(int) * ((*parameters)->mem_partners_max + 1));
-      if (!(*parameters)->mem_partners)
+    (*parameters)->mem_partners_send = NULL;
+    if ((*parameters)->mem_partners_send_max) {
+      (*parameters)->mem_partners_send =
+          (int *)malloc(sizeof(int) * ((*parameters)->mem_partners_send_max + 1));
+      if (!(*parameters)->mem_partners_send)
         goto error;
-      memcpy((*parameters)->mem_partners, buffer_in + nbuffer_in,
-             sizeof(int) * (*parameters)->mem_partners_max);
-      (*parameters)->mem_partners[(*parameters)->mem_partners_max] = 0;
-      nbuffer_in += sizeof(int) * (*parameters)->mem_partners_max;
+      memcpy((*parameters)->mem_partners_send, buffer_in + nbuffer_in,
+             sizeof(int) * (*parameters)->mem_partners_send_max);
+      (*parameters)->mem_partners_send[(*parameters)->mem_partners_send_max] = 0;
+      nbuffer_in += sizeof(int) * (*parameters)->mem_partners_send_max;
+    }
+    (*parameters)->mem_partners_recv = NULL;
+    if ((*parameters)->mem_partners_recv_max) {
+      (*parameters)->mem_partners_recv =
+          (int *)malloc(sizeof(int) * ((*parameters)->mem_partners_recv_max + 1));
+      if (!(*parameters)->mem_partners_recv)
+        goto error;
+      memcpy((*parameters)->mem_partners_recv, buffer_in + nbuffer_in,
+             sizeof(int) * (*parameters)->mem_partners_recv_max);
+      (*parameters)->mem_partners_recv[(*parameters)->mem_partners_recv_max] = 0;
+      nbuffer_in += sizeof(int) * (*parameters)->mem_partners_recv_max;
     }
     if ((*parameters)->counts_max) {
       (*parameters)->counts =
@@ -189,8 +200,10 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
   if (!buffer_in_pcopy)
     return ERROR_MALLOC;
   buffer_in_copy = buffer_in_pcopy;
-  (*parameters)->mem_partners = NULL;
-  (*parameters)->mem_partners_max = 0;
+  (*parameters)->mem_partners_send = NULL;
+  (*parameters)->mem_partners_send_max = 0;
+  (*parameters)->mem_partners_recv = NULL;
+  (*parameters)->mem_partners_recv_max = 0;
   (*parameters)->counts = NULL;
   (*parameters)->counts_max = 0;
   (*parameters)->num_ports = NULL;
@@ -320,15 +333,26 @@ int ext_mpi_read_parameters(char *buffer_in, struct parameters_block **parameter
           if ((*parameters)->counts_max < 0)
             goto error;
         }
-        if (strcmp(string2, "MEM_PARTNER") == 0) {
-          free((*parameters)->mem_partners);
+        if (strcmp(string2, "MEM_PARTNERS_SEND") == 0) {
+          free((*parameters)->mem_partners_send);
           while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
                  (*buffer_in_copy != '-') && (*buffer_in_copy != '\0')) {
             buffer_in_copy++;
           }
-          (*parameters)->mem_partners_max =
-              read_int_series(buffer_in_copy, &((*parameters)->mem_partners));
-          if ((*parameters)->mem_partners_max < 0)
+          (*parameters)->mem_partners_send_max =
+              read_int_series(buffer_in_copy, &((*parameters)->mem_partners_send));
+          if ((*parameters)->mem_partners_send_max < 0)
+            goto error;
+        }
+        if (strcmp(string2, "MEM_PARTNERS_RECV") == 0) {
+          free((*parameters)->mem_partners_recv);
+          while ((*buffer_in_copy < '0' || *buffer_in_copy > '9') &&
+                 (*buffer_in_copy != '-') && (*buffer_in_copy != '\0')) {
+            buffer_in_copy++;
+          }
+          (*parameters)->mem_partners_recv_max =
+              read_int_series(buffer_in_copy, &((*parameters)->mem_partners_recv));
+          if ((*parameters)->mem_partners_recv_max < 0)
             goto error;
         }
         if (strcmp(string2, "NUM_PORTS") == 0) {
@@ -456,10 +480,15 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     nbuffer_out++;
     memcpy(buffer_out + nbuffer_out, parameters, sizeof(*parameters));
     nbuffer_out += sizeof(*parameters);
-    if (parameters->mem_partners_max) {
-      memcpy(buffer_out + nbuffer_out, parameters->mem_partners,
-             sizeof(int) * parameters->mem_partners_max);
-      nbuffer_out += sizeof(int) * parameters->mem_partners_max;
+    if (parameters->mem_partners_send_max) {
+      memcpy(buffer_out + nbuffer_out, parameters->mem_partners_send,
+             sizeof(int) * parameters->mem_partners_send_max);
+      nbuffer_out += sizeof(int) * parameters->mem_partners_send_max;
+    }
+    if (parameters->mem_partners_recv_max) {
+      memcpy(buffer_out + nbuffer_out, parameters->mem_partners_recv,
+             sizeof(int) * parameters->mem_partners_recv_max);
+      nbuffer_out += sizeof(int) * parameters->mem_partners_recv_max;
     }
     if (parameters->counts_max) {
       memcpy(buffer_out + nbuffer_out, parameters->counts,
@@ -574,11 +603,19 @@ int ext_mpi_write_parameters(struct parameters_block *parameters, char *buffer_o
     nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER ROOT %d\n",
                            parameters->root);
   }
-  if (parameters->mem_partners_max > 0) {
-    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER MEM_PARTNER");
-    for (i = 0; i < parameters->mem_partners_max; i++) {
+  if (parameters->mem_partners_send_max > 0) {
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER MEM_PARTNERS_SEND");
+    for (i = 0; i < parameters->mem_partners_send_max; i++) {
       nbuffer_out +=
-          sprintf(buffer_out + nbuffer_out, " %d", parameters->mem_partners[i]);
+          sprintf(buffer_out + nbuffer_out, " %d", parameters->mem_partners_send[i]);
+    }
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
+  }
+  if (parameters->mem_partners_recv_max > 0) {
+    nbuffer_out += sprintf(buffer_out + nbuffer_out, " PARAMETER MEM_PARTNERS_RECV");
+    for (i = 0; i < parameters->mem_partners_recv_max; i++) {
+      nbuffer_out +=
+          sprintf(buffer_out + nbuffer_out, " %d", parameters->mem_partners_recv[i]);
     }
     nbuffer_out += sprintf(buffer_out + nbuffer_out, "\n");
   }
@@ -683,7 +720,8 @@ int ext_mpi_delete_parameters(struct parameters_block *parameters) {
   free(parameters->message_sizes);
   free(parameters->copyin_factors);
   free(parameters->rank_perm);
-  free(parameters->mem_partners);
+  free(parameters->mem_partners_recv);
+  free(parameters->mem_partners_send);
   free(parameters);
   return 0;
 }

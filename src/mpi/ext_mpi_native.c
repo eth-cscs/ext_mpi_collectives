@@ -425,7 +425,7 @@ int EXT_MPI_Done_native(int handle) {
 static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                          int reduction_op, MPI_User_function *func, MPI_Comm comm_row,
                          int my_cores_per_node_row, MPI_Comm comm_column,
-                         int my_cores_per_node_column, int alt, int shmem_zero, char *locmem, int *mem_partners) {
+                         int my_cores_per_node_column, int alt, int shmem_zero, char *locmem, int *mem_partners_send, int *mem_partners_recv) {
   int i, num_comm_max = -1, barriers_size = 1, nbuffer_in = 0, tag = -1, not_locmem;
   char *ip, **sendbufs = NULL, **recvbufs = NULL, str[1000];
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row, my_mpi_rank, socket_rank, flag;
@@ -513,8 +513,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
 #ifdef GPU_ENABLED
   if (gpu_is_device_pointer(recvbuf) || ((unsigned long int)recvbufs[0] & 0xF000000000000000) == RECV_PTR_GPU) {
     if (((unsigned long int)recvbufs[0] & 0xF000000000000000) != RECV_PTR_GPU) {
-      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs, mem_partners);
-      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs, mem_partners);
+      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs, mem_partners_send);
+      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs, mem_partners_recv);
     }
     if (shmem_zero) {
       shmem_gpu = shmem;
@@ -684,10 +684,10 @@ int EXT_MPI_Reduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                MPI_Comm comm_column,
                                int my_cores_per_node_column, int *num_ports,
                                int *groups, int copyin, int *copyin_factors,
-                               int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor, int **mem_partners_back) {
+                               int alt, int bit, int waitany, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor, int **mem_partners_send_back, int **mem_partners_recv_back) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
       my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, socket_number,
-      *counts = NULL, iret, num_ranks, lrank_row, *ranks, *ranks_inv, *countsa, *displsa, *mem_partners = NULL,
+      *counts = NULL, iret, num_ranks, lrank_row, *ranks, *ranks_inv, *countsa, *displsa, *mem_partners_send = NULL, *mem_partners_recv = NULL,
       nbuffer1 = 0, msize, *msizes = NULL, allreduce_short = (num_ports[0] > 0), reduction_op, factors_max, *factors, socket_size_barrier = 0, socket_size_barrier_small = 0, i, j;
   char *buffer1 = NULL, *buffer2 = NULL, *buffer_temp, *str;
   struct parameters_block *parameters, *parameters2;
@@ -1093,28 +1093,38 @@ allreduce_short = 0;
   buffer_temp = buffer1;
   buffer1 = buffer2;
   buffer2 = buffer_temp;
-  mem_partners = (int*)malloc(sizeof(int) * (parameters2->mem_partners_max + 1));
-  for (i = 0; i < parameters2->mem_partners_max; i++) {
-    mem_partners[i] = parameters2->mem_partners[i];
+  mem_partners_send = (int*)malloc(sizeof(int) * (parameters2->mem_partners_send_max + 1));
+  for (i = 0; i < parameters2->mem_partners_send_max; i++) {
+    mem_partners_send[i] = parameters2->mem_partners_send[i];
   }
-  mem_partners[i] = -1;
+  mem_partners_send[i] = -1;
+  mem_partners_recv = (int*)malloc(sizeof(int) * (parameters2->mem_partners_recv_max + 1));
+  for (i = 0; i < parameters2->mem_partners_recv_max; i++) {
+    mem_partners_recv[i] = parameters2->mem_partners_recv[i];
+  }
+  mem_partners_recv[i] = -1;
   ext_mpi_delete_parameters(parameters2);
 //int rank;
 //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 //if (rank == 0) printf("%s\n", buffer2);
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, ext_mpi_hash_search_operator(&op), comm_row,
                        my_cores_per_node_row, comm_column,
-                       my_cores_per_node_column, alt, shmem_zero, locmem, mem_partners);
+                       my_cores_per_node_column, alt, shmem_zero, locmem, mem_partners_send, mem_partners_recv);
   free(buffer2);
   free(buffer1);
   if (PMPI_Comm_free(&comm_subrow) != MPI_SUCCESS) {
     printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
     exit(1);
   }
-  if (mem_partners_back) {
-    *mem_partners_back = mem_partners;
+  if (mem_partners_send_back) {
+    *mem_partners_send_back = mem_partners_send;
   } else {
-    free(mem_partners);
+    free(mem_partners_send);
+  }
+  if (mem_partners_recv_back) {
+    *mem_partners_recv_back = mem_partners_recv;
+  } else {
+    free(mem_partners_recv);
   }
   return iret;
 error:
@@ -1122,7 +1132,8 @@ error:
   free(counts);
   free(buffer2);
   free(buffer1);
-  free(mem_partners);
+  free(mem_partners_recv);
+  free(mem_partners_send);
   if (PMPI_Comm_free(&comm_subrow) != MPI_SUCCESS) {
     printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
     exit(1);
@@ -1138,11 +1149,11 @@ int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   int *groups, int copyin,
                                   int *copyin_factors,
                                   int alt, int bit, int waitany,
-                                  int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor, int **mem_partners) {
+                                  int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor, int **mem_partners_send, int **mem_partners_recv) {
   return (EXT_MPI_Reduce_init_native(
       sendbuf, recvbuf, count, datatype, op, -1, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, copyin, copyin_factors, alt, bit, waitany, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, padding_factor, mem_partners));
+      groups, copyin, copyin_factors, alt, bit, waitany, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, padding_factor, mem_partners_send, mem_partners_recv));
 }
 
 int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
@@ -1154,7 +1165,7 @@ int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
   return (EXT_MPI_Reduce_init_native(
       buffer, buffer, count, datatype, MPI_OP_NULL, -10 - root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, copyin, copyin_factors, alt, 0, 0, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL, NULL));
+      groups, copyin, copyin_factors, alt, 0, 0, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL, NULL, NULL));
 }
 
 int EXT_MPI_Gatherv_init_native(
@@ -1395,7 +1406,7 @@ int EXT_MPI_Gatherv_init_native(
   }
   iret = init_epilogue(buffer2, sendbuf, recvbuf, OPCODE_REDUCE_SUM_CHAR, NULL, comm_row,
                        my_cores_per_node_row, comm_column,
-                       my_cores_per_node_column, alt, shmem_zero, locmem, NULL);
+                       my_cores_per_node_column, alt, shmem_zero, locmem, NULL, NULL);
   free(buffer2);
   free(buffer1);
   return iret;
@@ -1620,7 +1631,7 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   }
   iret = init_epilogue(buffer1, sendbuf, recvbuf, -1, NULL, comm_row,
                        my_cores_per_node_row, comm_column,
-                       my_cores_per_node_column, alt, shmem_zero, locmem, NULL);
+                       my_cores_per_node_column, alt, shmem_zero, locmem, NULL, NULL);
   free(buffer2);
   free(buffer1);
   return iret;
@@ -1877,7 +1888,7 @@ int EXT_MPI_Reduce_scatter_init_native(
   }
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, NULL, comm_row,
                        my_cores_per_node_row, comm_column,
-                       my_cores_per_node_column, alt, shmem_zero, locmem, NULL);
+                       my_cores_per_node_column, alt, shmem_zero, locmem, NULL, NULL);
   free(buffer2);
   free(buffer1);
   return iret;
