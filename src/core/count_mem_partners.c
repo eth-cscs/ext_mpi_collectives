@@ -25,6 +25,12 @@ int ext_mpi_generate_count_mem_partners(char *buffer_in, char *buffer_out) {
 	    partner[data_memcpy_reduce.buffer_number2] = 1;
           }
         }
+	if ((estring1 == ememcpy) || (estring1 == ememcp_) || (estring1 == ereduce) || (estring1 == ereduc_)) {
+          if (ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce) >= 0) {
+	    if (data_memcpy_reduce.buffer_type1 == erecvbufp) partner[data_memcpy_reduce.buffer_number1] = 1;
+	    if (data_memcpy_reduce.buffer_type2 == erecvbufp) partner[data_memcpy_reduce.buffer_number2] = 1;
+	  }
+	}
       }
     }
   } while (flag3);

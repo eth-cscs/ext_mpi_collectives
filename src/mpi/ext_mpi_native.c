@@ -1025,18 +1025,6 @@ allreduce_short = 0;
   }
   if (ext_mpi_generate_allreduce_copyout(buffer1, buffer2) < 0)
     goto error;
-  if (ext_mpi_generate_count_mem_partners(buffer2, buffer1) < 0)
-      goto error;
-  ext_mpi_read_parameters(buffer1, &parameters2);
-  buffer_temp = buffer1;
-  buffer1 = buffer2;
-  buffer2 = buffer_temp;
-  mem_partners = (int*)malloc(sizeof(int) * (parameters2->mem_partners_max + 1));
-  for (i = 0; i < parameters2->mem_partners_max; i++) {
-    mem_partners[i] = parameters2->mem_partners[i];
-  }
-  mem_partners[i] = -1;
-  ext_mpi_delete_parameters(parameters2);
   
 /*   int mpi_rank;
    MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
@@ -1099,6 +1087,18 @@ allreduce_short = 0;
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
+  if (ext_mpi_generate_count_mem_partners(buffer2, buffer1) < 0)
+      goto error;
+  ext_mpi_read_parameters(buffer1, &parameters2);
+  buffer_temp = buffer1;
+  buffer1 = buffer2;
+  buffer2 = buffer_temp;
+  mem_partners = (int*)malloc(sizeof(int) * (parameters2->mem_partners_max + 1));
+  for (i = 0; i < parameters2->mem_partners_max; i++) {
+    mem_partners[i] = parameters2->mem_partners[i];
+  }
+  mem_partners[i] = -1;
+  ext_mpi_delete_parameters(parameters2);
 //int rank;
 //MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 //if (rank == 0) printf("%s\n", buffer2);
