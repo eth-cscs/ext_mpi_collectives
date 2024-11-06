@@ -600,7 +600,7 @@ static void gpu_normalize_addresses(int count, void *p) {
 
 static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvbufs, int count, void **shmem_blocking, int count_io, int instruction, void *p_dev) {
   char *ldata, *lldata, p_temp[10000], *p1, *p2;
-  long int size, start;
+  long int size, start, size_max;
   int num_streams, num_stream, index, count2, index_max;
   switch (instruction) {
   case OPCODE_REDUCE_SUM_DOUBLE:
@@ -621,6 +621,8 @@ static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvb
   }
   num_streams = *((int *)(p_ref + sizeof(int)));
   memcpy(p_temp, p_ref, 2 * sizeof(int) + sizeof(long int));
+  size_max = *((long int *)(p_temp + 2 * sizeof(int))) * count;
+  *((long int *)(p_temp + 2 * sizeof(int))) = size_max / count2;
   index_max = 0;
   for (num_stream = 0; num_stream < num_streams; num_stream++) {
     index = 0;
@@ -629,8 +631,8 @@ static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvb
     p1 = *((char **)ldata);
     while (p1) {
       p2 = *((char **)(ldata + sizeof(char *)));
-      size = *((long int *)(ldata + 2 * sizeof(char *)));
-      start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int)));
+      size = *((long int *)(ldata + 2 * sizeof(char *))) * count;
+      start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int))) * count;
       if (size >= 0) {
         recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, (void **)&p1, (int *)&size);
         recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, (void **)&p2, (int *)&size);
@@ -642,8 +644,8 @@ static void gpu_recalculate_addresses(void *p_ref, void **sendbufs, void **recvb
       }
       *((char **)lldata) = p1;
       *((char **)(lldata + sizeof(char *))) = p2;
-//      size /= count2;
-//      start /= count2;
+      size /= count2;
+      start /= count2;
       *((long int *)(lldata + 2 * sizeof(char *))) = size;
       *((long int *)(lldata + 2 * sizeof(char *) + sizeof(long int))) = start;
       index++;
