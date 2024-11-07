@@ -128,7 +128,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     PMPI_Comm_dup(comm, &(*comms_blocking)[i_comm]->comm_blocking);
     MPI_Comm_size((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_size_blocking);
     MPI_Comm_rank((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_rank_blocking);
-    ext_mpi_init_xpmem_blocking((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->all_xpmem_id_permutated, &(*comms_blocking)[i_comm]->xpmem_tree_root);
+    ext_mpi_init_xpmem_blocking((*comms_blocking)[i_comm]->comm_blocking, num_sockets_per_node, &(*comms_blocking)[i_comm]->all_xpmem_id_permutated, &(*comms_blocking)[i_comm]->xpmem_tree_root);
     (*comms_blocking)[i_comm]->comm_code_allreduce_blocking = (char **)malloc(101 * sizeof(char *));
     memset((*comms_blocking)[i_comm]->comm_code_allreduce_blocking, 0, 101 * sizeof(char *));
     (*comms_blocking)[i_comm]->count_allreduce_blocking = (int *)malloc(100 * sizeof(int));
@@ -155,7 +155,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     (*comms_blocking)[i_comm]->socket_rank_blocking = (*comms_blocking)[i_comm]->mpi_rank_blocking % (*comms_blocking)[i_comm]->num_cores_blocking;
     ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, num_sockets_per_node, size_shared, &(*comms_blocking)[i_comm]->sizes_shared_node, &(*comms_blocking)[i_comm]->shmem_node_blocking_shmemid, &(*comms_blocking)[i_comm]->shmem_node_blocking, &((*comms_blocking)[i_comm]->comm_row_blocking));
     (*comms_blocking)[i_comm]->counter_node_blocking = 0;
-    (*comms_blocking)[i_comm]->num_sockets_per_node_blocking = 1;
+    (*comms_blocking)[i_comm]->num_sockets_per_node_blocking = num_sockets_per_node;
     (*comms_blocking)[i_comm]->mem_partners_send = (int **)malloc(101 * sizeof(int *));
     memset((*comms_blocking)[i_comm]->mem_partners_send, 0, 101 * sizeof(int *));
     (*comms_blocking)[i_comm]->mem_partners_recv = (int **)malloc(101 * sizeof(int *));

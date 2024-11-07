@@ -153,11 +153,11 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
   return 0;
 }
 
-int ext_mpi_init_xpmem_blocking(MPI_Comm comm, long long int **all_xpmem_id_permutated, struct xpmem_tree ***xpmem_tree_root) {
+int ext_mpi_init_xpmem_blocking(MPI_Comm comm, int num_sockets_per_node, long long int **all_xpmem_id_permutated, struct xpmem_tree ***xpmem_tree_root) {
   MPI_Comm xpmem_comm_node;
   int my_mpi_rank, my_mpi_size, my_cores_per_node, i, j, k;
   long long int a;
-  my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1);
+  my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1) * num_sockets_per_node;
   (*all_xpmem_id_permutated) = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
   PMPI_Comm_size(comm, &my_mpi_size);
   PMPI_Comm_rank(comm, &my_mpi_rank);
@@ -172,20 +172,20 @@ int ext_mpi_init_xpmem_blocking(MPI_Comm comm, long long int **all_xpmem_id_perm
   for (i = 0; i < my_mpi_size; i++) {
     (*all_xpmem_id_permutated)[i] = all_xpmem_id[i];
   }
-  for (j = 0; j < my_mpi_rank / (my_mpi_size / my_cores_per_node) * (my_mpi_size / my_cores_per_node); j++) {
+  for (j = 0; j < my_mpi_rank / (my_mpi_size / num_sockets_per_node) * (my_mpi_size / num_sockets_per_node); j++) {
     a = (*all_xpmem_id_permutated)[0];
     for (i = 0; i < my_mpi_size - 1; i++) {
       (*all_xpmem_id_permutated)[i] = (*all_xpmem_id_permutated)[i + 1];
     }
     (*all_xpmem_id_permutated)[my_mpi_size - 1] = a;
   }
-  for (k = 0; k < my_cores_per_node; k++) {
-    for (j = 0; j < my_mpi_rank % (my_mpi_size / my_cores_per_node); j++) {
-      a = (*all_xpmem_id_permutated)[(my_mpi_size / my_cores_per_node) * k];
-      for (i = (my_mpi_size / my_cores_per_node) * k; i < (my_mpi_size / my_cores_per_node) * (k + 1) - 1; i++) {
+  for (k = 0; k < num_sockets_per_node; k++) {
+    for (j = 0; j < my_mpi_rank % (my_mpi_size / num_sockets_per_node); j++) {
+      a = (*all_xpmem_id_permutated)[(my_mpi_size / num_sockets_per_node) * k];
+      for (i = (my_mpi_size / num_sockets_per_node) * k; i < (my_mpi_size / num_sockets_per_node) * (k + 1) - 1; i++) {
         (*all_xpmem_id_permutated)[i] = (*all_xpmem_id_permutated)[i + 1];
       }
-      (*all_xpmem_id_permutated)[(my_mpi_size / my_cores_per_node) * (k + 1) - 1] = a;
+      (*all_xpmem_id_permutated)[(my_mpi_size / num_sockets_per_node) * (k + 1) - 1] = a;
     }
   }
   (*xpmem_tree_root) = (struct xpmem_tree **)malloc(my_cores_per_node * sizeof(struct xpmem_tree *));
