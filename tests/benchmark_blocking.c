@@ -70,6 +70,10 @@ int main(int argc, char *argv[]) {
       MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &new_comm);
       for (size = 1; size <= MAX_MESSAGE_SIZE; size *= 2) {
         MPI_Barrier(new_comm);
+        for (i = 0; i < 20; i++) {
+          PMPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+          MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+	}
         iterations = 1;
         flag = 1;
         while (flag) {
