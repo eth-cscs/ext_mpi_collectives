@@ -195,14 +195,16 @@ int ext_mpi_init_xpmem_blocking(MPI_Comm comm, int num_sockets_per_node, long lo
 
 static void xpmem_tree_delete(struct xpmem_tree *p) {
   char *addr;
-  addr = (char *)p->offset;
-  if (xpmem_detach(addr) != 0) {
-    printf("error xpmem_detach\n");
-    exit(1);
+  if (p) {
+    addr = (char*)((unsigned long int)p->a & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
+    if (xpmem_detach(addr) != 0) {
+      printf("error xpmem_detach\n");
+      exit(1);
+    }
+    if (p->left) xpmem_tree_delete(p->left);
+    if (p->right) xpmem_tree_delete(p->right);
+    if (p->next) xpmem_tree_delete(p->next);
   }
-  if (p->left) xpmem_tree_delete(p->left);
-  if (p->right) xpmem_tree_delete(p->right);
-  if (p->next) xpmem_tree_delete(p->next);
 }
 
 void ext_mpi_done_xpmem_blocking(MPI_Comm comm, struct xpmem_tree **xpmem_tree_root) {
