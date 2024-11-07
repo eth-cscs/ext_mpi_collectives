@@ -157,7 +157,7 @@ int ext_mpi_init_xpmem_blocking(MPI_Comm comm, int num_sockets_per_node, long lo
   MPI_Comm xpmem_comm_node;
   int my_mpi_rank, my_mpi_size, my_cores_per_node, i, j, k;
   long long int a;
-  my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1) * num_sockets_per_node;
+  my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1);
   (*all_xpmem_id_permutated) = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
   PMPI_Comm_size(comm, &my_mpi_size);
   PMPI_Comm_rank(comm, &my_mpi_rank);
@@ -188,8 +188,8 @@ int ext_mpi_init_xpmem_blocking(MPI_Comm comm, int num_sockets_per_node, long lo
       (*all_xpmem_id_permutated)[(my_mpi_size / num_sockets_per_node) * (k + 1) - 1] = a;
     }
   }
-  (*xpmem_tree_root) = (struct xpmem_tree **)malloc(my_cores_per_node * sizeof(struct xpmem_tree *));
-  memset((*xpmem_tree_root), 0, my_cores_per_node * sizeof(struct xpmem_tree *));
+  (*xpmem_tree_root) = (struct xpmem_tree **)malloc(my_mpi_size * sizeof(struct xpmem_tree *));
+  memset((*xpmem_tree_root), 0, my_mpi_size * sizeof(struct xpmem_tree *));
   return 0;
 }
 
