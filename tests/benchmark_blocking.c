@@ -17,8 +17,7 @@
 #define COLLECTIVE_TYPE 0
 
 int main(int argc, char *argv[]) {
-  int numprocs, rank, size, flag, type_size, bufsize, iterations, num_tasks, ninfo_arg = 0, in_place = 0, i, j;
-  char info_arg[1000];
+  int numprocs, rank, size, flag, type_size, bufsize, iterations, num_tasks, in_place = 0, i;
   double latency_ref = 0.0;
   double latency = 0.0, t_start = 0.0, t_stop = 0.0;
   double timer_ref = 0.0;

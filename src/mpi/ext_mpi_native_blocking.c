@@ -75,6 +75,8 @@ struct comm_comm_blocking {
   int *sizes_shared_socket;
   int **mem_partners_send;
   int **mem_partners_recv;
+  long long int *all_xpmem_id_permutated;
+  struct xpmem_tree **xpmem_tree_root;
 };
 
 static struct comm_comm_blocking **comms_blocking = NULL;
@@ -126,6 +128,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     PMPI_Comm_dup(comm, &(*comms_blocking)[i_comm]->comm_blocking);
     MPI_Comm_size((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_size_blocking);
     MPI_Comm_rank((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_rank_blocking);
+    ext_mpi_init_xpmem_blocking((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->all_xpmem_id_permutated, &(*comms_blocking)[i_comm]->xpmem_tree_root);
     (*comms_blocking)[i_comm]->comm_code_allreduce_blocking = (char **)malloc(101 * sizeof(char *));
     memset((*comms_blocking)[i_comm]->comm_code_allreduce_blocking, 0, 101 * sizeof(char *));
     (*comms_blocking)[i_comm]->count_allreduce_blocking = (int *)malloc(100 * sizeof(int));
@@ -266,6 +269,7 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
   free((*comms_blocking)[i_comm]->count_allgather_blocking);
   free((*comms_blocking)[i_comm]->mem_partners_recv);
   free((*comms_blocking)[i_comm]->mem_partners_send);
+  free((*comms_blocking)[i_comm]->all_xpmem_id_permutated);
 #ifdef GPU_ENABLED
   if (!(*comms_blocking)[i_comm]->p_dev_temp) {
 #endif
@@ -303,6 +307,7 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
   free((*comms_blocking)[i_comm]->comm_code_allreduce_blocking);
   free((*comms_blocking)[i_comm]->comm_code_reduce_scatter_block_blocking);
   free((*comms_blocking)[i_comm]->comm_code_allgather_blocking);
+  ext_mpi_done_xpmem_blocking((*comms_blocking)[i_comm]->comm_blocking, (*comms_blocking)[i_comm]->xpmem_tree_root);
   PMPI_Comm_free(&(*comms_blocking)[i_comm]->comm_blocking);
 #ifdef GPU_ENABLED
   if ((*comms_blocking)[i_comm]->p_dev_temp) {
@@ -352,7 +357,7 @@ int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int 
   } else {
 #endif
 #ifdef XPMEM
-    ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->num_sockets_per_node_blocking, (char*)sendbuf, recvbuf, ccount, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i], (char ***)comms_blocking_->shmem_blocking1.small_mem, (int**)comms_blocking_->shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+    ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->num_sockets_per_node_blocking, (char*)sendbuf, recvbuf, ccount, comms_blocking_->all_xpmem_id_permutated, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i], (char ***)comms_blocking_->shmem_blocking1.small_mem, (int**)comms_blocking_->shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
 #endif
 #ifdef GPU_ENABLED
   }
