@@ -33,12 +33,20 @@ extern int *ext_mpi_fixed_factors_groups;
 extern int ext_mpi_not_recursive;
 
 static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
-  char *sendbuf = NULL, *recvbuf = NULL, data_num_ports[1000], data_copyin_factors[1000];
-  FILE * data = fopen("./blocking_4.txt", "r");
-  int message_size, type_size, *num_ports = NULL, *groups = NULL, copyin_method, *copyin_factors = NULL, num_sockets_per_node = 1, my_cores_per_node, i;
+  char *sendbuf = NULL, *recvbuf = NULL, data_num_ports[1000], data_copyin_factors[1000], filename[1000];
+  FILE *data;
+  int message_size, type_size, *num_ports = NULL, *groups = NULL, copyin_method, *copyin_factors = NULL, num_sockets_per_node = 1, cores_per_node, mpi_rank, mpi_size, message_size_old = -1, on_gpu = 0, i;
+  MPI_Comm_rank(comm, &mpi_rank);
+  MPI_Comm_size(comm, &mpi_size);
+  cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, num_sockets_per_node);
+  sprintf(filename, "ext_mpi_blocking_%d_%d.txt", mpi_size / cores_per_node, cores_per_node);
+  data = fopen(filename, "r");
+  if (!data) {
+    if (mpi_rank == 0) printf("file %s missing\n", filename);
+    exit(1);
+  }
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
-  my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, num_sockets_per_node);
   sendbuf = (char *)malloc(1024 * 1024 * 1024);
   if (!sendbuf)
     goto error;
@@ -47,6 +55,8 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
     goto error;
   MPI_Type_size(datatype, &type_size);
   while (fscanf(data, "%d %d %s %s", &message_size, &num_sockets_per_node, data_num_ports, data_copyin_factors) == 4) {
+    if (message_size <= message_size_old) on_gpu = 1;
+    message_size_old = message_size;
     for (i = 0; data_num_ports[i]; i++) {
       if (data_num_ports[i] == '_') data_num_ports[i] = ' ';
     }
@@ -55,8 +65,19 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
     }
     ext_mpi_scan_ports_groups(data_num_ports, &num_ports, &groups);
     ext_mpi_scan_copyin(data_copyin_factors, &copyin_method, &copyin_factors);
-    if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, my_cores_per_node / num_sockets_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, i_comm) < 0)
-      goto error;
+    if (!on_gpu) {
+      if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, cores_per_node / num_sockets_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, out_of_place, i_comm) < 0)
+        goto error;
+      if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, cores_per_node / num_sockets_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, in_place, i_comm) < 0)
+        goto error;
+#ifdef GPU_ENABLED
+    } else {
+      if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, cores_per_node / num_sockets_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, out_of_place_gpu, i_comm) < 0)
+        goto error;
+      if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, cores_per_node / num_sockets_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, in_place_gpu, i_comm) < 0)
+        goto error;
+#endif
+    }
     free(groups);
     free(num_ports);
     free(copyin_factors);
@@ -449,10 +470,10 @@ error:
 //}
 
 int EXT_MPI_Init_blocking_comm(MPI_Comm comm, int i_comm) {
-  init_blocking_comm_allreduce(comm, i_comm);
+  return init_blocking_comm_allreduce(comm, i_comm);
 //  init_blocking_comm_reduce_scatter_block(comm, i_comm);
 //  init_blocking_comm_allgather(comm, i_comm);
-  return 0;
+//  return 0;
 }
 
 int EXT_MPI_Finalize_blocking_comm(int i_comm) {
@@ -461,6 +482,9 @@ int EXT_MPI_Finalize_blocking_comm(int i_comm) {
 }
 
 int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, int i_comm){
+  if (sendbuf == MPI_IN_PLACE) {
+    sendbuf = recvbuf;
+  }
   return EXT_MPI_Allreduce_native(sendbuf, recvbuf, count, reduction_op, i_comm);
 }
 

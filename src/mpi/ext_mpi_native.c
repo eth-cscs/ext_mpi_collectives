@@ -534,8 +534,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     sendbufs[0] = (char *)sendbuf;
     recvbufs[0] = recvbuf;
 #else
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(ext_mpi_COMM_WORLD_dup, comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(ext_mpi_COMM_WORLD_dup, comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
   }
 #ifdef GPU_ENABLED
@@ -614,8 +614,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       sendbufs[0] = (char *)sendbuf;
       recvbufs[0] = recvbuf;
 #else
-      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
-      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
+      ext_mpi_sendrecvbuf_init_xpmem(ext_mpi_COMM_WORLD_dup, comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
+      ext_mpi_sendrecvbuf_init_xpmem(ext_mpi_COMM_WORLD_dup, comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
     }
 #ifdef GPU_ENABLED
@@ -709,30 +709,7 @@ allreduce_short = 0;
   buffer2 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer2)
     goto error;
-  if ((op == MPI_SUM) && (datatype == MPI_DOUBLE)) {
-    reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
-  }
-  if ((op == MPI_SUM) && (datatype == MPI_LONG)) {
-    reduction_op = OPCODE_REDUCE_SUM_LONG_INT;
-  }
-  if ((op == MPI_SUM) && (datatype == MPI_FLOAT)) {
-    reduction_op = OPCODE_REDUCE_SUM_FLOAT;
-  }
-  if ((op == MPI_SUM) && (datatype == MPI_INT)) {
-    reduction_op = OPCODE_REDUCE_SUM_INT;
-  }
-  if ((op != MPI_SUM) && (datatype == MPI_DOUBLE)) {
-    reduction_op = OPCODE_REDUCE_USER_DOUBLE;
-  }
-  if ((op != MPI_SUM) && (datatype == MPI_LONG)) {
-    reduction_op = OPCODE_REDUCE_USER_LONG_INT;
-  }
-  if ((op != MPI_SUM) && (datatype == MPI_FLOAT)) {
-    reduction_op = OPCODE_REDUCE_USER_FLOAT;
-  }
-  if ((op != MPI_SUM) && (datatype == MPI_INT)) {
-    reduction_op = OPCODE_REDUCE_USER_INT;
-  }
+  reduction_op = get_reduction_op(datatype, op);
   MPI_Type_size(datatype, &type_size);
   count *= type_size;
   MPI_Comm_size(comm_row, &my_mpi_size_row);
@@ -1913,6 +1890,7 @@ int EXT_MPI_Init_native() {
 int EXT_MPI_Initialized_native() { return is_initialised; }
 
 int EXT_MPI_Finalize_native() {
+  ext_mpi_done_xpmem();
   if (PMPI_Comm_free(&ext_mpi_COMM_WORLD_dup) != MPI_SUCCESS) {
     printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
     exit(1);

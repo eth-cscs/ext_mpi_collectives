@@ -43,15 +43,25 @@
 #endif
 
 #define OPCODE_REDUCE_SUM_CHAR 0
-#define OPCODE_REDUCE_SUM_DOUBLE 1
-#define OPCODE_REDUCE_SUM_LONG_INT 2
-#define OPCODE_REDUCE_SUM_FLOAT 3
-#define OPCODE_REDUCE_SUM_INT 4
-#define OPCODE_REDUCE_USER_CHAR 5
-#define OPCODE_REDUCE_USER_DOUBLE 6
-#define OPCODE_REDUCE_USER_LONG_INT 7
-#define OPCODE_REDUCE_USER_FLOAT 8
-#define OPCODE_REDUCE_USER_INT 9
+#define OPCODE_REDUCE_MIN_CHAR 1
+#define OPCODE_REDUCE_MAX_CHAR 2
+#define OPCODE_REDUCE_USER_CHAR 3
+#define OPCODE_REDUCE_SUM_DOUBLE 4
+#define OPCODE_REDUCE_MIN_DOUBLE 5
+#define OPCODE_REDUCE_MAX_DOUBLE 6
+#define OPCODE_REDUCE_USER_DOUBLE 7
+#define OPCODE_REDUCE_SUM_LONG_INT 8
+#define OPCODE_REDUCE_MIN_LONG_INT 9
+#define OPCODE_REDUCE_MAX_LONG_INT 10
+#define OPCODE_REDUCE_USER_LONG_INT 11
+#define OPCODE_REDUCE_SUM_FLOAT 12
+#define OPCODE_REDUCE_MIN_FLOAT 13
+#define OPCODE_REDUCE_MAX_FLOAT 14
+#define OPCODE_REDUCE_USER_FLOAT 15
+#define OPCODE_REDUCE_SUM_INT 16
+#define OPCODE_REDUCE_MIN_INT 17
+#define OPCODE_REDUCE_MAX_INT 18
+#define OPCODE_REDUCE_USER_INT 19
 
 #define ERROR_MALLOC -1
 #define ERROR_SHMEM -2
@@ -96,6 +106,33 @@ static void *code_get_pointer(char **code) {
   p = *((void **)(*code));
   *code += sizeof(void *);
   return p;
+}
+
+static int get_type_size(int reduction_op) {
+  switch (reduction_op) {
+    case OPCODE_REDUCE_SUM_DOUBLE:
+    case OPCODE_REDUCE_MIN_DOUBLE:
+    case OPCODE_REDUCE_MAX_DOUBLE:
+    case OPCODE_REDUCE_USER_DOUBLE:
+      return sizeof(double);
+    case OPCODE_REDUCE_SUM_LONG_INT:
+    case OPCODE_REDUCE_MIN_LONG_INT:
+    case OPCODE_REDUCE_MAX_LONG_INT:
+    case OPCODE_REDUCE_USER_LONG_INT:
+      return sizeof(long int);
+    case OPCODE_REDUCE_SUM_FLOAT:
+    case OPCODE_REDUCE_MIN_FLOAT:
+    case OPCODE_REDUCE_MAX_FLOAT:
+    case OPCODE_REDUCE_USER_FLOAT:
+      return sizeof(float);
+    case OPCODE_REDUCE_SUM_INT:
+    case OPCODE_REDUCE_MIN_INT:
+    case OPCODE_REDUCE_MAX_INT:
+    case OPCODE_REDUCE_USER_INT:
+      return sizeof(int);
+    default:
+      return 1;
+  }
 }
 #pragma GCC diagnostic pop
 #endif

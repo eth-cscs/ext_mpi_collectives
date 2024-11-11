@@ -3,6 +3,7 @@
 #define EXT_MPI_NATIVE_H_
 
 #include <mpi.h>
+#include "constants.h"
 #include "read_write.h"
 
 #ifdef __cplusplus
@@ -69,4 +70,52 @@ void ext_mpi_native_export(int **e_handle_code_max, char ****e_comm_code, char *
 }
 #endif
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+static int get_reduction_op(MPI_Datatype datatype, MPI_Op op) {
+  if (datatype == MPI_DOUBLE) {
+    if (op == MPI_SUM) {
+      return OPCODE_REDUCE_SUM_DOUBLE;
+    } else if (op == MPI_MAX) {
+      return OPCODE_REDUCE_MAX_DOUBLE;
+    } else if (op == MPI_MIN) {
+      return OPCODE_REDUCE_MIN_DOUBLE;
+    } else {
+      return OPCODE_REDUCE_USER_DOUBLE;
+    }
+  } else if (datatype == MPI_FLOAT) {
+    if (op == MPI_SUM) {
+      return OPCODE_REDUCE_SUM_FLOAT;
+    } else if (op == MPI_MAX) {
+      return OPCODE_REDUCE_MAX_FLOAT;
+    } else if (op == MPI_MIN) {
+      return OPCODE_REDUCE_MIN_FLOAT;
+    } else {
+      return OPCODE_REDUCE_USER_FLOAT;
+    }
+  } else if (datatype == MPI_INT) {
+    if (op == MPI_SUM) {
+      return OPCODE_REDUCE_SUM_INT;
+    } else if (op == MPI_MAX) {
+      return OPCODE_REDUCE_MAX_INT;
+    } else if (op == MPI_MIN) {
+      return OPCODE_REDUCE_MIN_INT;
+    } else {
+      return OPCODE_REDUCE_USER_INT;
+    }
+  } else if (datatype == MPI_LONG) {
+    if (op == MPI_SUM) {
+      return OPCODE_REDUCE_SUM_LONG_INT;
+    } else if (op == MPI_MAX) {
+      return OPCODE_REDUCE_MAX_LONG_INT;
+    } else if (op == MPI_MIN) {
+      return OPCODE_REDUCE_MIN_LONG_INT;
+    } else {
+      return OPCODE_REDUCE_USER_LONG_INT;
+    }
+  } else {
+    return -1;
+  }
+}
+#pragma GCC diagnostic pop
 #endif

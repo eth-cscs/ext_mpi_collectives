@@ -23,10 +23,18 @@ int ext_mpi_generate_count_mem_partners(char *buffer_in, char *buffer_out) {
       if (ext_mpi_read_assembler_line(line, 0, "s", &estring1) >= 0) {
         if ((estring1 == esmemcpy) || (estring1 == esreduce)) {
           if (ext_mpi_read_memcpy_reduce(line, &data_memcpy_reduce) >= 0) {
-	    partner_send[data_memcpy_reduce.buffer_number1] = 1;
-	    partner_recv[data_memcpy_reduce.buffer_number1] = 1;
-	    partner_send[data_memcpy_reduce.buffer_number2] = 1;
-	    partner_recv[data_memcpy_reduce.buffer_number2] = 1;
+	    if (data_memcpy_reduce.buffer_type1 == esendbufp) {
+	      partner_send[data_memcpy_reduce.buffer_number1] = 1;
+	    }
+	    if (data_memcpy_reduce.buffer_type1 == erecvbufp) {
+	      partner_recv[data_memcpy_reduce.buffer_number1] = 1;
+	    }
+	    if (data_memcpy_reduce.buffer_type2 == esendbufp) {
+	      partner_send[data_memcpy_reduce.buffer_number2] = 1;
+	    }
+	    if (data_memcpy_reduce.buffer_type2 == erecvbufp) {
+	      partner_recv[data_memcpy_reduce.buffer_number2] = 1;
+	    }
           }
         }
 	if ((estring1 == ememcpy) || (estring1 == ereduce)) {

@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
   double timer_ref = 0.0;
   double timer = 0.0;
   double avg_time = 0.0, max_time = 0.0, min_time = 0.0;
-  void *sendbuf, *recvbuf;
+  void *sendbuf, *recvbuf, *recvbuf_ref;
 //#ifdef GPU_ENABLED
 //  void *sendbuf_device, *recvbuf_device;
 //#endif
@@ -52,8 +52,10 @@ int main(int argc, char *argv[]) {
   }
 #ifndef GPU_ENABLED
   recvbuf = malloc(bufsize);
+  recvbuf_ref = malloc(bufsize);
 #else
   cudaMalloc(&recvbuf, bufsize);
+  cudaMalloc(&recvbuf_ref, bufsize);
 #endif
 
 //#ifdef GPU_ENABLED
@@ -70,6 +72,23 @@ int main(int argc, char *argv[]) {
       MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &new_comm);
       for (size = 1; size <= MAX_MESSAGE_SIZE; size *= 2) {
         MPI_Barrier(new_comm);
+        if (!in_place) {
+          for (i = 0; i < size; i++) {
+            ((long int*)sendbuf)[i] = rand();
+          }
+        } else {
+          for (i = 0; i < size; i++) {
+            ((long int*)recvbuf)[i] = ((long int*)recvbuf_ref)[i] = rand();
+          }
+        }
+        PMPI_Allreduce(sendbuf, recvbuf_ref, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+        MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+        for (i = 0; i < size; i++) {
+          if (((long int*)recvbuf)[i] != ((long int*)recvbuf_ref)[i]) {
+            printf("error in recvbuf\n");
+            exit(1);
+          }
+        }
         for (i = 0; i < 20; i++) {
           PMPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
           MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
@@ -113,7 +132,7 @@ int main(int argc, char *argv[]) {
             MPI_Barrier(new_comm);
           }
           flag = (timer_ref < 2e0) && (timer < 2e0);
-          MPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MIN, new_comm);
+          PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MIN, new_comm);
           MPI_Barrier(new_comm);
           iterations *= 2;
         }
@@ -123,11 +142,11 @@ int main(int argc, char *argv[]) {
 
         MPI_Barrier(new_comm);
 
-        MPI_Reduce(&latency_ref, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0,
+        PMPI_Reduce(&latency_ref, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0,
                    new_comm);
-        MPI_Reduce(&latency_ref, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0,
+        PMPI_Reduce(&latency_ref, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0,
                    new_comm);
-        MPI_Reduce(&latency_ref, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0,
+        PMPI_Reduce(&latency_ref, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0,
                    new_comm);
         avg_time = avg_time / num_tasks;
 
@@ -138,9 +157,9 @@ int main(int argc, char *argv[]) {
           printf("%e %e %e ", avg_time, min_time, max_time);
         }
 
-        MPI_Reduce(&latency, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0, new_comm);
-        MPI_Reduce(&latency, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0, new_comm);
-        MPI_Reduce(&latency, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0, new_comm);
+        PMPI_Reduce(&latency, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0, new_comm);
+        PMPI_Reduce(&latency, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0, new_comm);
+        PMPI_Reduce(&latency, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0, new_comm);
         avg_time = avg_time / num_tasks;
 
         if (rank == 0) {
@@ -166,8 +185,10 @@ int main(int argc, char *argv[]) {
 #endif
   }
 #ifndef GPU_ENABLED
+  free(recvbuf_ref);
   free(recvbuf);
 #else
+  cudaFree(recvbuf_ref);
   cudaFree(recvbuf);
 #endif
 

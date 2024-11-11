@@ -19,16 +19,16 @@ extern MPI_Comm ext_mpi_COMM_WORLD_dup;
 
 static long long int *all_xpmem_id;
 
-int ext_mpi_init_xpmem(MPI_Comm comm) {
+int ext_mpi_init_xpmem(MPI_Comm comm_world) {
   MPI_Comm xpmem_comm_node;
   int my_mpi_rank, my_mpi_size, my_cores_per_node, i;
   long long int global_xpmem_id, *all_global_xpmem_id;
-  my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1);
+  my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm_world, 1);
   all_global_xpmem_id = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
   all_xpmem_id = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
-  PMPI_Comm_size(comm, &my_mpi_size);
-  PMPI_Comm_rank(comm, &my_mpi_rank);
-  PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
+  PMPI_Comm_size(comm_world, &my_mpi_size);
+  PMPI_Comm_rank(comm_world, &my_mpi_rank);
+  PMPI_Comm_split(comm_world, my_mpi_rank / my_cores_per_node,
                   my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
   PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
@@ -57,10 +57,33 @@ int ext_mpi_init_xpmem(MPI_Comm comm) {
   return 0;
 }
 
-int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num_sockets, char *sendrecvbuf, int size, char ***sendrecvbufs) {
+void ext_mpi_done_xpmem() {
+  free(all_xpmem_id);
+}
+
+static void get_comm_world_ranks(MPI_Comm comm_world, MPI_Comm comm_node, int **ranks) {
+  int my_cores_per_node, my_mpi_size, my_mpi_rank, mpi_size;
+  MPI_Comm xpmem_comm_node;
+  my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm_world, 1);
+  PMPI_Comm_size(comm_world, &my_mpi_size);
+  PMPI_Comm_rank(comm_world, &my_mpi_rank);
+  PMPI_Comm_split(comm_world, my_mpi_rank / my_cores_per_node,
+                  my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
+  PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
+  PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
+  PMPI_Comm_size(comm_node, &mpi_size);
+  *ranks = (int*)malloc(mpi_size * sizeof(int));
+  PMPI_Allgather(&my_mpi_rank, 1, MPI_INT, *ranks, 1, MPI_INT, comm_node);
+  if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
+    printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
+    exit(1);
+  }
+}
+
+int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm_world, MPI_Comm comm, int my_cores_per_node, int num_sockets, char *sendrecvbuf, int size, char ***sendrecvbufs) {
   MPI_Comm xpmem_comm_node;
   struct xpmem_addr addr;
-  int my_mpi_rank, my_mpi_size, i, j, k;
+  int my_mpi_rank, my_mpi_size, *global_ranks, i, j, k;
   char *a;
   if (!sendrecvbuf) {
     *sendrecvbufs = NULL;
@@ -75,17 +98,18 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
   *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char *));
   PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node);
   PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, xpmem_comm_node);
+  get_comm_world_ranks(comm_world, xpmem_comm_node, &global_ranks);
   size += PAGESIZE;
   while (size & (PAGESIZE - 1)) {
     size++;
   }
   for (i = 0; i < my_mpi_size; i++) {
-    if (all_xpmem_id[i] != -1) {
+    if (all_xpmem_id[global_ranks[i]] != -1) {
       addr.offset = (long int)((*sendrecvbufs)[i]);
       while (addr.offset & (PAGESIZE - 1)) {
         addr.offset--;
       }
-      addr.apid = all_xpmem_id[i];
+      addr.apid = all_xpmem_id[global_ranks[i]];
       if (addr.apid != -1 && (*sendrecvbufs)[i]) {
         a = xpmem_attach(addr, size, NULL);
         if ((long int)a == -1) {
@@ -115,6 +139,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
     }
   }
   (*sendrecvbufs)[0] = sendrecvbuf;
+  free(global_ranks);
   if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
     printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
     exit(1);
@@ -153,9 +178,9 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
   return 0;
 }
 
-int ext_mpi_init_xpmem_blocking(MPI_Comm comm, int num_sockets_per_node, long long int **all_xpmem_id_permutated, struct xpmem_tree ***xpmem_tree_root) {
+int ext_mpi_init_xpmem_blocking(MPI_Comm comm_world, MPI_Comm comm, int num_sockets_per_node, long long int **all_xpmem_id_permutated, struct xpmem_tree ***xpmem_tree_root) {
   MPI_Comm xpmem_comm_node;
-  int my_mpi_rank, my_mpi_size, my_cores_per_node, i, j, k;
+  int my_mpi_rank, my_mpi_size, my_cores_per_node, *global_ranks, i, j, k;
   long long int a;
   my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1);
   (*all_xpmem_id_permutated) = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
@@ -165,12 +190,13 @@ int ext_mpi_init_xpmem_blocking(MPI_Comm comm, int num_sockets_per_node, long lo
                   my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
   PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
+  get_comm_world_ranks(comm_world, xpmem_comm_node, &global_ranks);
   if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
     printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
     exit(1);
   }
   for (i = 0; i < my_mpi_size; i++) {
-    (*all_xpmem_id_permutated)[i] = all_xpmem_id[i];
+    (*all_xpmem_id_permutated)[i] = all_xpmem_id[global_ranks[i]];
   }
   for (j = 0; j < my_mpi_rank / (my_mpi_size / num_sockets_per_node) * (my_mpi_size / num_sockets_per_node); j++) {
     a = (*all_xpmem_id_permutated)[0];
@@ -190,6 +216,7 @@ int ext_mpi_init_xpmem_blocking(MPI_Comm comm, int num_sockets_per_node, long lo
   }
   (*xpmem_tree_root) = (struct xpmem_tree **)malloc(my_mpi_size * sizeof(struct xpmem_tree *));
   memset((*xpmem_tree_root), 0, my_mpi_size * sizeof(struct xpmem_tree *));
+  free(global_ranks);
   return 0;
 }
 
@@ -287,10 +314,8 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
   recvbufs[0] = shmem[0][1] = recvbuf;
   shmem_node[0][0] = ++(*counter);
   memory_fence_store();
-  for (i = 0; (j = mem_partners_send[i]) >= 0; i++) {
-    if (j > 0) {
-      while ((unsigned int)(*((volatile int*)(shmem_node[j])) - *counter) > INT_MAX);
-    }
+  for (i = 1; i < my_cores_per_node; i <<= 1) {
+    while ((unsigned int)(*((volatile int*)(shmem_node[i])) - *counter) > INT_MAX);
   }
   memory_fence_load();
   for (i = 0; (j = mem_partners_send[i]) >= 0; i++) {
@@ -304,7 +329,7 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
 	  if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
             a = xpmem_attach(addr, size, NULL);
             if ((long int)a == -1) {
-              printf("error xpmem_attach\n");
+              printf("error xpmem_attach 1\n");
               exit(1);
             }
             xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
@@ -327,7 +352,7 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
 	  if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
             a = xpmem_attach(addr, size, NULL);
             if ((long int)a == -1) {
-              printf("error xpmem_attach\n");
+              printf("error xpmem_attach 2\n");
               exit(1);
             }
             xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);

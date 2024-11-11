@@ -204,13 +204,150 @@ static void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
         }
 }
 
+static void reduction(int instruction2, void *p1, void *p2, int i1, void *mpi_user_function, int blocking) {
+  int i2;
+  MPI_Datatype datatype;
+  switch (instruction2) {
+  case OPCODE_REDUCE_SUM_DOUBLE:
+    if (blocking) i1 /= sizeof(double);
+    for (i2 = 0; i2 < i1; i2++) {
+      ((double *)p1)[i2] += ((double *)p2)[i2];
+    }
+    break;
+  case OPCODE_REDUCE_SUM_LONG_INT:
+    if (blocking) i1 /= sizeof(long int);
+    for (i2 = 0; i2 < i1; i2++) {
+      ((long int *)p1)[i2] += ((long int *)p2)[i2];
+    }
+    break;
+  case OPCODE_REDUCE_SUM_FLOAT:
+    if (blocking) i1 /= sizeof(float);
+    for (i2 = 0; i2 < i1; i2++) {
+      ((float *)p1)[i2] += ((float *)p2)[i2];
+    }
+    break;
+  case OPCODE_REDUCE_SUM_INT:
+    if (blocking) i1 /= sizeof(int);
+    for (i2 = 0; i2 < i1; i2++) {
+      ((int *)p1)[i2] += ((int *)p2)[i2];
+    }
+    break;
+  case OPCODE_REDUCE_SUM_CHAR:
+    for (i2 = 0; i2 < i1; i2++) {
+      ((char *)p1)[i2] += ((char *)p2)[i2];
+    }
+    break;
+  case OPCODE_REDUCE_MIN_DOUBLE:
+    if (blocking) i1 /= sizeof(double);
+    for (i2 = 0; i2 < i1; i2++) {
+      if (((double *)p2)[i2] < ((double *)p1)[i2]) {
+        ((double *)p1)[i2] = ((double *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_MIN_LONG_INT:
+    if (blocking) i1 /= sizeof(long int);
+    for (i2 = 0; i2 < i1; i2++) {
+	  if (((long int *)p2)[i2] < ((long int *)p1)[i2]) {
+        ((long int *)p1)[i2] = ((long int *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_MIN_FLOAT:
+    if (blocking) i1 /= sizeof(float);
+    for (i2 = 0; i2 < i1; i2++) {
+	  if (((float *)p2)[i2] < ((float *)p1)[i2]) {
+        ((float *)p1)[i2] = ((float *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_MIN_INT:
+    if (blocking) i1 /= sizeof(int);
+    for (i2 = 0; i2 < i1; i2++) {
+	  if (((int *)p2)[i2] < ((int *)p1)[i2]) {
+        ((int *)p1)[i2] = ((int *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_MIN_CHAR:
+    for (i2 = 0; i2 < i1; i2++) {
+	  if (((char *)p2)[i2] < ((char *)p1)[i2]) {
+        ((char *)p1)[i2] = ((char *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_MAX_DOUBLE:
+    if (blocking) i1 /= sizeof(double);
+    for (i2 = 0; i2 < i1; i2++) {
+      if (((double *)p2)[i2] > ((double *)p1)[i2]) {
+        ((double *)p1)[i2] = ((double *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_MAX_LONG_INT:
+    if (blocking) i1 /= sizeof(long int);
+    for (i2 = 0; i2 < i1; i2++) {
+	  if (((long int *)p2)[i2] > ((long int *)p1)[i2]) {
+        ((long int *)p1)[i2] = ((long int *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_MAX_FLOAT:
+    if (blocking) i1 /= sizeof(float);
+    for (i2 = 0; i2 < i1; i2++) {
+	  if (((float *)p2)[i2] > ((float *)p1)[i2]) {
+        ((float *)p1)[i2] = ((float *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_MAX_INT:
+    if (blocking) i1 /= sizeof(int);
+    for (i2 = 0; i2 < i1; i2++) {
+	  if (((int *)p2)[i2] > ((int *)p1)[i2]) {
+        ((int *)p1)[i2] = ((int *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_MAX_CHAR:
+    for (i2 = 0; i2 < i1; i2++) {
+	  if (((char *)p2)[i2] > ((char *)p1)[i2]) {
+        ((char *)p1)[i2] = ((char *)p2)[i2];
+	  }
+    }
+    break;
+  case OPCODE_REDUCE_USER_DOUBLE:
+    if (blocking) i1 /= sizeof(double);
+	datatype = MPI_DOUBLE;
+	((MPI_User_function *)(mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+  case OPCODE_REDUCE_USER_LONG_INT:
+    if (blocking) i1 /= sizeof(long int);
+	datatype = MPI_LONG_INT;
+	((MPI_User_function *)(mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+  case OPCODE_REDUCE_USER_FLOAT:
+    if (blocking) i1 /= sizeof(float);
+	datatype = MPI_FLOAT;
+	((MPI_User_function *)(mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+  case OPCODE_REDUCE_USER_INT:
+    if (blocking) i1 /= sizeof(int);
+	datatype = MPI_INT;
+	((MPI_User_function *)(mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+  case OPCODE_REDUCE_USER_CHAR:
+	datatype = MPI_CHAR;
+	((MPI_User_function *)(mpi_user_function))(p2, p1, &i1, &datatype);
+	break;
+  }
+}
+
 int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
   char instruction, instruction2; //, *r_start, *r_temp, *ipl;
   void *p1, *p2, *p3;
   //  char *rlocmem=NULL;
   int i1, i2; //, n_r, s_r, i;
   struct header_byte_code *header;
-  MPI_Datatype datatype;
 #ifdef NCCL_ENABLED
   static int initialised = 0;
   static cudaStream_t stream;
@@ -390,92 +527,12 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
       }
       break;
     case OPCODE_REDUCE:
-      instruction2 = code_get_char(&ip);
-      p1 = code_get_pointer(&ip);
-      p2 = code_get_pointer(&ip);
-      i1 = code_get_int(&ip);
-      switch (instruction2) {
-      case OPCODE_REDUCE_SUM_DOUBLE:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((double *)p1)[i2] += ((double *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_LONG_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((long int *)p1)[i2] += ((long int *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_FLOAT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((float *)p1)[i2] += ((float *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((int *)p1)[i2] += ((int *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_USER_DOUBLE:
-	datatype = MPI_DOUBLE;
-	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
-	break;
-      case OPCODE_REDUCE_USER_LONG_INT:
-	datatype = MPI_LONG_INT;
-	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
-	break;
-      case OPCODE_REDUCE_USER_FLOAT:
-	datatype = MPI_FLOAT;
-	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
-	break;
-      case OPCODE_REDUCE_USER_INT:
-	datatype = MPI_INT;
-	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
-	break;
-      }
-      break;
     case OPCODE_INVREDUCE:
       instruction2 = code_get_char(&ip);
       p1 = code_get_pointer(&ip);
       p2 = code_get_pointer(&ip);
       i1 = code_get_int(&ip);
-      switch (instruction2) {
-      case OPCODE_REDUCE_SUM_DOUBLE:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((double *)p1)[i2] += ((double *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_LONG_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((long int *)p1)[i2] += ((long int *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_FLOAT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((float *)p1)[i2] += ((float *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_INT:
-        for (i2 = 0; i2 < i1; i2++) {
-          ((int *)p1)[i2] += ((int *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_USER_DOUBLE:
-	datatype = MPI_DOUBLE;
-	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
-	break;
-      case OPCODE_REDUCE_USER_LONG_INT:
-	datatype = MPI_LONG_INT;
-	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
-	break;
-      case OPCODE_REDUCE_USER_FLOAT:
-	datatype = MPI_FLOAT;
-	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
-	break;
-      case OPCODE_REDUCE_USER_INT:
-	datatype = MPI_INT;
-	((MPI_User_function *)(header->mpi_user_function))(p2, p1, &i1, &datatype);
-	break;
-      }
+      reduction(instruction2, p1, p2, i1, header->mpi_user_function, 0);
       break;
     case OPCODE_MPISENDRECV:
       p1 = code_get_pointer(&ip);
@@ -772,22 +829,7 @@ int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char
       ip -= sizeof(void *);
       code_put_pointer(&ip, p2, 0);
       i1 = code_get_int(&ip);
-      switch (i2) {
-      case OPCODE_REDUCE_SUM_DOUBLE:
-        i1 /= count / sizeof(double);
-        break;
-      case OPCODE_REDUCE_SUM_LONG_INT:
-        i1 /= count / sizeof(long int);
-        break;
-      case OPCODE_REDUCE_SUM_FLOAT:
-        i1 /= count / sizeof(float);
-        break;
-      case OPCODE_REDUCE_SUM_INT:
-        i1 /= count / sizeof(int);
-        break;
-      default:
-	i1 /= count;
-      }
+      i1 /= count / get_type_size(i2);
       ip -= sizeof(int);
       code_put_int(&ip, i1, 0);
       break;
@@ -912,39 +954,6 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       node_barrier_atomic_wait((int *)(shmem_node[i1]), *counter_node);
       break;
     case OPCODE_REDUCE:
-      code_get_char(&ip);
-      p1 = code_get_pointer(&ip);
-      p2 = code_get_pointer(&ip);
-      i1 = code_get_int(&ip) * count;
-      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p1, &i1);
-      recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p2, &i1);
-      switch (reduction_op) {
-      case OPCODE_REDUCE_SUM_DOUBLE:
-        i1 /= sizeof(double);
-        for (i2 = 0; i2 < i1; i2++) {
-          ((double *)p1)[i2] += ((double *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_LONG_INT:
-        i1 /= sizeof(long int);
-        for (i2 = 0; i2 < i1; i2++) {
-          ((long int *)p1)[i2] += ((long int *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_FLOAT:
-        i1 /= sizeof(float);
-        for (i2 = 0; i2 < i1; i2++) {
-          ((float *)p1)[i2] += ((float *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_INT:
-        i1 /= sizeof(int);
-        for (i2 = 0; i2 < i1; i2++) {
-          ((int *)p1)[i2] += ((int *)p2)[i2];
-        }
-        break;
-      }
-      break;
     case OPCODE_INVREDUCE:
       code_get_char(&ip);
       p1 = code_get_pointer(&ip);
@@ -952,32 +961,7 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       i1 = code_get_int(&ip) * count;
       recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p1, &i1);
       recalculate_address_io(sendbufs, recvbufs, count, shmem_blocking, count_io, &p2, &i1);
-      switch (reduction_op) {
-      case OPCODE_REDUCE_SUM_DOUBLE:
-        i1 /= sizeof(double);
-        for (i2 = 0; i2 < i1; i2++) {
-          ((double *)p1)[i2] += ((double *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_LONG_INT:
-        i1 /= sizeof(long int);
-        for (i2 = 0; i2 < i1; i2++) {
-          ((long int *)p1)[i2] += ((long int *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_FLOAT:
-        i1 /= sizeof(float);
-        for (i2 = 0; i2 < i1; i2++) {
-          ((float *)p1)[i2] += ((float *)p2)[i2];
-        }
-        break;
-      case OPCODE_REDUCE_SUM_INT:
-        i1 /= sizeof(int);
-        for (i2 = 0; i2 < i1; i2++) {
-          ((int *)p1)[i2] += ((int *)p2)[i2];
-        }
-        break;
-      }
+      reduction(reduction_op, p1, p2, i1, NULL, 1);
       break;
     case OPCODE_ATTACHED:
       break;

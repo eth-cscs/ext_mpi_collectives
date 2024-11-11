@@ -365,20 +365,7 @@ static int flush_complete(char **ip, struct gpu_stream **streams,
   int type_size = 1, ret;
   code_put_char(ip, OPCODE_GPUKERNEL, isdryrun);
   code_put_char(ip, reduction_op, isdryrun);
-  switch (reduction_op) {
-  case OPCODE_REDUCE_SUM_INT:
-    type_size = sizeof(int);
-    break;
-  case OPCODE_REDUCE_SUM_FLOAT:
-    type_size = sizeof(float);
-    break;
-  case OPCODE_REDUCE_SUM_LONG_INT:
-    type_size = sizeof(long int);
-    break;
-  case OPCODE_REDUCE_SUM_DOUBLE:
-    type_size = sizeof(double);
-    break;
-  }
+  type_size = get_type_size(reduction_op);
   code_put_pointer(ip, header_gpu_byte_code + *gpu_byte_code_counter, isdryrun);
   ret = gpu_byte_code_flush1(*streams, gpu_byte_code, *gpu_byte_code_counter, type_size);
   if (ret < 0) {
@@ -736,20 +723,7 @@ int ext_mpi_generate_byte_code(char **shmem,
             code_put_char(&ip, OPCODE_INVREDUCE, isdryrun);
 	  }
           code_put_char(&ip, reduction_op, isdryrun);
-          switch (reduction_op) {
-          case OPCODE_REDUCE_SUM_DOUBLE:
-            integer3 /= sizeof(double);
-            break;
-          case OPCODE_REDUCE_SUM_LONG_INT:
-            integer3 /= sizeof(long int);
-            break;
-          case OPCODE_REDUCE_SUM_FLOAT:
-            integer3 /= sizeof(float);
-            break;
-          case OPCODE_REDUCE_SUM_INT:
-            integer3 /= sizeof(int);
-            break;
-          }
+          integer3 /= get_type_size(reduction_op);
         }
         if (estring1a == esendbufp) {
 	  if (sendbufs) {

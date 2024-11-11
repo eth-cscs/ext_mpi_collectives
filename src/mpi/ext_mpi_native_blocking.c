@@ -79,10 +79,7 @@ struct comm_comm_blocking {
   struct xpmem_tree **xpmem_tree_root;
 };
 
-static struct comm_comm_blocking **comms_blocking = NULL;
-#ifdef GPU_ENABLED
-static struct comm_comm_blocking **comms_blocking_gpu = NULL;
-#endif
+static struct comm_comm_blocking **(comms_blocking[(enum collective_subtypes)(size)]) = { NULL };
 
 /*static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
   PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
@@ -128,7 +125,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     PMPI_Comm_dup(comm, &(*comms_blocking)[i_comm]->comm_blocking);
     MPI_Comm_size((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_size_blocking);
     MPI_Comm_rank((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_rank_blocking);
-    ext_mpi_init_xpmem_blocking((*comms_blocking)[i_comm]->comm_blocking, num_sockets_per_node, &(*comms_blocking)[i_comm]->all_xpmem_id_permutated, &(*comms_blocking)[i_comm]->xpmem_tree_root);
+    ext_mpi_init_xpmem_blocking(*e_EXT_MPI_COMM_WORLD, (*comms_blocking)[i_comm]->comm_blocking, num_sockets_per_node, &(*comms_blocking)[i_comm]->all_xpmem_id_permutated, &(*comms_blocking)[i_comm]->xpmem_tree_root);
     (*comms_blocking)[i_comm]->comm_code_allreduce_blocking = (char **)malloc(101 * sizeof(char *));
     memset((*comms_blocking)[i_comm]->comm_code_allreduce_blocking, 0, 101 * sizeof(char *));
     (*comms_blocking)[i_comm]->count_allreduce_blocking = (int *)malloc(100 * sizeof(int));
@@ -244,12 +241,27 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
   return 0;
 }
 
-int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, int num_sockets_per_node, enum ecollective_type collective_type, int i_comm) {
+int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, int num_sockets_per_node, enum ecollective_type collective_type, enum collective_subtypes collective_subtype, int i_comm) {
   ext_mpi_native_export(&e_handle_code_max, &e_comm_code, &e_execution_pointer, &e_active_wait, &e_is_initialised, &e_EXT_MPI_COMM_WORLD, &e_tag_max);
-  add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking, SEND_PTR_CPU, RECV_PTR_CPU);
+  switch (collective_subtype) {
+    case out_of_place:
+      add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking[collective_subtype], SEND_PTR_CPU, RECV_PTR_CPU);
+      break;
+    case in_place:
+      add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking[collective_subtype], RECV_PTR_CPU, RECV_PTR_CPU);
+      break;
 #ifdef GPU_ENABLED
-  add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking_gpu, SEND_PTR_GPU, RECV_PTR_GPU);
+    case out_of_place_gpu:
+      add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking_gpu[collective_subtype], SEND_PTR_GPU, RECV_PTR_GPU);
+      break;
+    case in_place_gpu:
+      add_blocking_native(count, datatype, op, comm, my_cores_per_node, num_ports, groups, copyin, copyin_factors, bit, recursive, arecursive, blocking, num_sockets_per_node, collective_type, i_comm, &comms_blocking_gpu[collective_subtype], RECV_PTR_GPU, RECV_PTR_GPU);
+      break;
 #endif
+    default:
+      printf("error in EXT_MPI_Add_blocking_native file ext_mpi_native_blocking.c");
+      exit(1);
+  }
   return 0;
 }
 
@@ -324,10 +336,10 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
 }
 
 int EXT_MPI_Release_blocking_native(int i_comm) {
-  release_blocking_native(i_comm, &comms_blocking);
-#ifdef GPU_ENABLED
-  release_blocking_native(i_comm, &comms_blocking_gpu);
-#endif
+  enum collective_subtypes collective_subtype;
+  for (collective_subtype = 0; collective_subtype < (enum collective_subtypes)(size); collective_subtype++) {
+    release_blocking_native(i_comm, &comms_blocking[collective_subtype]);
+  }
   return 0;
 }
 
@@ -336,18 +348,23 @@ int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int 
   int type_size, ccount, i = 0;
   struct shmem_blocking shmem_temp;
   void *sendbufs[0x1000], *recvbufs[0x1000];
-  switch (reduction_op) {
-    case OPCODE_REDUCE_SUM_DOUBLE: type_size = sizeof(double); break;
-    case OPCODE_REDUCE_SUM_LONG_INT: type_size = sizeof(long int); break;
-    case OPCODE_REDUCE_SUM_FLOAT: type_size = sizeof(float); break;
-    case OPCODE_REDUCE_SUM_INT: type_size = sizeof(int); break;
-    default: type_size = 1;
-  }
+  type_size = get_type_size(reduction_op);
   ccount = count * type_size;
-  comms_blocking_ = comms_blocking[i_comm];
 #ifdef GPU_ENABLED
-  if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
-    comms_blocking_ = comms_blocking_gpu[i_comm];
+  if (!ext_mpi_gpu_is_device_pointer(recvbuf)) {
+#endif
+    if (sendbuf != recvbuf) {
+      comms_blocking_ = comms_blocking[(enum collective_subtypes)(out_of_place)][i_comm];
+    } else {
+      comms_blocking_ = comms_blocking[(enum collective_subtypes)(in_place)][i_comm];
+    }
+#ifdef GPU_ENABLED
+  } else {
+    if (sendbuf != recvbuf) {
+      comms_blocking_ = comms_blocking[(enum collective_subtypes)(out_of_place_gpu)][i_comm];
+    } else {
+      comms_blocking_ = comms_blocking[(enum collective_subtypes)(in_place_gpu)][i_comm];
+    }
   }
 #endif
   while (comms_blocking_->count_allreduce_blocking[i] < ccount && comms_blocking_->comm_code_allreduce_blocking[i + 1]) i++;

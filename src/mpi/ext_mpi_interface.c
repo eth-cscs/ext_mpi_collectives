@@ -6,6 +6,7 @@
 #include "hash_table_blocking.h"
 #include "hash_table_operator.h"
 #include "ext_mpi.h"
+#include "ext_mpi_native.h"
 #include "ext_mpi_blocking.h"
 #include "ext_mpi_interface.h"
 
@@ -380,18 +381,7 @@ error:
 
 int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
   int reduction_op, i;
-  if (ext_mpi_is_blocking && op == MPI_SUM) {
-    if (datatype == MPI_DOUBLE) {
-      reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
-    } else if (datatype == MPI_LONG) {
-      reduction_op = OPCODE_REDUCE_SUM_LONG_INT;
-    } else if (datatype == MPI_FLOAT) {
-      reduction_op = OPCODE_REDUCE_SUM_FLOAT;
-    } else if (datatype == MPI_INT) {
-      reduction_op = OPCODE_REDUCE_SUM_INT;
-    } else {
-      return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
-    }
+  if (ext_mpi_is_blocking && (reduction_op = get_reduction_op(datatype, op)) >= 0) {
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
       return EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, i);
