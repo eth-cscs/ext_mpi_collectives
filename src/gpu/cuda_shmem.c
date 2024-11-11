@@ -10,7 +10,13 @@
 #include "shmem.h"
 #include "ext_mpi_native_exec.h"
 
-int ext_mpi_gpu_sizeof_memhandle() { return (sizeof(struct cudaIpcMemHandle_st)); }
+struct address_transfer {
+  struct cudaIpcMemHandle_st cuda_mem_handle;
+  void *address;
+  int present;
+};
+
+int ext_mpi_gpu_sizeof_memhandle() { return (sizeof(struct address_transfer)); }
 
 int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
                                     int size_shared, int num_segments,
@@ -233,6 +239,83 @@ int ext_mpi_sendrecvbuf_done_gpu(MPI_Comm comm, int my_cores_per_node, char **se
   }
   return 0;
 }
+
+struct address_registration {
+  struct address_registration *left, *right;
+  char *address;
+  size_t size;
+};
+
+struct address_lookup {
+  struct address_lookup *left, *right;
+  char *address_key, *address_value;
+  size_t size_key;
+};
+
+static int is_address_registered(struct address_registration *p, char *address, size_t size) {
+  while (p && (address < p->address || address + size > p->address + p->size)) {
+    if (address < p->address) {
+      p = p->left;
+    } else {
+      p = p->right;
+    }
+  }
+  return p != NULL;
+}
+
+static int register_address(struct address_registration **root, char *address, size_t size) {
+  struct address_registration **p;
+  p = root;
+  while ((*p) && (address < (*p)->address || address + size > (*p)->address + (*p)->size)) {
+    if (address < (*p)->address) {
+      (*p) = (*p)->left;
+    } else {
+      (*p) = (*p)->right;
+    }
+  }
+  if (*p) {
+    return 0;
+  } else {
+    *p = (struct address_registration*)malloc(sizeof(struct address_registration));
+    (*p)->left = (*p)->right = NULL;
+    (*p)->address = address;
+    (*p)->size = size;
+    return 1;
+  }
+}
+
+static char* lookup_address(struct address_lookup *p, char *address, size_t size) {
+  while (p && (address < p->address_key || address + size > p->address_key + p->size_key)) {
+    if (address < p->address_key) {
+      p = p->left;
+    } else {
+      p = p->right;
+    }
+  }
+  if (!p) return NULL;
+  return p->address_value;
+}
+
+/*static int insert_address(struct address_lookup **root, char *address, size_t size) {
+  struct address_lookup **p;
+  p = root;
+  while ((*p) && (address < (*p)->address || address + size > (*p)->address + (*p)->size)) {
+    if (address < (*p)->address) {
+      (*p) = (*p)->left;
+    } else {
+      (*p) = (*p)->right;
+    }
+  }
+  if (*p) {
+    return 0;
+  } else {
+    *p = (struct address_registration*)malloc(sizeof(struct address_registration));
+    (*p)->left = (*p)->right = NULL;
+    (*p)->address = address;
+    (*p)->size = size;
+    return 1;
+  }
+}*/
 
 int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
   int i, j;
