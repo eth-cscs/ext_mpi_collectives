@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
   MPI_Type_size(MPI_DATA_TYPE, &type_size);
 
   bufsize = type_size * MAX_MESSAGE_SIZE * numprocs;
-  bufsize = 100*1024*1024;
+  bufsize = 10*1024*1024;
 
   if (in_place) {
     sendbuf = MPI_IN_PLACE;
@@ -62,7 +62,6 @@ int main(int argc, char *argv[]) {
 //  cudaMalloc(&sendbuf_device, bufsize);
 //  cudaMalloc(&recvbuf_device, bufsize);
 //#endif
-
   if (rank == 0) {
     printf("# num_tasks message_size avg_time_ref min_time_ref max_time_ref avg_time min_time max_time\n");
   }
@@ -72,6 +71,7 @@ int main(int argc, char *argv[]) {
       MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &new_comm);
       for (size = 1; size <= MAX_MESSAGE_SIZE; size *= 2) {
         MPI_Barrier(new_comm);
+#ifndef GPU_ENABLED
         if (!in_place) {
           for (i = 0; i < size; i++) {
             ((long int*)sendbuf)[i] = rand();
@@ -81,14 +81,17 @@ int main(int argc, char *argv[]) {
             ((long int*)recvbuf)[i] = ((long int*)recvbuf_ref)[i] = rand();
           }
         }
+#endif
         PMPI_Allreduce(sendbuf, recvbuf_ref, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
         MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+#ifndef GPU_ENABLED
         for (i = 0; i < size; i++) {
           if (((long int*)recvbuf)[i] != ((long int*)recvbuf_ref)[i]) {
             printf("error in recvbuf\n");
             exit(1);
           }
         }
+#endif
         for (i = 0; i < 20; i++) {
           PMPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
           MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);

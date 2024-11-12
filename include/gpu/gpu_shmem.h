@@ -28,7 +28,7 @@ int ext_mpi_gpu_destroy_shared_memory(int my_cores_per_node, int *shmemid_gpu, c
 int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_sockets, char *sendrecvbuf, int size, char ***sendrecvbufs, int *mem_partners);
 int ext_mpi_sendrecvbuf_done_gpu(MPI_Comm comm, int my_cores_per_node, char **sendrecvbufs);
 void ext_mpi_done_gpu_blocking(int num_tasks, struct address_registration *address_registration_root, struct address_lookup **address_lookup_root);
-int ext_mpi_sendrecvbuf_init_gpu_blocking(struct address_registration *address_registration_root, struct address_lookup **address_lookup_root, int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs);
+int ext_mpi_sendrecvbuf_init_gpu_blocking(struct address_registration **address_registration_root, struct address_lookup **address_lookup_root, int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs);
 int ext_mpi_sendrecvbuf_done_gpu_blocking(char **sendbufs, char **recvbufs, int *mem_partners_send, int *mem_partners_recv);
 
 #ifdef __cplusplus
