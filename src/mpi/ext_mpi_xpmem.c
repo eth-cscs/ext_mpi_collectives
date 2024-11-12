@@ -305,17 +305,17 @@ static int xpmem_tree_get(struct xpmem_tree **xpmem_tree_root, unsigned long int
 
 int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root, int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, long long int *all_xpmem_id_permutated, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
   struct xpmem_addr addr;
-  int i, j;
+  int bc, i, j;
   char *a;
   my_mpi_rank = my_mpi_rank % my_cores_per_node;
   size += 2 * PAGESIZE;
   size &= 0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1);
   sendbufs[0] = shmem[0][0] = sendbuf;
   recvbufs[0] = shmem[0][1] = recvbuf;
-  shmem_node[0][0] = ++(*counter);
   memory_fence_store();
   for (i = 1; i < my_cores_per_node; i <<= 1) {
-    while ((unsigned int)(*((volatile int*)(shmem_node[i])) - *counter) > INT_MAX);
+    bc = shmem_node[0][0] = ++(*counter);
+    while ((unsigned int)(*((volatile int*)(shmem_node[i])) - bc) > INT_MAX);
   }
   memory_fence_load();
   for (i = 0; (j = mem_partners_send[i]) >= 0; i++) {
