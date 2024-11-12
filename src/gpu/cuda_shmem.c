@@ -10,6 +10,7 @@
 #endif
 #include "gpu_shmem.h"
 #include "shmem.h"
+#include "ext_mpi.h"
 #include "ext_mpi_native_exec.h"
 
 int ext_mpi_gpu_sizeof_memhandle() { return (sizeof(struct cudaIpcMemHandle_st)); }
@@ -240,37 +241,10 @@ struct address_transfer {
   struct cudaIpcMemHandle_st cuda_mem_handle;
   char *address;
   size_t size;
-  int present;
 };
 
-static int register_address(struct address_registration **root, char *address, size_t size) {
-  struct address_registration **p;
-  p = root;
-  while (*p && address != (*p)->address) {
-    if (address < (*p)->address) {
-      p = &(*p)->left;
-    } else {
-      p = &(*p)->right;
-    }
-  }
-  if (*p) {
-    return 0;
-  } else {
-    *p = (struct address_registration*)malloc(sizeof(struct address_registration));
-    (*p)->left = (*p)->right = NULL;
-    (*p)->address = address;
-    (*p)->size = size;
-    return 1;
-  }
-}
-
-static void delete_address_registration(struct address_registration *p) {
-  if (p) {
-    if (p->left) delete_address_registration(p->left);
-    if (p->right) delete_address_registration(p->right);
-    free(p);
-  }
-}
+static int mpi_node_rank, mpi_node_size;
+static struct address_lookup **address_lookup_root;
 
 static char* search_address_lookup(struct address_lookup *p, char *address, size_t size) {
   while (p && address != p->address_key) {
@@ -318,16 +292,29 @@ static void delete_address_lookup(struct address_lookup *p) {
   }
 }
 
-void ext_mpi_done_gpu_blocking(int num_tasks, struct address_registration *address_registration_root, struct address_lookup **address_lookup_root) {
+int ext_mpi_init_gpu_blocking(MPI_Comm comm_world) {
+  MPI_Comm gpu_comm_node;
+  int tasks_per_node = ext_mpi_get_num_tasks_per_socket(comm_world, 1);;
+  PMPI_Comm_size(comm_world, &mpi_node_size);
+  PMPI_Comm_rank(comm_world, &mpi_node_rank);
+  PMPI_Comm_split(comm_world, mpi_node_rank / tasks_per_node,
+                  mpi_node_rank % tasks_per_node, &gpu_comm_node);
+  PMPI_Comm_rank(gpu_comm_node, &mpi_node_rank);
+  PMPI_Comm_size(gpu_comm_node, &mpi_node_size);
+  address_lookup_root = (struct address_lookup **)malloc(mpi_node_size * sizeof(struct address_lookup *));
+  memset(address_lookup_root, 0, mpi_node_size * sizeof(struct address_lookup *));
+  return 0;
+}
+
+void ext_mpi_done_gpu_blocking() {
   int i;
-  delete_address_registration(address_registration_root);
-  for (i = 0; i < num_tasks; i++) {
+  for (i = 0; i < mpi_node_size; i++) {
     delete_address_lookup(address_lookup_root[i]);
   }
   free(address_lookup_root);
 }
 
-int ext_mpi_sendrecvbuf_init_gpu_blocking(struct address_registration **address_registration_root, struct address_lookup **address_lookup_root, int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
+int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
   CUdeviceptr pbase;
   size_t psize;
   int bc, i;
@@ -336,11 +323,9 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(struct address_registration **address_
     cuMemGetAddressRange(&pbase, &psize, (CUdeviceptr)sendbuf);
     sendbuf = (char*)pbase;
     size = psize;
-    if (!(((struct address_transfer*)(shmem[0]))[0].present = !register_address(address_registration_root, sendbuf, size))) {
-      if (cudaIpcGetMemHandle(&(((struct address_transfer*)(shmem[0]))[0].cuda_mem_handle), (void *)sendbuf) != 0) {
-        printf("error 2 cudaIpcGetMemHandle in cuda_shmem.c\n");
-        exit(1);
-      }
+    if (cudaIpcGetMemHandle(&(((struct address_transfer*)(shmem[0]))[0].cuda_mem_handle), (void *)sendbuf) != 0) {
+      printf("error 2 cudaIpcGetMemHandle in cuda_shmem.c\n");
+      exit(1);
     }
     ((struct address_transfer*)(shmem[0]))[0].address = sendbuf;
     ((struct address_transfer*)(shmem[0]))[0].size = size;
@@ -348,11 +333,9 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(struct address_registration **address_
   cuMemGetAddressRange(&pbase, &psize, (CUdeviceptr)recvbuf);
   recvbuf = (char*)pbase;
   size = psize;
-  if (!(((struct address_transfer*)(shmem[0]))[1].present = !register_address(address_registration_root, recvbuf, size))) {
-    if (cudaIpcGetMemHandle(&(((struct address_transfer*)(shmem[0]))[1].cuda_mem_handle), (void *)recvbuf) != 0) {
-      printf("error 3 cudaIpcGetMemHandle in cuda_shmem.c\n");
-      exit(1);
-    }
+  if (cudaIpcGetMemHandle(&(((struct address_transfer*)(shmem[0]))[1].cuda_mem_handle), (void *)recvbuf) != 0) {
+    printf("error 3 cudaIpcGetMemHandle in cuda_shmem.c\n");
+    exit(1);
   }
   ((struct address_transfer*)(shmem[0]))[1].address = recvbuf;
   ((struct address_transfer*)(shmem[0]))[1].size = size;
@@ -366,14 +349,10 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(struct address_registration **address_
   memory_fence_load();
   if (sendbuf != recvbuf) {
     for (i = 1; i < my_cores_per_node; i++) {
-      if (!((struct address_transfer*)(shmem[i]))[0].present) {
+      if (insert_address_lookup(&address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size, sendbufs[i])) {
         if (cudaIpcOpenMemHandle((void **)&(sendbufs[i]), ((struct address_transfer*)(shmem[i]))[0].cuda_mem_handle, cudaIpcMemLazyEnablePeerAccess) != 0) {
           printf("error 2 cudaIpcOpenMemHandle in cuda_shmem.c\n");
           exit(1);
-        }
-        if (!insert_address_lookup(&address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size, sendbufs[i])) {
-	  printf("error 1 in insert_address_lookup file cuda_shmem.c\n");
-	  exit(1);
         }
       } else {
         sendbufs[i] = search_address_lookup(address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size);
@@ -385,14 +364,10 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(struct address_registration **address_
     }
   }
   for (i = 1; i < my_cores_per_node; i++) {
-    if (!((struct address_transfer*)(shmem[i]))[1].present) {
+    if (!insert_address_lookup(&address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size, recvbufs[i])) {
       if (cudaIpcOpenMemHandle((void **)&(recvbufs[i]), ((struct address_transfer*)(shmem[i]))[1].cuda_mem_handle, cudaIpcMemLazyEnablePeerAccess) != 0) {
         printf("error 3 cudaIpcOpenMemHandle in cuda_shmem.c\n");
         exit(1);
-      }
-      if (!insert_address_lookup(&address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size, recvbufs[i])) {
-	printf("error 2 in insert_address_lookup file cuda_shmem.c\n");
-	exit(1);
       }
     } else {
       recvbufs[i] = search_address_lookup(address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size);

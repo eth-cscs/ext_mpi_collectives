@@ -1883,6 +1883,9 @@ int EXT_MPI_Init_native() {
 #ifdef XPMEM
   ext_mpi_init_xpmem(ext_mpi_COMM_WORLD_dup);
 #endif
+#ifdef GPU_ENABLED
+  ext_mpi_init_gpu_blocking(ext_mpi_COMM_WORLD_dup);
+#endif
   is_initialised = 1;
   return 0;
 }
@@ -1890,7 +1893,12 @@ int EXT_MPI_Init_native() {
 int EXT_MPI_Initialized_native() { return is_initialised; }
 
 int EXT_MPI_Finalize_native() {
+#ifdef GPU_ENABLED
+  ext_mpi_done_gpu_blocking();
+#endif
+#ifdef XPMEM
   ext_mpi_done_xpmem();
+#endif
   if (PMPI_Comm_free(&ext_mpi_COMM_WORLD_dup) != MPI_SUCCESS) {
     printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
     exit(1);

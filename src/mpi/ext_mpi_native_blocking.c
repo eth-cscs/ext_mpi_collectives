@@ -77,10 +77,6 @@ struct comm_comm_blocking {
   int **mem_partners_recv;
   long long int *all_xpmem_id_permutated;
   struct xpmem_tree **xpmem_tree_root;
-#ifdef GPU_ENABLED
-  struct address_registration *address_registration_root;
-  struct address_lookup **address_lookup_root;
-#endif
 };
 
 static struct comm_comm_blocking **(comms_blocking[(enum collective_subtypes)(size)]) = { NULL };
@@ -130,11 +126,6 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     MPI_Comm_size((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_size_blocking);
     MPI_Comm_rank((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_rank_blocking);
     ext_mpi_init_xpmem_blocking(*e_EXT_MPI_COMM_WORLD, (*comms_blocking)[i_comm]->comm_blocking, num_sockets_per_node, &(*comms_blocking)[i_comm]->all_xpmem_id_permutated, &(*comms_blocking)[i_comm]->xpmem_tree_root);
-#ifdef GPU_ENABLED
-    (*comms_blocking)[i_comm]->address_registration_root = NULL;
-    (*comms_blocking)[i_comm]->address_lookup_root = (struct address_lookup **)malloc(my_cores_per_node * sizeof(struct address_lookup *));
-    memset((*comms_blocking)[i_comm]->address_lookup_root, 0, my_cores_per_node * sizeof(struct address_lookup *));
-#endif
     (*comms_blocking)[i_comm]->comm_code_allreduce_blocking = (char **)malloc(101 * sizeof(char *));
     memset((*comms_blocking)[i_comm]->comm_code_allreduce_blocking, 0, 101 * sizeof(char *));
     (*comms_blocking)[i_comm]->count_allreduce_blocking = (int *)malloc(100 * sizeof(int));
@@ -328,9 +319,6 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
   free((*comms_blocking)[i_comm]->comm_code_allreduce_blocking);
   free((*comms_blocking)[i_comm]->comm_code_reduce_scatter_block_blocking);
   free((*comms_blocking)[i_comm]->comm_code_allgather_blocking);
-#ifdef GPU_ENABLED
-  ext_mpi_done_gpu_blocking((*comms_blocking)[i_comm]->num_cores_blocking, (*comms_blocking)[i_comm]->address_registration_root, (*comms_blocking)[i_comm]->address_lookup_root);
-#endif
   ext_mpi_done_xpmem_blocking((*comms_blocking)[i_comm]->comm_blocking, (*comms_blocking)[i_comm]->xpmem_tree_root);
   PMPI_Comm_free(&(*comms_blocking)[i_comm]->comm_blocking);
 #ifdef GPU_ENABLED
@@ -382,7 +370,7 @@ int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int 
   while (comms_blocking_->count_allreduce_blocking[i] < ccount && comms_blocking_->comm_code_allreduce_blocking[i + 1]) i++;
 #ifdef GPU_ENABLED
   if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
-    ext_mpi_sendrecvbuf_init_gpu_blocking(&comms_blocking_->address_registration_root, comms_blocking_->address_lookup_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->num_sockets_per_node_blocking, (char*)sendbuf, recvbuf, ccount, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i], (char ***)comms_blocking_->shmem_blocking1.small_mem, (int**)comms_blocking_->shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+    ext_mpi_sendrecvbuf_init_gpu_blocking(comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->num_sockets_per_node_blocking, (char*)sendbuf, recvbuf, ccount, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i], (char ***)comms_blocking_->shmem_blocking1.small_mem, (int**)comms_blocking_->shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
   } else {
 #endif
 #ifdef XPMEM
