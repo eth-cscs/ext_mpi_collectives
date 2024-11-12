@@ -158,8 +158,8 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     (*comms_blocking)[i_comm]->mem_partners_recv = (int **)malloc(101 * sizeof(int *));
     memset((*comms_blocking)[i_comm]->mem_partners_recv, 0, 101 * sizeof(int *));
 #ifdef GPU_ENABLED
-    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, num_sockets_per_node, 2 * (ext_mpi_gpu_sizeof_memhandle() + sizeof(void*) + sizeof(size_t) + sizeof(int)) + 1000 * sizeof(void*), &(*comms_blocking)[i_comm]->shmem_blocking1.small_sizes, &(*comms_blocking)[i_comm]->shmem_blocking1.small_shmemid, &(*comms_blocking)[i_comm]->shmem_blocking1.small_mem, &((*comms_blocking)[i_comm]->comm_row_blocking));
-    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, num_sockets_per_node, 2 * (ext_mpi_gpu_sizeof_memhandle() + sizeof(void*) + sizeof(size_t) + sizeof(int)) + 1000 * sizeof(void*), &(*comms_blocking)[i_comm]->shmem_blocking2.small_sizes, &(*comms_blocking)[i_comm]->shmem_blocking2.small_shmemid, &(*comms_blocking)[i_comm]->shmem_blocking2.small_mem, &((*comms_blocking)[i_comm]->comm_row_blocking));
+    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, num_sockets_per_node, 2 * (ext_mpi_gpu_sizeof_memhandle() + sizeof(void*) + sizeof(size_t) + sizeof(int)), &(*comms_blocking)[i_comm]->shmem_blocking1.small_sizes, &(*comms_blocking)[i_comm]->shmem_blocking1.small_shmemid, &(*comms_blocking)[i_comm]->shmem_blocking1.small_mem, &((*comms_blocking)[i_comm]->comm_row_blocking));
+    ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, num_sockets_per_node, 2 * (ext_mpi_gpu_sizeof_memhandle() + sizeof(void*) + sizeof(size_t) + sizeof(int)), &(*comms_blocking)[i_comm]->shmem_blocking2.small_sizes, &(*comms_blocking)[i_comm]->shmem_blocking2.small_shmemid, &(*comms_blocking)[i_comm]->shmem_blocking2.small_mem, &((*comms_blocking)[i_comm]->comm_row_blocking));
 #else
 #ifdef XPMEM
     ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, num_sockets_per_node, 2 * sizeof(void*), &(*comms_blocking)[i_comm]->shmem_blocking1.small_sizes, &(*comms_blocking)[i_comm]->shmem_blocking1.small_shmemid, &(*comms_blocking)[i_comm]->shmem_blocking1.small_mem, &((*comms_blocking)[i_comm]->comm_row_blocking));
@@ -384,9 +384,7 @@ int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int 
   comms_blocking_->shmem_blocking1 = comms_blocking_->shmem_blocking2;
   comms_blocking_->shmem_blocking2 = shmem_temp;
 #ifdef GPU_ENABLED
-  if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
-    ext_mpi_sendrecvbuf_done_gpu_blocking((char**)sendbufs, (char**)recvbufs, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i]);
-  } else {
+  if (!ext_mpi_gpu_is_device_pointer(recvbuf)) {
 #endif
 #ifdef XPMEM
     ext_mpi_sendrecvbuf_done_xpmem_blocking((char**)sendbufs, (char**)recvbufs, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i]);

@@ -241,6 +241,7 @@ struct address_transfer {
   struct cudaIpcMemHandle_st cuda_mem_handle;
   char *address;
   size_t size;
+  int mpi_node_rank;
 };
 
 static int mpi_node_rank, mpi_node_size;
@@ -329,6 +330,7 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node
     }
     ((struct address_transfer*)(shmem[0]))[0].address = sendbuf;
     ((struct address_transfer*)(shmem[0]))[0].size = size;
+    ((struct address_transfer*)(shmem[0]))[0].mpi_node_rank = mpi_node_rank;
   }
   cuMemGetAddressRange(&pbase, &psize, (CUdeviceptr)recvbuf);
   recvbuf = (char*)pbase;
@@ -349,13 +351,13 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node
   memory_fence_load();
   if (sendbuf != recvbuf) {
     for (i = 1; i < my_cores_per_node; i++) {
-      if (insert_address_lookup(&address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size, sendbufs[i])) {
+      if (insert_address_lookup(&address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size, sendbufs[i])) {
         if (cudaIpcOpenMemHandle((void **)&(sendbufs[i]), ((struct address_transfer*)(shmem[i]))[0].cuda_mem_handle, cudaIpcMemLazyEnablePeerAccess) != 0) {
           printf("error 2 cudaIpcOpenMemHandle in cuda_shmem.c\n");
           exit(1);
         }
       } else {
-        sendbufs[i] = search_address_lookup(address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size);
+        sendbufs[i] = search_address_lookup(address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size);
         if (!sendbufs[i]) {
 	  printf("error 1 in search_address_lookup file cuda_shmem.c\n");
 	  exit(1);
@@ -364,45 +366,16 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node
     }
   }
   for (i = 1; i < my_cores_per_node; i++) {
-    if (!insert_address_lookup(&address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size, recvbufs[i])) {
+    if (!insert_address_lookup(&address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size, recvbufs[i])) {
       if (cudaIpcOpenMemHandle((void **)&(recvbufs[i]), ((struct address_transfer*)(shmem[i]))[1].cuda_mem_handle, cudaIpcMemLazyEnablePeerAccess) != 0) {
         printf("error 3 cudaIpcOpenMemHandle in cuda_shmem.c\n");
         exit(1);
       }
     } else {
-      recvbufs[i] = search_address_lookup(address_lookup_root[i], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size);
+      recvbufs[i] = search_address_lookup(address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size);
       if (!recvbufs[i]) {
 	printf("error 2 in search_address_lookup file cuda_shmem.c\n");
 	exit(1);
-      }
-    }
-  }
-  return 0;
-}
-
-int ext_mpi_sendrecvbuf_done_gpu_blocking(char **sendbufs, char **recvbufs, int *mem_partners_send, int *mem_partners_recv) {
-  int i, j;
-  char *addr;
-return 0;
-  for (i = 0; (j = mem_partners_recv[i]) >= 0; i++) {
-    if (j > 0) {
-      addr = recvbufs[j];
-      if (addr) {
-        if (cudaIpcCloseMemHandle((void *)(addr)) != 0) {
-          printf("error 4 cudaIpcCloseMemHandle in cuda_shmem.c\n");
-          exit(1);
-        }
-      }
-    }
-  }
-  for (i = 0; (j = mem_partners_send[i]) >= 0; i++) {
-    if (j > 0) {
-      addr = sendbufs[j];
-      if (addr) {
-        if (cudaIpcCloseMemHandle((void *)(addr)) != 0) {
-          printf("error 5 cudaIpcCloseMemHandle in cuda_shmem.c\n");
-          exit(1);
-        }
       }
     }
   }
