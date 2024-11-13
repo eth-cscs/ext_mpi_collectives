@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
+#include <dlfcn.h>
 #ifdef __cplusplus
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -246,8 +248,10 @@ struct address_transfer {
 
 static int mpi_node_rank, mpi_node_size;
 static struct address_lookup **address_lookup_root;
+static CUresult CUDAAPI(*sys_cuMemFree) (CUdeviceptr dptr);
+static cudaError_t CUDARTAPI(*sys_cudaFree) (void *dptr);
 
-static char* search_address_lookup(struct address_lookup *p, char *address, size_t size) {
+static int search_address_lookup(struct address_lookup *p, char *address, size_t size, char **ret) {
   while (p && address != p->address_key) {
     if (address < p->address_key) {
       p = p->left;
@@ -255,8 +259,9 @@ static char* search_address_lookup(struct address_lookup *p, char *address, size
       p = p->right;
     }
   }
-  if (!p) return NULL;
-  return p->address_value;
+  if (!p) return 0;
+  *ret = p->address_value;
+  return 1;
 }
 
 static int insert_address_lookup(struct address_lookup **root, char *address_key, size_t size_key, char *address_value) {
@@ -291,6 +296,24 @@ static void delete_address_lookup(struct address_lookup *p) {
     }
     free(p);
   }
+}
+
+static int gpu_mem_hook_init()
+{
+    void *libcuda_handle;
+    void *libcudart_handle;
+
+    libcuda_handle = dlopen("libcuda.so", RTLD_LAZY | RTLD_GLOBAL);
+    assert(libcuda_handle);
+    libcudart_handle = dlopen("libcudart.so", RTLD_LAZY | RTLD_GLOBAL);
+    assert(libcudart_handle);
+
+    sys_cuMemFree = (void *) dlsym(libcuda_handle, "cuMemFree");
+    assert(sys_cuMemFree);
+    sys_cudaFree = (void *) dlsym(libcudart_handle, "cudaFree");
+    assert(sys_cudaFree);
+
+    return 0;
 }
 
 int ext_mpi_init_gpu_blocking(MPI_Comm comm_world) {
@@ -351,30 +374,26 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node
   memory_fence_load();
   if (sendbuf != recvbuf) {
     for (i = 1; i < my_cores_per_node; i++) {
-      if (insert_address_lookup(&address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size, sendbufs[i])) {
+      if (!search_address_lookup(address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size, &sendbufs[i])) {
         if (cudaIpcOpenMemHandle((void **)&(sendbufs[i]), ((struct address_transfer*)(shmem[i]))[0].cuda_mem_handle, cudaIpcMemLazyEnablePeerAccess) != 0) {
           printf("error 2 cudaIpcOpenMemHandle in cuda_shmem.c\n");
           exit(1);
         }
-      } else {
-        sendbufs[i] = search_address_lookup(address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size);
-        if (!sendbufs[i]) {
-	  printf("error 1 in search_address_lookup file cuda_shmem.c\n");
+        if (!insert_address_lookup(&address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[0].address, ((struct address_transfer*)(shmem[i]))[0].size, sendbufs[i])) {
+	  printf("error 1 in insert_address_lookup file cuda_shmem.c\n");
 	  exit(1);
         }
       }
     }
   }
   for (i = 1; i < my_cores_per_node; i++) {
-    if (!insert_address_lookup(&address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size, recvbufs[i])) {
+    if (!search_address_lookup(address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size, &recvbufs[i])) {
       if (cudaIpcOpenMemHandle((void **)&(recvbufs[i]), ((struct address_transfer*)(shmem[i]))[1].cuda_mem_handle, cudaIpcMemLazyEnablePeerAccess) != 0) {
         printf("error 3 cudaIpcOpenMemHandle in cuda_shmem.c\n");
         exit(1);
       }
-    } else {
-      recvbufs[i] = search_address_lookup(address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size);
-      if (!recvbufs[i]) {
-	printf("error 2 in search_address_lookup file cuda_shmem.c\n");
+      if (!insert_address_lookup(&address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size, recvbufs[i])) {
+	printf("error 2 in insert_address_lookup file cuda_shmem.c\n");
 	exit(1);
       }
     }
