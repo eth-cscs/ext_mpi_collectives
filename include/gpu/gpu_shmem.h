@@ -3,11 +3,24 @@
 #define GPU_SHMEM_H_
 
 #include <mpi.h>
+#ifdef __cplusplus
+#include <cuda_runtime.h>
+#else
+#include <cuda_runtime_api.h>
+#endif
 
 struct address_lookup {
   struct address_lookup *left, *right;
   char *address_key, *address_value;
   size_t size_key;
+};
+
+struct address_transfer {
+  struct cudaIpcMemHandle_st cuda_mem_handle;
+  char *address;
+  size_t size;
+  int present;
+  int mpi_node_rank;
 };
 
 #ifdef __cplusplus
