@@ -220,7 +220,7 @@ int ext_mpi_sendrecvbuf_done_gpu(MPI_Comm comm, int my_cores_per_node, char **se
     addr = sendrecvbufs[i];
     if (addr) {
       if (cudaIpcCloseMemHandle((void *)(addr)) != 0) {
-        printf("error 1 cudaIpcCloseMemHandle in cuda_shmem.c\n");
+        printf("error 2 cudaIpcCloseMemHandle in cuda_shmem.c\n");
         exit(1);
       }
     }
@@ -262,6 +262,12 @@ static int insert_address_lookup(struct address_lookup **root, char *address_key
     }
   }
   if (*p) {
+    if ((*p)->address_value) {
+      if (cudaIpcCloseMemHandle((void *)((*p)->address_value)) != 0) {
+        printf("error 3 cudaIpcCloseMemHandle in cuda_shmem.c %p\n", (*p)->address_value);
+        exit(1);
+      }
+    }
     (*p)->address_key = address_key;
     (*p)->size_key = size_key;
     (*p)->address_value = address_value;
@@ -282,7 +288,7 @@ static void delete_all_addresses_lookup(struct address_lookup *p) {
     if (p->right) delete_all_addresses_lookup(p->right);
     if (p->address_value) {
       if (cudaIpcCloseMemHandle((void *)(p->address_value)) != 0) {
-        printf("error 3 cudaIpcCloseMemHandle in cuda_shmem.c %p\n", p->address_value);
+        printf("error 4 cudaIpcCloseMemHandle in cuda_shmem.c %p\n", p->address_value);
         exit(1);
       }
     }
@@ -329,7 +335,7 @@ static int delete_address_lookup(struct address_lookup **root, char *address_key
     delete_all_addresses_lookup(p3);
     if (p2->address_value) {
       if (cudaIpcCloseMemHandle((void *)(p2->address_value)) != 0) {
-        printf("error 4 cudaIpcCloseMemHandle in cuda_shmem.c %p\n", p2->address_value);
+        printf("error 5 cudaIpcCloseMemHandle in cuda_shmem.c %p\n", p2->address_value);
         exit(1);
       }
     }
