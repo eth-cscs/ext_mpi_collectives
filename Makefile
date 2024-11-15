@@ -18,13 +18,13 @@ INITBENCHMARKSBIN = $(subst src/initial_benchmark,bin,$(INITBENCHMARKS:.c=.x))
 LIBS = -Llib -l$(LIBNAME) -lrt -lm -L/usr/lib64 -lxpmem -ldl
 
 .PHONY: all clean
-all: lib/libext_mpi_collectives.so $(TESTSBIN) $(INITBENCHMARKSBIN)
+all: lib/lib$(LIBNAME).a lib/lib$(LIBNAME).so $(TESTSBIN) $(INITBENCHMARKSBIN)
 
 lib/lib$(LIBNAME).a: $(OBJECTS)
 	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/fortran/*.o $(OBJ)/noopt/*.o
 
-lib/lib$(LIBNAME).so: lib/lib$(LIBNAME).a
-	ld -shared --whole-archive lib/lib$(LIBNAME).a -o lib/lib$(LIBNAME).so
+lib/lib$(LIBNAME).so: $(OBJECTS)
+	$(CC) -shared $(LIBS) $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/fortran/*.o $(OBJ)/noopt/*.o -o lib/lib$(LIBNAME).so
 
 DEPFLAGS = -MMD -MT $(OBJ)/$*.o -MP -MF $(DEPDIR)/$*.d
 DEPENDENCIES = $(subst src,$(DEPDIR),$(SOURCES:.c=.d))
