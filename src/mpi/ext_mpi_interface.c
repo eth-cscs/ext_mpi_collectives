@@ -13,11 +13,10 @@
 int ext_mpi_is_blocking = 0;
 static int comms_blocking[100];
 
-int MPI_Init(int *argc, char ***argv){
+static void mpi_init_interface() {
   int mpi_comm_rank, var, var2, i;
   char *c;
   MPI_Comm comm = MPI_COMM_WORLD;
-  int ret = PMPI_Init(argc, argv);
   ext_mpi_hash_init();
   ext_mpi_hash_init_operator();
   EXT_MPI_Init();
@@ -41,6 +40,20 @@ int MPI_Init(int *argc, char ***argv){
       comms_blocking[i] = 0;
     }
     comms_blocking[0] = 1;
+  }
+}
+
+int MPI_Init(int *argc, char ***argv){
+  int ret = PMPI_Init(argc, argv);
+  mpi_init_interface();
+  return ret;
+}
+
+int MPI_Init_thread(int *argc, char ***argv, int required, int *provided) {
+  int ret = PMPI_Init_thread(argc, argv, required, provided);
+  mpi_init_interface();
+  if (!(*provided == MPI_THREAD_SINGLE || *provided == MPI_THREAD_FUNNELED || *provided == MPI_THREAD_SERIALIZED)) {
+    *provided = MPI_THREAD_SERIALIZED;
   }
   return ret;
 }
