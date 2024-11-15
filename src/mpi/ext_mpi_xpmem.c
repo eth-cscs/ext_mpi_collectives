@@ -366,31 +366,4 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
   }
   return 0;
 }
-
-int ext_mpi_sendrecvbuf_done_xpmem_blocking(char **sendbufs, char **recvbufs, int *mem_partners_send, int *mem_partners_recv) {
-  int i;
-  char *addr;
-return 0;
-  for (i = 0; mem_partners_recv[i] >= 0; i++) {
-    if (mem_partners_recv[i] > 0) {
-      addr = recvbufs[mem_partners_send[i]];
-      addr = (char *)((unsigned long int)addr & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
-      if (xpmem_detach(addr) != 0) {
-        printf("error xpmem_detach\n");
-        exit(1);
-      }
-    }
-  }
-  for (i = 0; mem_partners_send[i] >= 0; i++) {
-    if (mem_partners_send[i] > 0) {
-      addr = sendbufs[mem_partners_recv[i]];
-      addr = (char *)((unsigned long int)addr & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
-      if (xpmem_detach(addr) != 0) {
-        printf("error xpmem_detach\n");
-        exit(1);
-      }
-    }
-  }
-  return 0;
-}
 #endif
