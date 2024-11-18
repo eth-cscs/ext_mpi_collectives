@@ -67,7 +67,7 @@ int MPI_Init_thread(int *argc, char ***argv, int required, int *provided) {
 int MPI_Finalize(){
 #ifdef PROFILE
   int size, rank;
-  PMPI_Comm_rank(MPI_COMM_WORLD, &size);
+  PMPI_Comm_size(MPI_COMM_WORLD, &size);
   PMPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
   if (ext_mpi_is_blocking) {
@@ -83,9 +83,13 @@ int MPI_Finalize(){
     PMPI_Reduce(MPI_IN_PLACE, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
     PMPI_Reduce(MPI_IN_PLACE, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
     PMPI_Reduce(MPI_IN_PLACE, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    printf("# calls allreduce %ld\n", calls_allreduce / size);
-    printf("# size allreduce %ld\n", size_allreduce / calls_allreduce / size);
-    printf("# timing allreduce %e\n", timing_allreduce / calls_allreduce / size);
+    if (calls_allreduce) {
+      printf("# calls allreduce %e\n", 1.0 * calls_allreduce / size);
+      printf("# size allreduce %e\n", 1.0 * size_allreduce / calls_allreduce);
+      printf("# timing allreduce %e\n", 1.0 * timing_allreduce / (calls_allreduce / size));
+    } else {
+      printf("# no calls to allreduce\n");
+    }
   } else {
     PMPI_Reduce(&calls_allreduce, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
     PMPI_Reduce(&size_allreduce, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -497,6 +501,7 @@ static int add_comm_to_blocking(MPI_Comm *comm){
 
 static int remove_comm_from_blocking(MPI_Comm *comm){
   int i = ext_mpi_hash_search_blocking(comm);
+  if (i < 0) return -1;
   EXT_MPI_Finalize_blocking_comm(i);
   ext_mpi_hash_delete_blocking(comm);
   comms_blocking[i] = 0;
