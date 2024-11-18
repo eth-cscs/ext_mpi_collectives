@@ -82,6 +82,10 @@ void mpi_comm_free_f08_(MPI_Comm *comm, int *ierr){ *ierr = MPI_Comm_free(comm);
   mpi_allreduce_init_f08_(sendbuf, recvbuf, count, datatype, op, comm, info, request, ierr);
 }*/
 
+void mpi_allreduce_f08ts_(const void *sendbuf, void *recvbuf, int *count, MPI_Datatype *datatype, MPI_Op *op, MPI_Comm *comm, int *ierr){
+  mpi_allreduce_f08_(sendbuf, recvbuf, count, datatype, op, comm, ierr);
+}
+
 void mpi_init_(int *ierr){
   mpi_init_f08_(ierr);
 }
@@ -93,6 +97,12 @@ void mpi_init_thread_(int *required, int *provided, int *ierr){
 void mpi_finalize_(int *ierr){
   mpi_finalize_f08_(ierr);
 }
+
+void mpi_comm_dup_(int *comm, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_dup(comml, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
+void mpi_comm_create_(int *comm, int *group, int *newcomm, int *ierr){ MPI_Group groupl; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); groupl = MPI_Group_f2c(*group); *ierr = MPI_Comm_create(comml, groupl, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
+void mpi_comm_split_(int *comm, int *color, int *key, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_split(comml, *color, *key, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
+void mpi_comm_split_type_(int *comm, int *split_type, int *key, int *info, int *newcomm, int *ierr){ MPI_Info infol; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); infol = MPI_Info_f2c(*info); *ierr = MPI_Comm_split_type(comml, *split_type, *key, infol, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
+void mpi_comm_free_(int *comm, int *ierr){ MPI_Comm comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_free(&comml); }
 
 #ifdef __cplusplus
 }

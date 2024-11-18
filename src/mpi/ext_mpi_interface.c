@@ -546,7 +546,9 @@ int MPI_Comm_split_type(MPI_Comm comm, int split_type, int key, MPI_Info info, M
 
 int MPI_Comm_free(MPI_Comm *comm) {
   if (ext_mpi_is_blocking) {
-    remove_comm_from_blocking(comm);
+    if (remove_comm_from_blocking(comm) < 0) {
+      printf("MPI_Comm_free of non-existing communicator\n");
+    }
   }
   return PMPI_Comm_free(comm);
 }
