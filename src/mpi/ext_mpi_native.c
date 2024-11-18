@@ -456,7 +456,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
       my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, 0, tag);
   flag = code_size == -7;
-  MPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm_row);
+  PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm_row);
   if (flag) {
     if (ext_mpi_verbose && my_mpi_rank == 0) {
       printf("# fallback gpu_memcpy\n");
@@ -984,16 +984,28 @@ allreduce_short = 0;
   if (ext_mpi_generate_allreduce_copyin(buffer1, buffer2) < 0)
     goto error;
   if (my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
-    if (root > -10 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) {
+    if (root > -10 && copyin < 8 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) {
       if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
-        goto error;
+	goto error;
     } else {
-      if (ext_mpi_generate_allreduce_copyin_shmem(buffer2, buffer1) < 0)
-        goto error;
+      if (copyin < 8) {
+	if (ext_mpi_generate_allreduce_copyin_shmem(buffer2, buffer1) < 0)
+	  goto error;
+      } else {
+	buffer_temp = buffer1;
+	buffer1 = buffer2;
+	buffer2 = buffer_temp;
+      }
       if (ext_mpi_generate_raw_code(buffer1, buffer2) < 0)
-        goto error;
-      if (ext_mpi_generate_allreduce_copyout_shmem(buffer2, buffer1) < 0)
-        goto error;
+	goto error;
+      if (copyin < 8) {
+        if (ext_mpi_generate_allreduce_copyout_shmem(buffer2, buffer1) < 0)
+          goto error;
+      } else {
+	buffer_temp = buffer1;
+	buffer1 = buffer2;
+	buffer2 = buffer_temp;
+      }
     }
   } else {
     buffer_temp = buffer1;
@@ -1057,7 +1069,7 @@ allreduce_short = 0;
   buffer_temp = buffer2;
   buffer2 = buffer1;
   buffer1 = buffer_temp;
-  if (root > -10 && !not_recursive && ((my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) || (copyin == 7 && my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1))) {
+  if (root > -10 && copyin < 8 && !not_recursive && ((my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) || (copyin == 7 && my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1))) {
     if (ext_mpi_generate_use_sendbuf_recvbuf(buffer2, buffer1) < 0)
       goto error;
     buffer_temp = buffer2;

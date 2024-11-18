@@ -233,7 +233,7 @@ int ext_mpi_sendrecvbuf_done_gpu(MPI_Comm comm, int my_cores_per_node, char **se
   return 0;
 }
 
-static int mpi_node_rank, mpi_node_size;
+static int mpi_node_rank = -1, mpi_node_size = -1;
 static struct address_lookup **address_lookup_root;
 static CUresult CUDAAPI(*sys_cuMemFree) (CUdeviceptr dptr);
 static cudaError_t CUDARTAPI(*sys_cudaFree) (void *dptr);
@@ -369,7 +369,9 @@ CUresult CUDAAPI cuMemFree(CUdeviceptr dptr)
         gpu_mem_hook_init();
     }
 
-    delete_address_lookup(&address_lookup_root[mpi_node_rank], (void *) dptr);
+    if (mpi_node_rank >= 0) {
+      delete_address_lookup(&address_lookup_root[mpi_node_rank], (void *) dptr);
+    }
     result = sys_cuMemFree(dptr);
 
     return (result);
@@ -382,7 +384,9 @@ cudaError_t CUDARTAPI cudaFree(void *dptr)
         gpu_mem_hook_init();
     }
 
-    delete_address_lookup(&address_lookup_root[mpi_node_rank], dptr);
+    if (mpi_node_rank >= 0) {
+      delete_address_lookup(&address_lookup_root[mpi_node_rank], dptr);
+    }
     result = sys_cudaFree(dptr);
 
     return result;
@@ -408,6 +412,7 @@ void ext_mpi_done_gpu_blocking() {
     delete_all_addresses_lookup(address_lookup_root[i]);
   }
   free(address_lookup_root);
+  mpi_node_rank = -1;
 }
 
 int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {

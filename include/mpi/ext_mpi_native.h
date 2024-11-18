@@ -81,6 +81,7 @@ static int get_reduction_op(MPI_Datatype datatype, MPI_Op op) {
     } else if (op == MPI_MIN) {
       return OPCODE_REDUCE_MIN_DOUBLE;
     } else {
+	    return -1;
       return OPCODE_REDUCE_USER_DOUBLE;
     }
   } else if (datatype == MPI_FLOAT) {
@@ -91,6 +92,7 @@ static int get_reduction_op(MPI_Datatype datatype, MPI_Op op) {
     } else if (op == MPI_MIN) {
       return OPCODE_REDUCE_MIN_FLOAT;
     } else {
+	    return -1;
       return OPCODE_REDUCE_USER_FLOAT;
     }
   } else if (datatype == MPI_INT) {
@@ -101,6 +103,7 @@ static int get_reduction_op(MPI_Datatype datatype, MPI_Op op) {
     } else if (op == MPI_MIN) {
       return OPCODE_REDUCE_MIN_INT;
     } else {
+	    return -1;
       return OPCODE_REDUCE_USER_INT;
     }
   } else if (datatype == MPI_LONG) {
@@ -111,6 +114,7 @@ static int get_reduction_op(MPI_Datatype datatype, MPI_Op op) {
     } else if (op == MPI_MIN) {
       return OPCODE_REDUCE_MIN_LONG_INT;
     } else {
+	    return -1;
       return OPCODE_REDUCE_USER_LONG_INT;
     }
   } else {

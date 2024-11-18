@@ -808,7 +808,7 @@ static int reduce_copies_recursive(enum eassembler_type erecvbufp, enum eassembl
   return nbuffer_out;
 }
 
-static int reduce_copies_tree(enum eassembler_type erecvbufp, enum eassembler_type esendbufp, int num_sockets, int socket_size, int num_factors, int *factors, int size, int type_size, int rank, int num_ranks, int *ranks, int size_l, int offset_global, int expart, int first_call, enum eassembler_type buf, char *buffer_out, int ascii){
+static int reduce_copies_tree(enum eassembler_type erecvbufp, enum eassembler_type esendbufp, int num_sockets, int socket_size, int num_factors, int *factors, int size, int type_size, int rank, int num_ranks, int *ranks, int size_l, int offset_global, int expart, int first_call, enum eassembler_type buf, int aoffset, char *buffer_out, int ascii){
   int nbuffer_out = 0, size_local, offset, sizes[socket_size], displs[socket_size + 1], step, gbstep, substep, flag_first = 1, max_factor = 0, rstart = 0, *ranks_wait, *rstarts, ranks_waitl[socket_size], socket, i;
   ext_mpi_sizes_displs(socket_size, size, type_size, size_l, sizes, displs);
   for (step = 0; step < num_factors; step++) {
@@ -845,16 +845,16 @@ static int reduce_copies_tree(enum eassembler_type erecvbufp, enum eassembler_ty
         if (size_local > 0 && (expart == 0 || expart == 1)) {
 	  if (first_call && step == 0) {
 	    if (flag_first) {
-              nbuffer_out += write_memcpy_reduce(esmemcpy, buf, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset, esendbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
+              nbuffer_out += write_memcpy_reduce(esmemcpy, buf, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset + aoffset, esendbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset + aoffset, size_local, 0, buffer_out + nbuffer_out, ascii);
                 flag_first = 0;
 	    }
             nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_node_barrier, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, rstart + gbstep * substep + rank % gbstep));
             nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_load);
-            nbuffer_out += write_memcpy_reduce(esreduce, buf, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset, esendbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * substep + rank % gbstep) % socket_size) % socket_size), 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
+            nbuffer_out += write_memcpy_reduce(esreduce, buf, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset + aoffset, esendbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * substep + rank % gbstep) % socket_size) % socket_size), 0, offset + aoffset, size_local, 0, buffer_out + nbuffer_out, ascii);
 	  } else {
             nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "sd", ewait_node_barrier, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, rstart + gbstep * substep + rank % gbstep));
             nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_load);
-            nbuffer_out += write_memcpy_reduce(esreduce, buf, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset, buf, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * substep + rank % gbstep) % socket_size) % socket_size), 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
+            nbuffer_out += write_memcpy_reduce(esreduce, buf, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset + aoffset, buf, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * substep + rank % gbstep) % socket_size) % socket_size), 0, offset + aoffset, size_local, 0, buffer_out + nbuffer_out, ascii);
 	  }
 	}
       }
@@ -915,7 +915,7 @@ static int reduce_copies_tree(enum eassembler_type erecvbufp, enum eassembler_ty
             size_local += sizes[(rank / gbstep) * gbstep + i];
           }
           if (size_local > 0 && (expart == 0 || expart == 2)) {
-            nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * substep + rank % gbstep) % socket_size) % socket_size), 0, offset, erecvbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset, size_local, 0, buffer_out + nbuffer_out, ascii);
+            nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * substep + rank % gbstep) % socket_size) % socket_size), 0, offset + aoffset, erecvbufp, get_rank_cyclic(num_sockets, num_ranks, ranks, rank, (rank + (socket_size - rank + 0 + gbstep * socket + rank % gbstep) % socket_size) % socket_size), 0, offset + aoffset, size_local, 0, buffer_out + nbuffer_out, ascii);
 	  }
         }
       }
@@ -934,7 +934,7 @@ static int reduce_copies_tree(enum eassembler_type erecvbufp, enum eassembler_ty
   return nbuffer_out;
 }
 
-static int reduce_copies_one_socket(enum eassembler_type erecvbufp, enum eassembler_type esendbufp, int copyin_method, int num_sockets, int socket_size, int num_factors, int *factors, int add, int size, int type_size, int rank, int num_ranks, int *ranks, int first_call, int in_out, int one_node, char *buffer_out, int ascii) {
+static int reduce_copies_one_socket(enum eassembler_type erecvbufp, enum eassembler_type esendbufp, int copyin_method, int num_sockets, int socket_size, int num_factors, int *factors, int add, int size, int type_size, int rank, int num_ranks, int *ranks, int first_call, int in_out, int one_node, int aoffset, char *buffer_out, int ascii) {
   int nbuffer_out = 0, size_local, add_local, num_factors_loc, socket_size_loc, ranks_loc[num_ranks], rank_loc = -1, ranks_loci[num_ranks], rank_loci = -1, sizes[socket_size], displs[socket_size], i;
   enum eassembler_type buf = eshmemo;
   if (num_sockets > 1) buf = eshmem_tempp;
@@ -968,7 +968,7 @@ static int reduce_copies_one_socket(enum eassembler_type erecvbufp, enum eassemb
         } else if (copyin_method == 6) {
           nbuffer_out += reduce_copies_recursive(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 1, first_call, buffer_out + nbuffer_out, ascii);
         } else {
-          nbuffer_out += reduce_copies_tree(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 1, first_call || buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
+          nbuffer_out += reduce_copies_tree(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 1, first_call || buf != erecvbufp, buf, aoffset, buffer_out + nbuffer_out, ascii);
 	}
       }
       if (num_factors_loc != num_factors) {
@@ -982,7 +982,7 @@ static int reduce_copies_one_socket(enum eassembler_type erecvbufp, enum eassemb
 	  }
         }
         ext_mpi_sizes_displs(socket_size_loc, size, type_size, -factors[0], sizes, displs);
-        nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, copyin_method, num_sockets, socket_size / socket_size_loc, num_factors - num_factors_loc - 2, factors + num_factors_loc + 2, add + displs[rank_loc], sizes[rank_loc], type_size, rank_loci, num_ranks, ranks_loci, 0, in_out, one_node, buffer_out + nbuffer_out, ascii);
+        nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, copyin_method, num_sockets, socket_size / socket_size_loc, num_factors - num_factors_loc - 2, factors + num_factors_loc + 2, add + displs[rank_loc], sizes[rank_loc], type_size, rank_loci, num_ranks, ranks_loci, 0, in_out, one_node, aoffset, buffer_out + nbuffer_out, ascii);
       }
       if (in_out == 2) {
         if (copyin_method == 5) {
@@ -993,7 +993,7 @@ static int reduce_copies_one_socket(enum eassembler_type erecvbufp, enum eassemb
 	  if (!one_node) {
 	    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", esocket_barrier);
 	  }
-          nbuffer_out += reduce_copies_tree(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 2, buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
+          nbuffer_out += reduce_copies_tree(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size, type_size, rank_loc, num_ranks, ranks_loc, -factors[0], add, 2, buf != erecvbufp, buf, aoffset, buffer_out + nbuffer_out, ascii);
 	}
       }
     }
@@ -1015,7 +1015,7 @@ static int reduce_copies_one_socket(enum eassembler_type erecvbufp, enum eassemb
           } else if (copyin_method == 6) {
 	    nbuffer_out += reduce_copies_recursive(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 1, first_call, buffer_out + nbuffer_out, ascii);
           } else {
-	    nbuffer_out += reduce_copies_tree(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 1, first_call || buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
+	    nbuffer_out += reduce_copies_tree(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 1, first_call || buf != erecvbufp, buf, aoffset, buffer_out + nbuffer_out, ascii);
 	  }
 	}
         if (num_factors_loc != num_factors) {
@@ -1029,7 +1029,7 @@ static int reduce_copies_one_socket(enum eassembler_type erecvbufp, enum eassemb
 	    }
           }
           ext_mpi_sizes_displs(socket_size_loc, size_local, type_size, 0, sizes, displs);
-          nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, copyin_method, num_sockets, socket_size / socket_size_loc, num_factors - num_factors_loc - 2, factors + num_factors_loc + 2, add + add_local + displs[rank_loc], sizes[rank_loc], type_size, rank_loci, num_ranks, ranks_loci, 0, in_out, one_node, buffer_out + nbuffer_out, ascii);
+          nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, copyin_method, num_sockets, socket_size / socket_size_loc, num_factors - num_factors_loc - 2, factors + num_factors_loc + 2, add + add_local + displs[rank_loc], sizes[rank_loc], type_size, rank_loci, num_ranks, ranks_loci, 0, in_out, one_node, aoffset, buffer_out + nbuffer_out, ascii);
         }
         if (in_out == 2) {
           if (copyin_method == 5) {
@@ -1040,7 +1040,7 @@ static int reduce_copies_one_socket(enum eassembler_type erecvbufp, enum eassemb
 	    if (!one_node) {
 	      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", esocket_barrier);
 	    }
-	    nbuffer_out += reduce_copies_tree(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 2, buf != erecvbufp, buf, buffer_out + nbuffer_out, ascii);
+	    nbuffer_out += reduce_copies_tree(erecvbufp, esendbufp, num_sockets, socket_size_loc, num_factors_loc - 1, factors + 1, size_local, type_size, rank_loc, num_ranks, ranks_loc, 0, add + add_local, 2, buf != erecvbufp, buf, aoffset, buffer_out + nbuffer_out, ascii);
 	  }
 	}
       }
@@ -1204,8 +1204,8 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
 	    }
 	  }
 	}
-	nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, parameters->copyin_method, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, moffsets[num_nodes], type_size, lrank_row, node_size, ranks, !parameters->in_place, 1, parameters->num_nodes <= 1, buffer_out + nbuffer_out, parameters->ascii_out);
-	nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, parameters->copyin_method, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, moffsets[num_nodes], type_size, lrank_row, node_size, ranks, !parameters->in_place, 2, parameters->num_nodes <= 1, buffer_out + nbuffer_out, parameters->ascii_out);
+	nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, parameters->copyin_method, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, moffsets[num_nodes], type_size, lrank_row, node_size, ranks, !parameters->in_place, 1, parameters->num_nodes <= 1, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+	nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, parameters->copyin_method, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, moffsets[num_nodes], type_size, lrank_row, node_size, ranks, !parameters->in_place, 2, parameters->num_nodes <= 1, 0, buffer_out + nbuffer_out, parameters->ascii_out);
 	free(ranks);
 	break;
       case 0:
@@ -1384,7 +1384,7 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
 	}
       }
     }
-    nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, parameters->copyin_method, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, count, type_size, lrank_row, node_size, ranks, !parameters->in_place, 1, parameters->num_nodes <= 1, buffer_out + nbuffer_out, parameters->ascii_out);
+    nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, parameters->copyin_method, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, count, type_size, lrank_row, node_size, ranks, !parameters->in_place, 1, parameters->num_nodes <= 1, 0, buffer_out + nbuffer_out, parameters->ascii_out);
     free(ranks);
     break;
   case 8:
@@ -1394,7 +1394,7 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
     for (i = 0; i < node_size; i++) {
       ranks[i] = i;
     }
-    if (parameters->copyin_method >= 6) {
+    if (parameters->copyin_method >= 9) {
       for (i = 1; factors[i] < 0 && i < num_factors; i++);
       ext_mpi_rank_order(node_size, i - 1, factors + 1, ranks);
       for (i = 0; i < node_size; i++) {
@@ -1404,8 +1404,8 @@ int ext_mpi_generate_allreduce_copyin(char *buffer_in, char *buffer_out) {
 	}
       }
     }
-    nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, 0, 0, 0, esendbufp, 0, 0, 0, count * type_size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
-    nbuffer_out += reduce_copies_one_socket(eshmemo, eshmemo, parameters->copyin_method - 3, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, count, type_size, lrank_row, node_size, ranks, !parameters->in_place, 1, parameters->num_nodes <= 1, buffer_out + nbuffer_out, parameters->ascii_out);
+    nbuffer_out += write_memcpy_reduce(esmemcpy, eshmemo, 0, 0, 0, esendbufp, 0, 0, 0, count, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+    nbuffer_out += reduce_copies_one_socket(eshmemo, eshmemo, parameters->copyin_method - 3, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, count, type_size, lrank_row, node_size, ranks, !parameters->in_place, 1, parameters->num_nodes <= 1, 0, buffer_out + nbuffer_out, parameters->ascii_out);
     free(ranks);
     break;
   }
@@ -1518,7 +1518,7 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
 	}
       }
     }
-    nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, parameters->copyin_method, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, count, type_size, lrank_row, node_size, ranks, !parameters->in_place, 2, parameters->num_nodes <= 1, buffer_out + nbuffer_out, parameters->ascii_out);
+    nbuffer_out += reduce_copies_one_socket(erecvbufp, esendbufp, parameters->copyin_method, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, count, type_size, lrank_row, node_size, ranks, !parameters->in_place, 2, parameters->num_nodes <= 1, 0, buffer_out + nbuffer_out, parameters->ascii_out);
     free(ranks);
     break;
   case 8:
@@ -1528,7 +1528,7 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
     for (i = 0; i < node_size; i++) {
       ranks[i] = i;
     }
-    if (parameters->copyin_method >= 6) {
+    if (parameters->copyin_method >= 9) {
       for (i = 1; factors[i] < 0 && i < num_factors; i++);
       ext_mpi_rank_order(node_size, i - 1, factors + 1, ranks);
       for (i = 0; i < node_size; i++) {
@@ -1538,8 +1538,12 @@ int ext_mpi_generate_allreduce_copyout(char *buffer_in, char *buffer_out) {
 	}
       }
     }
-    nbuffer_out += reduce_copies_one_socket(eshmemo, eshmemo, parameters->copyin_method - 3, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, count, type_size, lrank_row, node_size, ranks, !parameters->in_place, 2, parameters->num_nodes <= 1, buffer_out + nbuffer_out, parameters->ascii_out);
-    nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, 0, eshmemo, 0, 0, 0, count * type_size, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+    nbuffer_out += reduce_copies_one_socket(eshmemo, eshmemo, parameters->copyin_method - 3, parameters->num_sockets_per_node, node_size, num_factors, factors, 0, count, type_size, lrank_row, node_size, ranks, !parameters->in_place, 2, parameters->num_nodes <= 1, count, buffer_out + nbuffer_out, parameters->ascii_out);
+    if (parameters->copyin_method != 10) {
+      nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, 0, eshmemo, 0, 0, 0, count, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+    } else {
+      nbuffer_out += write_memcpy_reduce(esmemcpy, erecvbufp, 0, 0, 0, eshmemo, 0, 0, count, count, 0, buffer_out + nbuffer_out, parameters->ascii_out);
+    }
     free(ranks);
     break;
   }

@@ -13,6 +13,12 @@
 int ext_mpi_is_blocking = 0;
 static int comms_blocking[100];
 
+#ifdef PROFILE
+static double timing_allreduce = 0e0;
+static long int calls_allreduce = 0;
+static long int size_allreduce = 0;
+#endif
+
 static void mpi_init_interface() {
   int mpi_comm_rank, var, var2, i;
   char *c;
@@ -59,6 +65,11 @@ int MPI_Init_thread(int *argc, char ***argv, int required, int *provided) {
 }
 
 int MPI_Finalize(){
+#ifdef PROFILE
+  int size, rank;
+  PMPI_Comm_rank(MPI_COMM_WORLD, &size);
+  PMPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
   if (ext_mpi_is_blocking) {
     EXT_MPI_Finalize_blocking_comm(0);
     ext_mpi_hash_done_blocking();
@@ -67,6 +78,20 @@ int MPI_Finalize(){
   ext_mpi_hash_done_operator();
   ext_mpi_hash_done();
   ext_mpi_is_blocking = 0;
+#ifdef PROFILE
+  if (rank == 0) {
+    PMPI_Reduce(MPI_IN_PLACE, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(MPI_IN_PLACE, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(MPI_IN_PLACE, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    printf("# calls allreduce %ld\n", calls_allreduce / size);
+    printf("# size allreduce %ld\n", size_allreduce / calls_allreduce / size);
+    printf("# timing allreduce %e\n", timing_allreduce / calls_allreduce / size);
+  } else {
+    PMPI_Reduce(&calls_allreduce, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(&size_allreduce, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(&timing_allreduce, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  }
+#endif
   return PMPI_Finalize();
 }
 
@@ -393,20 +418,31 @@ error:
 }
 
 int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
-  int reduction_op, i;
+  int reduction_op, ret, i;
+#ifdef PROFILE
+  int type_size;
+  MPI_Type_size(datatype, &type_size);
+  timing_allreduce -= MPI_Wtime();
+  calls_allreduce++;
+  size_allreduce += count * type_size;
+#endif
   if (ext_mpi_is_blocking && (reduction_op = get_reduction_op(datatype, op)) >= 0) {
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
-      return EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, i);
+      ret = EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, i);
     } else {
-      return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+      ret = PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
     }
   } else {
-    return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
+    ret = PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
   }
+#ifdef PROFILE
+  timing_allreduce += MPI_Wtime();
+#endif
+  return ret;
 }
 
-int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
+/*int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
   int reduction_op, lcount, i;
   if (ext_mpi_is_blocking && op == MPI_SUM) {
     if (datatype == MPI_DOUBLE) {
@@ -448,7 +484,7 @@ int MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, voi
   } else {
     return PMPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
   }
-}
+}*/
 
 static int add_comm_to_blocking(MPI_Comm *comm){
   int i = 0;
@@ -510,7 +546,7 @@ int MPI_Comm_free(MPI_Comm *comm) {
   return PMPI_Comm_free(comm);
 }
 
-int MPI_Op_create(MPI_User_function *function, int commute, MPI_Op *op) {
+/*int MPI_Op_create(MPI_User_function *function, int commute, MPI_Op *op) {
   int ret;
   ret = PMPI_Op_create(function, commute, op);
   ext_mpi_hash_insert_operator(op, function);
@@ -520,4 +556,4 @@ int MPI_Op_create(MPI_User_function *function, int commute, MPI_Op *op) {
 int MPI_Op_free(MPI_Op *op) {
   ext_mpi_hash_delete_operator(op);
   return PMPI_Op_free(op);
-}
+}*/

@@ -10,6 +10,7 @@ extern int MPIR_F08_MPI_IN_PLACE;
 extern int ext_mpi_is_blocking;
 
 void mpi_init_f08_(int *ierr){ *ierr = MPI_Init(NULL, NULL); }
+void mpi_init_thread_f08_(int *required, int *provided, int *ierr){ *ierr = MPI_Init_thread(NULL, NULL, *required, provided); }
 void mpi_finalize_f08_(int *ierr){ *ierr = MPI_Finalize(); }
 
 void mpi_allreduce_init_f08_(const void *sendbuf, void *recvbuf, int *count, MPI_Datatype *datatype, MPI_Op *op, MPI_Comm *comm, MPI_Info *info, MPI_Request *request, int *ierr){
@@ -77,8 +78,20 @@ void mpi_comm_split_f08_(MPI_Comm *comm, int *color, int *key, MPI_Comm *newcomm
 void mpi_comm_split_type_f08_(MPI_Comm *comm, int *split_type, int *key, MPI_Info *info, MPI_Comm *newcomm, int *ierr){ *ierr = MPI_Comm_split_type(*comm, *split_type, *key, *info, newcomm); }
 void mpi_comm_free_f08_(MPI_Comm *comm, int *ierr){ *ierr = MPI_Comm_free(comm); }
 
-void mpi_allreduce_init_(const void *sendbuf, void *recvbuf, int *count, MPI_Datatype *datatype, MPI_Op *op, MPI_Comm *comm, MPI_Info *info, MPI_Request *request, int *ierr){
+/*void mpi_allreduce_init_(const void *sendbuf, void *recvbuf, int *count, MPI_Datatype *datatype, MPI_Op *op, MPI_Comm *comm, MPI_Info *info, MPI_Request *request, int *ierr){
   mpi_allreduce_init_f08_(sendbuf, recvbuf, count, datatype, op, comm, info, request, ierr);
+}*/
+
+void mpi_init_(int *ierr){
+  mpi_init_f08_(ierr);
+}
+
+void mpi_init_thread_(int *required, int *provided, int *ierr){
+  mpi_init_thread_f08_(required, provided, ierr);
+}
+
+void mpi_finalize_(int *ierr){
+  mpi_finalize_f08_(ierr);
 }
 
 #ifdef __cplusplus
