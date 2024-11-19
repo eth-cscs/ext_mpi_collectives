@@ -865,7 +865,7 @@ int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char
   return 0;
 }
 
-int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, void **shmem_blocking, void **sendbufs, void **recvbufs, int count, int reduction_op, int count_io, void *p_dev_temp) {
+int ext_mpi_exec_blocking(char *ip, int tag, char **shmem_socket, int *counter_socket, int socket_rank, int num_cores, char **shmem_node, int *counter_node, int num_sockets_per_node, void **shmem_blocking, void **sendbufs, void **recvbufs, int count, int reduction_op, int count_io, void *p_dev_temp) {
   char instruction;
   void *p1, *p2;
   int i1, i2;
@@ -903,7 +903,7 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       code_get_pointer(&ip);
       ncclRecv((void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Irecv((void *)p1, i1, MPI_CHAR, i2, tag, comm,
+      MPI_Irecv((void *)p1, i1, MPI_CHAR, i2, tag, ext_mpi_COMM_WORLD_dup,
                 (MPI_Request *)code_get_pointer(&ip));
 #endif
       break;
@@ -916,7 +916,7 @@ int ext_mpi_exec_blocking(char *ip, MPI_Comm comm, int tag, char **shmem_socket,
       code_get_pointer(&ip);
       ncclSend((const void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Isend((void *)p1, i1, MPI_CHAR, i2, tag, comm,
+      MPI_Isend((void *)p1, i1, MPI_CHAR, i2, tag, ext_mpi_COMM_WORLD_dup,
                 (MPI_Request *)code_get_pointer(&ip));
 #endif
       break;

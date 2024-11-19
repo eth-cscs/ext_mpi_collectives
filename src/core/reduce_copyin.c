@@ -374,6 +374,7 @@ nparallel = 2;
 
 void ext_mpi_rank_order(int size, int num_factors, int *factors, int *ranks) {
   int ranks_new[size], ranks_temp[size], i, j;
+  if (!num_factors) return;
   for (i = 0; i < size / abs(factors[0]); i++) {
     for (j = 0; j < abs(factors[0]); j++) {
       ranks_new[i + j * size / abs(factors[0])] = ranks[i * abs(factors[0]) + j];
@@ -939,6 +940,7 @@ static int reduce_copies_one_socket(enum eassembler_type erecvbufp, enum eassemb
   enum eassembler_type buf = eshmemo;
   if (num_sockets > 1) buf = eshmem_tempp;
   if (one_node) buf = erecvbufp;
+  if (socket_size <= 1) return nbuffer_out;
   for (num_factors_loc = 1; num_factors_loc < num_factors && factors[num_factors_loc] != 1; num_factors_loc++);
   if (num_factors_loc != num_factors) {
     socket_size_loc = factors[num_factors_loc + 1];
