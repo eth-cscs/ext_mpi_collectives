@@ -128,7 +128,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     MPI_Comm_size((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_size_blocking);
     MPI_Comm_rank((*comms_blocking)[i_comm]->comm_blocking, &(*comms_blocking)[i_comm]->mpi_rank_blocking);
 #ifdef XPMEM
-    ext_mpi_init_xpmem_blocking(*e_EXT_MPI_COMM_WORLD, (*comms_blocking)[i_comm]->comm_blocking, num_sockets_per_node, &(*comms_blocking)[i_comm]->all_xpmem_id_permutated, &(*comms_blocking)[i_comm]->xpmem_tree_root);
+    ext_mpi_init_xpmem_blocking((*comms_blocking)[i_comm]->comm_blocking, num_sockets_per_node, &(*comms_blocking)[i_comm]->all_xpmem_id_permutated, &(*comms_blocking)[i_comm]->xpmem_tree_root);
 #endif
     (*comms_blocking)[i_comm]->copyin = (int *)malloc(100 * sizeof(int));
     (*comms_blocking)[i_comm]->comm_code_allreduce_blocking = (char **)malloc(101 * sizeof(char *));

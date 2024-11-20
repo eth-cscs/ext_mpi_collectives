@@ -79,6 +79,10 @@ int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, in
     if (i == my_mpi_rank_row % (my_cores_per_node_row * num_sockets_per_node)) {
       if (!single_task) {
         (*shmemid)[i] = shmget(IPC_PRIVATE, size_shared, IPC_CREAT | 0600);
+	if ((*shmemid)[i] == -1) {
+	  printf("shmget: not enough shared memory\n");
+	  exit(1);
+	}
       } else {
 	(*shmemid)[i] = -2;
       }
@@ -88,6 +92,10 @@ int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, in
     ext_mpi_node_barrier_mpi(*shmem_comm_node_row, MPI_COMM_NULL, NULL);
     if (!single_task) {
       (*shmem)[i] = (char *)shmat((*shmemid)[i], NULL, 0);
+      if ((*shmem)[i] == (void *) -1) {
+	printf("error shmat\n");
+	exit(1);
+      }
     } else {
       (*shmem)[i] = (char *)malloc(size_shared);
     }

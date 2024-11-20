@@ -37,8 +37,10 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
 	(*shmem_gpu)[i] = NULL;
 	(*shmemidi_gpu)[i] = 1;
       } else {
-        if (cudaMalloc((void *)&((*shmem_gpu)[i]), size_shared) != 0)
+        if (cudaMalloc((void *)&((*shmem_gpu)[i]), size_shared) != 0) {
+	  printf("error cudaMalloc in file cuda_shmem.c\n");
           exit(16);
+	}
         if ((*shmem_gpu)[i] == NULL)
           exit(16);
         if (cudaIpcGetMemHandle(&shmemid_gpu, (void *)((*shmem_gpu)[i])) != 0)

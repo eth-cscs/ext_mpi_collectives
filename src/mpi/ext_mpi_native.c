@@ -534,8 +534,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     sendbufs[0] = (char *)sendbuf;
     recvbufs[0] = recvbuf;
 #else
-    ext_mpi_sendrecvbuf_init_xpmem(ext_mpi_COMM_WORLD_dup, comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
-    ext_mpi_sendrecvbuf_init_xpmem(ext_mpi_COMM_WORLD_dup, comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
   }
 #ifdef GPU_ENABLED
@@ -614,8 +614,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       sendbufs[0] = (char *)sendbuf;
       recvbufs[0] = recvbuf;
 #else
-      ext_mpi_sendrecvbuf_init_xpmem(ext_mpi_COMM_WORLD_dup, comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
-      ext_mpi_sendrecvbuf_init_xpmem(ext_mpi_COMM_WORLD_dup, comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
+      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
+      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
 #endif
     }
 #ifdef GPU_ENABLED
