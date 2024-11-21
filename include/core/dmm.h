@@ -32,9 +32,7 @@
 	#define PRINT_FREELIST
 #endif
 
-typedef enum{false, true} bool;
-
-bool dmalloc_init(void *memory_chunk, long max_bytes);
+int dmalloc_init(void *memory_chunk, long max_bytes);
 void *dmalloc(size_t numbytes);
 void dfree(void *allocptr);
 

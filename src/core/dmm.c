@@ -31,7 +31,7 @@ typedef struct footer {
 static metadata_t *blocks[10] = { NULL }; //Each location is assigned a hex value 1,8,16,64,256
 static void* slabStart = NULL;
 static void* slabEnd = NULL;
-static bool unallocated = true;
+static int unallocated = 1;
 #define FOOT_T_ALIGNED (ALIGN(sizeof(foot_t)))
 
 ///////////////////////////
@@ -114,7 +114,7 @@ void* dmalloc(size_t numbytes) {
 	numbytes = ALIGN(numbytes);
 
 	if(unallocated) { 			//Initialize through sbrk call first time
-		unallocated = false;
+		unallocated = 0;
 /*		if(!dmalloc_init()) */
 		printf("memory manager not initalised\n");
 			return NULL;
@@ -173,14 +173,14 @@ void dfree(void* ptr) {
 	metadata_t* nextHead = (metadata_t*) (((void*)(myFoot)) + FOOT_T_ALIGNED);
 	foot_t*     nextFoot = NULL;
 
-	bool prevFree = false;
-	bool nextFree = false;
+	int prevFree = 0;
+	int nextFree = 0;
 
 	//Check if prev block can be coalesced
 	if(prevFoot >= (foot_t*) slabStart){
 		prevHead = (metadata_t*) (((void*)(ptr)) - FOOT_T_ALIGNED  - prevFoot->size - 2*METADATA_T_ALIGNED);
 		if(prevHead->next != (void*) -1){ 					//If prev is free
-			prevFree = true;
+			prevFree = 1;
 			removeFromList(prevHead,convertToIndex(prevHead->size));
 		}
 	}
@@ -188,7 +188,7 @@ void dfree(void* ptr) {
 	if(nextHead < (metadata_t*) slabEnd){
 		nextFoot = (foot_t*) (((void*)(nextHead)) + nextHead->size + METADATA_T_ALIGNED);
 		if(nextHead->next != (void*) -1){					//If next is free
-			nextFree = true;
+			nextFree = 1;
 			removeFromList(nextHead,convertToIndex(nextHead->size));
 		}
 	}
@@ -216,7 +216,7 @@ void dfree(void* ptr) {
 
 }
 
-bool dmalloc_init(void *memory_chunk, long max_bytes) {
+int dmalloc_init(void *memory_chunk, long max_bytes) {
 	/* Two choices:
  	* 1. Append prologue and epilogue blocks to the start and the end of the freelist
  	* 2. Initialize freelist pointers to NULL
@@ -227,19 +227,19 @@ bool dmalloc_init(void *memory_chunk, long max_bytes) {
 /*	long max_bytes = ALIGN(MAX_HEAP_SIZE);
 	blocks[9] = (metadata_t*) sbrk(max_bytes); */ // returns heap_region, which is initialized to freelist
 	if (!memory_chunk)
-	       	return false;
+	       	return 0;
 	blocks[9] = (metadata_t*) memory_chunk;
 	/* Q: Why casting is used? i.e., why (void*)-1? */
 	if (blocks[9] == (void *)-1)
-		return false;
+		return 0;
 	slabStart = blocks[9];
 	slabEnd = slabStart + max_bytes;
 	blocks[9]->next = NULL;
 	blocks[9]->size = max_bytes - METADATA_T_ALIGNED - FOOT_T_ALIGNED;
 	foot_t* foot = 	(foot_t*) (slabEnd - FOOT_T_ALIGNED);
 	foot->size = blocks[9]->size;
-	unallocated = false;
-	return true;
+	unallocated = 0;
+	return 1;
 }
 
 /*Only for debugging purposes; can be turned off through  flag*/

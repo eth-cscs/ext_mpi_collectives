@@ -104,28 +104,28 @@ void mpi_finalize_(int *ierr){
   mpi_finalize_f08_(ierr);
 }
 
-void mpi_comm_dup(int *comm, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_dup(comml, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void mpi_comm_create(int *comm, int *group, int *newcomm, int *ierr){ MPI_Group groupl; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); groupl = MPI_Group_f2c(*group); *ierr = MPI_Comm_create(comml, groupl, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void mpi_comm_split(int *comm, int *color, int *key, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_split(comml, *color, *key, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void mpi_comm_split_type(int *comm, int *split_type, int *key, int *info, int *newcomm, int *ierr){ MPI_Info infol; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); infol = MPI_Info_f2c(*info); *ierr = MPI_Comm_split_type(comml, *split_type, *key, infol, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
+void mpi_comm_dup(int *comm, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_dup(comml, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void mpi_comm_create(int *comm, int *group, int *newcomm, int *ierr){ MPI_Group groupl; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); groupl = MPI_Group_f2c(*group); *ierr = MPI_Comm_create(comml, groupl, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void mpi_comm_split(int *comm, int *color, int *key, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_split(comml, *color, *key, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void mpi_comm_split_type(int *comm, int *split_type, int *key, int *info, int *newcomm, int *ierr){ MPI_Info infol; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); infol = MPI_Info_f2c(*info); *ierr = MPI_Comm_split_type(comml, *split_type, *key, infol, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
 void mpi_comm_free(int *comm, int *ierr){ MPI_Comm comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_free(&comml); }
 
-void mpi_comm_dup_(int *comm, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_dup(comml, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void mpi_comm_create_(int *comm, int *group, int *newcomm, int *ierr){ MPI_Group groupl; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); groupl = MPI_Group_f2c(*group); *ierr = MPI_Comm_create(comml, groupl, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void mpi_comm_split_(int *comm, int *color, int *key, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_split(comml, *color, *key, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void mpi_comm_split_type_(int *comm, int *split_type, int *key, int *info, int *newcomm, int *ierr){ MPI_Info infol; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); infol = MPI_Info_f2c(*info); *ierr = MPI_Comm_split_type(comml, *split_type, *key, infol, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
+void mpi_comm_dup_(int *comm, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_dup(comml, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void mpi_comm_create_(int *comm, int *group, int *newcomm, int *ierr){ MPI_Group groupl; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); groupl = MPI_Group_f2c(*group); *ierr = MPI_Comm_create(comml, groupl, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void mpi_comm_split_(int *comm, int *color, int *key, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_split(comml, *color, *key, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void mpi_comm_split_type_(int *comm, int *split_type, int *key, int *info, int *newcomm, int *ierr){ MPI_Info infol; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); infol = MPI_Info_f2c(*info); *ierr = MPI_Comm_split_type(comml, *split_type, *key, infol, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
 void mpi_comm_free_(int *comm, int *ierr){ MPI_Comm comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_free(&comml); }
 
-void mpi_comm_dup__(int *comm, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_dup(comml, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void mpi_comm_create__(int *comm, int *group, int *newcomm, int *ierr){ MPI_Group groupl; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); groupl = MPI_Group_f2c(*group); *ierr = MPI_Comm_create(comml, groupl, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void mpi_comm_split__(int *comm, int *color, int *key, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_split(comml, *color, *key, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void mpi_comm_split_type__(int *comm, int *split_type, int *key, int *info, int *newcomm, int *ierr){ MPI_Info infol; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); infol = MPI_Info_f2c(*info); *ierr = MPI_Comm_split_type(comml, *split_type, *key, infol, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
+void mpi_comm_dup__(int *comm, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_dup(comml, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void mpi_comm_create__(int *comm, int *group, int *newcomm, int *ierr){ MPI_Group groupl; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); groupl = MPI_Group_f2c(*group); *ierr = MPI_Comm_create(comml, groupl, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void mpi_comm_split__(int *comm, int *color, int *key, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_split(comml, *color, *key, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void mpi_comm_split_type__(int *comm, int *split_type, int *key, int *info, int *newcomm, int *ierr){ MPI_Info infol; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); infol = MPI_Info_f2c(*info); *ierr = MPI_Comm_split_type(comml, *split_type, *key, infol, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
 void mpi_comm_free__(int *comm, int *ierr){ MPI_Comm comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_free(&comml); }
 
-void MPI_COMM_DUP(int *comm, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_dup(comml, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void MPI_COMM_CREATE(int *comm, int *group, int *newcomm, int *ierr){ MPI_Group groupl; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); groupl = MPI_Group_f2c(*group); *ierr = MPI_Comm_create(comml, groupl, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void MPI_COMM_SPLIT(int *comm, int *color, int *key, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_split(comml, *color, *key, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
-void MPI_COMM_SPLIT_TYPE(int *comm, int *split_type, int *key, int *info, int *newcomm, int *ierr){ MPI_Info infol; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); infol = MPI_Info_f2c(*info); *ierr = MPI_Comm_split_type(comml, *split_type, *key, infol, &ncomml); *newcomm = MPI_Comm_f2c(ncomml); }
+void MPI_COMM_DUP(int *comm, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_dup(comml, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void MPI_COMM_CREATE(int *comm, int *group, int *newcomm, int *ierr){ MPI_Group groupl; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); groupl = MPI_Group_f2c(*group); *ierr = MPI_Comm_create(comml, groupl, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void MPI_COMM_SPLIT(int *comm, int *color, int *key, int *newcomm, int *ierr){ MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_split(comml, *color, *key, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
+void MPI_COMM_SPLIT_TYPE(int *comm, int *split_type, int *key, int *info, int *newcomm, int *ierr){ MPI_Info infol; MPI_Comm ncomml, comml = MPI_Comm_f2c(*comm); infol = MPI_Info_f2c(*info); *ierr = MPI_Comm_split_type(comml, *split_type, *key, infol, &ncomml); *newcomm = MPI_Comm_c2f(ncomml); }
 void MPI_COMM_FREE(int *comm, int *ierr){ MPI_Comm comml = MPI_Comm_f2c(*comm); *ierr = MPI_Comm_free(&comml); }
 
 #ifdef __cplusplus
