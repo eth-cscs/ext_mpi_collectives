@@ -171,7 +171,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, num_sockets_per_node, 2 * sizeof(void*), &(*comms_blocking)[i_comm]->shmem_blocking2.small_sizes, &(*comms_blocking)[i_comm]->shmem_blocking2.small_shmemid, &(*comms_blocking)[i_comm]->shmem_blocking2.small_mem, &((*comms_blocking)[i_comm]->comm_row_blocking));
 #endif
 #endif
-    size_shared = 1024 * 1024 * 1024 / 8;
+    size_shared = 10 * 1024 * 1024 / 8;
 #ifdef GPU_ENABLED
     if (recv_ptr != RECV_PTR_GPU) {
 #endif
@@ -282,15 +282,15 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
 #ifdef GPU_ENABLED
   if (!(*comms_blocking)[i_comm]->p_dev_temp) {
 #endif
-    ext_mpi_destroy_shared_memory(1, (*comms_blocking)[i_comm]->shmem_blocking1.sizes, (*comms_blocking)[i_comm]->shmem_blocking1.shmemid, (*comms_blocking)[i_comm]->shmem_blocking1.mem, (char *)header);
-    ext_mpi_destroy_shared_memory(1, (*comms_blocking)[i_comm]->shmem_blocking2.sizes, (*comms_blocking)[i_comm]->shmem_blocking2.shmemid, (*comms_blocking)[i_comm]->shmem_blocking2.mem, (char *)header);
+    ext_mpi_destroy_shared_memory((*comms_blocking)[i_comm]->num_cores_blocking, (*comms_blocking)[i_comm]->shmem_blocking1.sizes, (*comms_blocking)[i_comm]->shmem_blocking1.shmemid, (*comms_blocking)[i_comm]->shmem_blocking1.mem, (char *)header);
+    ext_mpi_destroy_shared_memory((*comms_blocking)[i_comm]->num_cores_blocking, (*comms_blocking)[i_comm]->shmem_blocking2.sizes, (*comms_blocking)[i_comm]->shmem_blocking2.shmemid, (*comms_blocking)[i_comm]->shmem_blocking2.mem, (char *)header);
 #ifdef GPU_ENABLED
   } else {
     if ((*comms_blocking)[i_comm]->shmem_blocking1.shmemid) {
-      ext_mpi_gpu_destroy_shared_memory(1, (*comms_blocking)[i_comm]->shmem_blocking1.shmemid, (*comms_blocking)[i_comm]->shmem_blocking1.mem, (char *)header);
+      ext_mpi_gpu_destroy_shared_memory((*comms_blocking)[i_comm]->num_cores_blocking, (*comms_blocking)[i_comm]->shmem_blocking1.shmemid, (*comms_blocking)[i_comm]->shmem_blocking1.mem, (char *)header);
     }
     if ((*comms_blocking)[i_comm]->shmem_blocking2.shmemid) {
-      ext_mpi_gpu_destroy_shared_memory(1, (*comms_blocking)[i_comm]->shmem_blocking2.shmemid, (*comms_blocking)[i_comm]->shmem_blocking2.mem, (char *)header);
+      ext_mpi_gpu_destroy_shared_memory((*comms_blocking)[i_comm]->num_cores_blocking, (*comms_blocking)[i_comm]->shmem_blocking2.shmemid, (*comms_blocking)[i_comm]->shmem_blocking2.mem, (char *)header);
     }
   }
 #endif
