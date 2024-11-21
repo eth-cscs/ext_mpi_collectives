@@ -44,6 +44,7 @@
 #include "reduce_copyin.h"
 #include "hash_table_operator.h"
 #include "count_mem_partners.h"
+#include "dmm.h"
 #include <mpi.h>
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
@@ -1892,6 +1893,7 @@ error:
 
 int EXT_MPI_Init_native() {
   PMPI_Comm_dup(MPI_COMM_WORLD, &ext_mpi_COMM_WORLD_dup);
+  dmalloc_init(ext_mpi_init_shared_memory(ext_mpi_COMM_WORLD_dup, 1024 * 1024 * 1024), 1024 * 1024 * 1024);
 #ifdef XPMEM
   ext_mpi_init_xpmem(ext_mpi_COMM_WORLD_dup);
 #endif
@@ -1911,6 +1913,7 @@ int EXT_MPI_Finalize_native() {
 #ifdef XPMEM
   ext_mpi_done_xpmem();
 #endif
+  ext_mpi_done_shared_memory(ext_mpi_COMM_WORLD_dup);
   if (PMPI_Comm_free(&ext_mpi_COMM_WORLD_dup) != MPI_SUCCESS) {
     printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
     exit(1);
