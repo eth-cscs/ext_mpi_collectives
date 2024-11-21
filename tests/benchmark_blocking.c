@@ -11,7 +11,7 @@
 #endif
 #endif
 
-#define MAX_MESSAGE_SIZE 10000000
+#define MAX_MESSAGE_SIZE 5000000
 #define MPI_DATA_TYPE MPI_LONG
 #define NUM_CORES 1200
 #define COLLECTIVE_TYPE 0
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
   MPI_Type_size(MPI_DATA_TYPE, &type_size);
 
   bufsize = type_size * MAX_MESSAGE_SIZE * numprocs;
-  bufsize = 10*1024*1024;
+  bufsize = type_size * MAX_MESSAGE_SIZE;
 
   if (in_place) {
     sendbuf = MPI_IN_PLACE;
