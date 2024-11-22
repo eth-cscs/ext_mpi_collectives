@@ -111,7 +111,7 @@ static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
                my_comm_node);
     PMPI_Barrier(my_comm_node);
     if (PMPI_Comm_free(&my_comm_node) != MPI_SUCCESS) {
-      printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+      printf("error 1 in PMPI_Comm_free in ext_mpi_native.c\n");
       exit(1);
     }
     PMPI_Gather(lglobal_ranks, my_cores_per_node_column, MPI_INT, global_ranks,
@@ -389,26 +389,26 @@ int EXT_MPI_Done_native(int handle) {
   }
   if (shmem_comm_node_row != MPI_COMM_NULL) {
     if (PMPI_Comm_free(&shmem_comm_node_row) != MPI_SUCCESS) {
-      printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+      printf("error 2 in PMPI_Comm_free in ext_mpi_native.c\n");
       exit(1);
     }
   }
   if (shmem_comm_node_column != MPI_COMM_NULL) {
     if (PMPI_Comm_free(&shmem_comm_node_column) != MPI_SUCCESS) {
-      printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+      printf("error 3 in PMPI_Comm_free in ext_mpi_native.c\n");
       exit(1);
     }
   }
   if (ip) {
     if (shmem_comm_node_row2 != MPI_COMM_NULL) {
       if (PMPI_Comm_free(&shmem_comm_node_row2) != MPI_SUCCESS) {
-        printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+        printf("error 4 in PMPI_Comm_free in ext_mpi_native.c\n");
         exit(1);
       }
     }
     if (shmem_comm_node_column2 != MPI_COMM_NULL) {
       if (PMPI_Comm_free(&shmem_comm_node_column2) != MPI_SUCCESS) {
-        printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+        printf("error 5 in PMPI_Comm_free in ext_mpi_native.c\n");
         exit(1);
       }
     }
@@ -1103,7 +1103,7 @@ allreduce_short = 0;
   free(buffer2);
   free(buffer1);
   if (PMPI_Comm_free(&comm_subrow) != MPI_SUCCESS) {
-    printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+    printf("error 6 in PMPI_Comm_free in ext_mpi_native.c\n");
     exit(1);
   }
   if (mem_partners_send_back) {
@@ -1125,7 +1125,7 @@ error:
   free(mem_partners_recv);
   free(mem_partners_send);
   if (PMPI_Comm_free(&comm_subrow) != MPI_SUCCESS) {
-    printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+    printf("error 7 in PMPI_Comm_free in ext_mpi_native.c\n");
     exit(1);
   }
   return ERROR_MALLOC;
@@ -1893,7 +1893,7 @@ error:
 
 int EXT_MPI_Init_native() {
   PMPI_Comm_dup(MPI_COMM_WORLD, &ext_mpi_COMM_WORLD_dup);
-  dmalloc_init(ext_mpi_init_shared_memory(ext_mpi_COMM_WORLD_dup, 1024 * 1024 * 1024), 1024 * 1024 * 1024);
+  dmalloc_init(ext_mpi_init_shared_memory(ext_mpi_COMM_WORLD_dup, 1024 * 1024 * 1524), 1024 * 1024 * 1524);
 #ifdef XPMEM
   ext_mpi_init_xpmem(ext_mpi_COMM_WORLD_dup);
 #endif
@@ -1915,7 +1915,7 @@ int EXT_MPI_Finalize_native() {
 #endif
   ext_mpi_done_shared_memory(ext_mpi_COMM_WORLD_dup);
   if (PMPI_Comm_free(&ext_mpi_COMM_WORLD_dup) != MPI_SUCCESS) {
-    printf("error in PMPI_Comm_free in ext_mpi_native.c\n");
+    printf("error 8 in PMPI_Comm_free in ext_mpi_native.c\n");
     exit(1);
   }
   return 0;

@@ -211,13 +211,11 @@ int ext_mpi_destroy_shared_memory(int num_segments, int *sizes_shared, int *shme
                                   char **shmem, char *comm_code) {
   int i;
   ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
-  if (shmemid[mpi_rank_node_global] == -2) {
-    free(shmem[mpi_rank_node_global]);
-  } else {
-    for (i = 0; i < num_segments; i++) {
-      if (shmemid[i] == -1) {
-        dfree(shmem[i]);
-      }
+  for (i = 0; i < num_segments; i++) {
+    if (shmemid[i] == -2) {
+      free(shmem[i]);
+    } else if (shmemid[i] == -1) {
+      dfree(shmem[i]);
     }
   }
   ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code);

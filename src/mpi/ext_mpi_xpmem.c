@@ -54,7 +54,7 @@ int ext_mpi_init_xpmem(MPI_Comm comm_world) {
     }
   }
   if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
+    printf("error 1 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
     exit(1);
   }
   free(all_global_xpmem_id);
@@ -133,7 +133,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
   (*sendrecvbufs)[0] = sendrecvbuf;
   free(global_ranks);
   if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
+    printf("error 2 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
     exit(1);
   }
   return 0;
@@ -164,7 +164,7 @@ int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **
   }
   free(sendrecvbufs);
   if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
+    printf("error 3 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
     exit(1);
   }
   return 0;
@@ -175,16 +175,16 @@ int ext_mpi_init_xpmem_blocking(MPI_Comm comm, int num_sockets_per_node, long lo
   int my_mpi_rank, my_mpi_size, my_cores_per_node, *global_ranks, i, j, k;
   long long int a;
   my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1);
-  (*all_xpmem_id_permutated) = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
   PMPI_Comm_size(comm, &my_mpi_size);
   PMPI_Comm_rank(comm, &my_mpi_rank);
   PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
                   my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
   PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
+  (*all_xpmem_id_permutated) = (long long int *)malloc(my_mpi_size * sizeof(long long int));
   get_comm_world_ranks(xpmem_comm_node, &global_ranks);
   if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
+    printf("error 4 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
     exit(1);
   }
   for (i = 0; i < my_mpi_size; i++) {
@@ -237,7 +237,7 @@ void ext_mpi_done_xpmem_blocking(MPI_Comm comm, struct xpmem_tree **xpmem_tree_r
   PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
   PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
   if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error in PMPI_Comm_free in ext_mpi_xpmem.c\n");
+    printf("error 5 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
     exit(1);
   }
   for (i = 0; i < my_mpi_size; i++) {

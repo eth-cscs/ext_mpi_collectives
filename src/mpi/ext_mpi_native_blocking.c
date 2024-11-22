@@ -171,7 +171,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
     ext_mpi_setup_shared_memory((*comms_blocking)[i_comm]->comm_blocking, my_cores_per_node, num_sockets_per_node, 2 * sizeof(void*), &(*comms_blocking)[i_comm]->shmem_blocking2.small_sizes, &(*comms_blocking)[i_comm]->shmem_blocking2.small_shmemid, &(*comms_blocking)[i_comm]->shmem_blocking2.small_mem, &((*comms_blocking)[i_comm]->comm_row_blocking));
 #endif
 #endif
-    size_shared = 10 * 1024 * 1024 / 8;
+    size_shared = 100 * 1024 * 1024 / 8;
 #ifdef GPU_ENABLED
     if (recv_ptr != RECV_PTR_GPU) {
 #endif

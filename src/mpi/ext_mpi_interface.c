@@ -455,14 +455,14 @@ error:
 
 int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
   int reduction_op, ret, i;
-#ifdef PROFILE
   int type_size;
   MPI_Type_size(datatype, &type_size);
+#ifdef PROFILE
   timing_allreduce -= MPI_Wtime();
   calls_allreduce++;
   size_allreduce += count * type_size;
 #endif
-  if (ext_mpi_is_blocking && (reduction_op = get_reduction_op(datatype, op)) >= 0) {
+  if (ext_mpi_is_blocking && count * type_size < 1024 * 1024 * 10 && (reduction_op = get_reduction_op(datatype, op)) >= 0) {
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
       ret = EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, i);
