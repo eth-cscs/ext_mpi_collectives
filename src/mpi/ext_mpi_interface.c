@@ -17,6 +17,12 @@ static int comms_blocking[100];
 static double timing_allreduce = 0e0;
 static long int calls_allreduce = 0;
 static long int size_allreduce = 0;
+static double timing_reduce_scatter_block = 0e0;
+static long int calls_reduce_scatter_block = 0;
+static long int size_reduce_scatter_block = 0;
+static double timing_allgather = 0e0;
+static long int calls_allgather = 0;
+static long int size_allgather = 0;
 #endif
 
 static void mpi_init_interface() {
@@ -83,6 +89,12 @@ int MPI_Finalize(){
     PMPI_Reduce(MPI_IN_PLACE, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
     PMPI_Reduce(MPI_IN_PLACE, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
     PMPI_Reduce(MPI_IN_PLACE, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(MPI_IN_PLACE, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(MPI_IN_PLACE, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(MPI_IN_PLACE, &timing_reduce_scatter_block, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(MPI_IN_PLACE, &calls_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(MPI_IN_PLACE, &size_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(MPI_IN_PLACE, &timing_allgather, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
     if (calls_allreduce) {
       printf("# calls allreduce %e\n", 1.0 * calls_allreduce / size);
       printf("# size allreduce %e\n", 1.0 * size_allreduce / calls_allreduce);
@@ -90,10 +102,30 @@ int MPI_Finalize(){
     } else {
       printf("# no calls to allreduce\n");
     }
+    if (calls_reduce_scatter_block) {
+      printf("# calls reduce_scatter_block %e\n", 1.0 * calls_reduce_scatter_block / size);
+      printf("# size reduce_scatter_block %e\n", 1.0 * size_reduce_scatter_block / calls_reduce_scatter_block);
+      printf("# timing reduce_scatter_block %e\n", 1.0 * timing_reduce_scatter_block / (calls_reduce_scatter_block / size));
+    } else {
+      printf("# no calls to reduce_scatter_block\n");
+    }
+    if (calls_allgather) {
+      printf("# calls allgather %e\n", 1.0 * calls_allgather / size);
+      printf("# size allgather %e\n", 1.0 * size_allgather / calls_allgather);
+      printf("# timing allgather %e\n", 1.0 * timing_allgather / (calls_allgather / size));
+    } else {
+      printf("# no calls to allgather\n");
+    }
   } else {
     PMPI_Reduce(&calls_allreduce, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
     PMPI_Reduce(&size_allreduce, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
     PMPI_Reduce(&timing_allreduce, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(&calls_reduce_scatter_block, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(&size_reduce_scatter_block, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(&timing_reduce_scatter_block, &timing_reduce_scatter_block, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(&calls_allgather, &calls_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(&size_allgather, &size_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    PMPI_Reduce(&timing_allgather, &timing_allgather, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   }
 #endif
   return PMPI_Finalize();
@@ -446,8 +478,21 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
   return ret;
 }
 
-/*int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
+int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
   int reduction_op, lcount, i;
+  int ret;
+#ifdef PROFILE
+  int type_size;
+  MPI_Type_size(datatype, &type_size);
+  timing_reduce_scatter_block -= MPI_Wtime();
+  calls_reduce_scatter_block++;
+  size_reduce_scatter_block += recvcount * type_size;
+#endif
+  ret = PMPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, datatype, op, comm);
+#ifdef PROFILE
+  timing_reduce_scatter_block += MPI_Wtime();
+#endif
+  return ret;
   if (ext_mpi_is_blocking && op == MPI_SUM) {
     if (datatype == MPI_DOUBLE) {
       reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
@@ -477,6 +522,18 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
 
 int MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm){
   int type_size, i;
+  int ret;
+#ifdef PROFILE
+  MPI_Type_size(sendtype, &type_size);
+  timing_allgather -= MPI_Wtime();
+  calls_allgather++;
+  size_allgather += sendcount * type_size;
+#endif
+  ret = PMPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
+#ifdef PROFILE
+  timing_allgather += MPI_Wtime();
+#endif
+  return ret;
   if (ext_mpi_is_blocking) {
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
@@ -488,7 +545,7 @@ int MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, voi
   } else {
     return PMPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
   }
-}*/
+}
 
 static int add_comm_to_blocking(MPI_Comm *comm){
   int i = 0;
@@ -526,6 +583,24 @@ int MPI_Comm_create(MPI_Comm comm, MPI_Group group, MPI_Comm *newcomm) {
   return ret;
 }
 
+int MPI_Comm_create_group(MPI_Comm comm, MPI_Group group, int tag, MPI_Comm *newcomm) {
+  int ret;
+  ret = PMPI_Comm_create_group(comm, group, tag, newcomm);
+  if (ext_mpi_is_blocking) {
+    add_comm_to_blocking(newcomm);
+  }
+  return ret;
+}
+
+/*int MPI_Comm_create_from_group(MPI_Group group, const char *stringtag, MPI_Info info, MPI_Errhandler errhandler, MPI_Comm *newcomm) {
+  int ret;
+  ret = PMPI_Comm_create_from_group(group, stringtag, info, errhandler, newcomm);
+  if (ext_mpi_is_blocking) {
+    add_comm_to_blocking(newcomm);
+  }
+  return ret;
+}*/
+
 int MPI_Comm_split(MPI_Comm comm, int color, int key, MPI_Comm *newcomm) {
   int ret;
   ret = PMPI_Comm_split(comm, color, key, newcomm);
@@ -547,7 +622,7 @@ int MPI_Comm_split_type(MPI_Comm comm, int split_type, int key, MPI_Info info, M
 int MPI_Comm_free(MPI_Comm *comm) {
   if (ext_mpi_is_blocking) {
     if (remove_comm_from_blocking(comm) < 0) {
-      printf("MPI_Comm_free of non-existing communicator\n");
+//      printf("MPI_Comm_free of non-existing communicator\n");
     }
   }
   return PMPI_Comm_free(comm);
