@@ -390,9 +390,8 @@ int ext_mpi_generate_byte_code(char **shmem,
                                char *buffer_in, char **sendbufs, char **recvbufs,
                                int barriers_size, char *locmem,
                                int reduction_op, void *func, int *global_ranks,
-                               char *code_out, int size_comm, int size_request, void *comm_row,
-                               int node_num_cores_row, void *comm_column,
-                               int node_num_cores_column,
+                               char *code_out, int size_request, int *ranks_node,
+                               int node_num_cores_row, int node_num_cores_column,
                                int *shmemid_gpu, char **shmem_gpu, int *gpu_byte_code_counter, int gpu_fallback, int tag) {
   struct line_memcpy_reduce data_memcpy_reduce;
   struct line_irecv_isend data_irecv_isend;
@@ -513,6 +512,12 @@ int ext_mpi_generate_byte_code(char **shmem,
     }
   }
 #endif
+  if (ranks_node) {
+    header->ranks_node = (int*)malloc(node_num_cores_row * sizeof(int));
+    for (i = 0; i < node_num_cores_row; i++) {
+      header->ranks_node[i] = ranks_node[i];
+    }
+  }
   ip += sizeof(struct header_byte_code);
   while ((integer1 = ext_mpi_read_line(buffer_in, line, ascii)) > 0) {
     buffer_in += integer1;
@@ -833,26 +838,6 @@ int ext_mpi_generate_byte_code(char **shmem,
   free(gpu_byte_code);
 #endif
   header->size_to_return = ip - code_out;
-  if (code_out) {
-    if (comm_row) {
-      *((void **)ip) = &ip;
-      memcpy(ip + sizeof(void*), comm_row, size_comm);
-    } else {
-      *((void **)ip) = NULL;
-      memset(ip + sizeof(void*), 0, size_comm);
-    }
-  }
-  ip += size_comm + sizeof(void*);
-  if (code_out) {
-    if (comm_column) {
-      *((void **)ip) = &ip;
-      memcpy(ip + sizeof(void*), comm_column, size_comm);
-    } else {
-      *((void **)ip) = NULL;
-      memset(ip + sizeof(void*), 0, size_comm);
-    }
-  }
-  ip += size_comm + sizeof(void*);
   return (ip - code_out);
 #ifdef GPU_ENABLED
 failed:

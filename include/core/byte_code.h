@@ -34,6 +34,7 @@ struct header_byte_code {
   char **recvbufs;
   void *mpi_user_function;
   void *function;
+  int *ranks_node;
 #ifdef GPU_ENABLED
   char **shmem_gpu;
   int *shmemid_gpu;
@@ -47,9 +48,8 @@ int ext_mpi_generate_byte_code(char **shmem,
                                char *buffer_in, char **sendbufs, char **recvbufs,
                                int barriers_size, char *locmem,
                                int reduction_op, void *func, int *global_ranks,
-                               char *code_out, int size_comm, int size_request, void *comm_row,
-                               int node_num_cores_row, void *comm_column,
-                               int node_num_cores_column,
+                               char *code_out, int size_request, int *ranks_node,
+                               int node_num_cores_row, int node_num_cores_column,
                                int *shmemid_gpu, char **shmem_gpu, int *gpu_byte_code_counter, int gpu_fallback, int tag);
 
 #ifdef __cplusplus

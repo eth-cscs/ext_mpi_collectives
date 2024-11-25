@@ -2,18 +2,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <assert.h>
 #ifdef XPMEM
 #include <xpmem.h>
 #endif
 #include "constants.h"
 #include "ext_mpi.h"
+#include "ext_mpi_native.h"
 #include "ext_mpi_native_exec.h"
 #include "ext_mpi_xpmem.h"
 #include <mpi.h>
 
 #ifdef XPMEM
 
-#define PAGESIZE 4096
+#define PAGESIZE (4096 * 16)
 
 extern MPI_Comm ext_mpi_COMM_WORLD_dup;
 
@@ -28,35 +30,26 @@ int ext_mpi_init_xpmem(MPI_Comm comm_world) {
   my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm_world, 1);
   all_global_xpmem_id = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
   all_xpmem_id = (long long int *)malloc(my_cores_per_node * sizeof(long long int));
-  PMPI_Comm_size(comm_world, &my_mpi_size);
-  PMPI_Comm_rank(comm_world, &my_mpi_rank);
-  PMPI_Comm_split(comm_world, my_mpi_rank / my_cores_per_node,
-                  my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
-  PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
-  PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
+  ext_mpi_call_mpi(PMPI_Comm_size(comm_world, &my_mpi_size));
+  ext_mpi_call_mpi(PMPI_Comm_rank(comm_world, &my_mpi_rank));
+  ext_mpi_call_mpi(PMPI_Comm_split(comm_world, my_mpi_rank / my_cores_per_node,
+                  my_mpi_rank % my_cores_per_node, &xpmem_comm_node));
+  ext_mpi_call_mpi(PMPI_Comm_size(xpmem_comm_node, &my_mpi_size));
+  ext_mpi_call_mpi(PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank));
   my_mpi_size_global_node = my_mpi_size;
   my_mpi_rank_global_node = my_mpi_rank;
   global_xpmem_id = xpmem_make (NULL, XPMEM_MAXADDR_SIZE, XPMEM_PERMIT_MODE, (void *)0600);
-  if (global_xpmem_id == -1) {
-    printf("error xpmem_make\n");
-    exit(1);
-  }
-  PMPI_Allgather(&global_xpmem_id, 1, MPI_LONG_LONG, all_global_xpmem_id, 1, MPI_LONG_LONG, xpmem_comm_node);
+  assert(global_xpmem_id != -1);
+  ext_mpi_call_mpi(PMPI_Allgather(&global_xpmem_id, 1, MPI_LONG_LONG, all_global_xpmem_id, 1, MPI_LONG_LONG, xpmem_comm_node));
   for (i = 0; i < my_cores_per_node; i++) {
     if (my_mpi_rank != i) {
       all_xpmem_id[i] = xpmem_get (all_global_xpmem_id[i], XPMEM_RDWR, XPMEM_PERMIT_MODE, NULL);
-      if (all_xpmem_id[i] == -1) {
-        printf("error xpmem_get\n");
-        exit(1);
-      }
+      assert(all_xpmem_id[i] != -1);
     } else {
       all_xpmem_id[i] = -1;
     }
   }
-  if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error 1 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
-    exit(1);
-  }
+  ext_mpi_call_mpi(PMPI_Comm_free(&xpmem_comm_node));
   free(all_global_xpmem_id);
   return 0;
 }
@@ -67,9 +60,9 @@ void ext_mpi_done_xpmem() {
 
 static void get_comm_world_ranks(MPI_Comm comm_node, int **ranks) {
   int mpi_size;
-  PMPI_Comm_size(comm_node, &mpi_size);
+  ext_mpi_call_mpi(PMPI_Comm_size(comm_node, &mpi_size));
   *ranks = (int*)malloc(mpi_size * sizeof(int));
-  PMPI_Allgather(&my_mpi_rank_global_node, 1, MPI_INT, *ranks, 1, MPI_INT, comm_node);
+  ext_mpi_call_mpi(PMPI_Allgather(&my_mpi_rank_global_node, 1, MPI_INT, *ranks, 1, MPI_INT, comm_node));
 }
 
 int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num_sockets, char *sendrecvbuf, int size, char ***sendrecvbufs) {
@@ -81,15 +74,15 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
     *sendrecvbufs = NULL;
     return -1;
   }
-  PMPI_Comm_rank(comm, &my_mpi_rank);
-  PMPI_Comm_size(comm, &my_mpi_size);
-  PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
-                  my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
-  PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
-  PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
+  ext_mpi_call_mpi(PMPI_Comm_rank(comm, &my_mpi_rank));
+  ext_mpi_call_mpi(PMPI_Comm_size(comm, &my_mpi_size));
+  ext_mpi_call_mpi(PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
+                  my_mpi_rank % my_cores_per_node, &xpmem_comm_node));
+  ext_mpi_call_mpi(PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank));
+  ext_mpi_call_mpi(PMPI_Comm_size(xpmem_comm_node, &my_mpi_size));
   *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char *));
-  PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node);
-  PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, xpmem_comm_node);
+  ext_mpi_call_mpi(PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node));
+  ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, xpmem_comm_node));
   get_comm_world_ranks(xpmem_comm_node, &global_ranks);
   size += PAGESIZE;
   while (size & (PAGESIZE - 1)) {
@@ -104,10 +97,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
       addr.apid = all_xpmem_id[global_ranks[i]];
       if (addr.apid != -1 && (*sendrecvbufs)[i]) {
         a = xpmem_attach(addr, size, NULL);
-        if ((long int)a == -1) {
-          printf("error xpmem_attach\n");
-          exit(1);
-        }
+        assert((long int)a != -1);
         (*sendrecvbufs)[i] = a + (long int)((*sendrecvbufs)[i] - addr.offset);
       } else {
 	(*sendrecvbufs)[i] = sendrecvbuf;
@@ -132,41 +122,21 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
   }
   (*sendrecvbufs)[0] = sendrecvbuf;
   free(global_ranks);
-  if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error 2 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
-    exit(1);
-  }
+  ext_mpi_call_mpi(PMPI_Comm_free(&xpmem_comm_node));
   return 0;
 }
 
-int ext_mpi_sendrecvbuf_done_xpmem(MPI_Comm comm, int my_cores_per_node, char **sendrecvbufs) {
-  MPI_Comm xpmem_comm_node;
-  int my_mpi_rank, my_mpi_size, i;
+int ext_mpi_sendrecvbuf_done_xpmem(int my_cores_per_node, char **sendrecvbufs) {
+  int i;
   char *addr;
-  if (comm == MPI_COMM_NULL) {
-    return -1;
-  }
-  PMPI_Comm_rank(comm, &my_mpi_rank);
-  PMPI_Comm_size(comm, &my_mpi_size);
-  PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
-                  my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
-  PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
-  PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
-  for (i = 1; i < my_mpi_size; i++) {
+  for (i = 1; i < my_cores_per_node; i++) {
     addr = sendrecvbufs[i];
     while ((long int)addr & (PAGESIZE - 1)) {
       addr--;
     }
-    if (xpmem_detach(addr) != 0) {
-      printf("error xpmem_detach\n");
-      exit(1);
-    }
+    assert(xpmem_detach(addr) == 0);
   }
   free(sendrecvbufs);
-  if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error 3 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
-    exit(1);
-  }
   return 0;
 }
 
@@ -175,18 +145,15 @@ int ext_mpi_init_xpmem_blocking(MPI_Comm comm, int num_sockets_per_node, long lo
   int my_mpi_rank, my_mpi_size, my_cores_per_node, *global_ranks, i, j, k;
   long long int a;
   my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1);
-  PMPI_Comm_size(comm, &my_mpi_size);
-  PMPI_Comm_rank(comm, &my_mpi_rank);
-  PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
-                  my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
-  PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
-  PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
+  ext_mpi_call_mpi(PMPI_Comm_size(comm, &my_mpi_size));
+  ext_mpi_call_mpi(PMPI_Comm_rank(comm, &my_mpi_rank));
+  ext_mpi_call_mpi(PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
+                  my_mpi_rank % my_cores_per_node, &xpmem_comm_node));
+  ext_mpi_call_mpi(PMPI_Comm_size(xpmem_comm_node, &my_mpi_size));
+  ext_mpi_call_mpi(PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank));
   (*all_xpmem_id_permutated) = (long long int *)malloc(my_mpi_size * sizeof(long long int));
   get_comm_world_ranks(xpmem_comm_node, &global_ranks);
-  if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error 4 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
-    exit(1);
-  }
+  ext_mpi_call_mpi(PMPI_Comm_free(&xpmem_comm_node));
   for (i = 0; i < my_mpi_size; i++) {
     (*all_xpmem_id_permutated)[i] = all_xpmem_id[global_ranks[i]];
   }
@@ -216,31 +183,16 @@ static void xpmem_tree_delete(struct xpmem_tree *p) {
   char *addr;
   if (p) {
     addr = (char*)((unsigned long int)p->a & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
-    if (xpmem_detach(addr) != 0) {
-      printf("error xpmem_detach\n");
-      exit(1);
-    }
+    assert(xpmem_detach(addr) == 0);
     if (p->left) xpmem_tree_delete(p->left);
     if (p->right) xpmem_tree_delete(p->right);
     if (p->next) xpmem_tree_delete(p->next);
   }
 }
 
-void ext_mpi_done_xpmem_blocking(MPI_Comm comm, struct xpmem_tree **xpmem_tree_root) {
-  MPI_Comm xpmem_comm_node;
-  int my_mpi_rank, my_mpi_size, my_cores_per_node, i;
-  my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1);
-  PMPI_Comm_size(comm, &my_mpi_size);
-  PMPI_Comm_rank(comm, &my_mpi_rank);
-  PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
-                  my_mpi_rank % my_cores_per_node, &xpmem_comm_node);
-  PMPI_Comm_size(xpmem_comm_node, &my_mpi_size);
-  PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank);
-  if (PMPI_Comm_free(&xpmem_comm_node) != MPI_SUCCESS) {
-    printf("error 5 in PMPI_Comm_free in ext_mpi_xpmem.c\n");
-    exit(1);
-  }
-  for (i = 0; i < my_mpi_size; i++) {
+void ext_mpi_done_xpmem_blocking(int my_cores_per_node, struct xpmem_tree **xpmem_tree_root) {
+  int i;
+  for (i = 0; i < my_cores_per_node; i++) {
     xpmem_tree_delete(xpmem_tree_root[i]);
   }
   free(xpmem_tree_root);
@@ -320,10 +272,7 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
         if (addr.apid != -1 && sendbufs[j]) {
 	  if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
             a = xpmem_attach(addr, size, NULL);
-            if ((long int)a == -1) {
-              printf("error xpmem_attach 1\n");
-              exit(1);
-            }
+            assert((long int)a != -1);
             xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
 	  }
           sendbufs[j] = a + (unsigned long int)(sendbufs[j] - addr.offset);
@@ -343,10 +292,7 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
         if (addr.apid != -1 && recvbufs[j]) {
 	  if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
             a = xpmem_attach(addr, size, NULL);
-            if ((long int)a == -1) {
-              printf("error xpmem_attach 2\n");
-              exit(1);
-            }
+            assert((long int)a != -1);
             xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
 	  }
           recvbufs[j] = a + (unsigned long int)(recvbufs[j] - addr.offset);

@@ -32,12 +32,14 @@ extern int *ext_mpi_fixed_factors_ports;
 extern int *ext_mpi_fixed_factors_groups;
 extern int ext_mpi_not_recursive;
 
+static MPI_Comm comm_array[1001] = {MPI_COMM_NULL};
+
 static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
-  char *sendbuf = NULL, *recvbuf = NULL, data_num_ports[1000], data_copyin_factors[1000], filename[1000];
+  char data_num_ports[1000], data_copyin_factors[1000], filename[1000];
   FILE *data;
   int message_size, type_size, *num_ports = NULL, *groups = NULL, copyin_method, *copyin_factors = NULL, num_sockets_per_node = 1, cores_per_node, mpi_rank, mpi_size, message_size_old = -1, on_gpu = 0, i;
-  MPI_Comm_rank(comm, &mpi_rank);
-  MPI_Comm_size(comm, &mpi_size);
+  ext_mpi_call_mpi(MPI_Comm_rank(comm, &mpi_rank));
+  ext_mpi_call_mpi(MPI_Comm_size(comm, &mpi_size));
   cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, num_sockets_per_node);
   sprintf(filename, "ext_mpi_blocking_%d_%d.txt", mpi_size / cores_per_node, cores_per_node);
   data = fopen(filename, "r");
@@ -47,13 +49,7 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
   }
   MPI_Datatype datatype = MPI_LONG;
   MPI_Op op = MPI_SUM;
-  sendbuf = (char *)malloc(1024 * 1024 * 1024);
-  if (!sendbuf)
-    goto error;
-  recvbuf = (char *)malloc(1024 * 1024 * 1024);
-  if (!recvbuf)
-    goto error;
-  MPI_Type_size(datatype, &type_size);
+  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
   while (fscanf(data, "%d %d %s %s", &message_size, &num_sockets_per_node, data_num_ports, data_copyin_factors) == 4) {
     if (message_size <= message_size_old) on_gpu = 1;
     message_size_old = message_size;
@@ -82,16 +78,12 @@ static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
     free(num_ports);
     free(copyin_factors);
   }
-  free(recvbuf);
-  free(sendbuf);
   fclose(data);
   return 0;
 error:
   free(groups);
   free(num_ports);
   free(copyin_factors);
-  free(recvbuf);
-  free(sendbuf);
   fclose(data);
   return ERROR_MALLOC;
 }
@@ -101,7 +93,7 @@ error:
 //// int mpi_size;
 ////  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072, 1048576, 2097152};
 //  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072};
-///*  MPI_Comm_size(comm, &mpi_size);
+///*  ext_mpi_call_mpi(MPI_Comm_size(comm, &mpi_size));
 //  for (j = 0; j < sizeof(counts) / sizeof(counts[0]); j++) {
 //    if (counts[j] > 1) {
 //      counts[j] = (counts[j] / mpi_size) * mpi_size;
@@ -116,9 +108,9 @@ error:
 //  char *sendbuf = (char *)malloc(1024 * 1024 * 1024);
 //  char *recvbuf = (char *)malloc(1024 * 1024 * 1024);
 //  char *str;
-//  MPI_Comm_size(comm, &comm_size_row);
-//  MPI_Comm_rank(comm, &comm_rank_row);
-//  MPI_Type_size(datatype, &type_size);
+//  ext_mpi_call_mpi(MPI_Comm_size(comm, &comm_size_row));
+//  ext_mpi_call_mpi(MPI_Comm_rank(comm, &comm_rank_row));
+//  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
 //  num_ports = (int *)malloc((2 * comm_size_row + 1) * sizeof(int));
 //  if (!num_ports)
 //    goto error;
@@ -151,9 +143,9 @@ error:
 //        }
 //        groups[k - 1] = -groups[k - 1];
 //      }
-//      MPI_Bcast(&k, 1, MPI_INT, 0, comm);
-//      MPI_Bcast(num_ports, k, MPI_INT, 0, comm);
-//      MPI_Bcast(groups, k, MPI_INT, 0, comm);
+//      ext_mpi_call_mpi(MPI_Bcast(&k, 1, MPI_INT, 0, comm));
+//      ext_mpi_call_mpi(MPI_Bcast(num_ports, k, MPI_INT, 0, comm));
+//      ext_mpi_call_mpi(MPI_Bcast(groups, k, MPI_INT, 0, comm));
 //      groups[k] = num_ports[k] = 0;
 //      if (comm_rank_row == 0) {
 //        free(primes);
@@ -269,8 +261,8 @@ error:
 //  int my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, abs(ext_mpi_num_sockets_per_node));
 //  char *sendbuf = (char *)malloc(1024 * 1024 * 1024);
 //  char *recvbuf = (char *)malloc(1024 * 1024 * 1024);
-//  MPI_Comm_size(comm, &comm_size_row);
-//  MPI_Type_size(datatype, &type_size);
+//  ext_mpi_call_mpi(MPI_Comm_size(comm, &comm_size_row));
+//  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
 //  num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
 //  if (!num_ports)
 //    goto error;
@@ -370,9 +362,9 @@ error:
 //  int counts[] = {1, 4, 16, 64, 256, 2048, 16384, 131072};
 //  MPI_Datatype datatype = MPI_LONG;
 //  int my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, abs(ext_mpi_num_sockets_per_node));
-//  MPI_Comm_rank(comm, &comm_rank_row);
-//  MPI_Comm_size(comm, &comm_size_row);
-//  MPI_Type_size(datatype, &type_size);
+//  ext_mpi_call_mpi(MPI_Comm_rank(comm, &comm_rank_row));
+//  ext_mpi_call_mpi(MPI_Comm_size(comm, &comm_size_row));
+//  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
 //  num_ports = (int *)malloc((comm_size_row + 1) * sizeof(int));
 //  if (!num_ports)
 //    goto error;
@@ -399,9 +391,9 @@ error:
 //        }
 //        groups[k - 1] = -groups[k - 1];
 //      }
-//      MPI_Bcast(&k, 1, MPI_INT, 0, comm);
-//      MPI_Bcast(num_ports, k, MPI_INT, 0, comm);
-//      MPI_Bcast(groups, k, MPI_INT, 0, comm);
+//      ext_mpi_call_mpi(MPI_Bcast(&k, 1, MPI_INT, 0, comm));
+//      ext_mpi_call_mpi(MPI_Bcast(num_ports, k, MPI_INT, 0, comm));
+//      ext_mpi_call_mpi(MPI_Bcast(groups, k, MPI_INT, 0, comm));
 //      groups[k] = num_ports[k] = 0;
 //      if (comm_rank_row == 0) {
 //        free(primes);
@@ -470,18 +462,23 @@ error:
 //}
 
 int EXT_MPI_Init_blocking_comm(MPI_Comm comm, int i_comm) {
-  return init_blocking_comm_allreduce(comm, i_comm);
+  comm_array[i_comm] = comm;
+//  return init_blocking_comm_allreduce(comm, i_comm);
 //  init_blocking_comm_reduce_scatter_block(comm, i_comm);
 //  init_blocking_comm_allgather(comm, i_comm);
-//  return 0;
+  return 0;
 }
 
 int EXT_MPI_Finalize_blocking_comm(int i_comm) {
   EXT_MPI_Release_blocking_native(i_comm);
+  comm_array[i_comm] = MPI_COMM_NULL;
   return 0;
 }
 
 int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, int i_comm){
+  if (!EXT_MPI_Initialized_blocking_native(out_of_place, i_comm)) {
+    init_blocking_comm_allreduce(comm_array[i_comm], i_comm);
+  }
   if (sendbuf == MPI_IN_PLACE) {
     sendbuf = recvbuf;
   }

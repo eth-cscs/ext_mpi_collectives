@@ -7,7 +7,10 @@
 #include "gpu_shmem.h"
 #include "shmem.h"
 #include "ext_mpi.h"
+#include "ext_mpi_native.h"
 #include "ext_mpi_native_exec.h"
+
+extern MPI_Comm ext_mpi_COMM_WORLD_dup;
 
 int ext_mpi_gpu_sizeof_memhandle() { return (sizeof(struct cudaIpcMemHandle_st)); }
 
@@ -18,11 +21,11 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
   MPI_Comm my_comm_node;
   int my_mpi_rank_row, my_mpi_size_row, shmemid_temp, i, j, k, flag;
   char *shmem_temp;
-  MPI_Comm_size(comm, &my_mpi_size_row);
-  MPI_Comm_rank(comm, &my_mpi_rank_row);
-  PMPI_Comm_split(comm, my_mpi_rank_row / (my_cores_per_node_row * num_segments),
-                  my_mpi_rank_row % (my_cores_per_node_row * num_segments), &my_comm_node);
-  MPI_Comm_rank(my_comm_node, &my_mpi_rank_row);
+  ext_mpi_call_mpi(MPI_Comm_size(comm, &my_mpi_size_row));
+  ext_mpi_call_mpi(MPI_Comm_rank(comm, &my_mpi_rank_row));
+  ext_mpi_call_mpi(PMPI_Comm_split(comm, my_mpi_rank_row / (my_cores_per_node_row * num_segments),
+                  my_mpi_rank_row % (my_cores_per_node_row * num_segments), &my_comm_node));
+  ext_mpi_call_mpi(MPI_Comm_rank(my_comm_node, &my_mpi_rank_row));
   *shmem_gpu = (char **)malloc(my_cores_per_node_row * num_segments * sizeof(char *));
   *shmemidi_gpu = (int *)malloc(my_cores_per_node_row * num_segments * sizeof(int));
   if ((*shmem_gpu == NULL) || (*shmemidi_gpu == NULL)) {
@@ -48,8 +51,8 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
         (*shmemidi_gpu)[i] |= 1;
       }
     }
-    PMPI_Bcast(&shmemid_gpu, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, i, my_comm_node);
-    PMPI_Barrier(my_comm_node);
+    ext_mpi_call_mpi(PMPI_Bcast(&shmemid_gpu, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, i, my_comm_node));
+    ext_mpi_call_mpi(PMPI_Barrier(my_comm_node));
     flag = 0;
     for (j = 0; j < sizeof(struct cudaIpcMemHandle_st); j++) {
       if (((char *)(&shmemid_gpu))[j]) flag = 1;
@@ -67,9 +70,9 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
       (*shmem_gpu)[i] = NULL;
       (*shmemidi_gpu)[i] |= 2;
     }
-    PMPI_Barrier(my_comm_node);
+    ext_mpi_call_mpi(PMPI_Barrier(my_comm_node));
   }
-  PMPI_Comm_free(&my_comm_node);
+  ext_mpi_call_mpi(PMPI_Comm_free(&my_comm_node));
   for (j = 0; j < (my_mpi_rank_row % (my_cores_per_node_row * num_segments)) / my_cores_per_node_row * my_cores_per_node_row; j++) {
     shmem_temp = (*shmem_gpu)[0];
     shmemid_temp = (*shmemidi_gpu)[0];
@@ -95,17 +98,26 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
   return 0;
 }
 
-int ext_mpi_gpu_destroy_shared_memory(int my_cores_per_node, int *shmemid_gpu, char **shmem_gpu, char *comm_code) {
+int ext_mpi_gpu_destroy_shared_memory(int my_cores_per_node, int *ranks_node, int *shmemid_gpu, char **shmem_gpu) {
+  MPI_Comm newcomm;
+  MPI_Group world_group, group;
   int i;
   for (i = 0; i < my_cores_per_node; i++) {
-    ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
     if ((shmemid_gpu[i] & 2) && shmem_gpu[i]) {
       if (cudaIpcCloseMemHandle((void *)(shmem_gpu[i])) != 0) {
         exit(13);
       }
     }
   }
-  ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
+  if (ranks_node) {
+    ext_mpi_call_mpi(PMPI_Comm_group(ext_mpi_COMM_WORLD_dup, &world_group));
+    ext_mpi_call_mpi(PMPI_Group_incl(world_group, my_cores_per_node, ranks_node, &group));
+    ext_mpi_call_mpi(PMPI_Comm_create_group(ext_mpi_COMM_WORLD_dup, group, 0, &newcomm));
+    ext_mpi_call_mpi(PMPI_Barrier(newcomm));
+    ext_mpi_call_mpi(PMPI_Comm_free(&newcomm));
+    ext_mpi_call_mpi(PMPI_Group_free(&group));
+    ext_mpi_call_mpi(PMPI_Group_free(&world_group));
+  }
   for (i = 0; i < my_cores_per_node; i++) {
     if ((shmemid_gpu[i] & 1) && shmem_gpu[i]) {
       if (cudaFree((void *)(shmem_gpu[i])) != 0) {
@@ -113,7 +125,6 @@ int ext_mpi_gpu_destroy_shared_memory(int my_cores_per_node, int *shmemid_gpu, c
       }
     }
   }
-  ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code);
   free(shmem_gpu);
   free(shmemid_gpu);
   return 0;
@@ -128,15 +139,15 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
     *sendrecvbufs = NULL;
     return -1;
   }
-  PMPI_Comm_rank(comm, &my_mpi_rank);
-  PMPI_Comm_size(comm, &my_mpi_size);
-  PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
-                  my_mpi_rank % my_cores_per_node, &gpu_comm_node);
-  PMPI_Comm_rank(gpu_comm_node, &my_mpi_rank);
-  PMPI_Comm_size(gpu_comm_node, &my_mpi_size);
+  ext_mpi_call_mpi(PMPI_Comm_rank(comm, &my_mpi_rank));
+  ext_mpi_call_mpi(PMPI_Comm_size(comm, &my_mpi_size));
+  ext_mpi_call_mpi(PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
+                  my_mpi_rank % my_cores_per_node, &gpu_comm_node));
+  ext_mpi_call_mpi(PMPI_Comm_rank(gpu_comm_node, &my_mpi_rank));
+  ext_mpi_call_mpi(PMPI_Comm_size(gpu_comm_node, &my_mpi_size));
   shmemid_gpu = (struct cudaIpcMemHandle_st*)malloc(sizeof(struct cudaIpcMemHandle_st) * my_mpi_size);
   *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char *));
-  PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, gpu_comm_node);
+  ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, gpu_comm_node));
   if (mem_partners) {
     mem_partners_l = (int*)malloc(sizeof(int) * my_mpi_size);
     memset(mem_partners_l, 0, sizeof(int) * my_mpi_size);
@@ -164,7 +175,7 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
     printf("error cudaIpcGetMemHandle in cuda_shmem.c\n");
     exit(1);
   }
-  PMPI_Allgather(&shmemid_gpu_l, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, shmemid_gpu, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, gpu_comm_node);
+  ext_mpi_call_mpi(PMPI_Allgather(&shmemid_gpu_l, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, shmemid_gpu, sizeof(struct cudaIpcMemHandle_st), MPI_CHAR, gpu_comm_node));
   for (i = 0; i < my_mpi_size; i++) {
     if (i == my_mpi_rank) {
       (*sendrecvbufs)[i] = sendrecvbuf;
@@ -198,40 +209,20 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
     }
   }
   (*sendrecvbufs)[0] = sendrecvbuf;
-  if (PMPI_Comm_free(&gpu_comm_node) != MPI_SUCCESS) {
-    printf("error PMPI_Comm_free in cuda_shmem.c\n");
-    exit(1);
-  }
+  ext_mpi_call_mpi(PMPI_Comm_free(&gpu_comm_node));
   return 0;
 }
 
-int ext_mpi_sendrecvbuf_done_gpu(MPI_Comm comm, int my_cores_per_node, char **sendrecvbufs) {
-  MPI_Comm gpu_comm_node;
-  int my_mpi_rank, my_mpi_size, i;
+int ext_mpi_sendrecvbuf_done_gpu(int my_cores_per_node, char **sendrecvbufs) {
+  int i;
   char *addr;
-  if (comm == MPI_COMM_NULL) {
-    return -1;
-  }
-  PMPI_Comm_rank(comm, &my_mpi_rank);
-  PMPI_Comm_size(comm, &my_mpi_size);
-  PMPI_Comm_split(comm, my_mpi_rank / my_cores_per_node,
-                  my_mpi_rank % my_cores_per_node, &gpu_comm_node);
-  PMPI_Comm_rank(gpu_comm_node, &my_mpi_rank);
-  PMPI_Comm_size(gpu_comm_node, &my_mpi_size);
-  for (i = 1; i < my_mpi_size; i++) {
+  for (i = 1; i < my_cores_per_node; i++) {
     addr = sendrecvbufs[i];
     if (addr) {
-      if (cudaIpcCloseMemHandle((void *)(addr)) != 0) {
-        printf("error 2 cudaIpcCloseMemHandle in cuda_shmem.c\n");
-        exit(1);
-      }
+      assert(cudaIpcCloseMemHandle((void *)(addr)) == 0);
     }
   }
   free(sendrecvbufs);
-  if (PMPI_Comm_free(&gpu_comm_node) != MPI_SUCCESS) {
-    printf("error PMPI_Comm_free in cuda_shmem.c\n");
-    exit(1);
-  }
   return 0;
 }
 
@@ -397,12 +388,12 @@ cudaError_t CUDARTAPI cudaFree(void *dptr)
 int ext_mpi_init_gpu_blocking(MPI_Comm comm_world) {
   MPI_Comm gpu_comm_node;
   int tasks_per_node = ext_mpi_get_num_tasks_per_socket(comm_world, 1);;
-  PMPI_Comm_size(comm_world, &mpi_node_size);
-  PMPI_Comm_rank(comm_world, &mpi_node_rank);
-  PMPI_Comm_split(comm_world, mpi_node_rank / tasks_per_node,
-                  mpi_node_rank % tasks_per_node, &gpu_comm_node);
-  PMPI_Comm_rank(gpu_comm_node, &mpi_node_rank);
-  PMPI_Comm_size(gpu_comm_node, &mpi_node_size);
+  ext_mpi_call_mpi(PMPI_Comm_size(comm_world, &mpi_node_size));
+  ext_mpi_call_mpi(PMPI_Comm_rank(comm_world, &mpi_node_rank));
+  ext_mpi_call_mpi(PMPI_Comm_split(comm_world, mpi_node_rank / tasks_per_node,
+                  mpi_node_rank % tasks_per_node, &gpu_comm_node));
+  ext_mpi_call_mpi(PMPI_Comm_rank(gpu_comm_node, &mpi_node_rank));
+  ext_mpi_call_mpi(PMPI_Comm_size(gpu_comm_node, &mpi_node_size));
   address_lookup_root = (struct address_lookup **)malloc(mpi_node_size * sizeof(struct address_lookup *));
   memset(address_lookup_root, 0, mpi_node_size * sizeof(struct address_lookup *));
   return 0;

@@ -1,6 +1,7 @@
 /* adapted from https://www.tutorialspoint.com/data_structures_algorithms/hash_table_program_in_c.htm */
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <mpi.h>
 #include "constants.h"
 #include "hash_table_blocking.h"
@@ -14,6 +15,7 @@ struct DataItem {
 
 static struct DataItem** hashArray;
 static struct DataItem* dummyItem;
+static int num_entries;
 
 static int hashCode(MPI_Comm *key) {
    unsigned char value = 0;
@@ -46,6 +48,10 @@ void ext_mpi_hash_insert_blocking(MPI_Comm *key, int data) {
    item->data = data;  
    item->key = *key;
 
+   if (++num_entries >= SIZE) {
+     printf("too many has table entries in hash_table_blocking.c\n");
+     exit(1);
+   }
    int hashIndex = hashCode(key);
 
    while(hashArray[hashIndex] != NULL && hashArray[hashIndex]->key != MPI_COMM_NULL) {
@@ -73,6 +79,7 @@ int ext_mpi_hash_delete_blocking(MPI_Comm *key) {
 		
       hashIndex %= SIZE;
    }      
+   num_entries--;
 	
    return -1;
 }
@@ -89,6 +96,7 @@ int ext_mpi_hash_init_blocking(){
   }
   dummyItem->data = -1;  
   dummyItem->key = MPI_COMM_NULL; 
+  num_entries = 0;
   return 0;
 }
 

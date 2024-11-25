@@ -32,7 +32,7 @@ static void mpi_init_interface() {
   ext_mpi_hash_init();
   ext_mpi_hash_init_operator();
   EXT_MPI_Init();
-  PMPI_Comm_rank(MPI_COMM_WORLD, &mpi_comm_rank);
+  ext_mpi_call_mpi(PMPI_Comm_rank(MPI_COMM_WORLD, &mpi_comm_rank));
   if (mpi_comm_rank == 0) {
     var = ((c = getenv("EXT_MPI_BLOCKING")) != NULL);
     var2 = ((c = getenv("EXT_MPI_VERBOSE")) != NULL);
@@ -43,7 +43,7 @@ static void mpi_init_interface() {
       printf("# EXT_MPI blocking\n");
     }
   }
-  MPI_Bcast(&ext_mpi_is_blocking, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  ext_mpi_call_mpi(MPI_Bcast(&ext_mpi_is_blocking, 1, MPI_INT, 0, MPI_COMM_WORLD));
   if (ext_mpi_is_blocking) {
     ext_mpi_hash_init_blocking();
     ext_mpi_hash_insert_blocking(&comm, 0);
@@ -73,8 +73,8 @@ int MPI_Init_thread(int *argc, char ***argv, int required, int *provided) {
 int MPI_Finalize(){
 #ifdef PROFILE
   int size, rank;
-  PMPI_Comm_size(MPI_COMM_WORLD, &size);
-  PMPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  ext_mpi_call_mpi(PMPI_Comm_size(MPI_COMM_WORLD, &size));
+  ext_mpi_call_mpi(PMPI_Comm_rank(MPI_COMM_WORLD, &rank));
 #endif
   if (ext_mpi_is_blocking) {
     EXT_MPI_Finalize_blocking_comm(0);
@@ -86,15 +86,15 @@ int MPI_Finalize(){
   ext_mpi_is_blocking = 0;
 #ifdef PROFILE
   if (rank == 0) {
-    PMPI_Reduce(MPI_IN_PLACE, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(MPI_IN_PLACE, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(MPI_IN_PLACE, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(MPI_IN_PLACE, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(MPI_IN_PLACE, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(MPI_IN_PLACE, &timing_reduce_scatter_block, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(MPI_IN_PLACE, &calls_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(MPI_IN_PLACE, &size_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(MPI_IN_PLACE, &timing_allgather, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_reduce_scatter_block, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_allgather, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
     if (calls_allreduce) {
       printf("# calls allreduce %e\n", 1.0 * calls_allreduce / size);
       printf("# size allreduce %e\n", 1.0 * size_allreduce / calls_allreduce);
@@ -117,15 +117,15 @@ int MPI_Finalize(){
       printf("# no calls to allgather\n");
     }
   } else {
-    PMPI_Reduce(&calls_allreduce, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(&size_allreduce, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(&timing_allreduce, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(&calls_reduce_scatter_block, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(&size_reduce_scatter_block, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(&timing_reduce_scatter_block, &timing_reduce_scatter_block, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(&calls_allgather, &calls_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(&size_allgather, &size_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    PMPI_Reduce(&timing_allgather, &timing_allgather, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    ext_mpi_call_mpi(PMPI_Reduce(&calls_allreduce, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&size_allreduce, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&timing_allreduce, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&calls_reduce_scatter_block, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&size_reduce_scatter_block, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&timing_reduce_scatter_block, &timing_reduce_scatter_block, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&calls_allgather, &calls_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&size_allgather, &size_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&timing_allgather, &timing_allgather, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
   }
 #endif
   return PMPI_Finalize();
@@ -133,7 +133,7 @@ int MPI_Finalize(){
 
 int MPI_Allreduce_init(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
-  MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request);
+  ext_mpi_call_mpi(MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request));
   if (!(ret=EXT_MPI_Allreduce_init(sendbuf, recvbuf, count, datatype, op, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
@@ -142,7 +142,7 @@ int MPI_Allreduce_init(const void *sendbuf, void *recvbuf, int count, MPI_Dataty
 
 int MPI_Allgatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, const int *recvcounts, const int *displs, MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
-  MPI_Recv_init(NULL, 0, recvtype, 0, 0, comm, request);
+  ext_mpi_call_mpi(MPI_Recv_init(NULL, 0, recvtype, 0, 0, comm, request));
   if (!(ret=EXT_MPI_Allgatherv_init(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
@@ -151,7 +151,7 @@ int MPI_Allgatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtyp
 
 int MPI_Reduce_scatter_init(const void *sendbuf, void *recvbuf, const int recvcounts[], MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
-  MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request);
+  ext_mpi_call_mpi(MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request));
   if (!(ret=EXT_MPI_Reduce_scatter_init(sendbuf, recvbuf, recvcounts, datatype, op, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
@@ -160,7 +160,7 @@ int MPI_Reduce_scatter_init(const void *sendbuf, void *recvbuf, const int recvco
 
 int MPI_Bcast_init(void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
-  MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request);
+  ext_mpi_call_mpi(MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request));
   if (!(ret=EXT_MPI_Bcast_init(buffer, count, datatype, root, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
@@ -169,7 +169,7 @@ int MPI_Bcast_init(void *buffer, int count, MPI_Datatype datatype, int root, MPI
 
 int MPI_Reduce_init(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
-  MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request);
+  ext_mpi_call_mpi(MPI_Recv_init(NULL, 0, datatype, 0, 0, comm, request));
   if (!(ret=EXT_MPI_Reduce_init(sendbuf, recvbuf, count, datatype, op, root, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
@@ -178,7 +178,7 @@ int MPI_Reduce_init(const void *sendbuf, void *recvbuf, int count, MPI_Datatype 
 
 int MPI_Gatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, const int *recvcounts, const int *displs, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
-  MPI_Recv_init(NULL, 0, recvtype, 0, 0, comm, request);
+  ext_mpi_call_mpi(MPI_Recv_init(NULL, 0, recvtype, 0, 0, comm, request));
   if (!(ret=EXT_MPI_Gatherv_init(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
@@ -187,7 +187,7 @@ int MPI_Gatherv_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, 
 
 int MPI_Scatterv_init(const void *sendbuf, const int *sendcounts, const int *displs, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int handle, ret;
-  MPI_Recv_init(NULL, 0, sendtype, 0, 0, comm, request);
+  ext_mpi_call_mpi(MPI_Recv_init(NULL, 0, sendtype, 0, 0, comm, request));
   if (!(ret=EXT_MPI_Scatterv_init(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm, info, &handle))){
     ext_mpi_hash_insert(request, handle);
   }
@@ -376,7 +376,7 @@ int MPI_Testsome(int incount, MPI_Request array_of_requests[], int *outcount, in
 
 int MPI_Allgather_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int mpi_size, *recvcounts=NULL, *displs=NULL, ret, i;
-  MPI_Comm_size(comm, &mpi_size);
+  ext_mpi_call_mpi(MPI_Comm_size(comm, &mpi_size));
   recvcounts=(int*)malloc(mpi_size*sizeof(int));
   if (recvcounts==NULL) goto error;
   displs=(int*)malloc(mpi_size*sizeof(int));
@@ -397,7 +397,7 @@ error:
 
 int MPI_Reduce_scatter_block_init(const void *sendbuf, void *recvbuf, int recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int mpi_size, *recvcounts=NULL, ret, i;
-  MPI_Comm_size(comm, &mpi_size);
+  ext_mpi_call_mpi(MPI_Comm_size(comm, &mpi_size));
   recvcounts=(int*)malloc(mpi_size*sizeof(int));
   if (recvcounts==NULL) goto error;
   for (i=0; i<mpi_size; i++){
@@ -413,7 +413,7 @@ error:
 
 int MPI_Gather_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int mpi_size, *recvcounts=NULL, *displs=NULL, ret, i;
-  MPI_Comm_size(comm, &mpi_size);
+  ext_mpi_call_mpi(MPI_Comm_size(comm, &mpi_size));
   recvcounts=(int*)malloc(mpi_size*sizeof(int));
   if (recvcounts==NULL) goto error;
   displs=(int*)malloc(mpi_size*sizeof(int));
@@ -434,7 +434,7 @@ error:
 
 int MPI_Scatter_init(const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request){
   int mpi_size, *sendcounts=NULL, *displs=NULL, ret, i;
-  MPI_Comm_size(comm, &mpi_size);
+  ext_mpi_call_mpi(MPI_Comm_size(comm, &mpi_size));
   sendcounts=(int*)malloc(mpi_size*sizeof(int));
   if (sendcounts==NULL) goto error;
   displs=(int*)malloc(mpi_size*sizeof(int));
@@ -456,7 +456,7 @@ error:
 int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
   int reduction_op, ret, i;
   int type_size;
-  MPI_Type_size(datatype, &type_size);
+  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
 #ifdef PROFILE
   timing_allreduce -= MPI_Wtime();
   calls_allreduce++;
@@ -483,7 +483,7 @@ int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, 
   int ret;
 #ifdef PROFILE
   int type_size;
-  MPI_Type_size(datatype, &type_size);
+  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
   timing_reduce_scatter_block -= MPI_Wtime();
   calls_reduce_scatter_block++;
   size_reduce_scatter_block += recvcount * type_size;
@@ -524,7 +524,7 @@ int MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, voi
   int type_size, i;
   int ret;
 #ifdef PROFILE
-  MPI_Type_size(sendtype, &type_size);
+  ext_mpi_call_mpi(MPI_Type_size(sendtype, &type_size));
   timing_allgather -= MPI_Wtime();
   calls_allgather++;
   size_allgather += sendcount * type_size;
@@ -548,7 +548,11 @@ int MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, voi
 }
 
 static int add_comm_to_blocking(MPI_Comm *comm){
-  int i = 0;
+  int mpi_size, i = 0;
+  ext_mpi_call_mpi(PMPI_Comm_size(*comm, &mpi_size));
+  if (mpi_size <= 1) {
+    return -1;
+  }
   while (comms_blocking[i]) i++;
   comms_blocking[i] = 1;
   ext_mpi_hash_insert_blocking(comm, i);

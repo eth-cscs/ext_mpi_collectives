@@ -1,6 +1,7 @@
 #include "read_write.h"
 #include "constants.h"
 #include "byte_code.h"
+#include "ext_mpi_native.h"
 #include "ext_mpi_native_exec.h"
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
@@ -161,7 +162,7 @@ static void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
         if (num_red_max>=0){
         //if there is any reduction operation to perform, iterate over all waitany and perform the corresponding reduction operations based on the parameters that are just acquired
         for (count=0; count<num_wait; count++) {
-            MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
+            ext_mpi_call_mpi(MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE));
             reduce_waitany(pointers[index][0], pointers[index][1], sizes[index], num_red[index], op_reduce);
         }
         }else{
@@ -174,7 +175,7 @@ static void exec_waitany(int num_wait, int num_red_max, void *p3, char **ip){
         target_index = -1;
         not_moved = 0;
         for (count=0; count<num_wait; count++) {
-            MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE);
+            ext_mpi_call_mpi(MPI_Waitany(num_wait, (MPI_Request *)p3, &index, MPI_STATUS_IGNORE));
             if (!num_red[index]){
               num_waitall--;
               if ((!num_waitall)&&not_moved){
@@ -402,8 +403,8 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
       code_get_pointer(&ip);
       ncclRecv((void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Irecv((void *)p1, i1, MPI_CHAR, i2, header->tag, ext_mpi_COMM_WORLD_dup,
-                (MPI_Request *)code_get_pointer(&ip));
+      ext_mpi_call_mpi(MPI_Irecv((void *)p1, i1, MPI_CHAR, i2, header->tag, ext_mpi_COMM_WORLD_dup,
+                      (MPI_Request *)code_get_pointer(&ip)));
 #endif
       break;
     case OPCODE_MPIISEND:
@@ -414,8 +415,8 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
       code_get_pointer(&ip);
       ncclSend((const void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Isend((void *)p1, i1, MPI_CHAR, i2, header->tag, ext_mpi_COMM_WORLD_dup,
-                (MPI_Request *)code_get_pointer(&ip));
+      ext_mpi_call_mpi(MPI_Isend((void *)p1, i1, MPI_CHAR, i2, header->tag, ext_mpi_COMM_WORLD_dup,
+                                 (MPI_Request *)code_get_pointer(&ip)));
 #endif
       break;
     case OPCODE_MPIWAITALL:
@@ -428,16 +429,16 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
       if (active_wait & 2) {
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
-        PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+        ext_mpi_call_mpi(PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE));
       } else {
         *ip_exec = ip - 1;
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
-        PMPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
+        ext_mpi_call_mpi(PMPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE));
         if (!i2) {
           return 0;
         } else {
-          PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+          ext_mpi_call_mpi(PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE));
         }
       }
 #endif
@@ -457,11 +458,11 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
         *ip_exec = ip - 1;
         i1 = code_get_int(&ip);
         p1 = code_get_pointer(&ip);
-        PMPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE);
+        ext_mpi_call_mpi(PMPI_Testall(i1, (MPI_Request *)p1, &i2, MPI_STATUSES_IGNORE));
         if (!i2) {
           return 0;
         } else {
-          PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+          ext_mpi_call_mpi(PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE));
         }
       }
       break;
@@ -538,8 +539,8 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
       p1 = code_get_pointer(&ip);
       p1 = code_get_pointer(&ip);
       i1 = code_get_int(&ip);
-      MPI_Recv((void *)p1, i1, MPI_CHAR, code_get_int(&ip), 0,
-               ext_mpi_COMM_WORLD_dup, MPI_STATUS_IGNORE);
+      ext_mpi_call_mpi(MPI_Recv((void *)p1, i1, MPI_CHAR, code_get_int(&ip), 0,
+                                ext_mpi_COMM_WORLD_dup, MPI_STATUS_IGNORE));
       break;
     case OPCODE_ATTACHED:
       break;
@@ -763,7 +764,7 @@ int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char
       code_get_pointer(&ip);
 #else
       if (send_pointers_allreduce_blocking) {
-        MPI_Isend(&p1, sizeof(p1), MPI_BYTE, i2, tag, comm, (MPI_Request *)code_get_pointer(&ip));
+        ext_mpi_call_mpi(MPI_Isend(&p1, sizeof(p1), MPI_BYTE, i2, tag, comm, (MPI_Request *)code_get_pointer(&ip)));
       } else {
         code_get_pointer(&ip);
       }
@@ -782,7 +783,7 @@ int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char
       code_get_pointer(&ip);
 #else
       if (send_pointers_allreduce_blocking) {
-        MPI_Irecv(&send_pointers_allreduce_blocking[send_pointer], sizeof(send_pointers_allreduce_blocking[send_pointer]), MPI_BYTE, i2, tag, comm, (MPI_Request *)code_get_pointer(&ip));
+        ext_mpi_call_mpi(MPI_Irecv(&send_pointers_allreduce_blocking[send_pointer], sizeof(send_pointers_allreduce_blocking[send_pointer]), MPI_BYTE, i2, tag, comm, (MPI_Request *)code_get_pointer(&ip)));
 	send_pointer++;
       } else {
         code_get_pointer(&ip);
@@ -797,7 +798,7 @@ int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char
       i1 = code_get_int(&ip);
       p1 = code_get_pointer(&ip);
       if (send_pointers_allreduce_blocking) {
-        PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+        ext_mpi_call_mpi(PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE));
       }
 #endif
       break;
@@ -903,8 +904,8 @@ int ext_mpi_exec_blocking(char *ip, int tag, char **shmem_socket, int *counter_s
       code_get_pointer(&ip);
       ncclRecv((void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Irecv((void *)p1, i1, MPI_CHAR, i2, tag, ext_mpi_COMM_WORLD_dup,
-                (MPI_Request *)code_get_pointer(&ip));
+      ext_mpi_call_mpi(MPI_Irecv((void *)p1, i1, MPI_CHAR, i2, tag, ext_mpi_COMM_WORLD_dup,
+                                 (MPI_Request *)code_get_pointer(&ip)));
 #endif
       break;
     case OPCODE_MPIISEND:
@@ -916,8 +917,8 @@ int ext_mpi_exec_blocking(char *ip, int tag, char **shmem_socket, int *counter_s
       code_get_pointer(&ip);
       ncclSend((const void *)p1, i1, ncclChar, i2, ext_mpi_nccl_comm, stream);
 #else
-      MPI_Isend((void *)p1, i1, MPI_CHAR, i2, tag, ext_mpi_COMM_WORLD_dup,
-                (MPI_Request *)code_get_pointer(&ip));
+      ext_mpi_call_mpi(MPI_Isend((void *)p1, i1, MPI_CHAR, i2, tag, ext_mpi_COMM_WORLD_dup,
+                                 (MPI_Request *)code_get_pointer(&ip)));
 #endif
       break;
     case OPCODE_MPIWAITALL:
@@ -929,7 +930,7 @@ int ext_mpi_exec_blocking(char *ip, int tag, char **shmem_socket, int *counter_s
 #else
       i1 = code_get_int(&ip);
       p1 = code_get_pointer(&ip);
-      PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE);
+      ext_mpi_call_mpi(PMPI_Waitall(i1, (MPI_Request *)p1, MPI_STATUSES_IGNORE));
 #endif
       break;
     case OPCODE_MPIWAITANY:
@@ -1037,9 +1038,6 @@ int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, i
   char instruction;
   void *p1, *p2;
   int i1, num_padding = 0;
-#ifdef GPU_ENABLED
-  char instruction2;
-#endif
   printf("not implemented\n"); exit(1);
   ip += sizeof(struct header_byte_code);
   do {
@@ -1119,7 +1117,7 @@ int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, i
     case OPCODE_GPUSYNCHRONIZE:
       break;
     case OPCODE_GPUKERNEL:
-      instruction2 = code_get_char(&ip);
+      code_get_char(&ip);
       p1 = code_get_pointer(&ip);
       code_get_int(&ip);
       break;

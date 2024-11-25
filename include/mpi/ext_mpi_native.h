@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+void ext_mpi_call_mpi(int i);
 int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Datatype datatype, MPI_Op op,
                                   MPI_Comm comm_row, int my_cores_per_node_row,
@@ -73,6 +74,21 @@ void ext_mpi_native_export(int **e_handle_code_max, char ****e_comm_code, char *
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 static int get_reduction_op(MPI_Datatype datatype, MPI_Op op) {
+  if (datatype == MPI_REAL) {
+    datatype = MPI_FLOAT;
+  } else if (datatype == MPI_DOUBLE_PRECISION) {
+    datatype = MPI_DOUBLE;
+  } else if (datatype == MPI_REAL4) {
+    datatype = MPI_FLOAT;
+  } else if (datatype == MPI_REAL8) {
+    datatype = MPI_DOUBLE;
+  } else if (datatype == MPI_INTEGER) {
+    datatype = MPI_INT;
+  } else if (datatype == MPI_INTEGER4) {
+    datatype = MPI_INT;
+  } else if (datatype == MPI_INTEGER8) {
+    datatype = MPI_LONG;
+  }
   if (datatype == MPI_DOUBLE) {
     if (op == MPI_SUM) {
       return OPCODE_REDUCE_SUM_DOUBLE;

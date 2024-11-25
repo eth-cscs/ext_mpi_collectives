@@ -3,6 +3,7 @@
 #include <string.h>
 #include <limits.h>
 #include <dlfcn.h>
+#include <assert.h>
 #include "prime_factors.h"
 #include "allreduce.h"
 #include "allreduce_recursive.h"
@@ -71,9 +72,9 @@ extern int ext_mpi_verbose;
 MPI_Comm ext_mpi_COMM_WORLD_dup = MPI_COMM_NULL;
 
 /*static int global_min(int i, MPI_Comm comm_row, MPI_Comm comm_column) {
-  PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row);
+  ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_row));
   if (comm_column != MPI_COMM_NULL) {
-    PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_column);
+    ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MIN, comm_column));
   }
   return (i);
 }*/
@@ -86,6 +87,16 @@ static int gpu_is_device_pointer(void *buf) {
 }
 #endif
 
+void ext_mpi_call_mpi(int i) {
+  char string[1000];
+  int resultlen;
+  if (i != MPI_SUCCESS) {
+    MPI_Error_string(i, string, &resultlen);
+    printf("%s\n", string);
+  }
+  assert(i == MPI_SUCCESS);
+}
+
 static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
                                   MPI_Comm comm_column,
                                   int my_cores_per_node_column,
@@ -93,36 +104,32 @@ static int setup_rank_translation(MPI_Comm comm_row, int my_cores_per_node_row,
   MPI_Comm my_comm_node;
   int my_mpi_size_row, grank, my_mpi_size_column, my_mpi_rank_column,
       *lglobal_ranks = NULL;
-  PMPI_Comm_size(comm_row, &my_mpi_size_row);
+  ext_mpi_call_mpi(PMPI_Comm_size(comm_row, &my_mpi_size_row));
   if (comm_column != MPI_COMM_NULL) {
-    PMPI_Comm_size(comm_column, &my_mpi_size_column);
-    PMPI_Comm_rank(comm_column, &my_mpi_rank_column);
-    if (PMPI_Comm_split(comm_column,
+    ext_mpi_call_mpi(PMPI_Comm_size(comm_column, &my_mpi_size_column));
+    ext_mpi_call_mpi(PMPI_Comm_rank(comm_column, &my_mpi_rank_column));
+    ext_mpi_call_mpi(PMPI_Comm_split(comm_column,
                         my_mpi_rank_column / my_cores_per_node_column,
                         my_mpi_rank_column % my_cores_per_node_column,
-                        &my_comm_node) == MPI_ERR_INTERN)
-      goto error;
-    MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &grank);
+                        &my_comm_node));
+    ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &grank));
     lglobal_ranks = (int *)malloc(sizeof(int) * my_cores_per_node_column);
     if (!lglobal_ranks)
       goto error;
-    PMPI_Gather(&grank, 1, MPI_INT, lglobal_ranks, 1, MPI_INT, 0, my_comm_node);
-    PMPI_Bcast(lglobal_ranks, my_cores_per_node_column, MPI_INT, 0,
-               my_comm_node);
-    PMPI_Barrier(my_comm_node);
-    if (PMPI_Comm_free(&my_comm_node) != MPI_SUCCESS) {
-      printf("error 1 in PMPI_Comm_free in ext_mpi_native.c\n");
-      exit(1);
-    }
-    PMPI_Gather(lglobal_ranks, my_cores_per_node_column, MPI_INT, global_ranks,
-                my_cores_per_node_column, MPI_INT, 0, comm_row);
+    ext_mpi_call_mpi(PMPI_Gather(&grank, 1, MPI_INT, lglobal_ranks, 1, MPI_INT, 0, my_comm_node));
+    ext_mpi_call_mpi(PMPI_Bcast(lglobal_ranks, my_cores_per_node_column, MPI_INT, 0,
+               my_comm_node));
+    ext_mpi_call_mpi(PMPI_Barrier(my_comm_node));
+    ext_mpi_call_mpi(PMPI_Comm_free(&my_comm_node));
+    ext_mpi_call_mpi(PMPI_Gather(lglobal_ranks, my_cores_per_node_column, MPI_INT, global_ranks,
+                     my_cores_per_node_column, MPI_INT, 0, comm_row));
     free(lglobal_ranks);
   } else {
-    PMPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &grank);
-    PMPI_Gather(&grank, 1, MPI_INT, global_ranks, 1, MPI_INT, 0, comm_row);
+    ext_mpi_call_mpi(PMPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &grank));
+    ext_mpi_call_mpi(PMPI_Gather(&grank, 1, MPI_INT, global_ranks, 1, MPI_INT, 0, comm_row));
   }
-  PMPI_Bcast(global_ranks, my_mpi_size_row * my_cores_per_node_column, MPI_INT,
-             0, comm_row);
+  ext_mpi_call_mpi(PMPI_Bcast(global_ranks, my_mpi_size_row * my_cores_per_node_column, MPI_INT,
+                   0, comm_row));
   return 0;
 error:
   free(lglobal_ranks);
@@ -259,8 +266,6 @@ int EXT_MPI_Done_native(int handle) {
   char **shmem;
   char *ip, *locmem;
   int *shmem_sizes, *shmemid, i;
-  MPI_Comm shmem_comm_node_row, shmem_comm_node_column, shmem_comm_node_row2,
-      shmem_comm_node_column2;
   struct header_byte_code *header;
 #ifdef GPU_ENABLED
   int gpu_is_device_p;
@@ -272,21 +277,10 @@ int EXT_MPI_Done_native(int handle) {
   shmemid = header->shmemid;
   shmem_sizes = header->shmem_sizes;
   locmem = header->locmem;
-  if (*((void **)(ip + header->size_to_return))) {
-    shmem_comm_node_row = *((MPI_Comm *)(ip + header->size_to_return + sizeof(void*)));
-  } else {
-    shmem_comm_node_row = MPI_COMM_NULL;
-  }
-  if (*((void **)(ip + header->size_to_return + sizeof(MPI_Comm) + sizeof(void*)))) {
-    shmem_comm_node_column = *((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm) + 2*sizeof(void*)));
-  } else {
-    shmem_comm_node_column = MPI_COMM_NULL;
-  }
-  ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle]);
 #ifdef GPU_ENABLED
   if (header->shmem_gpu) {
     if (header->shmemid_gpu && header->shmem_sizes) {
-      ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
+      ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->ranks_node, header->shmemid_gpu, header->shmem_gpu);
     }
     header->shmem_gpu = NULL;
     header->shmemid_gpu = NULL;
@@ -296,29 +290,29 @@ int EXT_MPI_Done_native(int handle) {
   }
   if (ext_mpi_gpu_is_device_pointer(header->gpu_byte_code)) {
     ext_mpi_gpu_free(header->gpu_byte_code);
+    free(header->ranks_node);
   } else {
     free(header->gpu_byte_code);
   }
 #endif
-  ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, shmem_sizes, shmemid, shmem, comm_code[handle]);
+  ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->ranks_node, shmem_sizes, shmemid, shmem);
 #ifdef GPU_ENABLED
   gpu_is_device_p = gpu_is_device_pointer(header->recvbufs[0]);
   if (gpu_is_device_p) {
-    ext_mpi_sendrecvbuf_done_gpu(shmem_comm_node_row, header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
-    ext_mpi_sendrecvbuf_done_gpu(shmem_comm_node_row, header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
+    ext_mpi_sendrecvbuf_done_gpu(header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
+    ext_mpi_sendrecvbuf_done_gpu(header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
   } else {
 #endif
 #ifndef XPMEM
   free(header->sendbufs);
   free(header->recvbufs);
 #else
-  ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row, header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
-  ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row, header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
+  ext_mpi_sendrecvbuf_done_xpmem(header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
+  ext_mpi_sendrecvbuf_done_xpmem(header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
 #endif
 #ifdef GPU_ENABLED
   }
 #endif
-  ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle]);
   free(locmem);
   free(((struct header_byte_code *)comm_code[handle])->barrier_shmem_node);
   free(((struct header_byte_code *)comm_code[handle])->barrier_shmem_socket);
@@ -332,21 +326,10 @@ int EXT_MPI_Done_native(int handle) {
     shmemid = header->shmemid;
     shmem_sizes = header->shmem_sizes;
     locmem = header->locmem;
-    if (*((void **)(ip + header->size_to_return))) {
-      shmem_comm_node_row2 = *((MPI_Comm *)(ip + header->size_to_return + sizeof(void*)));
-    } else {
-      shmem_comm_node_row2 = MPI_COMM_NULL;
-    }
-    if (*((void **)(ip + header->size_to_return + sizeof(MPI_Comm) + sizeof(void*)))) {
-      shmem_comm_node_column2 = *((MPI_Comm *)(ip + header->size_to_return + sizeof(MPI_Comm) + 2*sizeof(void*)));
-    } else {
-      shmem_comm_node_column2 = MPI_COMM_NULL;
-    }
-    ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle + 1]);
 #ifdef GPU_ENABLED
     if (header->shmem_gpu) {
       if (header->shmemid_gpu) {
-        ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->shmemid_gpu, header->shmem_gpu, comm_code[handle]);
+        ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->ranks_node, header->shmemid_gpu, header->shmem_gpu);
       }
       header->shmem_gpu = NULL;
       header->shmemid_gpu = NULL;
@@ -356,11 +339,12 @@ int EXT_MPI_Done_native(int handle) {
     }
     if (ext_mpi_gpu_is_device_pointer(header->gpu_byte_code)) {
       ext_mpi_gpu_free(header->gpu_byte_code);
+      free(header->ranks_node);
     } else {
       free(header->gpu_byte_code);
     }
 #endif
-    ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, shmem_sizes, shmemid, shmem, comm_code[handle + 1]);
+    ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->ranks_node, shmem_sizes, shmemid, shmem);
 #ifdef GPU_ENABLED
     if (!gpu_is_device_p) {
 #endif
@@ -368,13 +352,12 @@ int EXT_MPI_Done_native(int handle) {
     free(header->sendbufs);
     free(header->recvbufs);
 #else
-    ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row2, header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
-    ext_mpi_sendrecvbuf_done_xpmem(shmem_comm_node_row2, header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
+    ext_mpi_sendrecvbuf_done_xpmem(header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
+    ext_mpi_sendrecvbuf_done_xpmem(header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
 #endif
 #ifdef GPU_ENABLED
     }
 #endif
-    ext_mpi_node_barrier_mpi(MPI_COMM_NULL, MPI_COMM_NULL, comm_code[handle + 1]);
     free(locmem);
     free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_node);
     free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_socket);
@@ -385,32 +368,6 @@ int EXT_MPI_Done_native(int handle) {
   for (i = 0; i < handle_code_max; i++) {
     if (comm_code[i] != NULL) {
       return (0);
-    }
-  }
-  if (shmem_comm_node_row != MPI_COMM_NULL) {
-    if (PMPI_Comm_free(&shmem_comm_node_row) != MPI_SUCCESS) {
-      printf("error 2 in PMPI_Comm_free in ext_mpi_native.c\n");
-      exit(1);
-    }
-  }
-  if (shmem_comm_node_column != MPI_COMM_NULL) {
-    if (PMPI_Comm_free(&shmem_comm_node_column) != MPI_SUCCESS) {
-      printf("error 3 in PMPI_Comm_free in ext_mpi_native.c\n");
-      exit(1);
-    }
-  }
-  if (ip) {
-    if (shmem_comm_node_row2 != MPI_COMM_NULL) {
-      if (PMPI_Comm_free(&shmem_comm_node_row2) != MPI_SUCCESS) {
-        printf("error 4 in PMPI_Comm_free in ext_mpi_native.c\n");
-        exit(1);
-      }
-    }
-    if (shmem_comm_node_column2 != MPI_COMM_NULL) {
-      if (PMPI_Comm_free(&shmem_comm_node_column2) != MPI_SUCCESS) {
-        printf("error 5 in PMPI_Comm_free in ext_mpi_native.c\n");
-        exit(1);
-      }
     }
   }
   free(active_wait);
@@ -430,13 +387,13 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   int i, num_comm_max = -1, barriers_size = 1, nbuffer_in = 0, tag = -1, not_locmem;
   char *ip, **sendbufs = NULL, **recvbufs = NULL, str[1000];
   int handle, *global_ranks = NULL, code_size, my_mpi_size_row, my_mpi_rank, socket_rank, flag;
-  int locmem_size, shmem_size = 0, *shmem_sizes = NULL, *shmemid = NULL, num_sockets_per_node = 1;
+  int locmem_size, shmem_size = 0, *shmem_sizes = NULL, *shmemid = NULL, num_sockets_per_node = 1, *ranks_node = NULL;
   char **shmem = NULL;
-  MPI_Comm shmem_comm_node_row;
   int gpu_byte_code_counter = 0;
   char **shmem_gpu = NULL;
   int *shmemid_gpu = NULL;
   struct parameters_block *parameters;
+  MPI_Comm comm_node;
 #if defined GPU_ENABLED || defined XPMEM
   int countsa;
 #endif
@@ -445,8 +402,13 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  MPI_Comm_size(comm_row, &my_mpi_size_row);
-  MPI_Comm_rank(comm_row, &my_mpi_rank);
+  ext_mpi_call_mpi(MPI_Comm_size(comm_row, &my_mpi_size_row));
+  ext_mpi_call_mpi(MPI_Comm_rank(comm_row, &my_mpi_rank));
+  ext_mpi_call_mpi(PMPI_Comm_split(comm_row, my_mpi_rank / my_cores_per_node_row, my_mpi_rank % my_cores_per_node_row, &comm_node));
+  ranks_node = (int*)malloc(my_cores_per_node_row * sizeof(int));
+  ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &i));
+  ext_mpi_call_mpi(PMPI_Allgather(&i, 1, MPI_INT, ranks_node, 1, MPI_INT, comm_node));
+  ext_mpi_call_mpi(PMPI_Comm_free(&comm_node));
   num_comm_max = parameters->locmem_max;
   shmem_size = parameters->shmem_max;
   num_sockets_per_node = parameters->num_sockets_per_node;
@@ -454,10 +416,10 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   code_size = ext_mpi_generate_byte_code(
       shmem, shmemid, shmem_sizes, buffer_in, sendbufs, recvbufs,
       barriers_size, locmem, reduction_op, (void *)func, global_ranks, NULL,
-      sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
+      sizeof(MPI_Request), ranks_node, my_cores_per_node_row,
       my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, 0, tag);
   flag = code_size == -7;
-  PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm_row);
+  ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm_row));
   if (flag) {
     if (ext_mpi_verbose && my_mpi_rank == 0) {
       printf("# fallback gpu_memcpy\n");
@@ -465,7 +427,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     code_size = ext_mpi_generate_byte_code(
         shmem, shmemid, shmem_sizes, buffer_in, sendbufs, recvbufs,
         barriers_size, locmem, reduction_op, (void *)func, global_ranks, NULL,
-        sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row, NULL,
+        sizeof(MPI_Request), ranks_node, my_cores_per_node_row,
         my_cores_per_node_column, shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, 1, tag);
   }
   if (code_size < 0)
@@ -508,7 +470,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     shmemid = NULL;
   } else {
     if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node,
-                                    shmem_size, &shmem_sizes, &shmemid, &shmem, &shmem_comm_node_row) < 0)
+                                    shmem_size, &shmem_sizes, &shmemid, &shmem) < 0)
       goto error_shared;
   }
 #ifdef GPU_ENABLED
@@ -550,9 +512,9 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
                          my_cores_per_node_column, global_ranks);
   if (comm_row != MPI_COMM_NULL) {
     tag = tag_max;
-    PMPI_Allreduce(MPI_IN_PLACE, &tag, 1, MPI_INT, MPI_MAX, comm_row);
+    ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &tag, 1, MPI_INT, MPI_MAX, comm_row));
     if (comm_column != MPI_COMM_NULL) {
-      PMPI_Allreduce(MPI_IN_PLACE, &tag, 1, MPI_INT, MPI_MAX, comm_column);
+      ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &tag, 1, MPI_INT, MPI_MAX, comm_column));
     }
     tag_max = tag + 1;
   } else {
@@ -565,7 +527,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (ext_mpi_generate_source_code(
           shmem, shmemid, shmem_sizes, buffer_in, sendbufs,
           recvbufs, barriers_size, locmem, reduction_op, (void *)func,
-          global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
+          global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), NULL, my_cores_per_node_row,
           NULL, my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag, handle) < 0)
     goto error;
@@ -573,8 +535,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     code_size = ext_mpi_generate_byte_code(
         shmem, shmemid, shmem_sizes, buffer_in, sendbufs,
         recvbufs, barriers_size, locmem, reduction_op, (void *)func,
-        global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
-        NULL, my_cores_per_node_column,
+        global_ranks, ip, sizeof(MPI_Request), ranks_node, my_cores_per_node_row,
+        my_cores_per_node_column,
         shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, flag, tag);
     if (code_size < 0)
       goto error;
@@ -587,7 +549,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       shmemid = NULL;
     } else {
       if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node, 
-                                      shmem_size, &shmem_sizes, &shmemid, &shmem, &shmem_comm_node_row) < 0)
+                                      shmem_size, &shmem_sizes, &shmemid, &shmem) < 0)
         goto error_shared;
     }
     if (not_locmem) {
@@ -626,7 +588,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       if (ext_mpi_generate_source_code(
             shmem, shmemid, shmem_sizes, buffer_in, sendbufs,
             recvbufs, barriers_size, locmem, reduction_op, (void *)func,
-            global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
+            global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), NULL, my_cores_per_node_row,
             NULL, my_cores_per_node_column,
             shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, tag, handle + 1) < 0)
         goto error;
@@ -634,8 +596,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       code_size = ext_mpi_generate_byte_code(
           shmem, shmemid, shmem_sizes, buffer_in, sendbufs,
           recvbufs, barriers_size, locmem, reduction_op, (void *)func,
-          global_ranks, ip, sizeof(MPI_Comm), sizeof(MPI_Request), &shmem_comm_node_row, my_cores_per_node_row,
-          NULL, my_cores_per_node_column,
+          global_ranks, ip, sizeof(MPI_Request), ranks_node, my_cores_per_node_row,
+          my_cores_per_node_column,
           shmemid_gpu, shmem_gpu, &gpu_byte_code_counter, flag, tag);
       if (code_size < 0)
         goto error;
@@ -668,13 +630,16 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       }
     }
   }
+  free(ranks_node);
   return handle;
 error:
-  ext_mpi_destroy_shared_memory(num_sockets_per_node * my_cores_per_node_row, shmem_sizes, shmemid, shmem, comm_code[handle]);
+  ext_mpi_destroy_shared_memory(num_sockets_per_node * my_cores_per_node_row, ranks_node, shmem_sizes, shmemid, shmem);
+  free(ranks_node);
   free(global_ranks);
   return ERROR_MALLOC;
 error_shared:
-  ext_mpi_destroy_shared_memory(num_sockets_per_node * my_cores_per_node_row, shmem_sizes, shmemid, shmem, comm_code[handle]);
+  ext_mpi_destroy_shared_memory(num_sockets_per_node * my_cores_per_node_row, ranks_node, shmem_sizes, shmemid, shmem);
+  free(ranks_node);
   free(global_ranks);
   return ERROR_SHMEM;
 }
@@ -711,13 +676,13 @@ allreduce_short = 0;
   if (!buffer2)
     goto error;
   reduction_op = get_reduction_op(datatype, op);
-  MPI_Type_size(datatype, &type_size);
+  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
   count *= type_size;
-  MPI_Comm_size(comm_row, &my_mpi_size_row);
-  MPI_Comm_rank(comm_row, &my_mpi_rank_row);
+  ext_mpi_call_mpi(MPI_Comm_size(comm_row, &my_mpi_size_row));
+  ext_mpi_call_mpi(MPI_Comm_rank(comm_row, &my_mpi_rank_row));
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_size(comm_column, &my_mpi_size_column);
-    MPI_Comm_rank(comm_column, &my_mpi_rank_column);
+    ext_mpi_call_mpi(MPI_Comm_size(comm_column, &my_mpi_size_column));
+    ext_mpi_call_mpi(MPI_Comm_rank(comm_column, &my_mpi_rank_column));
   } else {
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;
@@ -814,7 +779,7 @@ allreduce_short = 0;
       goto error;
     msizes[0] = msize;
   }
-  PMPI_Comm_split(comm_row, socket_number, my_mpi_rank_row, &comm_subrow);
+  ext_mpi_call_mpi(PMPI_Comm_split(comm_row, socket_number, my_mpi_rank_row, &comm_subrow));
   if (allreduce_short) {
     nbuffer1 += sprintf(buffer1 + nbuffer1,
                         " PARAMETER COLLECTIVE_TYPE ALLREDUCE_SHORT\n");
@@ -1095,17 +1060,14 @@ allreduce_short = 0;
   mem_partners_recv[i] = -1;
   ext_mpi_delete_parameters(parameters2);
 //int rank;
-//MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+//ext_mpi_call_mpi(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
 //if (rank == 0) printf("%s\n", buffer2);
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, ext_mpi_hash_search_operator(&op), comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt, shmem_zero, locmem, mem_partners_send, mem_partners_recv);
   free(buffer2);
   free(buffer1);
-  if (PMPI_Comm_free(&comm_subrow) != MPI_SUCCESS) {
-    printf("error 6 in PMPI_Comm_free in ext_mpi_native.c\n");
-    exit(1);
-  }
+  ext_mpi_call_mpi(PMPI_Comm_free(&comm_subrow));
   if (mem_partners_send_back) {
     *mem_partners_send_back = mem_partners_send;
   } else {
@@ -1124,10 +1086,7 @@ error:
   free(buffer1);
   free(mem_partners_recv);
   free(mem_partners_send);
-  if (PMPI_Comm_free(&comm_subrow) != MPI_SUCCESS) {
-    printf("error 7 in PMPI_Comm_free in ext_mpi_native.c\n");
-    exit(1);
-  }
+  ext_mpi_call_mpi(PMPI_Comm_free(&comm_subrow));
   return ERROR_MALLOC;
 }
 
@@ -1175,16 +1134,16 @@ int EXT_MPI_Gatherv_init_native(
   buffer2 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer2)
     goto error;
-  MPI_Comm_size(comm_row, &my_mpi_size_row);
-  MPI_Comm_rank(comm_row, &my_mpi_rank_row);
+  ext_mpi_call_mpi(MPI_Comm_size(comm_row, &my_mpi_size_row));
+  ext_mpi_call_mpi(MPI_Comm_rank(comm_row, &my_mpi_rank_row));
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_size(comm_column, &my_mpi_size_column);
-    MPI_Comm_rank(comm_column, &my_mpi_rank_column);
+    ext_mpi_call_mpi(MPI_Comm_size(comm_column, &my_mpi_size_column));
+    ext_mpi_call_mpi(MPI_Comm_rank(comm_column, &my_mpi_rank_column));
   } else {
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;
   }
-  MPI_Type_size(sendtype, &type_size);
+  ext_mpi_call_mpi(MPI_Type_size(sendtype, &type_size));
   if ((sendcount != recvcounts[my_mpi_rank_row]) || (sendtype != recvtype)) {
     printf("sendtype != recvtype not implemented\n");
     exit(2);
@@ -1215,13 +1174,13 @@ int EXT_MPI_Gatherv_init_native(
     j += recvcounts[i] * type_size;
   }
   if (comm_column != MPI_COMM_NULL) {
-    PMPI_Allreduce(MPI_IN_PLACE, coarse_counts,
+    ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, coarse_counts,
                    my_mpi_size_row / my_cores_per_node_row, MPI_INT, MPI_SUM,
-                   comm_column);
-    PMPI_Allgather(&recvcounts[my_node * my_cores_per_node_row],
+                   comm_column));
+    ext_mpi_call_mpi(PMPI_Allgather(&recvcounts[my_node * my_cores_per_node_row],
                    my_cores_per_node_row, MPI_INT, local_counts,
-                   my_cores_per_node_row, MPI_INT, comm_column);
-    PMPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column);
+                   my_cores_per_node_row, MPI_INT, comm_column));
+    ext_mpi_call_mpi(PMPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column));
   } else {
     for (i = 0; i < my_cores_per_node_row; i++) {
       local_counts[i] = recvcounts[my_node * my_cores_per_node_row + i];
@@ -1441,12 +1400,12 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
   buffer2 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer2)
     goto error;
-  MPI_Type_size(sendtype, &type_size);
-  MPI_Comm_size(comm_row, &my_mpi_size_row);
-  MPI_Comm_rank(comm_row, &my_mpi_rank_row);
+  ext_mpi_call_mpi(MPI_Type_size(sendtype, &type_size));
+  ext_mpi_call_mpi(MPI_Comm_size(comm_row, &my_mpi_size_row));
+  ext_mpi_call_mpi(MPI_Comm_rank(comm_row, &my_mpi_rank_row));
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_size(comm_column, &my_mpi_size_column);
-    MPI_Comm_rank(comm_column, &my_mpi_rank_column);
+    ext_mpi_call_mpi(MPI_Comm_size(comm_column, &my_mpi_size_column));
+    ext_mpi_call_mpi(MPI_Comm_rank(comm_column, &my_mpi_rank_column));
   } else {
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;
@@ -1477,13 +1436,13 @@ int EXT_MPI_Scatterv_init_native(const void *sendbuf, const int *sendcounts,
     j += sendcounts[i] * type_size;
   }
   if (comm_column != MPI_COMM_NULL) {
-    PMPI_Allreduce(MPI_IN_PLACE, coarse_counts,
+    ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, coarse_counts,
                    my_mpi_size_row / my_cores_per_node_row, MPI_INT, MPI_SUM,
-                   comm_column);
-    PMPI_Allgather(&sendcounts[my_node * my_cores_per_node_row],
+                   comm_column));
+    ext_mpi_call_mpi(PMPI_Allgather(&sendcounts[my_node * my_cores_per_node_row],
                    my_cores_per_node_row, MPI_INT, local_counts,
-                   my_cores_per_node_row, MPI_INT, comm_column);
-    PMPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column);
+                   my_cores_per_node_row, MPI_INT, comm_column));
+    ext_mpi_call_mpi(PMPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column));
   } else {
     for (i = 0; i < my_cores_per_node_row; i++) {
       local_counts[i] = sendcounts[my_node * my_cores_per_node_row + i];
@@ -1665,12 +1624,12 @@ int EXT_MPI_Reduce_scatter_init_native(
   if ((op == MPI_SUM) && (datatype == MPI_INT)) {
     reduction_op = OPCODE_REDUCE_SUM_INT;
   }
-  MPI_Type_size(datatype, &type_size);
-  MPI_Comm_size(comm_row, &my_mpi_size_row);
-  MPI_Comm_rank(comm_row, &my_mpi_rank_row);
+  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
+  ext_mpi_call_mpi(MPI_Comm_size(comm_row, &my_mpi_size_row));
+  ext_mpi_call_mpi(MPI_Comm_rank(comm_row, &my_mpi_rank_row));
   if (comm_column != MPI_COMM_NULL) {
-    MPI_Comm_size(comm_column, &my_mpi_size_column);
-    MPI_Comm_rank(comm_column, &my_mpi_rank_column);
+    ext_mpi_call_mpi(MPI_Comm_size(comm_column, &my_mpi_size_column));
+    ext_mpi_call_mpi(MPI_Comm_rank(comm_column, &my_mpi_rank_column));
   } else {
     my_mpi_size_column = 1;
     my_mpi_rank_column = 0;
@@ -1701,13 +1660,13 @@ int EXT_MPI_Reduce_scatter_init_native(
     j += recvcounts[i] * type_size;
   }
   if (comm_column != MPI_COMM_NULL) {
-    PMPI_Allreduce(MPI_IN_PLACE, coarse_counts,
+    ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, coarse_counts,
                    my_mpi_size_row / my_cores_per_node_row, MPI_INT, MPI_SUM,
-                   comm_column);
-    PMPI_Allgather(&recvcounts[my_node * my_cores_per_node_row],
+                   comm_column));
+    ext_mpi_call_mpi(PMPI_Allgather(&recvcounts[my_node * my_cores_per_node_row],
                    my_cores_per_node_row, MPI_INT, local_counts,
-                   my_cores_per_node_row, MPI_INT, comm_column);
-    PMPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column);
+                   my_cores_per_node_row, MPI_INT, comm_column));
+    ext_mpi_call_mpi(PMPI_Allgather(&j, 1, MPI_INT, global_counts, 1, MPI_INT, comm_column));
   } else {
     for (i = 0; i < my_cores_per_node_row; i++) {
       local_counts[i] = recvcounts[my_node * my_cores_per_node_row + i];
@@ -1892,7 +1851,7 @@ error:
 }
 
 int EXT_MPI_Init_native() {
-  PMPI_Comm_dup(MPI_COMM_WORLD, &ext_mpi_COMM_WORLD_dup);
+  ext_mpi_call_mpi(PMPI_Comm_dup(MPI_COMM_WORLD, &ext_mpi_COMM_WORLD_dup));
   dmalloc_init(ext_mpi_init_shared_memory(ext_mpi_COMM_WORLD_dup, 1024 * 1024 * 1524), 1024 * 1024 * 1524);
 #ifdef XPMEM
   ext_mpi_init_xpmem(ext_mpi_COMM_WORLD_dup);
@@ -1914,10 +1873,7 @@ int EXT_MPI_Finalize_native() {
   ext_mpi_done_xpmem();
 #endif
   ext_mpi_done_shared_memory(ext_mpi_COMM_WORLD_dup);
-  if (PMPI_Comm_free(&ext_mpi_COMM_WORLD_dup) != MPI_SUCCESS) {
-    printf("error 8 in PMPI_Comm_free in ext_mpi_native.c\n");
-    exit(1);
-  }
+  ext_mpi_call_mpi(PMPI_Comm_free(&ext_mpi_COMM_WORLD_dup));
   return 0;
 }
 
