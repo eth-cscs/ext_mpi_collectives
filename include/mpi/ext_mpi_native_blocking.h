@@ -17,6 +17,15 @@ enum collective_subtypes {
 #endif
 };
 
+struct comm_properties {
+  int count;
+  int num_sockets_per_node;
+  int copyin;
+  int *num_ports;
+  int *groups;
+  int *copyin_factors;
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif

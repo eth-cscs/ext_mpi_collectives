@@ -32,7 +32,8 @@ extern int *ext_mpi_fixed_factors_ports;
 extern int *ext_mpi_fixed_factors_groups;
 extern int ext_mpi_not_recursive;
 
-static MPI_Comm comm_array[1001] = {MPI_COMM_NULL};
+extern MPI_Comm ext_mpi_comm_array[2048];
+extern int ext_mpi_my_cores_per_node_array[2048];
 
 static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
   char data_num_ports[1000], data_copyin_factors[1000], filename[1000];
@@ -462,7 +463,7 @@ error:
 //}
 
 int EXT_MPI_Init_blocking_comm(MPI_Comm comm, int i_comm) {
-  comm_array[i_comm] = comm;
+  ext_mpi_comm_array[i_comm] = comm;
 //  return init_blocking_comm_allreduce(comm, i_comm);
 //  init_blocking_comm_reduce_scatter_block(comm, i_comm);
 //  init_blocking_comm_allgather(comm, i_comm);
@@ -471,13 +472,14 @@ int EXT_MPI_Init_blocking_comm(MPI_Comm comm, int i_comm) {
 
 int EXT_MPI_Finalize_blocking_comm(int i_comm) {
   EXT_MPI_Release_blocking_native(i_comm);
-  comm_array[i_comm] = MPI_COMM_NULL;
+  ext_mpi_comm_array[i_comm] = MPI_COMM_NULL;
+  ext_mpi_my_cores_per_node_array[i_comm] = -1;
   return 0;
 }
 
 int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, int i_comm){
   if (!EXT_MPI_Initialized_blocking_native(out_of_place, i_comm)) {
-    init_blocking_comm_allreduce(comm_array[i_comm], i_comm);
+//    init_blocking_comm_allreduce(ext_mpi_comm_array[i_comm], i_comm);
   }
   if (sendbuf == MPI_IN_PLACE) {
     sendbuf = recvbuf;
