@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <assert.h>
 #include "prime_factors.h"
 #include "alltoall.h"
 #include "buffer_offset.h"
@@ -190,7 +191,7 @@ static int init_blocking_native(MPI_Comm comm, int i_comm) {
 
 static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, int num_sockets_per_node, enum ecollective_type collective_type, int i_comm, struct comm_comm_blocking ***comms_blocking, long int send_ptr, long int recv_ptr) {
   MPI_Comm comm_node;
-  int handle, size_shared = 1024*1024, *recvcounts, *displs, padding_factor, type_size, my_mpi_size, my_mpi_rank, *rank_list, *mem_partners, i, j;
+  int handle, size_shared = 1024*1024, *recvcounts, *displs, padding_factor, type_size, my_mpi_size, my_mpi_rank, *rank_list, *mem_partners, isize, i, j;
   char *raw_code, filename[1000];
   FILE *data;
   ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
@@ -257,40 +258,53 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
         sprintf(filename, "ext_mpi_blocking_%d_%d_%d_%d.dat", (*comms_blocking)[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, (*comms_blocking)[i_comm]->mpi_rank_blocking, count);
 	mem_partners = malloc(((*comms_blocking)[i_comm]->mpi_size_blocking + 1) * sizeof(int));
         data = fopen(filename, "r");
-	if (!data) {
-          data = fopen(filename, "rw");
+	if (1 || !data) {
+          data = fopen(filename, "w");
+	  assert(data);
           handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor, &(*comms_blocking)[i_comm]->mem_partners_send[i], &(*comms_blocking)[i_comm]->mem_partners_recv[i]);
-	  i = ((struct header_byte_code*)((*e_comm_code)[handle]))->size_to_return;
-	  ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &i, 1, MPI_INT, MPI_MAX, comm));
-	  raw_code = (char*)malloc(i * sizeof(char));
+	  isize = ((struct header_byte_code*)((*e_comm_code)[handle]))->size_to_return;
+	  ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &isize, 1, MPI_INT, MPI_MAX, comm));
+	  raw_code = (char*)malloc(isize * sizeof(char));
 	  EXT_MPI_Allreduce_to_disc((*e_comm_code)[handle], (*comms_blocking)[i_comm]->locmem_blocking, rank_list, raw_code);
-	  fwrite(&i, sizeof(int), 1, data);
-	  for (j = 0; (*comms_blocking)[i_comm]->mem_partners_send[i][j] >= 0; j++) {
+	  fwrite(&isize, sizeof(int), 1, data);
+	  if ((*comms_blocking)[i_comm]->mem_partners_send[i]) {
+	    for (j = 0; (*comms_blocking)[i_comm]->mem_partners_send[i][j] >= 0; j++) {
+	      mem_partners[j] = (*comms_blocking)[i_comm]->mem_partners_send[i][j];
+	    }
 	    mem_partners[j] = (*comms_blocking)[i_comm]->mem_partners_send[i][j];
+	  } else {
+	    mem_partners[0] = -1;
 	  }
-	  mem_partners[j] = (*comms_blocking)[i_comm]->mem_partners_send[i][j];
 	  fwrite(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data);
-	  for (j = 0; (*comms_blocking)[i_comm]->mem_partners_recv[i][j] >= 0; j++) {
+	  if ((*comms_blocking)[i_comm]->mem_partners_recv[i]) {
+	    for (j = 0; (*comms_blocking)[i_comm]->mem_partners_recv[i][j] >= 0; j++) {
+	      mem_partners[j] = (*comms_blocking)[i_comm]->mem_partners_recv[i][j];
+	    }
 	    mem_partners[j] = (*comms_blocking)[i_comm]->mem_partners_recv[i][j];
+	  } else {
+	    mem_partners[0] = -1;
 	  }
-	  mem_partners[j] = (*comms_blocking)[i_comm]->mem_partners_recv[i][j];
 	  fwrite(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data);
-	  fwrite(&(*comms_blocking)[i_comm]->mem_partners_send[i], sizeof(int), 1, data);
-	  fwrite(raw_code, sizeof(char), i, data);
+	  fwrite(raw_code, sizeof(char), isize, data);
 	} else {
-	  fread(&i, sizeof(int), 1, data);
+	  fread(&isize, sizeof(int), 1, data);
 	  fread(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data);
-	  for (j = 0; (*comms_blocking)[i_comm]->mem_partners_send[i][j] >= 0; j++) {
+	  (*comms_blocking)[i_comm]->mem_partners_send[i] = (int*)malloc(((*comms_blocking)[i_comm]->mpi_size_blocking + 1) * sizeof(int));
+	  for (j = 0; mem_partners[j] >= 0; j++) {
             (*comms_blocking)[i_comm]->mem_partners_send[i][j] = mem_partners[j];
           }
           (*comms_blocking)[i_comm]->mem_partners_send[i][j] = mem_partners[j];
           fread(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data);
-          for (j = 0; (*comms_blocking)[i_comm]->mem_partners_recv[i][j] >= 0; j++) {
+	  (*comms_blocking)[i_comm]->mem_partners_recv[i] = (int*)malloc(((*comms_blocking)[i_comm]->mpi_size_blocking + 1) * sizeof(int));
+	  for (j = 0; mem_partners[j] >= 0; j++) {
             (*comms_blocking)[i_comm]->mem_partners_recv[i][j] = mem_partners[j];
+	      printf("aaaaaa %d\n", mem_partners[j]);
           }
           (*comms_blocking)[i_comm]->mem_partners_recv[i][j] = mem_partners[j];
-	  raw_code = (char*)malloc(i * sizeof(char));
-	  fread(raw_code, sizeof(char), i, data);
+	      printf("aaaaaa %d\n", mem_partners[j]);
+	     exit(7);
+	  raw_code = (char*)malloc(isize * sizeof(char));
+	  fread(raw_code, sizeof(char), isize, data);
 	  handle = EXT_MPI_Get_handle();
 	  (*e_comm_code)[handle] = EXT_MPI_Allreduce_from_disc(raw_code, (*comms_blocking)[i_comm]->locmem_blocking, rank_list);
 	}
@@ -433,7 +447,11 @@ static int release_blocking_native(int i_comm, struct comm_comm_blocking ***comm
 int EXT_MPI_Release_blocking_native(int i_comm) {
   enum collective_subtypes collective_subtype;
   for (collective_subtype = 0; collective_subtype < (enum collective_subtypes)(size); collective_subtype++) {
+#ifndef GPU_ENABLED
+    release_blocking_native(i_comm, &comms_blocking[collective_subtype], collective_subtype == in_place);
+#else
     release_blocking_native(i_comm, &comms_blocking[collective_subtype], collective_subtype == in_place || collective_subtype == in_place_gpu);
+#endif
   }
   return 0;
 }
