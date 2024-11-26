@@ -253,6 +253,9 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
           (*comms_blocking)[i_comm]->padding_factor_allreduce_blocking[i] = count;
 	  j = count;
         }
+#ifdef GPU_ENABLED
+	if (recv_ptr != RECV_PTR_GPU) {
+#endif
 	rank_list = (int*)malloc((*comms_blocking)[i_comm]->mpi_size_blocking * sizeof(int));
 	ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
 	ext_mpi_call_mpi(PMPI_Allgather(&rank, 1, MPI_INT, rank_list, 1, MPI_INT, comm));
@@ -304,7 +307,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	  raw_code = (char*)malloc(isize * sizeof(char));
 	  fread(raw_code, sizeof(char), isize, data);
 	  handle = EXT_MPI_Get_handle();
-	  (*e_comm_code)[handle] = EXT_MPI_Allreduce_from_disc(raw_code, (*comms_blocking)[i_comm]->locmem_blocking, rank_list);
+	  (*e_comm_code)[handle] = EXT_MPI_Allreduce_from_disc(isize, raw_code, (*comms_blocking)[i_comm]->locmem_blocking, rank_list);
 	  header = (struct header_byte_code*)((*e_comm_code)[handle]);
 	  header->barrier_shmem_node = NULL;
           header->barrier_shmem_socket = NULL;
@@ -314,6 +317,11 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	free(mem_partners);
 	free(rank_list);
 	fclose(data);
+#ifdef GPU_ENABLED
+	} else {
+          handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor, &(*comms_blocking)[i_comm]->mem_partners_send[i], &(*comms_blocking)[i_comm]->mem_partners_recv[i]);
+	}
+#endif
         padding_factor = 1;
         add_blocking_member(count, datatype, handle, (*comms_blocking)[i_comm]->comm_code_allreduce_blocking, (*comms_blocking)[i_comm]->count_allreduce_blocking, padding_factor, comm, 1, (*comms_blocking)[i_comm]->copyin, copyin);
       break;

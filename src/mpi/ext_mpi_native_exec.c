@@ -1225,12 +1225,12 @@ int EXT_MPI_Allreduce_to_disc(char *ip, char *locmem_blocking, int *rank_list, c
   return 0;
 }
 
-char * EXT_MPI_Allreduce_from_disc(char *raw_code, char *locmem_blocking, int *rank_list) {
+char * EXT_MPI_Allreduce_from_disc(int csize, char *raw_code, char *locmem_blocking, int *rank_list) {
   char instruction;
   char *ip, *p1, *ret;
   int i1;
-  ret = ip = (char*)malloc(((struct header_byte_code*)(raw_code))->size_to_return);
-  memcpy(ip, raw_code, ((struct header_byte_code*)(raw_code))->size_to_return);
+  ret = ip = (char*)malloc(csize);
+  memcpy(ip, raw_code, csize);
   ip += sizeof(struct header_byte_code);
   do {
     instruction = code_get_char(&ip);
