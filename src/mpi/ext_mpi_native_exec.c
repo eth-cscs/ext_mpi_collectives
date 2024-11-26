@@ -1129,3 +1129,192 @@ int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, i
   } while (instruction != OPCODE_RETURN);
   return num_padding;
 }
+
+int EXT_MPI_Allreduce_to_disc(char *ip, char *locmem_blocking, int *rank_list, char *raw_code) {
+  char instruction;
+  char *p1;
+  int i1, i2;
+  memcpy(raw_code, ip, ((struct header_byte_code*)(ip))->size_to_return);
+  ip = raw_code + sizeof(struct header_byte_code);
+  do {
+    instruction = code_get_char(&ip);
+    switch (instruction) {
+    case OPCODE_RETURN:
+      break;
+    case OPCODE_MEMCPY:
+      code_get_pointer(&ip);
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      break;
+    case OPCODE_MPIIRECV:
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      i1 = code_get_int(&ip);
+      ip -= sizeof(int);
+      for (i2 = 0; rank_list[i2] != i1; i2++);
+      code_put_int(&ip, i2, 0);
+      p1 = code_get_pointer(&ip);
+      p1 = (char*)NULL + (p1 - locmem_blocking);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
+      break;
+    case OPCODE_MPIISEND:
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      i1 = code_get_int(&ip);
+      ip -= sizeof(int);
+      for (i2 = 0; rank_list[i2] != i1; i2++);
+      code_put_int(&ip, i2, 0);
+      p1 = code_get_pointer(&ip);
+      p1 = (char*)NULL + (p1 - locmem_blocking);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
+      break;
+    case OPCODE_MPIWAITALL:
+      code_get_int(&ip);
+      p1 = code_get_pointer(&ip);
+      p1 = (char*)NULL + (p1 - locmem_blocking);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
+      break;
+    case OPCODE_MPIWAITANY:
+      printf("OPCODE_MPIWAITANY not implemented\n");
+      exit(9);
+      break;
+    case OPCODE_SOCKETBARRIER:
+      break;
+    case OPCODE_SOCKETBSMALL:
+      break;
+    case OPCODE_NODEBARRIER:
+      break;
+    case OPCODE_NODEBARRIER_ATOMIC_SET:
+      code_get_pointer(&ip);
+      break;
+    case OPCODE_NODEBARRIER_ATOMIC_WAIT:
+      code_get_pointer(&ip);
+      break;
+    case OPCODE_REDUCE:
+    case OPCODE_INVREDUCE:
+      code_get_char(&ip);
+      code_get_pointer(&ip);
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      break;
+    case OPCODE_ATTACHED:
+      break;
+    case OPCODE_MEMORY_FENCE:
+      break;
+    case OPCODE_MEMORY_FENCE_STORE:
+      break;
+    case OPCODE_MEMORY_FENCE_LOAD:
+      break;
+#ifdef GPU_ENABLED
+    case OPCODE_GPUSYNCHRONIZE:
+      break;
+    case OPCODE_GPUKERNEL:
+      code_get_char(&ip);
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      break;
+#endif
+    default:
+      printf("illegal MPI_OPCODE execute to disc\n");
+      exit(1);
+    }
+  } while (instruction != OPCODE_RETURN);
+  return 0;
+}
+
+char * EXT_MPI_Allreduce_from_disc(char *raw_code, char *locmem_blocking, int *rank_list) {
+  char instruction;
+  char *ip, *p1, *ret;
+  int i1;
+  ret = ip = (char*)malloc(((struct header_byte_code*)(raw_code))->size_to_return);
+  memcpy(ip, raw_code, ((struct header_byte_code*)(raw_code))->size_to_return);
+  ip += sizeof(struct header_byte_code);
+  do {
+    instruction = code_get_char(&ip);
+    switch (instruction) {
+    case OPCODE_RETURN:
+      break;
+    case OPCODE_MEMCPY:
+      code_get_pointer(&ip);
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      break;
+    case OPCODE_MPIIRECV:
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      i1 = code_get_int(&ip);
+      ip -= sizeof(int);
+      code_put_int(&ip, rank_list[i1], 0);
+      p1 = code_get_pointer(&ip);
+      p1 = (p1 - (char*)NULL) + locmem_blocking;
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
+      break;
+    case OPCODE_MPIISEND:
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      i1 = code_get_int(&ip);
+      ip -= sizeof(int);
+      code_put_int(&ip, rank_list[i1], 0);
+      p1 = code_get_pointer(&ip);
+      p1 = (p1 - (char*)NULL) + locmem_blocking;
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
+      break;
+    case OPCODE_MPIWAITALL:
+      code_get_int(&ip);
+      p1 = code_get_pointer(&ip);
+      p1 = (p1 - (char*)NULL) + locmem_blocking;
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
+      break;
+    case OPCODE_MPIWAITANY:
+      printf("OPCODE_MPIWAITANY not implemented\n");
+      exit(9);
+      break;
+    case OPCODE_SOCKETBARRIER:
+      break;
+    case OPCODE_SOCKETBSMALL:
+      break;
+    case OPCODE_NODEBARRIER:
+      break;
+    case OPCODE_NODEBARRIER_ATOMIC_SET:
+      code_get_pointer(&ip);
+      break;
+    case OPCODE_NODEBARRIER_ATOMIC_WAIT:
+      code_get_pointer(&ip);
+      break;
+    case OPCODE_REDUCE:
+    case OPCODE_INVREDUCE:
+      code_get_char(&ip);
+      code_get_pointer(&ip);
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      break;
+    case OPCODE_ATTACHED:
+      break;
+    case OPCODE_MEMORY_FENCE:
+      break;
+    case OPCODE_MEMORY_FENCE_STORE:
+      break;
+    case OPCODE_MEMORY_FENCE_LOAD:
+      break;
+#ifdef GPU_ENABLED
+    case OPCODE_GPUSYNCHRONIZE:
+      break;
+    case OPCODE_GPUKERNEL:
+      code_get_char(&ip);
+      code_get_pointer(&ip);
+      code_get_int(&ip);
+      break;
+#endif
+    default:
+      printf("illegal MPI_OPCODE execute from disc\n");
+      exit(1);
+    }
+  } while (instruction != OPCODE_RETURN);
+  return ret;
+}

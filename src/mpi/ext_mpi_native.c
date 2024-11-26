@@ -136,7 +136,7 @@ error:
   return ERROR_MALLOC;
 }
 
-static int get_handle() {
+int EXT_MPI_Get_handle() {
   char **comm_code_old = NULL, **execution_pointer_old = NULL;
   int *active_wait_old = NULL, handle, *execution_pointer_func_old, i;
   if (comm_code == NULL) {
@@ -398,7 +398,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   int countsa;
 #endif
   not_locmem = (locmem == NULL);
-  handle = get_handle();
+  handle = EXT_MPI_Get_handle();
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;

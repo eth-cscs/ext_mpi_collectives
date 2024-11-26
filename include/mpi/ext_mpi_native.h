@@ -11,6 +11,7 @@ extern "C" {
 #endif
 
 void ext_mpi_call_mpi(int i);
+int EXT_MPI_Get_handle();
 int EXT_MPI_Allreduce_init_native(const void *sendbuf, void *recvbuf, int count,
                                   MPI_Datatype datatype, MPI_Op op,
                                   MPI_Comm comm_row, int my_cores_per_node_row,
