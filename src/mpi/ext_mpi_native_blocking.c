@@ -301,7 +301,7 @@ int EXT_MPI_Initialized_blocking_native(enum collective_subtypes collective_subt
   return comms_blocking[collective_subtype] != NULL && comms_blocking[collective_subtype][i_comm] != NULL;
 }
 
-int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, int num_sockets_per_node, enum ecollective_type collective_type, enum collective_subtypes collective_subtype, int i_comm) {
+static int add_all_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, int num_sockets_per_node, enum ecollective_type collective_type, enum collective_subtypes collective_subtype, int i_comm) {
   ext_mpi_native_export(&e_handle_code_max, &e_comm_code, &e_execution_pointer, &e_active_wait, &e_is_initialised, &e_EXT_MPI_COMM_WORLD, &e_tag_max);
   switch (collective_subtype) {
     case out_of_place:
@@ -319,7 +319,7 @@ int EXT_MPI_Add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI
       break;
 #endif
     default:
-      printf("error in EXT_MPI_Add_blocking_native file ext_mpi_native_blocking.c");
+      printf("error in add_all_blocking_native file ext_mpi_native_blocking.c");
       exit(1);
   }
   return 0;
@@ -428,7 +428,7 @@ int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int 
   while (comms_blocking_->count_allreduce_blocking[i] <= ccount && comms_blocking_->comm_code_allreduce_blocking[i + 1]) i++;
   if (comms_blocking_->count_allreduce_blocking[i] > ccount && i > 0) i--;
   if (!comms_blocking_->comm_code_allreduce_blocking[i]) {
-    EXT_MPI_Add_blocking_native(comms_blocking_->comm_property[i].count / sizeof(long int), MPI_LONG, MPI_SUM, ext_mpi_comm_array[i_comm], ext_mpi_my_cores_per_node_array[i_comm], comms_blocking_->comm_property[i].num_ports, comms_blocking_->comm_property[i].groups, comms_blocking_->comm_property[i].copyin, comms_blocking_->comm_property[i].copyin_factors, 0, 1, 1, 1, comms_blocking_->comm_property[i].num_sockets_per_node, collective_type_allreduce, collective_subtype, i_comm);
+    add_all_blocking_native(comms_blocking_->comm_property[i].count / sizeof(long int), MPI_LONG, MPI_SUM, ext_mpi_comm_array[i_comm], ext_mpi_my_cores_per_node_array[i_comm], comms_blocking_->comm_property[i].num_ports, comms_blocking_->comm_property[i].groups, comms_blocking_->comm_property[i].copyin, comms_blocking_->comm_property[i].copyin_factors, 0, 1, 1, 1, comms_blocking_->comm_property[i].num_sockets_per_node, collective_type_allreduce, collective_subtype, i_comm);
   }
   if (comms_blocking_->copyin[i] < 8) {
 #ifdef GPU_ENABLED

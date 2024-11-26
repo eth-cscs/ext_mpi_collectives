@@ -35,60 +35,6 @@ extern int ext_mpi_not_recursive;
 extern MPI_Comm ext_mpi_comm_array[2048];
 extern int ext_mpi_my_cores_per_node_array[2048];
 
-static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
-  char data_num_ports[1000], data_copyin_factors[1000], filename[1000];
-  FILE *data;
-  int message_size, type_size, *num_ports = NULL, *groups = NULL, copyin_method, *copyin_factors = NULL, num_sockets_per_node = 1, cores_per_node, mpi_rank, mpi_size, message_size_old = -1, on_gpu = 0, i;
-  ext_mpi_call_mpi(MPI_Comm_rank(comm, &mpi_rank));
-  ext_mpi_call_mpi(MPI_Comm_size(comm, &mpi_size));
-  cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, num_sockets_per_node);
-  sprintf(filename, "ext_mpi_blocking_%d_%d.txt", mpi_size / cores_per_node, cores_per_node);
-  data = fopen(filename, "r");
-  if (!data) {
-    if (mpi_rank == 0) printf("file %s missing\n", filename);
-    exit(1);
-  }
-  MPI_Datatype datatype = MPI_LONG;
-  MPI_Op op = MPI_SUM;
-  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
-  while (fscanf(data, "%d %d %s %s", &message_size, &num_sockets_per_node, data_num_ports, data_copyin_factors) == 4) {
-    if (message_size <= message_size_old) on_gpu = 1;
-    message_size_old = message_size;
-    for (i = 0; data_num_ports[i]; i++) {
-      if (data_num_ports[i] == '_') data_num_ports[i] = ' ';
-    }
-    for (i = 0; data_copyin_factors[i]; i++) {
-      if (data_copyin_factors[i] == '_') data_copyin_factors[i] = ' ';
-    }
-    ext_mpi_scan_ports_groups(data_num_ports, &num_ports, &groups);
-    ext_mpi_scan_copyin(data_copyin_factors, &copyin_method, &copyin_factors);
-    if (!on_gpu) {
-      if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, cores_per_node / num_sockets_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, out_of_place, i_comm) < 0)
-        goto error;
-      if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, cores_per_node / num_sockets_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, in_place, i_comm) < 0)
-        goto error;
-#ifdef GPU_ENABLED
-    } else {
-      if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, cores_per_node / num_sockets_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, out_of_place_gpu, i_comm) < 0)
-        goto error;
-      if (EXT_MPI_Add_blocking_native(message_size / type_size, datatype, op, comm, cores_per_node / num_sockets_per_node, num_ports, groups, copyin_method, copyin_factors, 0, 1, 1, ext_mpi_blocking, num_sockets_per_node, collective_type_allreduce, in_place_gpu, i_comm) < 0)
-        goto error;
-#endif
-    }
-    free(groups);
-    free(num_ports);
-    free(copyin_factors);
-  }
-  fclose(data);
-  return 0;
-error:
-  free(groups);
-  free(num_ports);
-  free(copyin_factors);
-  fclose(data);
-  return ERROR_MALLOC;
-}
-
 //static int init_blocking_comm_allreduce(MPI_Comm comm, int i_comm) {
 //  int comm_size_row, comm_rank_row, i, message_size, type_size, *num_ports = NULL, *groups = NULL, group_size, copyin_method_, *copyin_factors = NULL, num_sockets_per_node, j, k, factors_max_max = -1, *factors_max, **factors, *primes;
 //// int mpi_size;
