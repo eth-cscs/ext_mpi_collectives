@@ -13,7 +13,7 @@ int ext_mpi_exec_blocking(char *ip, int tag, char **shmem_socket, int *counter_s
 int ext_mpi_normalize_blocking(char *ip, MPI_Comm comm, int tag, int count, char **send_pointers_allreduce_blocking);
 int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, int *numbers_padding);
 int EXT_MPI_Allreduce_to_disc(char *ip, char *locmem_blocking, int *rank_list, char *raw_code);
-char * EXT_MPI_Allreduce_from_disc(int csize, char *raw_code, char *locmem_blocking, int *rank_list);
+char * EXT_MPI_Allreduce_from_disc(char *raw_code, char *locmem_blocking, int *rank_list);
 
 #ifdef __cplusplus
 }

@@ -259,7 +259,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	rank_list = (int*)malloc((*comms_blocking)[i_comm]->mpi_size_blocking * sizeof(int));
 	ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
 	ext_mpi_call_mpi(PMPI_Allgather(&rank, 1, MPI_INT, rank_list, 1, MPI_INT, comm));
-        sprintf(filename, "ext_mpi_blocking_%d_%d_%d_%d.dat", (*comms_blocking)[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, (*comms_blocking)[i_comm]->mpi_rank_blocking, count);
+        sprintf(filename, "ext_mpi_blocking_%d_%d_%d_%d_%d.dat", (*comms_blocking)[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, send_ptr == recv_ptr, rank);
 	mem_partners = malloc(((*comms_blocking)[i_comm]->mpi_size_blocking + 1) * sizeof(int));
         data = fopen(filename, "r");
 	if (!data) {
@@ -291,23 +291,24 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	  fwrite(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data);
 	  fwrite(raw_code, sizeof(char), isize, data);
 	} else {
-	  fread(&isize, sizeof(int), 1, data);
-	  fread(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data);
+	  assert(fread(&isize, sizeof(int), 1, data) == 1);
+	  assert(fread(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data) == (*comms_blocking)[i_comm]->mpi_size_blocking + 1);
 	  (*comms_blocking)[i_comm]->mem_partners_send[i] = (int*)malloc(((*comms_blocking)[i_comm]->mpi_size_blocking + 1) * sizeof(int));
 	  for (j = 0; mem_partners[j] >= 0; j++) {
             (*comms_blocking)[i_comm]->mem_partners_send[i][j] = mem_partners[j];
           }
           (*comms_blocking)[i_comm]->mem_partners_send[i][j] = mem_partners[j];
-          fread(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data);
+          assert(fread(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data) == (*comms_blocking)[i_comm]->mpi_size_blocking + 1);
 	  (*comms_blocking)[i_comm]->mem_partners_recv[i] = (int*)malloc(((*comms_blocking)[i_comm]->mpi_size_blocking + 1) * sizeof(int));
 	  for (j = 0; mem_partners[j] >= 0; j++) {
             (*comms_blocking)[i_comm]->mem_partners_recv[i][j] = mem_partners[j];
           }
           (*comms_blocking)[i_comm]->mem_partners_recv[i][j] = mem_partners[j];
 	  raw_code = (char*)malloc(isize * sizeof(char));
-	  fread(raw_code, sizeof(char), isize, data);
+	  assert(fread(raw_code, sizeof(char), isize, data) == isize);
+	  ((struct header_byte_code*)(raw_code))->size_to_return = isize;
 	  handle = EXT_MPI_Get_handle();
-	  (*e_comm_code)[handle] = EXT_MPI_Allreduce_from_disc(isize, raw_code, (*comms_blocking)[i_comm]->locmem_blocking, rank_list);
+	  (*e_comm_code)[handle] = EXT_MPI_Allreduce_from_disc(raw_code, (*comms_blocking)[i_comm]->locmem_blocking, rank_list);
 	  header = (struct header_byte_code*)((*e_comm_code)[handle]);
 	  header->barrier_shmem_node = NULL;
           header->barrier_shmem_socket = NULL;

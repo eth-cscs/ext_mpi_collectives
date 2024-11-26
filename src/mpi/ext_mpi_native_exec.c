@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <assert.h>
 #include <mpi.h>
 
 extern MPI_Comm ext_mpi_COMM_WORLD_dup;
@@ -1225,12 +1226,12 @@ int EXT_MPI_Allreduce_to_disc(char *ip, char *locmem_blocking, int *rank_list, c
   return 0;
 }
 
-char * EXT_MPI_Allreduce_from_disc(int csize, char *raw_code, char *locmem_blocking, int *rank_list) {
+char * EXT_MPI_Allreduce_from_disc(char *raw_code, char *locmem_blocking, int *rank_list) {
   char instruction;
   char *ip, *p1, *ret;
   int i1;
-  ret = ip = (char*)malloc(csize);
-  memcpy(ip, raw_code, csize);
+  ret = ip = (char*)malloc(((struct header_byte_code*)(raw_code))->size_to_return);
+  memcpy(ip, raw_code, ((struct header_byte_code*)(raw_code))->size_to_return);
   ip += sizeof(struct header_byte_code);
   do {
     instruction = code_get_char(&ip);
@@ -1312,8 +1313,8 @@ char * EXT_MPI_Allreduce_from_disc(int csize, char *raw_code, char *locmem_block
       break;
 #endif
     default:
-      printf("illegal MPI_OPCODE execute from disc\n");
-      exit(1);
+      printf("illegal MPI_OPCODE execute from disc %d\n", instruction);
+      assert(0);
     }
   } while (instruction != OPCODE_RETURN);
   return ret;
