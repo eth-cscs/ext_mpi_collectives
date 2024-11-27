@@ -835,6 +835,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   } else {
     header->gpu_gemv_var.handle = 0;
   }
+  header->gpu_byte_code_size = *gpu_byte_code_counter;
   free(gpu_byte_code);
 #endif
   header->size_to_return = ip - code_out;

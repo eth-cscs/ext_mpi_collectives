@@ -38,6 +38,7 @@ struct header_byte_code {
 #ifdef GPU_ENABLED
   char **shmem_gpu;
   int *shmemid_gpu;
+  int gpu_byte_code_size;
   char *gpu_byte_code;
   struct gemv_var gpu_gemv_var;
 #endif

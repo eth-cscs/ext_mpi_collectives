@@ -130,8 +130,12 @@ static int init_blocking_native(MPI_Comm comm, int i_comm) {
   ext_mpi_call_mpi(MPI_Comm_size(comm, &mpi_size));
   cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, num_sockets_per_node);
   ext_mpi_my_cores_per_node_array[i_comm] = cores_per_node;
-  sprintf(filename, "ext_mpi_blocking_%d_%d.txt", mpi_size / cores_per_node, cores_per_node);
+  sprintf(filename, "/dev/shm/ext_mpi_blocking_%d_%d.txt", mpi_size / cores_per_node, cores_per_node);
   data = fopen(filename, "r");
+  if (!data) {
+    sprintf(filename, "ext_mpi_blocking_%d_%d.txt", mpi_size / cores_per_node, cores_per_node);
+    data = fopen(filename, "r");
+  }
   if (!data) {
     if (mpi_rank == 0) printf("file %s missing\n", filename);
     exit(1);
@@ -253,13 +257,11 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
           (*comms_blocking)[i_comm]->padding_factor_allreduce_blocking[i] = count;
 	  j = count;
         }
-#ifdef GPU_ENABLED
-	if (recv_ptr != RECV_PTR_GPU) {
-#endif
+	if (1) {
 	rank_list = (int*)malloc((*comms_blocking)[i_comm]->mpi_size_blocking * sizeof(int));
 	ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
 	ext_mpi_call_mpi(PMPI_Allgather(&rank, 1, MPI_INT, rank_list, 1, MPI_INT, comm));
-        sprintf(filename, "/dev/shm/ext_mpi_blocking_%d_%d_%d_%d_%d_%d.dat", (*comms_blocking)[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, send_ptr == recv_ptr, (*comms_blocking)[i_comm]->mpi_rank_blocking, rank);
+        sprintf(filename, "/dev/shm/ext_mpi_blocking_%d_%d_%d_%d_%d_%d.dat", (*comms_blocking)[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, (send_ptr == recv_ptr) + 2 * (recv_ptr != RECV_PTR_CPU), (*comms_blocking)[i_comm]->mpi_rank_blocking, rank);
 	mem_partners = malloc(((*comms_blocking)[i_comm]->mpi_size_blocking + 1) * sizeof(int));
         data = fopen(filename, "r");
 	flag = !data;
@@ -269,6 +271,9 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	  assert(data);
           handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor, &(*comms_blocking)[i_comm]->mem_partners_send[i], &(*comms_blocking)[i_comm]->mem_partners_recv[i]);
 	  isize = ((struct header_byte_code*)((*e_comm_code)[handle]))->size_to_return;
+	  if (recv_ptr != RECV_PTR_CPU) {
+	    isize += ((struct header_byte_code*)((*e_comm_code)[handle]))->gpu_byte_code_size;
+	  }
 	  raw_code = (char*)malloc(isize * sizeof(char));
 	  EXT_MPI_Allreduce_to_disc((*e_comm_code)[handle], (*comms_blocking)[i_comm]->locmem_blocking, rank_list, raw_code);
 	  fwrite(&isize, sizeof(int), 1, data);
@@ -290,7 +295,12 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	    mem_partners[0] = -1;
 	  }
 	  fwrite(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data);
-	  fwrite(raw_code, sizeof(char), isize, data);
+	  fwrite(raw_code, sizeof(char), ((struct header_byte_code*)((*e_comm_code)[handle]))->size_to_return, data);
+#ifdef GPU_ENABLED
+	  if (recv_ptr == RECV_PTR_GPU) {
+	    fwrite(((struct header_byte_code*)((*e_comm_code)[handle]))->gpu_byte_code, sizeof(char), ((struct header_byte_code*)((*e_comm_code)[handle]))->gpu_byte_code_size, data);
+	  }
+#endif
 	} else {
 	  assert(fread(&isize, sizeof(int), 1, data) == 1);
 	  assert(fread(mem_partners, sizeof(int), (*comms_blocking)[i_comm]->mpi_size_blocking + 1, data) == (*comms_blocking)[i_comm]->mpi_size_blocking + 1);
@@ -314,16 +324,20 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
           header->barrier_shmem_socket = NULL;
           header->barrier_shmem_socket_small = NULL;
 	  (*e_comm_code)[handle + 1] = NULL;
+#ifdef GPU_ENABLED
+	  if (recv_ptr == RECV_PTR_GPU) {
+	    header->gpu_byte_code = (char*)malloc(header->gpu_byte_code_size);
+	    memcpy(header->gpu_byte_code, raw_code + header->size_to_return, header->gpu_byte_code_size);
+          }
+#endif
 	}
 	free(raw_code);
 	free(mem_partners);
 	free(rank_list);
 	fclose(data);
-#ifdef GPU_ENABLED
 	} else {
           handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor, &(*comms_blocking)[i_comm]->mem_partners_send[i], &(*comms_blocking)[i_comm]->mem_partners_recv[i]);
 	}
-#endif
         padding_factor = 1;
         add_blocking_member(count, datatype, handle, (*comms_blocking)[i_comm]->comm_code_allreduce_blocking, (*comms_blocking)[i_comm]->count_allreduce_blocking, padding_factor, comm, 1, (*comms_blocking)[i_comm]->copyin, copyin);
       break;
