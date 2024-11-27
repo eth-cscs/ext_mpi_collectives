@@ -271,9 +271,11 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	  assert(data);
           handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, num_sockets_per_node, 1, (*comms_blocking)[i_comm]->locmem_blocking, &padding_factor, &(*comms_blocking)[i_comm]->mem_partners_send[i], &(*comms_blocking)[i_comm]->mem_partners_recv[i]);
 	  isize = ((struct header_byte_code*)((*e_comm_code)[handle]))->size_to_return;
-	  if (recv_ptr != RECV_PTR_CPU) {
+#ifdef GPU_ENABLED
+	  if (recv_ptr == RECV_PTR_GPU) {
 	    isize += ((struct header_byte_code*)((*e_comm_code)[handle]))->gpu_byte_code_size;
 	  }
+#endif
 	  raw_code = (char*)malloc(isize * sizeof(char));
 	  EXT_MPI_Allreduce_to_disc((*e_comm_code)[handle], (*comms_blocking)[i_comm]->locmem_blocking, rank_list, raw_code);
 	  fwrite(&isize, sizeof(int), 1, data);
