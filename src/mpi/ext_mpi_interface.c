@@ -17,6 +17,8 @@ static int comms_blocking[100];
 static double timing_allreduce = 0e0;
 static long int calls_allreduce = 0;
 static long int size_allreduce = 0;
+static long int calls_my_allreduce = 0;
+static long int size_my_allreduce = 0;
 static double timing_reduce_scatter_block = 0e0;
 static long int calls_reduce_scatter_block = 0;
 static long int size_reduce_scatter_block = 0;
@@ -88,6 +90,8 @@ int MPI_Finalize(){
   if (rank == 0) {
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_my_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_my_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
@@ -99,6 +103,10 @@ int MPI_Finalize(){
       printf("# calls allreduce %e\n", 1.0 * calls_allreduce / size);
       printf("# size allreduce %e\n", 1.0 * size_allreduce / calls_allreduce);
       printf("# timing allreduce %e\n", 1.0 * timing_allreduce / (calls_allreduce / size));
+      if (calls_my_allreduce) {
+        printf("# calls my_allreduce %e\n", 1.0 * calls_my_allreduce / size);
+        printf("# size my_allreduce %e\n", 1.0 * size_my_allreduce / calls_my_allreduce);
+      }
     } else {
       printf("# no calls to allreduce\n");
     }
@@ -119,6 +127,8 @@ int MPI_Finalize(){
   } else {
     ext_mpi_call_mpi(PMPI_Reduce(&calls_allreduce, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&size_allreduce, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&calls_my_allreduce, &calls_my_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&size_my_allreduce, &size_my_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&timing_allreduce, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&calls_reduce_scatter_block, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&size_reduce_scatter_block, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
@@ -458,6 +468,7 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
   int type_size;
   ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
 #ifdef PROFILE
+ext_mpi_call_mpi(PMPI_Barrier(comm));
   timing_allreduce -= MPI_Wtime();
   calls_allreduce++;
   size_allreduce += count * type_size;
@@ -465,6 +476,10 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype da
   if (ext_mpi_is_blocking && count * type_size < 1024 * 1024 * 10 && (reduction_op = get_reduction_op(datatype, op)) >= 0) {
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
+#ifdef PROFILE
+      calls_my_allreduce++;
+      size_my_allreduce += count * type_size;
+#endif
       ret = EXT_MPI_Allreduce(sendbuf, recvbuf, count, reduction_op, i);
     } else {
       ret = PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
@@ -484,6 +499,7 @@ int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, 
 #ifdef PROFILE
   int type_size;
   ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
+ext_mpi_call_mpi(PMPI_Barrier(comm));
   timing_reduce_scatter_block -= MPI_Wtime();
   calls_reduce_scatter_block++;
   size_reduce_scatter_block += recvcount * type_size;
@@ -524,6 +540,7 @@ int MPI_Allgather(const void *sendbuf, int sendcount, MPI_Datatype sendtype, voi
   int type_size, i;
   int ret;
 #ifdef PROFILE
+ext_mpi_call_mpi(PMPI_Barrier(comm));
   ext_mpi_call_mpi(MPI_Type_size(sendtype, &type_size));
   timing_allgather -= MPI_Wtime();
   calls_allgather++;
