@@ -11,7 +11,7 @@
 #endif
 #endif
 
-#define MAX_MESSAGE_SIZE 10000000
+#define MAX_MESSAGE_SIZE 1000000
 #define MPI_DATA_TYPE MPI_LONG
 #define NUM_CORES 1200
 #define COLLECTIVE_TYPE 0
@@ -41,8 +41,15 @@ int main(int argc, char *argv[]) {
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Type_size(MPI_DATA_TYPE, &type_size);
 
-  bufsize = type_size * MAX_MESSAGE_SIZE * numprocs;
-  bufsize = 100*1024*1024;
+  switch (COLLECTIVE_TYPE){
+    case 0:
+    case 1:
+    case 2:
+      bufsize = type_size * MAX_MESSAGE_SIZE;
+      break;
+    default:
+      bufsize = type_size * MAX_MESSAGE_SIZE * numprocs;
+  }
 
   if (in_place) {
     sendbuf = MPI_IN_PLACE;
@@ -51,12 +58,17 @@ int main(int argc, char *argv[]) {
     sendbuf = malloc(bufsize);
 #else
     cudaMalloc(&sendbuf, bufsize);
+    cudaMemset(sendbuf, 0, bufsize);
 #endif
   }
 #ifndef GPU_ENABLED
   recvbuf = malloc(bufsize);
 #else
+#ifdef GPU_ENABLED
   cudaMalloc(&recvbuf, bufsize);
+  cudaMemset(recvbuf, 0, bufsize);
+  cudaDeviceSynchronize();
+#endif
 #endif
   counts = (int*)malloc(numprocs*sizeof(int));
   displs = (int*)malloc(numprocs*sizeof(int));
@@ -72,7 +84,7 @@ int main(int argc, char *argv[]) {
 
   for (num_tasks = numprocs; num_tasks > 0; num_tasks -= NUM_CORES) {
     if (rank < num_tasks) {
-      MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &new_comm);
+      PMPI_Comm_split(MPI_COMM_WORLD, 0, rank, &new_comm);
       for (size = 1; size <= MAX_MESSAGE_SIZE; size *= 2) {
         for (i = 0; i < numprocs; i++) {
           counts[i] = size;
@@ -99,7 +111,7 @@ int main(int argc, char *argv[]) {
         switch (COLLECTIVE_TYPE){
           case 0:
           MPI_Allreduce_init(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
-                             new_comm, info, &request);
+                             new_comm, MPI_INFO_NULL, &request);
           break;
           case 1:
           MPI_Reduce_init(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, 0,
@@ -136,8 +148,8 @@ int main(int argc, char *argv[]) {
 //#ifdef GPU_ENABLED
 //          cudaMemcpy(sendbuf, sendbuf_device, size * type_size, cudaMemcpyDeviceToHost);
 //#endif
-              MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
-                            new_comm);
+              PMPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
+                             new_comm);
 //#ifdef GPU_ENABLED
 //          cudaMemcpy(recvbuf_device, recvbuf, size * type_size, cudaMemcpyHostToDevice);
 //#endif
@@ -183,7 +195,7 @@ int main(int argc, char *argv[]) {
             MPI_Barrier(new_comm);
           }
           flag = (timer_ref < 2e0) && (timer < 2e0);
-          MPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MIN, new_comm);
+          PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MIN, new_comm);
           MPI_Barrier(new_comm);
           iterations *= 2;
         }
@@ -194,11 +206,11 @@ int main(int argc, char *argv[]) {
         MPI_Request_free(&request);
         MPI_Barrier(new_comm);
 
-        MPI_Reduce(&latency_ref, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0,
+        PMPI_Reduce(&latency_ref, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0,
                    new_comm);
-        MPI_Reduce(&latency_ref, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0,
+        PMPI_Reduce(&latency_ref, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0,
                    new_comm);
-        MPI_Reduce(&latency_ref, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0,
+        PMPI_Reduce(&latency_ref, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0,
                    new_comm);
         avg_time = avg_time / num_tasks;
 
@@ -209,9 +221,9 @@ int main(int argc, char *argv[]) {
           printf("%e %e %e ", avg_time, min_time, max_time);
         }
 
-        MPI_Reduce(&latency, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0, new_comm);
-        MPI_Reduce(&latency, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0, new_comm);
-        MPI_Reduce(&latency, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0, new_comm);
+        PMPI_Reduce(&latency, &min_time, 1, MPI_DOUBLE, MPI_MIN, 0, new_comm);
+        PMPI_Reduce(&latency, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0, new_comm);
+        PMPI_Reduce(&latency, &avg_time, 1, MPI_DOUBLE, MPI_SUM, 0, new_comm);
         avg_time = avg_time / num_tasks;
 
         if (rank == 0) {
@@ -220,9 +232,9 @@ int main(int argc, char *argv[]) {
         MPI_Barrier(new_comm);
       }
     } else {
-      MPI_Comm_split(MPI_COMM_WORLD, 1, rank - num_tasks, &new_comm);
+      PMPI_Comm_split(MPI_COMM_WORLD, 1, rank - num_tasks, &new_comm);
     }
-    MPI_Comm_free(&new_comm);
+    PMPI_Comm_free(&new_comm);
   }
 
   free(displs);
