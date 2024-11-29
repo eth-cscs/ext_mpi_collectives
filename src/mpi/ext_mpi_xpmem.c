@@ -81,9 +81,16 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
   ext_mpi_call_mpi(PMPI_Comm_rank(xpmem_comm_node, &my_mpi_rank));
   ext_mpi_call_mpi(PMPI_Comm_size(xpmem_comm_node, &my_mpi_size));
   *sendrecvbufs = (char **)malloc(my_mpi_size * sizeof(char *));
+  memset(*sendrecvbufs, 0, my_mpi_size * sizeof(char *));
+  if (size == 0) {
+    (*sendrecvbufs)[0] = sendrecvbuf;
+    ext_mpi_call_mpi(PMPI_Comm_free(&xpmem_comm_node));
+    return 0;
+  }
   ext_mpi_call_mpi(PMPI_Allgather(&sendrecvbuf, 1, MPI_LONG, *sendrecvbufs, 1, MPI_LONG, xpmem_comm_node));
   ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &size, 1, MPI_INT, MPI_MAX, xpmem_comm_node));
   get_comm_world_ranks(xpmem_comm_node, &global_ranks);
+  ext_mpi_call_mpi(PMPI_Comm_free(&xpmem_comm_node));
   size += PAGESIZE;
   while (size & (PAGESIZE - 1)) {
     size++;
@@ -122,19 +129,21 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
   }
   (*sendrecvbufs)[0] = sendrecvbuf;
   free(global_ranks);
-  ext_mpi_call_mpi(PMPI_Comm_free(&xpmem_comm_node));
   return 0;
 }
 
 int ext_mpi_sendrecvbuf_done_xpmem(int my_cores_per_node, char **sendrecvbufs) {
   int i;
   char *addr;
+  if (!sendrecvbufs) return -1;
   for (i = 1; i < my_cores_per_node; i++) {
     addr = sendrecvbufs[i];
-    while ((long int)addr & (PAGESIZE - 1)) {
-      addr--;
+    if (addr) {
+      while ((long int)addr & (PAGESIZE - 1)) {
+        addr--;
+      }
+      assert(xpmem_detach(addr) == 0);
     }
-    assert(xpmem_detach(addr) == 0);
   }
   free(sendrecvbufs);
   return 0;

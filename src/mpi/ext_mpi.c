@@ -528,7 +528,7 @@ int ext_mpi_reduce_scatter_init_general(
       sendbuf, recvbuf, recvcounts, datatype, op, comm,
       my_cores_per_node, MPI_COMM_NULL, 1, num_ports,
       groups, copyin_method, copyin_factors, alt, not_recursive,
-      ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL);
+      ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL, NULL);
   if (*handle < 0)
     goto error;
   free(groups);

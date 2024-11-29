@@ -334,9 +334,9 @@ int EXT_MPI_Done_native(int handle) {
       header->shmem_gpu = NULL;
       header->shmemid_gpu = NULL;
     }
-    if (header->gpu_gemv_var.handle) {
-      ext_mpi_gemv_done(&header->gpu_gemv_var);
-    }
+//    if (header->gpu_gemv_var.handle) {
+//      ext_mpi_gemv_done(&header->gpu_gemv_var);
+//    }
     if (ext_mpi_gpu_is_device_pointer(header->gpu_byte_code)) {
       ext_mpi_gpu_free(header->gpu_byte_code);
       free(header->ranks_node);
@@ -395,7 +395,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   struct parameters_block *parameters;
   MPI_Comm comm_node;
 #if defined GPU_ENABLED || defined XPMEM
-  int countsa;
+  int counts_send, counts_recv;
 #endif
   not_locmem = (locmem == NULL);
   handle = EXT_MPI_Get_handle();
@@ -433,9 +433,13 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   if (code_size < 0)
     goto error;
 #if defined GPU_ENABLED || defined XPMEM
-  countsa = 0;
+  counts_send = 0;
   for (i = 0; i < parameters->counts_max; i++) {
-    countsa += parameters->counts[i];
+    counts_send += parameters->counts[i];
+  }
+  counts_recv = counts_send;
+  if (parameters->collective_type == collective_type_reduce_scatter) {
+    counts_recv = 0;
   }
 #endif
   locmem_size = num_comm_max * sizeof(MPI_Request);
@@ -474,10 +478,10 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       goto error_shared;
   }
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(recvbuf) || ((unsigned long int)recvbufs[0] & 0xF000000000000000) == RECV_PTR_GPU) {
-    if (((unsigned long int)recvbufs[0] & 0xF000000000000000) != RECV_PTR_GPU) {
-      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs, mem_partners_send);
-      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs, mem_partners_recv);
+  if (gpu_is_device_pointer(recvbuf) || (recvbufs && ((unsigned long int)recvbufs[0] & 0xF000000000000000) == RECV_PTR_GPU)) {
+    if (recvbufs && (((unsigned long int)recvbufs[0] & 0xF000000000000000) != RECV_PTR_GPU)) {
+      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, counts_send, &sendbufs, mem_partners_send);
+      ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, counts_recv, &recvbufs, mem_partners_recv);
     }
     if (shmem_zero) {
       shmem_gpu = shmem;
@@ -497,8 +501,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     sendbufs[0] = (char *)sendbuf;
     recvbufs[0] = recvbuf;
 #else
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
-    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, counts_send, &sendbufs);
+    ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, counts_recv, &recvbufs);
 #endif
   }
 #ifdef GPU_ENABLED
@@ -577,8 +581,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       sendbufs[0] = (char *)sendbuf;
       recvbufs[0] = recvbuf;
 #else
-      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, countsa, &sendbufs);
-      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, countsa, &recvbufs);
+      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, counts_send, &sendbufs);
+      ext_mpi_sendrecvbuf_init_xpmem(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, counts_recv, &recvbufs);
 #endif
     }
 #ifdef GPU_ENABLED
@@ -1598,14 +1602,14 @@ int EXT_MPI_Reduce_scatter_init_native(
     MPI_Datatype datatype, MPI_Op op, MPI_Comm comm_row,
     int my_cores_per_node_row, MPI_Comm comm_column,
     int my_cores_per_node_column, int *num_ports, int *groups,
-    int copyin, int *copyin_factors, int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor) {
+    int copyin, int *copyin_factors, int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int *padding_factor, int **mem_partners_send_back) {
   int my_mpi_rank_row, my_mpi_size_row, my_lrank_row, my_node, type_size,
-      my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node;
-  int *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
+      my_mpi_rank_column, my_mpi_size_column, my_lrank_column, my_lrank_node, *mem_partners_send = NULL,
+      *coarse_counts = NULL, *local_counts = NULL, *global_counts = NULL, iret;
   char *buffer1 = NULL, *buffer2 = NULL, *str, *buffer_temp;
   int nbuffer1 = 0, i, j;
   int reduction_op;
-  struct parameters_block *parameters;
+  struct parameters_block *parameters, *parameters2;
   buffer1 = (char *)malloc(MAX_BUFFER_SIZE);
   if (!buffer1)
     goto error;
@@ -1838,11 +1842,28 @@ int EXT_MPI_Reduce_scatter_init_native(
 //int rank;
 //ext_mpi_call_mpi(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
 //if (rank == 0) printf("%s\n", buffer2);
+  if (ext_mpi_generate_count_mem_partners(buffer2, buffer1) < 0)
+      goto error;
+  ext_mpi_read_parameters(buffer1, &parameters2);
+  buffer_temp = buffer1;
+  buffer1 = buffer2;
+  buffer2 = buffer_temp;
+  mem_partners_send = (int*)malloc(sizeof(int) * (parameters2->mem_partners_send_max + 1));
+  for (i = 0; i < parameters2->mem_partners_send_max; i++) {
+    mem_partners_send[i] = parameters2->mem_partners_send[i];
+  }
+  mem_partners_send[i] = -1;
+  ext_mpi_delete_parameters(parameters2);
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, NULL, comm_row,
                        my_cores_per_node_row, comm_column,
-                       my_cores_per_node_column, alt, shmem_zero, locmem, NULL, NULL);
+                       my_cores_per_node_column, alt, shmem_zero, locmem, mem_partners_send, NULL);
   free(buffer2);
   free(buffer1);
+  if (mem_partners_send_back) {
+    *mem_partners_send_back = mem_partners_send;
+  } else {
+    free(mem_partners_send);
+  }
   return iret;
 error:
   free(local_counts);
