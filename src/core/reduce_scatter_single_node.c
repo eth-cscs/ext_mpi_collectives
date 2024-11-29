@@ -37,7 +37,7 @@ int ext_mpi_generate_reduce_scatter_single_node(char *buffer_in, char *buffer_ou
   data_memcpy_reduce.buffer_type1 = eshmemo;
   data_memcpy_reduce.buffer_number1 = 0;
   data_memcpy_reduce.is_offset1 = 0;
-  data_memcpy_reduce.offset1 = moffsets[parameters->socket_row_size] * parameters->socket_rank;
+  data_memcpy_reduce.offset1 = 0;
   data_memcpy_reduce.buffer_type2 = esendbufp;
   data_memcpy_reduce.buffer_number2 = 0;
   data_memcpy_reduce.is_offset2 = 0;
@@ -74,9 +74,9 @@ int ext_mpi_generate_reduce_scatter_single_node(char *buffer_in, char *buffer_ou
     data_memcpy_reduce.is_offset1 = 0;
     data_memcpy_reduce.offset1 = 0;
     data_memcpy_reduce.buffer_type2 = eshmemo;
-    data_memcpy_reduce.buffer_number2 = 0;
+    data_memcpy_reduce.buffer_number2 = i;
     data_memcpy_reduce.is_offset2 = 0;
-    data_memcpy_reduce.offset2 = moffsets[parameters->socket_row_size] * i + moffsets[parameters->socket_rank];
+    data_memcpy_reduce.offset2 = moffsets[parameters->socket_rank];
     data_memcpy_reduce.size = parameters->iocounts[parameters->socket_rank];
     nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
   }

@@ -285,9 +285,9 @@ int EXT_MPI_Done_native(int handle) {
     header->shmem_gpu = NULL;
     header->shmemid_gpu = NULL;
   }
-  if (header->gpu_gemv_var.handle) {
-    ext_mpi_gemv_done(&header->gpu_gemv_var);
-  }
+//  if (header->gpu_gemv_var.handle) {
+//    ext_mpi_gemv_done(&header->gpu_gemv_var);
+//  }
   if (ext_mpi_gpu_is_device_pointer(header->gpu_byte_code)) {
     ext_mpi_gpu_free(header->gpu_byte_code);
     free(header->ranks_node);
@@ -1835,6 +1835,9 @@ int EXT_MPI_Reduce_scatter_init_native(
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
+//int rank;
+//ext_mpi_call_mpi(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+//if (rank == 0) printf("%s\n", buffer2);
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, NULL, comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt, shmem_zero, locmem, NULL, NULL);
