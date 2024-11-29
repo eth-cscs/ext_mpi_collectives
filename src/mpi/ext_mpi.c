@@ -217,7 +217,7 @@ int ext_mpi_get_num_tasks_per_socket(MPI_Comm comm, int num_sockets_per_node) {
   }
   ext_mpi_call_mpi(PMPI_Allgather(&num_cores, 1, MPI_INT, all_num_cores, 1, MPI_INT, comm));
   for (j=all_num_cores[0]; j>=1; j--){
-    for (i=0; (!(all_num_cores[i]%j))&&(i<my_mpi_size); i++);
+    for (i = 0; i < my_mpi_size && !(all_num_cores[i]%j); i++);
     if (i==my_mpi_size){
       free(all_num_cores);
       return j/num_sockets_per_node;
