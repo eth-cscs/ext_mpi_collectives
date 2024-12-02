@@ -424,9 +424,6 @@ int EXT_MPI_Finalize_blocking_comm(int i_comm) {
 }
 
 int EXT_MPI_Allreduce(const void *sendbuf, void *recvbuf, int count, int reduction_op, int i_comm){
-  if (!EXT_MPI_Initialized_blocking_native(out_of_place, i_comm)) {
-//    init_blocking_comm_allreduce(ext_mpi_comm_array[i_comm], i_comm);
-  }
   if (sendbuf == MPI_IN_PLACE) {
     sendbuf = recvbuf;
   }
