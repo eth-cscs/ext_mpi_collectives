@@ -286,13 +286,15 @@ static int write_wisdom(char *filename, int mpi_size, int handle, MPI_Comm comm,
   ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
   ext_mpi_call_mpi(PMPI_Allgather(&rank, 1, MPI_INT, rank_list, 1, MPI_INT, comm));
   isize = ((struct header_byte_code*)((*e_comm_code)[handle]))->size_to_return;
+  raw_code = (char*)malloc(isize * sizeof(char));
 #ifdef GPU_ENABLED
   if (on_gpu) {
     isize += ((struct header_byte_code*)((*e_comm_code)[handle]))->gpu_byte_code_size;
   }
+  EXT_MPI_Collective_to_disc((*e_comm_code)[handle], comms_blocking[i_comm]->locmem_blocking, rank_list, raw_code, ((struct header_byte_code*)((*e_comm_code)[handle]))->gpu_byte_code);
+#else
+  EXT_MPI_Collective_to_disc((*e_comm_code)[handle], comms_blocking[i_comm]->locmem_blocking, rank_list, raw_code, NULL);
 #endif
-  raw_code = (char*)malloc(isize * sizeof(char));
-  EXT_MPI_Allreduce_to_disc((*e_comm_code)[handle], comms_blocking[i_comm]->locmem_blocking, rank_list, raw_code);
   fwrite(&isize, sizeof(int), 1, data);
   if (mem_partners_send) {
     for (j = 0; mem_partners_send[j] >= 0; j++) {
@@ -327,6 +329,9 @@ static int read_wisdom(char *filename, int mpi_size, MPI_Comm comm, int i_comm, 
   struct header_byte_code *header;
   int rank_list[mpi_size], mem_partners[mpi_size+1], isize, handle, j;
   char *raw_code;
+#ifdef GPU_ENABLED
+  char *p_gpu;
+#endif
   FILE *data = fopen(filename, "r");
   if (!data) return -1;
   assert(fread(&isize, sizeof(int), 1, data) == 1);
@@ -345,7 +350,16 @@ static int read_wisdom(char *filename, int mpi_size, MPI_Comm comm, int i_comm, 
   raw_code = (char*)malloc(isize * sizeof(char));
   assert(fread(raw_code, sizeof(char), isize, data) == isize);
   handle = EXT_MPI_Get_handle();
-  (*e_comm_code)[handle] = EXT_MPI_Allreduce_from_disc(raw_code, comms_blocking[i_comm]->locmem_blocking, rank_list);
+#ifdef GPU_ENABLED
+  if (on_gpu) {
+    p_gpu = (char*)malloc(((struct header_byte_code*)raw_code)->gpu_byte_code_size);
+  } else {
+    p_gpu = NULL;
+  }
+  (*e_comm_code)[handle] = EXT_MPI_Collective_from_disc(raw_code, comms_blocking[i_comm]->locmem_blocking, rank_list, p_gpu);
+#else
+  (*e_comm_code)[handle] = EXT_MPI_Collective_from_disc(raw_code, comms_blocking[i_comm]->locmem_blocking, rank_list, NULL);
+#endif
   header = (struct header_byte_code*)((*e_comm_code)[handle]);
   header->barrier_shmem_node = NULL;
   header->barrier_shmem_socket = NULL;
@@ -353,7 +367,7 @@ static int read_wisdom(char *filename, int mpi_size, MPI_Comm comm, int i_comm, 
   (*e_comm_code)[handle + 1] = NULL;
 #ifdef GPU_ENABLED
   if (on_gpu) {
-    header->gpu_byte_code = (char*)malloc(header->gpu_byte_code_size);
+    header->gpu_byte_code = p_gpu;
     memcpy(header->gpu_byte_code, raw_code + header->size_to_return, header->gpu_byte_code_size);
   }
 #endif

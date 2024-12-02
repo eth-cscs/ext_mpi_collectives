@@ -1131,7 +1131,7 @@ int ext_mpi_exec_padding(char *ip, void *sendbuf, void *recvbuf, void **shmem, i
   return num_padding;
 }
 
-int EXT_MPI_Allreduce_to_disc(char *ip, char *locmem_blocking, int *rank_list, char *raw_code) {
+int EXT_MPI_Collective_to_disc(char *ip, char *locmem_blocking, int *rank_list, char *raw_code, char *gpu_byte_code) {
   char instruction;
   char *p1;
   int i1, i2;
@@ -1214,7 +1214,10 @@ int EXT_MPI_Allreduce_to_disc(char *ip, char *locmem_blocking, int *rank_list, c
       break;
     case OPCODE_GPUKERNEL:
       code_get_char(&ip);
-      code_get_pointer(&ip);
+      p1 = code_get_pointer(&ip);
+      p1 = (char*)NULL + (p1 - gpu_byte_code);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
       code_get_int(&ip);
       break;
 #endif
@@ -1226,7 +1229,7 @@ int EXT_MPI_Allreduce_to_disc(char *ip, char *locmem_blocking, int *rank_list, c
   return 0;
 }
 
-char * EXT_MPI_Allreduce_from_disc(char *raw_code, char *locmem_blocking, int *rank_list) {
+char * EXT_MPI_Collective_from_disc(char *raw_code, char *locmem_blocking, int *rank_list, char *gpu_byte_code) {
   char instruction;
   char *ip, *p1, *ret;
   int i1;
@@ -1308,7 +1311,10 @@ char * EXT_MPI_Allreduce_from_disc(char *raw_code, char *locmem_blocking, int *r
       break;
     case OPCODE_GPUKERNEL:
       code_get_char(&ip);
-      code_get_pointer(&ip);
+      p1 = code_get_pointer(&ip);
+      p1 = p1 + (gpu_byte_code - (char*)NULL);
+      ip -= sizeof(void *);
+      code_put_pointer(&ip, p1, 0);
       code_get_int(&ip);
       break;
 #endif
