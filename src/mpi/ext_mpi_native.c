@@ -934,7 +934,8 @@ allreduce_short = 0;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (my_cores_per_node_row * my_cores_per_node_column > 1 || num_sockets_per_node > 1) {
+//  if (my_cores_per_node_row * my_cores_per_node_column > 1 || num_sockets_per_node > 1) {
+  if (my_cores_per_node_row * my_cores_per_node_column > 1 && my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(recvbuf)) {
 #endif
@@ -1839,11 +1840,11 @@ int EXT_MPI_Reduce_scatter_init_native(
     buffer2 = buffer1;
     buffer1 = buffer_temp;
   }
-//int rank;
-//ext_mpi_call_mpi(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
-//if (rank == 0) printf("%s\n", buffer2);
   if (ext_mpi_generate_count_mem_partners(buffer2, buffer1) < 0)
       goto error;
+//int rank;
+//ext_mpi_call_mpi(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+//if (rank == 0) printf("%s\n", buffer1);
   ext_mpi_read_parameters(buffer1, &parameters2);
   buffer_temp = buffer1;
   buffer1 = buffer2;

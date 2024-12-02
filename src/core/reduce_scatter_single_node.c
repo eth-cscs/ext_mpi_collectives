@@ -33,18 +33,20 @@ int ext_mpi_generate_reduce_scatter_single_node(char *buffer_in, char *buffer_ou
     moffsets[i + 1] = moffsets[i] + parameters->iocounts[i];
   }
   nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
-/*  data_memcpy_reduce.type = ememcpy;
-  data_memcpy_reduce.buffer_type1 = eshmemo;
-  data_memcpy_reduce.buffer_number1 = 0;
-  data_memcpy_reduce.is_offset1 = 0;
-  data_memcpy_reduce.offset1 = 0;
-  data_memcpy_reduce.buffer_type2 = esendbufp;
-  data_memcpy_reduce.buffer_number2 = 0;
-  data_memcpy_reduce.is_offset2 = 0;
-  data_memcpy_reduce.offset2 = 0;
-  data_memcpy_reduce.size = moffsets[parameters->socket_row_size];
-  nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);*/
-/*  data_memcpy_reduce.type = ememcp_;
+  if (parameters->copyin_method >= 8) {
+    data_memcpy_reduce.type = esmemcpy;
+    data_memcpy_reduce.buffer_type1 = eshmemo;
+    data_memcpy_reduce.buffer_number1 = 0;
+    data_memcpy_reduce.is_offset1 = 0;
+    data_memcpy_reduce.offset1 = 0;
+    data_memcpy_reduce.buffer_type2 = esendbufp;
+    data_memcpy_reduce.buffer_number2 = 0;
+    data_memcpy_reduce.is_offset2 = 0;
+    data_memcpy_reduce.offset2 = 0;
+    data_memcpy_reduce.size = moffsets[parameters->socket_row_size];
+    nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+  }
+/*  data_memcpy_reduce.type = esmemcp_;
   data_memcpy_reduce.buffer_type1 = eshmemo;
   data_memcpy_reduce.buffer_number1 = 0;
   data_memcpy_reduce.is_offset1 = 0;
@@ -56,26 +58,32 @@ int ext_mpi_generate_reduce_scatter_single_node(char *buffer_in, char *buffer_ou
   data_memcpy_reduce.size = moffsets[parameters->socket_row_size];
   nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);*/
   nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
-  data_memcpy_reduce.type = ememcpy;
+  data_memcpy_reduce.type = esmemcpy;
   data_memcpy_reduce.buffer_type1 = erecvbufp;
   data_memcpy_reduce.buffer_number1 = 0;
   data_memcpy_reduce.is_offset1 = 0;
   data_memcpy_reduce.offset1 = 0;
-//  data_memcpy_reduce.buffer_type2 = eshmemo;
-  data_memcpy_reduce.buffer_type2 = esendbufp;
+  if (parameters->copyin_method >= 8) {
+    data_memcpy_reduce.buffer_type2 = eshmemo;
+  } else {
+    data_memcpy_reduce.buffer_type2 = esendbufp;
+  }
   data_memcpy_reduce.buffer_number2 = 0;
   data_memcpy_reduce.is_offset2 = 0;
   data_memcpy_reduce.offset2 = moffsets[parameters->socket_rank];
   data_memcpy_reduce.size = parameters->iocounts[parameters->socket_rank];
   nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
   for (i = 1; i < parameters->socket_row_size; i++) {
-    data_memcpy_reduce.type = ereduce;
+    data_memcpy_reduce.type = esreduce;
     data_memcpy_reduce.buffer_type1 = erecvbufp;
     data_memcpy_reduce.buffer_number1 = 0;
     data_memcpy_reduce.is_offset1 = 0;
     data_memcpy_reduce.offset1 = 0;
-//    data_memcpy_reduce.buffer_type2 = eshmemo;
-    data_memcpy_reduce.buffer_type2 = esendbufp;
+    if (parameters->copyin_method >= 8) {
+      data_memcpy_reduce.buffer_type2 = eshmemo;
+    } else {
+      data_memcpy_reduce.buffer_type2 = esendbufp;
+    }
     data_memcpy_reduce.buffer_number2 = i;
     data_memcpy_reduce.is_offset2 = 0;
     data_memcpy_reduce.offset2 = moffsets[parameters->socket_rank];
