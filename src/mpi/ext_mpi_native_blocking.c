@@ -105,8 +105,10 @@ struct comm_comm_blocking {
   void *p_dev_temp;
   int *sizes_shared_node;
   int *sizes_shared_socket;
-  int *mem_partners_send[ALGORITHM_MAX];
-  int *mem_partners_recv[ALGORITHM_MAX];
+  int *mem_partners_send_allreduce[ALGORITHM_MAX];
+  int *mem_partners_recv_allreduce[ALGORITHM_MAX];
+  int *mem_partners_send_reduce_scatter_block[ALGORITHM_MAX];
+  int *mem_partners_recv_reduce_scatter_block[ALGORITHM_MAX];
   struct xpmem_tree **xpmem_tree_root;
   int copyin[ALGORITHM_MAX];
   int *ranks_node;
@@ -173,28 +175,54 @@ static int add_blocking_member(int count, MPI_Datatype datatype, int handle, cha
   return 0;
 }
 
-static int init_blocking_native(MPI_Comm comm, int i_comm) {
-  char data_num_ports[1000], data_copyin_factors[1000], filename[1000];
+static int init_blocking_native(char *filename, int ctype, MPI_Comm comm, int i_comm) {
+  char data_num_ports[1000], data_copyin_factors[1000], filename_complete[1000];
   FILE *data;
   int message_size, *num_ports = NULL, *groups = NULL, copyin_method, *copyin_factors = NULL, num_sockets_per_node = 1, cores_per_node, mpi_rank, mpi_size, message_size_old = -1, on_gpu = 0, i_cprop = 0, i;
+  struct comm_properties *comm_property_in_place, *comm_property_out_of_place;
+#ifdef GPU_ENABLED
+  struct comm_properties *comm_property_in_place_gpu, *comm_property_out_of_place_gpu;
+#endif
   if (!comms_blocking) {
     comms_blocking = (struct comm_comm_blocking **)malloc(1000 * sizeof(struct comm_comm_blocking *));
     memset(comms_blocking, 0, 1000 * sizeof(struct comm_comm_blocking *));
   }
-  comms_blocking[i_comm] = (struct comm_comm_blocking *)malloc(sizeof(struct comm_comm_blocking));
-  memset(comms_blocking[i_comm], 0, sizeof(struct comm_comm_blocking));
+  if (!comms_blocking[i_comm]) {
+    comms_blocking[i_comm] = (struct comm_comm_blocking *)malloc(sizeof(struct comm_comm_blocking));
+    memset(comms_blocking[i_comm], 0, sizeof(struct comm_comm_blocking));
+  }
+  switch (ctype) {
+    case 0:
+      comm_property_in_place = comms_blocking[i_comm]->comm_property_allreduce[in_place];
+      comm_property_out_of_place = comms_blocking[i_comm]->comm_property_allreduce[out_of_place];
+#ifdef GPU_ENABLED
+      comm_property_in_place_gpu = comms_blocking[i_comm]->comm_property_allreduce[in_place_gpu];
+      comm_property_out_of_place_gpu = comms_blocking[i_comm]->comm_property_allreduce[out_of_place_gpu]
+#endif
+      break;
+    case 1:
+      comm_property_in_place = comms_blocking[i_comm]->comm_property_reduce_scatter_block[in_place];
+      comm_property_out_of_place = comms_blocking[i_comm]->comm_property_reduce_scatter_block[out_of_place];
+#ifdef GPU_ENABLED
+      comm_property_in_place_gpu = comms_blocking[i_comm]->comm_property_reduce_scatter_block[in_place_gpu];
+      comm_property_out_of_place_gpu = comms_blocking[i_comm]->comm_property_reduce_scatter_block[out_of_place_gpu]
+#endif
+      break;
+    default:
+      assert(0);
+  }
   ext_mpi_call_mpi(MPI_Comm_rank(comm, &mpi_rank));
   ext_mpi_call_mpi(MPI_Comm_size(comm, &mpi_size));
   cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, num_sockets_per_node);
   ext_mpi_my_cores_per_node_array[i_comm] = cores_per_node;
-  sprintf(filename, "/dev/shm/ext_mpi_blocking_%d_%d.txt", mpi_size / cores_per_node, cores_per_node);
-  data = fopen(filename, "r");
+  sprintf(filename_complete, "/dev/shm/%s_%d_%d.txt", filename, mpi_size / cores_per_node, cores_per_node);
+  data = fopen(filename_complete, "r");
   if (!data) {
-    sprintf(filename, "ext_mpi_blocking_%d_%d.txt", mpi_size / cores_per_node, cores_per_node);
-    data = fopen(filename, "r");
+    sprintf(filename_complete, "%s_%d_%d.txt", filename, mpi_size / cores_per_node, cores_per_node);
+    data = fopen(filename_complete, "r");
   }
   if (!data) {
-    if (mpi_rank == 0) printf("file %s missing\n", filename);
+    if (mpi_rank == 0) printf("file %s missing\n", filename_complete);
     exit(1);
   }
   while (fscanf(data, "%d %d %s %s", &message_size, &num_sockets_per_node, data_num_ports, data_copyin_factors) == 4) {
@@ -212,36 +240,36 @@ static int init_blocking_native(MPI_Comm comm, int i_comm) {
     ext_mpi_scan_ports_groups(data_num_ports, &num_ports, &groups);
     ext_mpi_scan_copyin(data_copyin_factors, &copyin_method, &copyin_factors);
     if (!on_gpu) {
-      comms_blocking[i_comm]->comm_property_allreduce[in_place][i_cprop].count = message_size;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place][i_cprop].num_sockets_per_node = num_sockets_per_node;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place][i_cprop].copyin = copyin_method;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place][i_cprop].num_ports = num_ports;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place][i_cprop].groups = groups;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place][i_cprop].copyin_factors = copyin_factors;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place][i_cprop].comm_code = NULL;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place][i_cprop].count = message_size;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place][i_cprop].num_sockets_per_node = num_sockets_per_node;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place][i_cprop].copyin = copyin_method;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place][i_cprop].num_ports = num_ports;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place][i_cprop].groups = groups;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place][i_cprop].copyin_factors = copyin_factors;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place][i_cprop].comm_code = NULL;
+      comm_property_in_place[i_cprop].count = message_size;
+      comm_property_in_place[i_cprop].num_sockets_per_node = num_sockets_per_node;
+      comm_property_in_place[i_cprop].copyin = copyin_method;
+      comm_property_in_place[i_cprop].num_ports = num_ports;
+      comm_property_in_place[i_cprop].groups = groups;
+      comm_property_in_place[i_cprop].copyin_factors = copyin_factors;
+      comm_property_in_place[i_cprop].comm_code = NULL;
+      comm_property_out_of_place[i_cprop].count = message_size;
+      comm_property_out_of_place[i_cprop].num_sockets_per_node = num_sockets_per_node;
+      comm_property_out_of_place[i_cprop].copyin = copyin_method;
+      comm_property_out_of_place[i_cprop].num_ports = num_ports;
+      comm_property_out_of_place[i_cprop].groups = groups;
+      comm_property_out_of_place[i_cprop].copyin_factors = copyin_factors;
+      comm_property_out_of_place[i_cprop].comm_code = NULL;
 #ifdef GPU_ENABLED
     } else {
-      comms_blocking[i_comm]->comm_property_allreduce[in_place_gpu][i_cprop].count = message_size;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place_gpu][i_cprop].num_sockets_per_node = num_sockets_per_node;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place_gpu][i_cprop].copyin = copyin_method;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place_gpu][i_cprop].num_ports = num_ports;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place_gpu][i_cprop].groups = groups;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place_gpu][i_cprop].copyin_factors = copyin_factors;
-      comms_blocking[i_comm]->comm_property_allreduce[in_place_gpu][i_cprop].comm_code = NULL;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place_pgu][i_cprop].count = message_size;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place_gpu][i_cprop].num_sockets_per_node = num_sockets_per_node;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place_gpu][i_cprop].copyin = copyin_method;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place_gpu][i_cprop].num_ports = num_ports;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place_gpu][i_cprop].groups = groups;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place_gpu][i_cprop].copyin_factors = copyin_factors;
-      comms_blocking[i_comm]->comm_property_allreduce[out_of_place_gpu][i_cprop].comm_code = NULL;
+      comm_property_in_place_gpu[i_cprop].count = message_size;
+      comm_property_in_place_gpu[i_cprop].num_sockets_per_node = num_sockets_per_node;
+      comm_property_in_place_gpu[i_cprop].copyin = copyin_method;
+      comm_property_in_place_gpu[i_cprop].num_ports = num_ports;
+      comm_property_in_place_gpu[i_cprop].groups = groups;
+      comm_property_in_place_gpu[i_cprop].copyin_factors = copyin_factors;
+      comm_property_in_place_gpu[i_cprop].comm_code = NULL;
+      comm_property_out_of_place_gpu[i_cprop].count = message_size;
+      comm_property_out_of_place_gpu[i_cprop].num_sockets_per_node = num_sockets_per_node;
+      comm_property_out_of_place_gpu[i_cprop].copyin = copyin_method;
+      comm_property_out_of_place_gpu[i_cprop].num_ports = num_ports;
+      comm_property_out_of_place_gpu[i_cprop].groups = groups;
+      comm_property_out_of_place_gpu[i_cprop].copyin_factors = copyin_factors;
+      comm_property_out_of_place_gpu[i_cprop].comm_code = NULL;
 #endif
     }
     i_cprop++;
@@ -250,7 +278,7 @@ static int init_blocking_native(MPI_Comm comm, int i_comm) {
   return 0;
 }
 
-static int write_wisdom(char *filename, int mpi_size, int handle, MPI_Comm comm, int i_comm, int i_alg, int on_gpu) {
+static int write_wisdom(char *filename, int mpi_size, int handle, MPI_Comm comm, int i_comm, int i_alg, int *mem_partners_send, int *mem_partners_recv, int on_gpu) {
   int rank_list[mpi_size], mem_partners[mpi_size+1], isize, rank, j;
   char *raw_code;
   FILE *data = fopen(filename, "w");
@@ -266,20 +294,20 @@ static int write_wisdom(char *filename, int mpi_size, int handle, MPI_Comm comm,
   raw_code = (char*)malloc(isize * sizeof(char));
   EXT_MPI_Allreduce_to_disc((*e_comm_code)[handle], comms_blocking[i_comm]->locmem_blocking, rank_list, raw_code);
   fwrite(&isize, sizeof(int), 1, data);
-  if (comms_blocking[i_comm]->mem_partners_send[i_alg]) {
-    for (j = 0; comms_blocking[i_comm]->mem_partners_send[i_alg][j] >= 0; j++) {
-      mem_partners[j] = comms_blocking[i_comm]->mem_partners_send[i_alg][j];
+  if (mem_partners_send) {
+    for (j = 0; mem_partners_send[j] >= 0; j++) {
+      mem_partners[j] = mem_partners_send[j];
     }
-    mem_partners[j] = comms_blocking[i_comm]->mem_partners_send[i_alg][j];
+    mem_partners[j] = mem_partners_send[j];
   } else {
     mem_partners[0] = -1;
   }
   fwrite(mem_partners, sizeof(int), comms_blocking[i_comm]->mpi_size_blocking + 1, data);
-  if (comms_blocking[i_comm]->mem_partners_recv[i_alg]) {
-    for (j = 0; comms_blocking[i_comm]->mem_partners_recv[i_alg][j] >= 0; j++) {
-      mem_partners[j] = comms_blocking[i_comm]->mem_partners_recv[i_alg][j];
+  if (mem_partners_recv) {
+    for (j = 0; mem_partners_recv[j] >= 0; j++) {
+      mem_partners[j] = mem_partners_recv[j];
     }
-    mem_partners[j] = comms_blocking[i_comm]->mem_partners_recv[i_alg][j];
+    mem_partners[j] = mem_partners_recv[j];
   } else {
     mem_partners[0] = -1;
   }
@@ -295,7 +323,7 @@ static int write_wisdom(char *filename, int mpi_size, int handle, MPI_Comm comm,
   return 0;
 }
 
-static int read_wisdom(char *filename, int mpi_size, MPI_Comm comm, int i_comm, int i_alg, int on_gpu) {
+static int read_wisdom(char *filename, int mpi_size, MPI_Comm comm, int i_comm, int i_alg, int **mem_partners_send, int **mem_partners_recv, int on_gpu) {
   struct header_byte_code *header;
   int rank_list[mpi_size], mem_partners[mpi_size+1], isize, handle, j;
   char *raw_code;
@@ -303,17 +331,17 @@ static int read_wisdom(char *filename, int mpi_size, MPI_Comm comm, int i_comm, 
   if (!data) return -1;
   assert(fread(&isize, sizeof(int), 1, data) == 1);
   assert(fread(mem_partners, sizeof(int), comms_blocking[i_comm]->mpi_size_blocking + 1, data) == comms_blocking[i_comm]->mpi_size_blocking + 1);
-  comms_blocking[i_comm]->mem_partners_send[i_alg] = (int*)malloc((comms_blocking[i_comm]->mpi_size_blocking + 1) * sizeof(int));
+  *mem_partners_send = (int*)malloc((comms_blocking[i_comm]->mpi_size_blocking + 1) * sizeof(int));
   for (j = 0; mem_partners[j] >= 0; j++) {
-    comms_blocking[i_comm]->mem_partners_send[i_alg][j] = mem_partners[j];
+    (*mem_partners_send)[j] = mem_partners[j];
   }
-  comms_blocking[i_comm]->mem_partners_send[i_alg][j] = mem_partners[j];
+  (*mem_partners_send)[j] = mem_partners[j];
   assert(fread(mem_partners, sizeof(int), comms_blocking[i_comm]->mpi_size_blocking + 1, data) == comms_blocking[i_comm]->mpi_size_blocking + 1);
-  comms_blocking[i_comm]->mem_partners_recv[i_alg] = (int*)malloc((comms_blocking[i_comm]->mpi_size_blocking + 1) * sizeof(int));
+  *mem_partners_recv = (int*)malloc((comms_blocking[i_comm]->mpi_size_blocking + 1) * sizeof(int));
   for (j = 0; mem_partners[j] >= 0; j++) {
-    comms_blocking[i_comm]->mem_partners_recv[i_alg][j] = mem_partners[j];
+    (*mem_partners_recv)[j] = mem_partners[j];
   }
-  comms_blocking[i_comm]->mem_partners_recv[i_alg][j] = mem_partners[j];
+  (*mem_partners_recv)[j] = mem_partners[j];
   raw_code = (char*)malloc(isize * sizeof(char));
   assert(fread(raw_code, sizeof(char), isize, data) == isize);
   handle = EXT_MPI_Get_handle();
@@ -419,15 +447,15 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	if (1) {
         ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
         sprintf(filename, "/dev/shm/ext_mpi_allreduce_blocking_%d_%d_%d_%d_%d_%d.dat", comms_blocking[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, (send_ptr == recv_ptr) + 2 * (recv_ptr != RECV_PTR_CPU), comms_blocking[i_comm]->mpi_rank_blocking, rank);
-	handle = read_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, comm, i_comm, i, recv_ptr != RECV_PTR_CPU);
+	handle = read_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, comm, i_comm, i, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i], recv_ptr != RECV_PTR_CPU);
 	flag = handle < 0;
 	ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm));
 	if (flag) {
-          handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send[i], &comms_blocking[i_comm]->mem_partners_recv[i]);
-	  write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, recv_ptr != RECV_PTR_CPU);
+          handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i]);
+	  write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, comms_blocking[i_comm]->mem_partners_send_allreduce[i], comms_blocking[i_comm]->mem_partners_recv_allreduce[i], recv_ptr != RECV_PTR_CPU);
 	}
 	} else {
-          handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send[i], &comms_blocking[i_comm]->mem_partners_recv[i]);
+          handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i]);
 	}
         padding_factor = 1;
         add_blocking_member(count, datatype, handle, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].comm_code, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].count, padding_factor, comm, 1, comms_blocking[i_comm]->copyin, copyin);
@@ -446,20 +474,20 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	assign_permutation(i_comm, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i]);
         ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
         sprintf(filename, "/dev/shm/ext_mpi_reduce_scatter_block_blocking_%d_%d_%d_%d_%d_%d.dat", comms_blocking[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, (send_ptr == recv_ptr) + 2 * (recv_ptr != RECV_PTR_CPU), comms_blocking[i_comm]->mpi_rank_blocking, rank);
-	handle = read_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, comm, i_comm, i, recv_ptr != RECV_PTR_CPU);
+	handle = read_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, comm, i_comm, i, &comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i], &comms_blocking[i_comm]->mem_partners_recv_reduce_scatter_block[i], recv_ptr != RECV_PTR_CPU);
 	flag = handle < 0;
 	ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm));
 	if (flag) {
 	  recvcounts = (int*)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
-	  for (k = 0; k < comms_blocking[i_comm]->mpi_size_blocking; k ++) {
+	  for (k = 0; k < comms_blocking[i_comm]->mpi_size_blocking; k++) {
 	    recvcounts[k] = j;
 	  }
-          handle = EXT_MPI_Reduce_scatter_init_native((char *)(send_ptr), (char *)(recv_ptr), recvcounts, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send[i]);
+          handle = EXT_MPI_Reduce_scatter_init_native((char *)(send_ptr), (char *)(recv_ptr), recvcounts, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, 0, 0, comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i]);
 	  free(recvcounts);
-	  write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, recv_ptr != RECV_PTR_CPU);
+	  write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i], comms_blocking[i_comm]->mem_partners_recv_reduce_scatter_block[i], recv_ptr != RECV_PTR_CPU);
 	}
         padding_factor = 1;
-        add_blocking_member(count, datatype, handle, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].comm_code, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].count, padding_factor, comm, 1, comms_blocking[i_comm]->copyin, copyin);
+        add_blocking_member(count, datatype, handle, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].comm_code, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].count, padding_factor, comm, 1, comms_blocking[i_comm]->copyin, copyin);
       break;
       case collective_type_allgather:
         recvcounts = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
@@ -603,8 +631,8 @@ int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int 
     }
   }
 #endif
-  if (!comms_blocking || !comms_blocking[i_comm]) {
-    init_blocking_native(ext_mpi_comm_array[i_comm], i_comm);
+  if (!comms_blocking || !comms_blocking[i_comm] || !comms_blocking[i_comm]->comm_property_allreduce[0][0].num_sockets_per_node) {
+    init_blocking_native("ext_mpi_allreduce_blocking", 0, ext_mpi_comm_array[i_comm], i_comm);
   }
   comms_blocking_ = comms_blocking[i_comm];
   while (comms_blocking_->comm_property_allreduce[collective_subtype][i].count <= ccount && comms_blocking_->comm_property_allreduce[collective_subtype][i + 1].comm_code) i++;
@@ -624,9 +652,9 @@ int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int 
 #endif
 #ifdef XPMEM
       if (!comms_blocking_->shmem_alt) {
-        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i], (char ***)comms_blocking_->comm_property_allreduce[collective_subtype][i].small_mem1, (int**)comms_blocking_->comm_property_allreduce[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_allreduce[i], comms_blocking_->mem_partners_recv_allreduce[i], (char ***)comms_blocking_->comm_property_allreduce[collective_subtype][i].small_mem1, (int**)comms_blocking_->comm_property_allreduce[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
       } else {
-        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i], (char ***)comms_blocking_->comm_property_allreduce[collective_subtype][i].small_mem2, (int**)comms_blocking_->comm_property_allreduce[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_allreduce[i], comms_blocking_->mem_partners_recv_allreduce[i], (char ***)comms_blocking_->comm_property_allreduce[collective_subtype][i].small_mem2, (int**)comms_blocking_->comm_property_allreduce[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
       }
 #endif
 #ifdef GPU_ENABLED
@@ -675,8 +703,8 @@ int EXT_MPI_Reduce_scatter_block_native(const void *sendbuf, void *recvbuf, int 
     }
   }
 #endif
-  if (!comms_blocking || !comms_blocking[i_comm]) {
-//    init_blocking_native(ext_mpi_comm_array[i_comm], i_comm);
+  if (!comms_blocking || !comms_blocking[i_comm] || !comms_blocking[i_comm]->comm_property_reduce_scatter_block[0][0].num_sockets_per_node) {
+    init_blocking_native("ext_mpi_reduce_scatter_block_blocking", 1, ext_mpi_comm_array[i_comm], i_comm);
   }
   comms_blocking_ = comms_blocking[i_comm];
   while (comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].count <= ccount && comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i + 1].comm_code) i++;
@@ -696,9 +724,9 @@ int EXT_MPI_Reduce_scatter_block_native(const void *sendbuf, void *recvbuf, int 
 #endif
 #ifdef XPMEM
       if (!comms_blocking_->shmem_alt) {
-        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i], (char ***)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].small_mem1, (int**)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_reduce_scatter_block[i], comms_blocking_->mem_partners_recv_reduce_scatter_block[i], (char ***)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].small_mem1, (int**)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
       } else {
-        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send[i], comms_blocking_->mem_partners_recv[i], (char ***)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].small_mem2, (int**)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_reduce_scatter_block[i], comms_blocking_->mem_partners_recv_reduce_scatter_block[i], (char ***)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].small_mem2, (int**)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
       }
 #endif
 #ifdef GPU_ENABLED
