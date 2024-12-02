@@ -560,6 +560,12 @@ static int release_blocking_native(int i_comm, enum collective_subtypes collecti
         free(comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].copyin_factors);
         free(comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].shmem_socket_blocking);
       }
+      for (i = 0; comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].count; i++) {
+        free(comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_ports);
+        free(comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].groups);
+        free(comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].copyin_factors);
+        free(comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].shmem_socket_blocking);
+      }
     }
 #ifdef GPU_ENABLED
     if (!comms_blocking[i_comm]->p_dev_temp) {
@@ -589,6 +595,7 @@ static int release_blocking_native(int i_comm, enum collective_subtypes collecti
         free(header->barrier_shmem_socket);
         free(header->barrier_shmem_socket_small);
       }
+      free(header);
     }
 #ifdef XPMEM
     ext_mpi_done_xpmem_blocking(comms_blocking[i_comm]->num_cores_blocking, comms_blocking[i_comm]->xpmem_tree_root);
@@ -602,7 +609,7 @@ static int release_blocking_native(int i_comm, enum collective_subtypes collecti
     free(comms_blocking[i_comm]);
     comms_blocking[i_comm] = NULL;
   }
-  if (i_comm == 0 && collective_subtype == (enum collective_subtypes)(size)) {
+  if (i_comm == 0 && collective_subtype == (enum collective_subtypes)(size) - 1) {
     free(comms_blocking);
     comms_blocking = NULL;
   }
