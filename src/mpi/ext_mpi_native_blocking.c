@@ -465,7 +465,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	flag = handle < 0;
 	ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm));
 	if (flag) {
-          handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i]);
+          handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 1, bit, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i]);
 	  write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, comms_blocking[i_comm]->mem_partners_send_allreduce[i], comms_blocking[i_comm]->mem_partners_recv_allreduce[i], recv_ptr != RECV_PTR_CPU);
 	}
 	} else {
@@ -485,6 +485,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
           comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i] = count;
 	  j = count;
         }
+	comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i] = 1;
 	assign_permutation(i_comm, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i]);
         ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
         sprintf(filename, "/dev/shm/ext_mpi_reduce_scatter_block_blocking_%d_%d_%d_%d_%d_%d.dat", comms_blocking[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, (send_ptr == recv_ptr) + 2 * (recv_ptr != RECV_PTR_CPU), comms_blocking[i_comm]->mpi_rank_blocking, rank);
@@ -496,7 +497,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 	  for (k = 0; k < comms_blocking[i_comm]->mpi_size_blocking; k++) {
 	    recvcounts[k] = j;
 	  }
-          handle = EXT_MPI_Reduce_scatter_init_native((char *)(send_ptr), (char *)(recv_ptr), recvcounts, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, 0, 0, comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i]);
+          handle = EXT_MPI_Reduce_scatter_init_native((char *)(send_ptr), (char *)(recv_ptr), recvcounts, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 1, 0, 0, comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i]);
 	  free(recvcounts);
 	  write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i], comms_blocking[i_comm]->mem_partners_recv_reduce_scatter_block[i], recv_ptr != RECV_PTR_CPU);
 	}
