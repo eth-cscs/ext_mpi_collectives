@@ -114,6 +114,7 @@ struct comm_comm_blocking {
   int *ranks_node;
   struct comm_properties comm_property_allreduce[(enum collective_subtypes)(size)][ALGORITHM_MAX];
   struct comm_properties comm_property_reduce_scatter_block[(enum collective_subtypes)(size)][ALGORITHM_MAX];
+  int initialized;
 };
 
 static struct comm_comm_blocking **comms_blocking = NULL;
@@ -400,7 +401,8 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
   int handle, size_shared = 1024*1024, *recvcounts, *displs, padding_factor, type_size, my_mpi_size, my_mpi_rank, rank, flag, i, j, k;
   char filename[1000];
   ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
-  if (1) {
+  if (!comms_blocking[i_comm]->initialized) {
+    comms_blocking[i_comm]->initialized = 1;
 #ifdef GPU_ENABLED
     if (recv_ptr == RECV_PTR_GPU) {
       ext_mpi_gpu_malloc(&comms_blocking[i_comm]->p_dev_temp, 10000);
@@ -445,83 +447,83 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
       ext_mpi_gpu_setup_shared_memory(comm, my_cores_per_node, size_shared, 1, &comms_blocking[i_comm]->shmem_blocking2.shmemid, &comms_blocking[i_comm]->shmem_blocking2.mem);
     }
 #endif
-    switch (collective_type) {
-      case collective_type_allreduce:
-        for (i = 0; comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].comm_code; i++)
-          ;
-        ext_mpi_xpmem_blocking_get_id_permutated(comm, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated);
-        if (comms_blocking[i_comm]->mpi_size_blocking < count) {
-          comms_blocking[i_comm]->padding_factor_allreduce_blocking[i] = comms_blocking[i_comm]->mpi_size_blocking;
-	  j = comms_blocking[i_comm]->mpi_size_blocking;
-        } else {
-          comms_blocking[i_comm]->padding_factor_allreduce_blocking[i] = count;
-	  j = count;
-        }
-	assign_permutation(i_comm, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i]);
-	if (1) {
+  }
+  switch (collective_type) {
+    case collective_type_allreduce:
+      for (i = 0; comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].comm_code; i++)
+        ;
+      ext_mpi_xpmem_blocking_get_id_permutated(comm, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated);
+      if (comms_blocking[i_comm]->mpi_size_blocking < count) {
+        comms_blocking[i_comm]->padding_factor_allreduce_blocking[i] = comms_blocking[i_comm]->mpi_size_blocking;
+	j = comms_blocking[i_comm]->mpi_size_blocking;
+      } else {
+        comms_blocking[i_comm]->padding_factor_allreduce_blocking[i] = count;
+	j = count;
+      }
+      assign_permutation(i_comm, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i]);
+      if (1) {
         ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
         sprintf(filename, "/dev/shm/ext_mpi_allreduce_blocking_%d_%d_%d_%d_%d_%d.dat", comms_blocking[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, (send_ptr == recv_ptr) + 2 * (recv_ptr != RECV_PTR_CPU), comms_blocking[i_comm]->mpi_rank_blocking, rank);
-	handle = read_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, comm, i_comm, i, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i], recv_ptr != RECV_PTR_CPU);
-	flag = handle < 0;
-	ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm));
-	if (flag) {
+        handle = read_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, comm, i_comm, i, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i], recv_ptr != RECV_PTR_CPU);
+        flag = handle < 0;
+        ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm));
+        if (flag) {
           handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 1, bit, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i]);
-	  write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, comms_blocking[i_comm]->mem_partners_send_allreduce[i], comms_blocking[i_comm]->mem_partners_recv_allreduce[i], recv_ptr != RECV_PTR_CPU);
+          write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, comms_blocking[i_comm]->mem_partners_send_allreduce[i], comms_blocking[i_comm]->mem_partners_recv_allreduce[i], recv_ptr != RECV_PTR_CPU);
 	}
-	} else {
-          handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i]);
-	}
-        padding_factor = 1;
-        add_blocking_member(count, datatype, handle, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].comm_code, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].count, padding_factor, comm, 1, comms_blocking[i_comm]->copyin, copyin);
-      break;
-      case collective_type_reduce_scatter_block:
-        for (i = 0; comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].comm_code; i++)
-          ;
-        ext_mpi_xpmem_blocking_get_id_permutated(comm, comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated);
-        if (comms_blocking[i_comm]->mpi_size_blocking < count) {
-          comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i] = comms_blocking[i_comm]->mpi_size_blocking;
-	  j = comms_blocking[i_comm]->mpi_size_blocking;
-        } else {
-          comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i] = count;
-	  j = count;
+      } else {
+        handle = EXT_MPI_Allreduce_init_native((char *)(send_ptr), (char *)(recv_ptr), j, datatype, op, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 0, bit, 0, 0, 0, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_allreduce[i], &comms_blocking[i_comm]->mem_partners_recv_allreduce[i]);
+      }
+      padding_factor = 1;
+      add_blocking_member(count, datatype, handle, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].comm_code, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i].count, padding_factor, comm, 1, comms_blocking[i_comm]->copyin, copyin);
+    break;
+    case collective_type_reduce_scatter_block:
+      for (i = 0; comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].comm_code; i++)
+        ;
+      ext_mpi_xpmem_blocking_get_id_permutated(comm, comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated);
+      if (comms_blocking[i_comm]->mpi_size_blocking < count) {
+        comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i] = comms_blocking[i_comm]->mpi_size_blocking;
+	j = comms_blocking[i_comm]->mpi_size_blocking;
+      } else {
+        comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i] = count;
+	j = count;
+      }
+      comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i] = 1;
+      assign_permutation(i_comm, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i]);
+      ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
+      sprintf(filename, "/dev/shm/ext_mpi_reduce_scatter_block_blocking_%d_%d_%d_%d_%d_%d.dat", comms_blocking[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, (send_ptr == recv_ptr) + 2 * (recv_ptr != RECV_PTR_CPU), comms_blocking[i_comm]->mpi_rank_blocking, rank);
+      handle = read_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, comm, i_comm, i, &comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i], &comms_blocking[i_comm]->mem_partners_recv_reduce_scatter_block[i], recv_ptr != RECV_PTR_CPU);
+      flag = handle < 0;
+      ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm));
+      if (flag) {
+        recvcounts = (int*)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
+        for (k = 0; k < comms_blocking[i_comm]->mpi_size_blocking; k++) {
+          recvcounts[k] = j;
         }
-	comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i] = 1;
-	assign_permutation(i_comm, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i]);
-        ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
-        sprintf(filename, "/dev/shm/ext_mpi_reduce_scatter_block_blocking_%d_%d_%d_%d_%d_%d.dat", comms_blocking[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, (send_ptr == recv_ptr) + 2 * (recv_ptr != RECV_PTR_CPU), comms_blocking[i_comm]->mpi_rank_blocking, rank);
-	handle = read_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, comm, i_comm, i, &comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i], &comms_blocking[i_comm]->mem_partners_recv_reduce_scatter_block[i], recv_ptr != RECV_PTR_CPU);
-	flag = handle < 0;
-	ext_mpi_call_mpi(PMPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MAX, comm));
-	if (flag) {
-	  recvcounts = (int*)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
-	  for (k = 0; k < comms_blocking[i_comm]->mpi_size_blocking; k++) {
-	    recvcounts[k] = j;
-	  }
-          handle = EXT_MPI_Reduce_scatter_init_native((char *)(send_ptr), (char *)(recv_ptr), recvcounts, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 1, 0, 0, comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i]);
-	  free(recvcounts);
-	  write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i], comms_blocking[i_comm]->mem_partners_recv_reduce_scatter_block[i], recv_ptr != RECV_PTR_CPU);
-	}
-        padding_factor = 1;
-        add_blocking_member(count, datatype, handle, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].comm_code, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].count, padding_factor, comm, 1, comms_blocking[i_comm]->copyin, copyin);
-      break;
-      case collective_type_allgather:
-        recvcounts = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
-        displs = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
-        for (i = 0; i < comms_blocking[i_comm]->mpi_size_blocking; i++) {
-          recvcounts[i] = 1;
-          displs[i] = i;
-        }
+        handle = EXT_MPI_Reduce_scatter_init_native((char *)(send_ptr), (char *)(recv_ptr), recvcounts, datatype, op, comm, my_cores_per_node / comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, MPI_COMM_NULL, 1, num_ports, groups, copyin, copyin_factors, 1, 0, 0, comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking, &padding_factor, &comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i]);
+        free(recvcounts);
+        write_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, handle, comm, i_comm, i, comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i], comms_blocking[i_comm]->mem_partners_recv_reduce_scatter_block[i], recv_ptr != RECV_PTR_CPU);
+      }
+      padding_factor = 1;
+      add_blocking_member(count, datatype, handle, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].comm_code, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i].count, padding_factor, comm, 1, comms_blocking[i_comm]->copyin, copyin);
+    break;
+    case collective_type_allgather:
+      recvcounts = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
+      displs = (int *)malloc(comms_blocking[i_comm]->mpi_size_blocking * sizeof(int));
+      for (i = 0; i < comms_blocking[i_comm]->mpi_size_blocking; i++) {
+        recvcounts[i] = 1;
+        displs[i] = i;
+      }
 //        handle = EXT_MPI_Allgatherv_init_native((char *)(send_ptr), 1, datatype, (char *)(recv_ptr), recvcounts, displs, datatype, comm, my_cores_per_node, MPI_COMM_NULL, 1, num_ports, groups, 0, arecursive, 0, num_sockets_per_node, 1, comms_blocking[i_comm]->locmem_blocking);
 // FIXME
 //        add_blocking_member(count, datatype, handle, (*comms_blocking)[i_comm]->comm_code_allgather_blocking, (*comms_blocking)[i_comm]->count_allgather_blocking, 1, MPI_COMM_NULL, 0, NULL);
 //        add_blocking_member(count, datatype, handle, (*comms_blocking)[i_comm]->comm_code_allgather_blocking, (*comms_blocking)[i_comm]->count_allgather_blocking, (*comms_blocking)[i_comm]->num_cores_blocking, MPI_COMM_NULL, 0, NULL);
-        free(displs);
-        free(recvcounts);
-      break;
-      default:
+      free(displs);
+      free(recvcounts);
+    break;
+    default:
       printf("collective_type not implemented\n");
       exit(1);
-    }
   }
   return 0;
 }
