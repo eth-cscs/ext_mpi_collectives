@@ -514,6 +514,11 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
       }
       comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i] = 1;
       assign_permutation(i_comm, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i]);
+#ifdef GPU_ENABLED
+      if (recv_ptr == RECV_PTR_GPU && comms_blocking[i_comm]->initialized_gpu) {
+	assign_permutation_gpu(i_comm, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i]);
+      }
+#endif
       ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &rank));
       sprintf(filename, "/dev/shm/ext_mpi_reduce_scatter_block_blocking_%d_%d_%d_%d_%d_%d.dat", comms_blocking[i_comm]->mpi_size_blocking / my_cores_per_node, my_cores_per_node, count, (send_ptr == recv_ptr) + 2 * (recv_ptr != RECV_PTR_CPU), comms_blocking[i_comm]->mpi_rank_blocking, rank);
       handle = read_wisdom(filename, comms_blocking[i_comm]->mpi_size_blocking, comm, i_comm, i, &comms_blocking[i_comm]->mem_partners_send_reduce_scatter_block[i], &comms_blocking[i_comm]->mem_partners_recv_reduce_scatter_block[i], recv_ptr != RECV_PTR_CPU);
