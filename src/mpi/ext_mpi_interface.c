@@ -522,7 +522,7 @@ ext_mpi_call_mpi(PMPI_Barrier(comm));
     }
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
-      ret = EXT_MPI_Reduce_scatter_block(sendbuf, recvbuf, lcount, reduction_op, i);
+      ret = EXT_MPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, reduction_op, i);
     } else {
       ret = PMPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, datatype, op, comm);
     }
