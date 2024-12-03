@@ -387,13 +387,14 @@ cudaError_t CUDARTAPI cudaFree(void *dptr)
 
 int ext_mpi_init_gpu_blocking(MPI_Comm comm_world) {
   MPI_Comm gpu_comm_node;
-  int tasks_per_node = ext_mpi_get_num_tasks_per_socket(comm_world, 1);;
+  int tasks_per_node = ext_mpi_get_num_tasks_per_socket(comm_world, 1);
   ext_mpi_call_mpi(PMPI_Comm_size(comm_world, &mpi_node_size));
   ext_mpi_call_mpi(PMPI_Comm_rank(comm_world, &mpi_node_rank));
   ext_mpi_call_mpi(PMPI_Comm_split(comm_world, mpi_node_rank / tasks_per_node,
                   mpi_node_rank % tasks_per_node, &gpu_comm_node));
   ext_mpi_call_mpi(PMPI_Comm_rank(gpu_comm_node, &mpi_node_rank));
   ext_mpi_call_mpi(PMPI_Comm_size(gpu_comm_node, &mpi_node_size));
+  ext_mpi_call_mpi(PMPI_Comm_free(&gpu_comm_node));
   address_lookup_root = (struct address_lookup **)malloc(mpi_node_size * sizeof(struct address_lookup *));
   memset(address_lookup_root, 0, mpi_node_size * sizeof(struct address_lookup *));
   return 0;

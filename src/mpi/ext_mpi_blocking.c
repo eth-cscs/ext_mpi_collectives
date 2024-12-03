@@ -417,12 +417,12 @@ int EXT_MPI_Init_blocking_comm(MPI_Comm comm, int i_comm) {
 }
 
 int EXT_MPI_Finalize_blocking_comm(int i_comm) {
+//  EXT_MPI_Release_blocking_native(i_comm + 1);
+//  ext_mpi_comm_array[i_comm + 1] = MPI_COMM_NULL;
+//  ext_mpi_my_cores_per_node_array[i_comm + 1] = -1;
   EXT_MPI_Release_blocking_native(i_comm);
   ext_mpi_comm_array[i_comm] = MPI_COMM_NULL;
-  EXT_MPI_Release_blocking_native(i_comm + 1);
-  ext_mpi_comm_array[i_comm + 1] = MPI_COMM_NULL;
   ext_mpi_my_cores_per_node_array[i_comm] = -1;
-  ext_mpi_my_cores_per_node_array[i_comm + 1] = -1;
   return 0;
 }
 

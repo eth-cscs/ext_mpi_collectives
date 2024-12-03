@@ -284,42 +284,46 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
     while ((unsigned int)(*((volatile int*)(shmem_node[i])) - bc) > INT_MAX);
   }
   memory_fence_load();
-  for (i = 0; (j = mem_partners_send[i]) >= 0; i++) {
-    if (j > 0) {
-      sendbufs[j] = shmem[j][0];
-      if (all_xpmem_id_permutated[j] != -1) {
-        addr.offset = (unsigned long int)(sendbufs[j]);
-	addr.offset &= 0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1);
-        addr.apid = all_xpmem_id_permutated[j];
-        if (addr.apid != -1 && sendbufs[j]) {
-	  if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
-            a = xpmem_attach(addr, size, NULL);
-            assert((long int)a != -1);
-            xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
+  if (mem_partners_send) {
+    for (i = 0; (j = mem_partners_send[i]) >= 0; i++) {
+      if (j > 0) {
+        sendbufs[j] = shmem[j][0];
+        if (all_xpmem_id_permutated[j] != -1) {
+          addr.offset = (unsigned long int)(sendbufs[j]);
+	  addr.offset &= 0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1);
+          addr.apid = all_xpmem_id_permutated[j];
+          if (addr.apid != -1 && sendbufs[j]) {
+	    if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
+              a = xpmem_attach(addr, size, NULL);
+              assert((long int)a != -1);
+              xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
+	    }
+            sendbufs[j] = a + (unsigned long int)(sendbufs[j] - addr.offset);
+          } else {
+	    sendbufs[j] = sendbuf;
 	  }
-          sendbufs[j] = a + (unsigned long int)(sendbufs[j] - addr.offset);
-        } else {
-	  sendbufs[j] = sendbuf;
-	}
+        }
       }
     }
   }
-  for (i = 0; (j = mem_partners_recv[i]) >= 0; i++) {
-    if (j > 0) {
-      recvbufs[j] = shmem[j][1];
-      if (all_xpmem_id_permutated[j] != -1) {
-        addr.offset = (unsigned long int)(recvbufs[j]);
-	addr.offset &= 0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1);
-        addr.apid = all_xpmem_id_permutated[j];
-        if (addr.apid != -1 && recvbufs[j]) {
-	  if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
-            a = xpmem_attach(addr, size, NULL);
-            assert((long int)a != -1);
-            xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
+  if (mem_partners_recv) {
+    for (i = 0; (j = mem_partners_recv[i]) >= 0; i++) {
+      if (j > 0) {
+        recvbufs[j] = shmem[j][1];
+        if (all_xpmem_id_permutated[j] != -1) {
+          addr.offset = (unsigned long int)(recvbufs[j]);
+	  addr.offset &= 0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1);
+          addr.apid = all_xpmem_id_permutated[j];
+          if (addr.apid != -1 && recvbufs[j]) {
+	    if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
+              a = xpmem_attach(addr, size, NULL);
+              assert((long int)a != -1);
+              xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
+	    }
+            recvbufs[j] = a + (unsigned long int)(recvbufs[j] - addr.offset);
+          } else {
+	    recvbufs[j] = recvbuf;
 	  }
-          recvbufs[j] = a + (unsigned long int)(recvbufs[j] - addr.offset);
-        } else {
-	  recvbufs[j] = recvbuf;
         }
       }
     }

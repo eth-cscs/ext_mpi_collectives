@@ -1877,7 +1877,7 @@ error:
 
 int EXT_MPI_Init_native() {
   ext_mpi_call_mpi(PMPI_Comm_dup(MPI_COMM_WORLD, &ext_mpi_COMM_WORLD_dup));
-  dmalloc_init(ext_mpi_init_shared_memory(ext_mpi_COMM_WORLD_dup, 1024 * 1024 * 1524), 1024 * 1024 * 1524);
+  dmalloc_init(ext_mpi_init_shared_memory(ext_mpi_COMM_WORLD_dup, 1024u * 1024u * 2048u), 1024u * 1024u * 2048u);
 #ifdef XPMEM
   ext_mpi_init_xpmem(ext_mpi_COMM_WORLD_dup);
 #endif

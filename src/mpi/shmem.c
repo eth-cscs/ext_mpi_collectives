@@ -19,7 +19,7 @@ static int *sizes_shared_global = NULL;
 static int *shmemid_global = NULL;
 static char **shmem_global = NULL;
 
-void * ext_mpi_init_shared_memory(MPI_Comm comm_world, int size_shared) {
+void * ext_mpi_init_shared_memory(MPI_Comm comm_world, size_t size_shared) {
   int my_mpi_rank_row, my_mpi_size_row, my_cores_per_node, i;
   MPI_Comm shmem_comm_node;
   my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm_world, 1);
