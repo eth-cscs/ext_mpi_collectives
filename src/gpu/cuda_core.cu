@@ -2,17 +2,12 @@
 #include "gpu_core.h"
 #include <cuda.h>
 #include <stdio.h>
+#include <assert.h>
 
 void ext_mpi_gpu_malloc(void **p, int size) {
-  if (cudaMalloc(p, size) != cudaSuccess) {
-    printf("error in gpu_malloc\n");
-    exit(13);
-  }
+  assert(cudaMalloc(p, size) == cudaSuccess);
 #ifdef DEBUG
-  if (cudaMemset(*p, -1, size) != cudaSuccess) {
-    printf("error in gpu_malloc\n");
-    exit(13);
-  }
+  assert(cudaMemset(*p, -1, size) == cudaSuccess);
 #endif
 }
 

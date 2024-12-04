@@ -474,7 +474,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     shmemid = NULL;
   } else {
     if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node,
-                                    shmem_size, &shmem_sizes, &shmemid, &shmem) < 0)
+                                    shmem_size, 1, &shmem_sizes, &shmemid, &shmem) < 0)
       goto error_shared;
   }
 #ifdef GPU_ENABLED
@@ -553,7 +553,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       shmemid = NULL;
     } else {
       if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node, 
-                                      shmem_size, &shmem_sizes, &shmemid, &shmem) < 0)
+                                      shmem_size, 1, &shmem_sizes, &shmemid, &shmem) < 0)
         goto error_shared;
     }
     if (not_locmem) {

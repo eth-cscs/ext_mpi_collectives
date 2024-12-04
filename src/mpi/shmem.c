@@ -103,7 +103,7 @@ int ext_mpi_done_shared_memory(MPI_Comm comm_world) {
 }
 
 int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, int num_sockets_per_node,
-                                int size_shared, int **sizes_shared, int **shmemid, char ***shmem) {
+                                int size_shared, int initialize, int **sizes_shared, int **shmemid, char ***shmem) {
   int my_mpi_rank_row, my_mpi_size_row, shmemid_temp, single_task, size_shared_temp, *ranks_global, i, j, k;
   char *shmem_temp;
   long int offset, *offsets;
@@ -172,7 +172,9 @@ int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, in
       (*sizes_shared)[my_cores_per_node_row * (k + 1) - 1] = size_shared_temp;
     }
   }
-  memset((void *)((*shmem)[0]), 0, size_shared);
+  if (initialize) {
+    memset((void *)((*shmem)[0]), 0, size_shared);
+  }
   ext_mpi_call_mpi(PMPI_Barrier(shmem_comm_node));
   ext_mpi_call_mpi(PMPI_Comm_free(&shmem_comm_node));
   return 0;

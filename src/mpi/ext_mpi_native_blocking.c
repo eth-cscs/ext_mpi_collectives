@@ -426,9 +426,6 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
   ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
   if (!comms_blocking[i_comm]->initialized) {
     comms_blocking[i_comm]->initialized = 1;
-#ifdef GPU_ENABLED
-    ext_mpi_gpu_malloc(&comms_blocking[i_comm]->p_dev_temp, 10000);
-#endif
     ext_mpi_call_mpi(MPI_Comm_size(comm, &comms_blocking[i_comm]->mpi_size_blocking));
     ext_mpi_call_mpi(MPI_Comm_rank(comm, &comms_blocking[i_comm]->mpi_rank_blocking));
     comms_blocking[i_comm]->ranks_node = (int*)malloc(my_cores_per_node * sizeof(int));
@@ -441,28 +438,29 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 #ifdef XPMEM
     ext_mpi_init_xpmem_blocking(comm, &comms_blocking[i_comm]->xpmem_tree_root);
 #endif
-    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, size_shared, &comms_blocking[i_comm]->sizes_shared_socket, &comms_blocking[i_comm]->shmem_socket_blocking_shmemid, &comms_blocking[i_comm]->shmem_socket_blocking);
+    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, size_shared, 1, &comms_blocking[i_comm]->sizes_shared_socket, &comms_blocking[i_comm]->shmem_socket_blocking_shmemid, &comms_blocking[i_comm]->shmem_socket_blocking);
     comms_blocking[i_comm]->counter_socket_blocking = 0;
     comms_blocking[i_comm]->num_cores_blocking = my_cores_per_node;
     comms_blocking[i_comm]->socket_rank_blocking = comms_blocking[i_comm]->mpi_rank_blocking % comms_blocking[i_comm]->num_cores_blocking;
-    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, size_shared, &comms_blocking[i_comm]->sizes_shared_node, &comms_blocking[i_comm]->shmem_node_blocking_shmemid, &comms_blocking[i_comm]->shmem_node_blocking);
+    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, size_shared, 1, &comms_blocking[i_comm]->sizes_shared_node, &comms_blocking[i_comm]->shmem_node_blocking_shmemid, &comms_blocking[i_comm]->shmem_node_blocking);
     comms_blocking[i_comm]->counter_node_blocking = 0;
 #ifdef GPU_ENABLED
-    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, 2 * sizeof(struct address_transfer), &comms_blocking[i_comm]->shmem_blocking1.small_sizes, &comms_blocking[i_comm]->shmem_blocking1.small_shmemid, &comms_blocking[i_comm]->shmem_blocking1.small_mem);
-    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, 2 * sizeof(struct address_transfer), &comms_blocking[i_comm]->shmem_blocking2.small_sizes, &comms_blocking[i_comm]->shmem_blocking2.small_shmemid, &comms_blocking[i_comm]->shmem_blocking2.small_mem);
+    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, 2 * sizeof(struct address_transfer), 1, &comms_blocking[i_comm]->shmem_blocking1.small_sizes, &comms_blocking[i_comm]->shmem_blocking1.small_shmemid, &comms_blocking[i_comm]->shmem_blocking1.small_mem);
+    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, 2 * sizeof(struct address_transfer), 1, &comms_blocking[i_comm]->shmem_blocking2.small_sizes, &comms_blocking[i_comm]->shmem_blocking2.small_shmemid, &comms_blocking[i_comm]->shmem_blocking2.small_mem);
 #else
 #ifdef XPMEM
-    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, 2 * sizeof(void*), &comms_blocking[i_comm]->shmem_blocking1.small_sizes, &comms_blocking[i_comm]->shmem_blocking1.small_shmemid, &comms_blocking[i_comm]->shmem_blocking1.small_mem);
-    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, 2 * sizeof(void*), &comms_blocking[i_comm]->shmem_blocking2.small_sizes, &comms_blocking[i_comm]->shmem_blocking2.small_shmemid, &comms_blocking[i_comm]->shmem_blocking2.small_mem);
+    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, 2 * sizeof(void*), 1, &comms_blocking[i_comm]->shmem_blocking1.small_sizes, &comms_blocking[i_comm]->shmem_blocking1.small_shmemid, &comms_blocking[i_comm]->shmem_blocking1.small_mem);
+    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, 2 * sizeof(void*), 1, &comms_blocking[i_comm]->shmem_blocking2.small_sizes, &comms_blocking[i_comm]->shmem_blocking2.small_shmemid, &comms_blocking[i_comm]->shmem_blocking2.small_mem);
 #endif
 #endif
     size_shared = 1000 * 1024 * 1024 / 8;
-    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, size_shared, &comms_blocking[i_comm]->shmem_blocking1.sizes, &comms_blocking[i_comm]->shmem_blocking1.shmemid, &comms_blocking[i_comm]->shmem_blocking1.mem);
-    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, size_shared, &comms_blocking[i_comm]->shmem_blocking2.sizes, &comms_blocking[i_comm]->shmem_blocking2.shmemid, &comms_blocking[i_comm]->shmem_blocking2.mem);
+    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, size_shared, 0, &comms_blocking[i_comm]->shmem_blocking1.sizes, &comms_blocking[i_comm]->shmem_blocking1.shmemid, &comms_blocking[i_comm]->shmem_blocking1.mem);
+    ext_mpi_setup_shared_memory(comm, my_cores_per_node, 1, size_shared, 0, &comms_blocking[i_comm]->shmem_blocking2.sizes, &comms_blocking[i_comm]->shmem_blocking2.shmemid, &comms_blocking[i_comm]->shmem_blocking2.mem);
   }
 #ifdef GPU_ENABLED
   if (recv_ptr == RECV_PTR_GPU && !comms_blocking[i_comm]->initialized_gpu) {
     comms_blocking[i_comm]->initialized_gpu = 1;
+    ext_mpi_gpu_malloc(&comms_blocking[i_comm]->p_dev_temp, 10000);
     ext_mpi_gpu_setup_shared_memory(comm, my_cores_per_node, size_shared, 1, &comms_blocking[i_comm]->shmem_blocking1.shmemid_gpu, &comms_blocking[i_comm]->shmem_blocking1.mem_gpu);
     ext_mpi_gpu_setup_shared_memory(comm, my_cores_per_node, size_shared, 1, &comms_blocking[i_comm]->shmem_blocking2.shmemid_gpu, &comms_blocking[i_comm]->shmem_blocking2.mem_gpu);
   }
