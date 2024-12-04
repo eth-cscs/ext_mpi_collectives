@@ -871,9 +871,6 @@ int ext_mpi_exec_blocking(char *ip, int tag, char **shmem_socket, int *counter_s
   char instruction;
   void *p1, *p2;
   int i1, i2;
-#ifdef GPU_ENABLED
-  char instruction2;
-#endif
 #ifdef NCCL_ENABLED
   static int initialised = 0;
   static cudaStream_t stream;
@@ -981,10 +978,10 @@ int ext_mpi_exec_blocking(char *ip, int tag, char **shmem_socket, int *counter_s
       ext_mpi_gpu_synchronize();
       break;
     case OPCODE_GPUKERNEL:
-      instruction2 = code_get_char(&ip);
+      code_get_char(&ip);
       p1 = code_get_pointer(&ip);
-      gpu_recalculate_addresses(p1, sendbufs, recvbufs, count, shmem_blocking, count_io, instruction2, p_dev_temp);
-      ext_mpi_gpu_copy_reduce(instruction2, p_dev_temp, code_get_int(&ip));
+      gpu_recalculate_addresses(p1, sendbufs, recvbufs, count, shmem_blocking, count_io, reduction_op, p_dev_temp);
+      ext_mpi_gpu_copy_reduce(reduction_op, p_dev_temp, code_get_int(&ip));
       break;
 #endif
 #ifdef NCCL_ENABLED

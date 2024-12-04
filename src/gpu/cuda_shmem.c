@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <dlfcn.h>
+#include <assert.h>
 #include <cuda.h>
 #include "gpu_shmem.h"
 #include "shmem.h"
@@ -244,9 +245,7 @@ static int search_address_lookup(struct address_lookup *p, char *address, size_t
   return 1;
 }
 
-static int insert_address_lookup(struct address_lookup **root, char *address_key, size_t size_key, char *address_value) {
-  struct address_lookup **p;
-  p = root;
+static int insert_address_lookup(struct address_lookup **p, char *address_key, size_t size_key, char *address_value) {
   while (*p && address_key != (*p)->address_key) {
     if (address_key < (*p)->address_key) {
       p = &(*p)->left;
@@ -297,9 +296,8 @@ static void merge_trees_address_lookup(struct address_lookup **root, struct addr
   }
 }
 
-static int delete_address_lookup(struct address_lookup **root, char *address_key) {
-  struct address_lookup **p, *p2, *p3;
-  p = root;
+static int delete_address_lookup(struct address_lookup **p, char *address_key) {
+  struct address_lookup *p2, *p3;
   while (*p && address_key != (*p)->address_key) {
     if (address_key < (*p)->address_key) {
       p = &(*p)->left;
@@ -308,32 +306,22 @@ static int delete_address_lookup(struct address_lookup **root, char *address_key
     }
   }
   if (!*p) return 0;
+  p2 = *p;
   if (!(*p)->right) {
-    p2 = *p;
-    if (p == root) {
-      *p = (*p)->left;
-    } else {
-      p = &(*p)->left;
-    }
-    free(p2);
+    *p = (*p)->left;
   } else {
-    p2 = *p;
     p3 = (*p)->left;
-    if (p == root) {
-      *p = (*p)->right;
-    } else {
-      p = &(*p)->right;
-    }
+    *p = (*p)->right;
     merge_trees_address_lookup(p, p3);
     delete_all_addresses_lookup(p3);
-    if (p2->address_value) {
-      if (cudaIpcCloseMemHandle((void *)(p2->address_value)) != 0) {
-        printf("error 5 cudaIpcCloseMemHandle in cuda_shmem.c %p\n", p2->address_value);
-        exit(1);
-      }
-    }
-    free(p2);
   }
+  if (p2->address_value) {
+    if (cudaIpcCloseMemHandle((void *)(p2->address_value)) != 0) {
+      printf("error 5 cudaIpcCloseMemHandle in cuda_shmem.c %p\n", p2->address_value);
+      exit(1);
+    }
+  }
+  free(p2);
   return 1;
 }
 
@@ -412,7 +400,7 @@ void ext_mpi_done_gpu_blocking() {
 int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
   CUdeviceptr pbase;
   size_t psize;
-  int bc, i;
+  int bc, error, i;
   my_mpi_rank = my_mpi_rank % my_cores_per_node;
   if (sendbuf != recvbuf) {
     cuMemGetAddressRange(&pbase, &psize, (CUdeviceptr)sendbuf);
@@ -458,14 +446,17 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node
       }
     }
   }
+  if (mem_partners_recv && mem_partners_recv[0] >= 0) {
   for (i = 1; i < my_cores_per_node; i++) {
     if (!((struct address_transfer*)(shmem[i]))[1].present && !search_address_lookup(address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size, &recvbufs[i])) {
-      if (cudaIpcOpenMemHandle((void **)&(recvbufs[i]), ((struct address_transfer*)(shmem[i]))[1].cuda_mem_handle, cudaIpcMemLazyEnablePeerAccess) != 0) {
-        printf("error 3 cudaIpcOpenMemHandle in cuda_shmem.c\n");
-        exit(1);
+      error = cudaIpcOpenMemHandle((void **)&(recvbufs[i]), ((struct address_transfer*)(shmem[i]))[1].cuda_mem_handle, cudaIpcMemLazyEnablePeerAccess);
+      if (error) {
+        printf("%s\n", cudaGetErrorString(error));
+	assert(0);
       }
       insert_address_lookup(&address_lookup_root[((struct address_transfer*)(shmem[i]))[0].mpi_node_rank], ((struct address_transfer*)(shmem[i]))[1].address, ((struct address_transfer*)(shmem[i]))[1].size, recvbufs[i]);
     }
+  }
   }
   return 0;
 }
