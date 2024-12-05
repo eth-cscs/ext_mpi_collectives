@@ -18,6 +18,11 @@ static int mpi_rank_node_global = -1;
 static int *sizes_shared_global = NULL;
 static int *shmemid_global = NULL;
 static char **shmem_global = NULL;
+static long int *shmem_offsets = NULL;
+
+long int * ext_mpi_get_shmem_offsets() {
+  return shmem_offsets;
+}
 
 void * ext_mpi_init_shared_memory(MPI_Comm comm_world, size_t size_shared) {
   int my_mpi_rank_row, my_mpi_size_row, my_cores_per_node, i;
@@ -60,9 +65,14 @@ void * ext_mpi_init_shared_memory(MPI_Comm comm_world, size_t size_shared) {
       goto error;
     ext_mpi_call_mpi(PMPI_Barrier(shmem_comm_node));
   }
+  shmem_offsets = (long int *)malloc(my_cores_per_node * sizeof(long int));
+  ext_mpi_call_mpi(PMPI_Alltoall(shmem_global, my_cores_per_node, MPI_LONG, shmem_offsets, my_cores_per_node, MPI_LONG, shmem_comm_node));
+  for (i = 0; i < my_cores_per_node; i++) {
+    shmem_offsets[i] = shmem_global[i] - (char*)(shmem_offsets[i]);
+  }
   sizes_shared_global = (int*)malloc(my_cores_per_node * sizeof(int));
   ext_mpi_call_mpi(PMPI_Allgather(&size_shared, 1, MPI_INT, sizes_shared_global, 1, MPI_INT, shmem_comm_node));
-  memset((void *)(shmem_global[0]), 0, size_shared);
+  memset((void *)(shmem_global[mpi_rank_node_global]), 0, size_shared);
   ext_mpi_call_mpi(PMPI_Barrier(shmem_comm_node));
   ext_mpi_call_mpi(PMPI_Comm_free(&shmem_comm_node));
   return shmem_global[mpi_rank_node_global];

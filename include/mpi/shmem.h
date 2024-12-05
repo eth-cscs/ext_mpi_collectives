@@ -8,6 +8,7 @@
 extern "C" {
 #endif
 
+long int * ext_mpi_get_shmem_offsets();
 void * ext_mpi_init_shared_memory(MPI_Comm comm_world, size_t size_shared);
 int ext_mpi_done_shared_memory(MPI_Comm comm_world);
 int ext_mpi_destroy_shared_memory(int num_segments, int *ranks_node, int *sizes_shared, int *shmemid, char **shmem);
