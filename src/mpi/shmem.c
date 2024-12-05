@@ -66,7 +66,7 @@ void * ext_mpi_init_shared_memory(MPI_Comm comm_world, size_t size_shared) {
     ext_mpi_call_mpi(PMPI_Barrier(shmem_comm_node));
   }
   shmem_offsets = (long int *)malloc(my_cores_per_node * sizeof(long int));
-  ext_mpi_call_mpi(PMPI_Alltoall(shmem_global, my_cores_per_node, MPI_LONG, shmem_offsets, my_cores_per_node, MPI_LONG, shmem_comm_node));
+  ext_mpi_call_mpi(PMPI_Allgather(&shmem_global[mpi_rank_node_global], 1, MPI_LONG, shmem_offsets, 1, MPI_LONG, shmem_comm_node));
   for (i = 0; i < my_cores_per_node; i++) {
     shmem_offsets[i] = shmem_global[i] - (char*)(shmem_offsets[i]);
   }
