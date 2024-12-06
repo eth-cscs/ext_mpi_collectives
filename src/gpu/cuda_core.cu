@@ -91,17 +91,16 @@ void ext_mpi_gpu_copy_reduce(char instruction2, void *data, int count) {
     gpu_copy_reduce_kernel<char><<<(count + 127) / 128, 128>>>((char *)data);
     break;
   case OPCODE_REDUCE_SUM_DOUBLE:
-    gpu_copy_reduce_kernel<double><<<(count + 127) / 128, 128>>>((char *)data);
+    gpu_copy_reduce_kernel<double><<<(count / sizeof (double) + 127) / 128, 128>>>((char *)data);
     break;
   case OPCODE_REDUCE_SUM_LONG_INT:
-    gpu_copy_reduce_kernel<long int>
-        <<<(count + 127) / 128, 128>>>((char *)data);
+    gpu_copy_reduce_kernel<long int><<<(count / sizeof(long int) + 127) / 128, 128>>>((char *)data);
     break;
   case OPCODE_REDUCE_SUM_FLOAT:
-    gpu_copy_reduce_kernel<float><<<(count + 127) / 128, 128>>>((char *)data);
+    gpu_copy_reduce_kernel<float><<<(count / sizeof(float) + 127) / 128, 128>>>((char *)data);
     break;
   case OPCODE_REDUCE_SUM_INT:
-    gpu_copy_reduce_kernel<int><<<(count + 127) / 128, 128>>>((char *)data);
+    gpu_copy_reduce_kernel<int><<<(count / sizeof(int) + 127) / 128, 128>>>((char *)data);
     break;
   }
 }

@@ -981,7 +981,8 @@ int ext_mpi_exec_blocking(char *ip, int tag, char **shmem_socket, int *counter_s
       code_get_char(&ip);
       p1 = code_get_pointer(&ip);
       gpu_recalculate_addresses(p1, sendbufs, recvbufs, count, shmem_blocking, count_io, reduction_op, p_dev_temp);
-      ext_mpi_gpu_copy_reduce(reduction_op, p_dev_temp, code_get_int(&ip));
+      code_get_int(&ip);
+      ext_mpi_gpu_copy_reduce(reduction_op, p_dev_temp, count);
       break;
 #endif
 #ifdef NCCL_ENABLED
