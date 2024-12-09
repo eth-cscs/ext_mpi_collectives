@@ -72,6 +72,7 @@ int ext_mpi_hash_delete_blocking(MPI_Comm *key) {
          int temp = hashArray[hashIndex]->data;
 	 free(hashArray[hashIndex]);
          hashArray[hashIndex] = dummyItem;
+         num_entries--;
          return temp;
       }
 		
@@ -79,7 +80,6 @@ int ext_mpi_hash_delete_blocking(MPI_Comm *key) {
 		
       hashIndex %= SIZE;
    }      
-   num_entries--;
 	
    return -1;
 }
