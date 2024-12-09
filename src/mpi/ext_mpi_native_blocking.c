@@ -468,7 +468,9 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
 #endif
   switch (collective_type) {
     case collective_type_allreduce:
+#ifdef XPMEM
       ext_mpi_xpmem_blocking_get_id_permutated(comm, comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i_alg].num_sockets_per_node, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i_alg].all_xpmem_id_permutated);
+#endif
       if (comms_blocking[i_comm]->mpi_size_blocking < count) {
         comms_blocking[i_comm]->padding_factor_allreduce_blocking[i_alg] = comms_blocking[i_comm]->mpi_size_blocking;
 	j = comms_blocking[i_comm]->mpi_size_blocking;
@@ -499,7 +501,9 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
       add_blocking_member(count, datatype, handle, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i_alg].comm_code, &comms_blocking[i_comm]->comm_property_allreduce[collective_subtype][i_alg].count, padding_factor, comm, 1, comms_blocking[i_comm]->copyin, copyin);
     break;
     case collective_type_reduce_scatter_block:
+#ifdef XPMEM
       ext_mpi_xpmem_blocking_get_id_permutated(comm, comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i_alg].num_sockets_per_node, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i_alg].all_xpmem_id_permutated);
+#endif
       if (comms_blocking[i_comm]->mpi_size_blocking < count) {
         comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i_alg] = comms_blocking[i_comm]->mpi_size_blocking;
 	j = comms_blocking[i_comm]->mpi_size_blocking;
@@ -507,6 +511,7 @@ static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_
         comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i_alg] = count;
 	j = count;
       }
+      j = 1;
       comms_blocking[i_comm]->padding_factor_reduce_scatter_block_blocking[i_alg] = 1;
       assign_permutation(i_comm, &comms_blocking[i_comm]->comm_property_reduce_scatter_block[collective_subtype][i_alg]);
 #ifdef GPU_ENABLED

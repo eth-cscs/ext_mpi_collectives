@@ -409,7 +409,7 @@ void ext_mpi_done_gpu_blocking() {
     node = _get_entry(cur, struct address_node, avl);
     cur = avl_next(cur);
     avl_remove(&address_lookup_root, &node->avl);
-    ext_mpi_dfree(shmem_root_gpu, node);
+    ext_mpi_dfree(*ext_mpi_get_shmem_root_cpu(), node);
   }
   mpi_node_rank = -1;
 }
@@ -426,17 +426,29 @@ int ext_mpi_sendrecvbuf_init_gpu_blocking(int my_mpi_rank, int my_cores_per_node
     cuMemGetAddressRange(&pbase, &psize, (CUdeviceptr)sendbuf);
     sendbuf = (char*)pbase;
     size = psize;
-    node = (struct address_node *)ext_mpi_dmalloc(shmem_root_gpu, sizeof(struct address_node) + mpi_node_size * sizeof(char*));
+    node = (struct address_node *)ext_mpi_dmalloc(*ext_mpi_get_shmem_root_cpu(), sizeof(struct address_node) + mpi_node_size * sizeof(char*));
+    if (!node) {
+      printf("ext_mpi_dmalloc: not sufficient shared memory\n");
+      assert(0);
+    }
     node->address_key = sendbuf;
     node->size = size;
-    assert(cudaIpcGetMemHandle(&node->cuda_mem_handle, (void *)node->address_key) == 0);
+    error = cudaIpcGetMemHandle(&node->cuda_mem_handle, (void *)node->address_key);
+    if (error) {
+      printf("%s\n", cudaGetErrorString(error));
+      assert(0);
+    }
     node->address_values = (char**)((char*)node + sizeof(struct address_node));
     shmem[0][0] = (char*)avl_insert(&address_lookup_root, &node->avl, cmp_func);
   }
   cuMemGetAddressRange(&pbase, &psize, (CUdeviceptr)recvbuf);
   recvbuf = (char*)pbase;
   size = psize;
-  node = (struct address_node *)ext_mpi_dmalloc(shmem_root_gpu, sizeof(struct address_node) + mpi_node_size * sizeof(char*));
+  node = (struct address_node *)ext_mpi_dmalloc(*ext_mpi_get_shmem_root_cpu(), sizeof(struct address_node) + mpi_node_size * sizeof(char*));
+  if (!node) {
+    printf("ext_mpi_dmalloc: not sufficient shared memory\n");
+    assert(0);
+  }
   node->address_key = recvbuf;
   node->size = size;
   assert(cudaIpcGetMemHandle(&node->cuda_mem_handle, (void *)node->address_key) == 0);
