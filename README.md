@@ -136,6 +136,9 @@ the same parameters can be passed with the MPI_Info argument where the variable 
 ## On Slingshot:
 export FI_MR_CACHE_MONITOR=memhooks
 
+## Third party software included
+https://github.com/greensky00/avltree.git
+
 ## Literature
 
 [A. Jocksch, N. Ohana, E. Lanti, E. Koutsaniti, V. Karakasis, L. Villard: An optimisation of allreduce communication in message-passing systems. Parallel Computing, 107 (2021) 102812](https://doi.org/10.1016/j.parco.2021.102812)

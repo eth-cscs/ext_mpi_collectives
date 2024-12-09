@@ -7,7 +7,7 @@
 #include "read_write.h"
 #include "ext_mpi_native.h"
 #include "ext_mpi.h"
-#include "dmm.h"
+#include "memory_manager.h"
 #include "shmem.h"
 #include <mpi.h>
 
@@ -19,6 +19,11 @@ static int *sizes_shared_global = NULL;
 static int *shmemid_global = NULL;
 static char **shmem_global = NULL;
 static long int *shmem_offsets = NULL;
+static void *shmem_root_cpu = NULL;
+
+void ** ext_mpi_get_shmem_root_cpu() {
+  return &shmem_root_cpu;
+}
 
 long int * ext_mpi_get_shmem_offsets() {
   return shmem_offsets;
@@ -135,7 +140,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, in
   i = my_mpi_rank_row % (my_cores_per_node_row * num_sockets_per_node);
   if (!single_task) {
     (*shmemid)[i] = -1;
-    (*shmem)[i] = dmalloc(size_shared);
+    (*shmem)[i] = ext_mpi_dmalloc(shmem_root_cpu, size_shared);
     if (!(*shmem)[i]) {
       printf("dalloc: not enough shared memory\n");
       exit(1);
@@ -215,7 +220,7 @@ int ext_mpi_destroy_shared_memory(int num_segments, int *ranks_node, int *sizes_
     if (shmemid[i] == -2) {
       free(shmem[i]);
     } else if (shmemid[i] == -1) {
-      dfree(shmem[i]);
+      ext_mpi_dfree(shmem_root_cpu, shmem[i]);
     }
   }
   free(shmemid);

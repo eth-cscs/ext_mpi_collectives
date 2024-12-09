@@ -13,7 +13,10 @@
 extern "C" {
 #endif
 
+void ** ext_mpi_get_shmem_root_gpu();
 int ext_mpi_gpu_sizeof_memhandle();
+void *ext_mpi_init_shared_memory_gpu(MPI_Comm comm_world, size_t size_shared);
+int ext_mpi_done_shared_memory_gpu(MPI_Comm comm_world);
 int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_node_row,
                                     int size_shared, int num_segments,
                                     int **shmemidi_gpu, char ***shmem_gpu);
