@@ -40,7 +40,6 @@
 #include "reduce_scatter_single_node.h"
 #include "padding_factor.h"
 #include "shmem.h"
-#include "gpu_shmem.h"
 #include "ext_mpi_xpmem.h"
 #include "ext_mpi_native_exec.h"
 #include "reduce_copyin.h"
@@ -67,7 +66,9 @@ static int is_initialised = 0;
 static int tag_max = 0;
 static void *dlhandle = NULL;
 static void **shmem_root_cpu;
+#ifdef GPU_ENABLED
 static void **shmem_root_gpu;
+#endif
 
 extern int ext_mpi_fast;
 extern int ext_mpi_verbose;
@@ -1882,8 +1883,10 @@ int EXT_MPI_Init_native() {
   ext_mpi_call_mpi(PMPI_Comm_dup(MPI_COMM_WORLD, &ext_mpi_COMM_WORLD_dup));
   shmem_root_cpu = ext_mpi_get_shmem_root_cpu();
   ext_mpi_dmalloc_init(shmem_root_cpu, ext_mpi_init_shared_memory(ext_mpi_COMM_WORLD_dup, 1024u * 1024u * 2048u), 1024u * 1024u * 2048u);
+#ifdef GPU_ENABLED
   shmem_root_gpu = ext_mpi_get_shmem_root_gpu();
   ext_mpi_dmalloc_init(shmem_root_gpu, ext_mpi_init_shared_memory_gpu(ext_mpi_COMM_WORLD_dup, 1024u * 1024u * 2048u), 1024u * 1024u * 2048u);
+#endif
 #ifdef XPMEM
   ext_mpi_init_xpmem(ext_mpi_COMM_WORLD_dup);
 #endif
