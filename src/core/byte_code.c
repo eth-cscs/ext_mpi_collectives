@@ -22,6 +22,93 @@ struct gpu_stream {
   struct gpu_stream *next;
 };
 
+int gpu_byte_code_optimize(char *data, int *jump) {
+  int num_streams, index = 0, num_stream = 0, num_reductions = 0, i;
+  long int max_size, size, start;
+  char *ldata, *p1, *p2, *data_temp, *ldata_temp, **p1_array, **p2_array;
+  num_streams = *((int *)(data + sizeof(int)));
+  max_size = *((long int *)(data + 2 * sizeof(int)));
+  if (num_streams != 1) {
+    return 0;
+  }
+  data_temp = malloc(10000);
+  p1_array = (char**)malloc(1000 * sizeof(char*));
+  p2_array = (char**)malloc(1000 * sizeof(char*));
+  ldata = data + 2 * sizeof(int) + sizeof(long int) +
+            (num_streams * index + num_stream) *
+                (sizeof(char *) * 2 + sizeof(long int) * 2);
+  p1 = *((char **)ldata);
+  while (p1) {
+    p2 = *((char **)(ldata + sizeof(char *)));
+    size = *((long int *)(ldata + 2 * sizeof(char *)));
+    start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int)));
+    if (start) {
+      free(p2_array);
+      free(p1_array);
+      free(data_temp);
+      return 0;
+    }
+    if (size < 0) {
+      num_reductions++;
+    }
+    if (num_reductions) {
+      p1_array[num_reductions - 1] = p1;
+      p2_array[num_reductions - 1] = p2;
+    }
+    index++;
+    ldata = data + 2 * sizeof(int) + sizeof(long int) +
+            (num_streams * index + num_stream) *
+                (sizeof(char *) * 2 + sizeof(long int) * 2);
+    p1 = *((char **)ldata);
+  }
+  if (size / 128 < num_reductions) {
+    free(p2_array);
+    free(p1_array);
+    free(data_temp);
+    return 0;
+  }
+  for (i = 0; i < num_reductions; i++) {
+    ldata = data + 2 * sizeof(int) + sizeof(long int) +
+              (num_streams * index + num_stream) *
+                  (sizeof(char *) * 2 + sizeof(long int) * 2);
+    ldata_temp = data_temp + 2 * sizeof(int) + sizeof(long int) +
+              (num_reductions * index + i) *
+                  (sizeof(char *) * 2 + sizeof(long int) * 2);
+    p1 = *((char **)ldata);
+    while (p1) {
+      p2 = *((char **)(ldata + sizeof(char *)));
+      size = *((long int *)(ldata + 2 * sizeof(char *)));
+      start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int)));
+      if (size > 0) {
+        *((char **)ldata_temp) = p1 + (size / num_reductions) * i;
+        *((char **)(ldata_temp + sizeof(char *))) = p2 + (size / num_reductions) * i;
+      } else {
+        *((char **)ldata_temp) = p1_array[i % num_reductions] + (size / num_reductions) * i;
+        *((char **)(ldata_temp + sizeof(char *))) = p2_array[i % num_reductions] + (size / num_reductions) * i;
+      }
+      if (i < num_reductions - 1) {
+        *((long int *)(ldata + 2 * sizeof(char *))) = size / num_reductions;
+      } else {
+        *((long int *)(ldata + 2 * sizeof(char *))) = size - (size / num_reductions) * (num_reductions - 1);
+      }
+      *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int))) = start;
+      index++;
+      ldata = data + 2 * sizeof(int) + sizeof(long int) +
+              (num_streams * index + num_stream) *
+                  (sizeof(char *) * 2 + sizeof(long int) * 2);
+      ldata_temp = data_temp + 2 * sizeof(int) + sizeof(long int) +
+              (num_reductions * index + i) *
+                  (sizeof(char *) * 2 + sizeof(long int) * 2);
+      p1 = *((char **)ldata);
+    }
+  }
+  memcpy(data, data_temp, 2 * sizeof(int) + sizeof(long int) + (num_reductions * index + num_reductions - 1) * (sizeof(char *) * 2 + sizeof(long int) * 2));
+  free(p2_array);
+  free(p1_array);
+  free(data_temp);
+  return 1;
+}
+
 static int gpu_add_to_mem_addresses_range(struct mem_addresses **list,
                                           void *dest, void *src, int size,
                                           int reduce, int number) {
@@ -362,7 +449,7 @@ static int flush_complete(char **ip, struct gpu_stream **streams,
                            char *header_gpu_byte_code, char *gpu_byte_code,
                            int *gpu_byte_code_counter, int reduction_op,
                            int isdryrun) {
-  int type_size = 1, ret;
+  int type_size = 1, ret, jump;
   code_put_char(ip, OPCODE_GPUKERNEL, isdryrun);
   code_put_char(ip, reduction_op, isdryrun);
   type_size = get_type_size(reduction_op);
@@ -380,7 +467,10 @@ static int flush_complete(char **ip, struct gpu_stream **streams,
   } else {
     code_put_int(ip, 0, isdryrun);
   }
+  jump = *gpu_byte_code_counter;
   gpu_byte_code_flush2(streams, gpu_byte_code_counter);
+  jump = *gpu_byte_code_counter - jump;
+//  gpu_byte_code_optimize(gpu_byte_code + *gpu_byte_code_counter + jump, &jump);
   return ret;
 }
 #endif
