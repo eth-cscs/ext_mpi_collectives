@@ -129,6 +129,9 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
     moffsets[i + 1] = moffsets[i] + mcounts[i];
   }
   if (allreduce) {
+    if (parameters->copyin_method > 7) {
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
+    }
     if ((parameters->root == -1) ||
         ((parameters->root < 0) &&
          (-10 - parameters->root !=
@@ -172,7 +175,30 @@ int ext_mpi_generate_reduce_copyout(char *buffer_in, char *buffer_out) {
           }
           add2 += mcounts[data.blocks[data.num_blocks - 1].lines[i].frac];
         }
+      } else if (parameters->copyin_method > 7 && parameters->socket_rank == 0) {
+        add = 0;
+        add2 = 0;
+	size = 0;
+        for (i = 0; i < counts_max; i++) {
+          size += counts[i];
+        }
+        if (size) {
+          data_memcpy_reduce.type = esmemcpy;
+          data_memcpy_reduce.buffer_type1 = erecvbufp;
+          data_memcpy_reduce.buffer_number1 = 0;
+          data_memcpy_reduce.is_offset1 = 0;
+          data_memcpy_reduce.offset1 = add;
+          data_memcpy_reduce.buffer_type2 = eshmemo;
+          data_memcpy_reduce.buffer_number2 = 0;
+          data_memcpy_reduce.is_offset2 = 0;
+          data_memcpy_reduce.offset2 = add2;
+          data_memcpy_reduce.size = size;
+          nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+	}
       }
+    }
+    if (parameters->copyin_method > 7) {
+//      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", enode_barrier);
     }
   } else {
     add = 0;

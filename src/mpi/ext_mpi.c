@@ -841,6 +841,7 @@ int ext_mpi_bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
   my_cores_per_node_column = 1;
   ext_mpi_call_mpi(MPI_Comm_size(comm, &comm_size_row));
   ext_mpi_call_mpi(MPI_Comm_rank(comm, &comm_rank_row));
+  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
   ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
   message_size = type_size * count;
   num_ports = (int *)malloc((2 * comm_size_row + 1) * sizeof(int));
@@ -875,20 +876,35 @@ int ext_mpi_bcast_init_general(void *buffer, int count, MPI_Datatype datatype,
     }
   }
   num_sockets_per_node = num_sockets_per_node_;
-  copyin_method = 0;
-  copyin_factors = NULL;
+  if (ext_mpi_copyin_method >= 0) {
+    copyin_method = ext_mpi_copyin_method;
+    for (i = 0; ext_mpi_copyin_factors[i]; i++) {
+      copyin_factors[i] = ext_mpi_copyin_factors[i];
+    }
+    copyin_factors[i] = 0;
+  } else {
+    free(copyin_factors);
+    if (ext_mpi_copyin_info(comm, info, &copyin_method, &copyin_factors) < 0) {
+/*      EXT_MPI_Allreduce_measurement(
+          sendbuf, recvbuf, count, datatype, op, comm, &my_cores_per_node,
+          MPI_COMM_NULL, 1,
+          my_cores_per_node, &copyin_method, &copyin_factors, &num_sockets_per_node);*/
+    }
+  }
   *handle = EXT_MPI_Bcast_init_native(
       buffer, count, datatype, root, comm, my_cores_per_node_row,
       MPI_COMM_NULL, my_cores_per_node_column, num_ports, groups,
-      copyin_method, copyin_factors, alt, not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL);
+      copyin_method, copyin_factors, alt, not_recursive, ext_mpi_blocking, num_sockets_per_node, 0, NULL, NULL, NULL);
   if (*handle < 0)
     goto error;
   free(groups);
   free(num_ports);
+  free(copyin_factors);
   return 0;
 error:
   free(groups);
   free(num_ports);
+  free(copyin_factors);
   return ERROR_MALLOC;
 }
 

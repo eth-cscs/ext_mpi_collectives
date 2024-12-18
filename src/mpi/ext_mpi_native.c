@@ -956,8 +956,13 @@ allreduce_short = 0;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (ext_mpi_generate_allreduce_copyin(buffer1, buffer2) < 0)
-    goto error;
+  if (root != -10) {
+    if (ext_mpi_generate_allreduce_copyin(buffer1, buffer2) < 0)
+      goto error;
+  } else {
+    if (ext_mpi_generate_reduce_copyin(buffer1, buffer2) < 0)
+      goto error;
+  }
   if (my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
     if (root > -10 && copyin < 8 && !not_recursive && my_cores_per_node_row * my_cores_per_node_column == 1 && num_sockets_per_node == 1) {
       if (ext_mpi_generate_raw_code(buffer2, buffer1) < 0)
@@ -987,9 +992,14 @@ allreduce_short = 0;
     buffer1 = buffer2;
     buffer2 = buffer_temp;
   }
-  if (ext_mpi_generate_allreduce_copyout(buffer1, buffer2) < 0)
-    goto error;
-  
+  if (root != 0) {
+    if (ext_mpi_generate_allreduce_copyout(buffer1, buffer2) < 0)
+      goto error;
+  } else {
+    if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
+      goto error;
+  }
+ 
 /*   int mpi_rank;
    MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
    if (mpi_rank == 0){
@@ -1071,6 +1081,7 @@ allreduce_short = 0;
 //int rank;
 //ext_mpi_call_mpi(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
 //if (rank == 0) printf("%s\n", buffer2);
+//exit(1);
   iret = init_epilogue(buffer2, sendbuf, recvbuf, reduction_op, ext_mpi_hash_search_operator(&op), comm_row,
                        my_cores_per_node_row, comm_column,
                        my_cores_per_node_column, alt, shmem_zero, locmem, mem_partners_send, mem_partners_recv);
@@ -1119,11 +1130,11 @@ int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
                               int my_cores_per_node_row, MPI_Comm comm_column,
                               int my_cores_per_node_column, int *num_ports,
                               int *groups, int copyin, int *copyin_factors,
-                              int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem) {
+                              int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int **mem_partners_send, int **mem_partners_recv) {
   return (EXT_MPI_Reduce_init_native(
       buffer, buffer, count, datatype, MPI_OP_NULL, -10 - root, comm_row,
       my_cores_per_node_row, comm_column, my_cores_per_node_column, num_ports,
-      groups, copyin, copyin_factors, alt, 0, 0, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL, NULL, NULL));
+      groups, copyin, copyin_factors, alt, 0, 0, not_recursive, blocking, num_sockets_per_node, shmem_zero, locmem, NULL, mem_partners_send, mem_partners_recv));
 }
 
 int EXT_MPI_Gatherv_init_native(

@@ -1065,6 +1065,69 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   data.num_blocks = 0;
   data.blocks = NULL;
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
+  if (parameters->copyin_method <= 7) {
+    nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);
+    nbuffer_in += i = ext_mpi_read_algorithm(buffer_in + nbuffer_in, &data, parameters->ascii_in);
+    if (i == ERROR_MALLOC)
+      goto error;
+    if (i <= 0) {
+      printf("error reading algorithm reduce_copyin\n");
+      exit(2);
+    }
+    nbuffer_out += ext_mpi_write_algorithm(data, buffer_out + nbuffer_out, parameters->ascii_out);
+    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+    switch (parameters->data_type) {
+    case data_type_char:
+      type_size = sizeof(char);
+      break;
+    case data_type_int:
+      type_size = sizeof(int);
+      break;
+    case data_type_float:
+      type_size = sizeof(float);
+      break;
+    case data_type_long_int:
+      type_size = sizeof(long int);
+      break;
+    case data_type_double:
+      type_size = sizeof(double);
+      break;
+    }
+    mcounts = (int *)malloc(parameters->socket_row_size * sizeof(int));
+    if (!mcounts)
+      goto error;
+    moffsets = (int *)malloc((parameters->socket_row_size + 1) * sizeof(int));
+    if (!moffsets)
+      goto error;
+    size = 0;
+    for (i = 0; i < parameters->counts_max; i++) {
+      size += parameters->counts[i];
+    }
+    if (parameters->copyin_factors[0] < 0) {
+      ext_mpi_sizes_displs(parameters->socket_row_size, size, type_size, -parameters->copyin_factors[0], mcounts, moffsets);
+    } else {
+      ext_mpi_sizes_displs(parameters->socket_row_size, size, type_size, 0, mcounts, moffsets);
+    }
+    data_memcpy_reduce.type = esmemcpy;
+    data_memcpy_reduce.buffer_type1 = erecvbufp;
+    data_memcpy_reduce.buffer_number1 = 0;
+    data_memcpy_reduce.is_offset1 = 0;
+    data_memcpy_reduce.offset1 = moffsets[parameters->socket_rank];
+    data_memcpy_reduce.buffer_type2 = esendbufp;
+    data_memcpy_reduce.buffer_number2 = 0;
+    data_memcpy_reduce.is_offset2 = 0;
+    data_memcpy_reduce.offset2 = moffsets[parameters->socket_rank];
+    data_memcpy_reduce.size = mcounts[parameters->socket_rank];
+    if (data_memcpy_reduce.size) {
+      nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+    }
+    free(moffsets);
+    free(mcounts);
+    nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
+    ext_mpi_delete_algorithm(data);
+    ext_mpi_delete_parameters(parameters);
+    return nbuffer_out;
+  }
   if (i < 0)
     goto error;
   nbuffer_out += ext_mpi_write_parameters(parameters, buffer_out + nbuffer_out);

@@ -20,7 +20,6 @@ extern MPI_Comm ext_mpi_COMM_WORLD_dup;
 
 static void node_barrier(int **shmem, int *barrier_count, int socket_rank, int num_sockets_per_node) {
   int step, *p, bc;
-exit(9);
   memory_fence_store();
   for (step = 1; step < num_sockets_per_node; step <<= 1) {
     bc = *(shmem[0]) = ++(*barrier_count);
@@ -33,7 +32,6 @@ exit(9);
 
 static int node_barrier_test(int **shmem, int barrier_count, int socket_rank, int num_sockets_per_node) {
   int step, *p;
-exit(9);
   memory_fence_store();
   for (step = 1; step < num_sockets_per_node; step <<= 1) {
     *(shmem[0]) = ++barrier_count;

@@ -31,7 +31,7 @@ int EXT_MPI_Bcast_init_native(void *buffer, int count, MPI_Datatype datatype,
                               int my_cores_per_node_row, MPI_Comm comm_column,
                               int my_cores_per_node_column, int *num_ports,
                               int *groups, int copyin, int *copyin_factors,
-                              int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem);
+                              int alt, int not_recursive, int blocking, int num_sockets_per_node, int shmem_zero, char *locmem, int **mem_partners_send, int **mem_partners_recv);
 int EXT_MPI_Allgatherv_init_native(
     const void *sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf,
     const int *recvcounts, const int *displs, MPI_Datatype recvtype, MPI_Comm comm_row,
