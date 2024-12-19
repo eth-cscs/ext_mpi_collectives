@@ -301,13 +301,15 @@ int ext_mpi_sendrecvbuf_init_gpu(MPI_Comm comm, int my_cores_per_node, int num_s
 int ext_mpi_sendrecvbuf_done_gpu(int my_cores_per_node, char **sendrecvbufs) {
   int i;
   char *addr;
-  for (i = 1; i < my_cores_per_node; i++) {
-    addr = sendrecvbufs[i];
-    if (addr) {
-      assert(cudaIpcCloseMemHandle((void *)(addr)) == 0);
+  if (sendrecvbufs) {
+    for (i = 1; i < my_cores_per_node; i++) {
+      addr = sendrecvbufs[i];
+      if (addr) {
+        assert(cudaIpcCloseMemHandle((void *)(addr)) == 0);
+      }
     }
+    free(sendrecvbufs);
   }
-  free(sendrecvbufs);
   return 0;
 }
 

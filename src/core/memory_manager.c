@@ -73,6 +73,9 @@ void* ext_mpi_dmalloc(void *root, size_t numbytes) {
 
 void ext_mpi_dfree(void *root, void* ptr) {
   struct entry *p = (struct entry *)root, *p2;
+  if (!ptr) {
+    return;
+  }
   while (p && p->address != ptr) {
     p = p->next;
   }
