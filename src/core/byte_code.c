@@ -462,7 +462,7 @@ static int flush_complete(char **ip, struct gpu_stream **streams,
   if (!isdryrun) {
     code_put_int(ip,
                  ((long int *)(gpu_byte_code + *gpu_byte_code_counter))[1] *
-                     ((int *)(gpu_byte_code + *gpu_byte_code_counter))[1],
+                     ((int *)(gpu_byte_code + *gpu_byte_code_counter))[1] * type_size,
                  isdryrun);
   } else {
     code_put_int(ip, 0, isdryrun);
