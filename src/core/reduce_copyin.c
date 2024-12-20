@@ -632,11 +632,13 @@ static int reduce_copies_cyclic(enum eassembler_type erecvbufp, enum eassembler_
   return nbuffer_out;
 }
 
-static int wait_allgather_recursive(int factor, int *ranks_wait, char *buffer_out, int ascii){
+static int wait_allgather_recursive(int factor, int *ranks_wait, int on_gpu, char *buffer_out, int ascii){
   int nbuffer_out = 0, flag = 0, substep, gbstep, rstart, radix = 4, partner;
   if (ranks_wait) {
     flag = 0;
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_store);
+    if (!on_gpu) {
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_store);
+    }
     nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_node_barrier);
     for (substep = 0; substep < factor; substep++) {
       if (ranks_wait[substep] >= 0) {
@@ -644,12 +646,14 @@ static int wait_allgather_recursive(int factor, int *ranks_wait, char *buffer_ou
         flag = 1;
       }
     }
-    if (flag) {
+    if (flag && !on_gpu) {
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_load);
     }
   } else {
     for (rstart = 0; ranks_wait[rstart] >= 0; rstart++);
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_store);
+    if (!on_gpu) {
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_store);
+    }
     for (gbstep = 1; gbstep < factor; gbstep *= radix) {
       nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", eset_node_barrier);
       for (substep = 0; substep < radix && substep * gbstep < factor; substep++) {
@@ -659,7 +663,9 @@ static int wait_allgather_recursive(int factor, int *ranks_wait, char *buffer_ou
 	}
       }
     }
-    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_load);
+    if (!on_gpu) {
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, ascii, "s", ememory_fence_load);
+    }
   }
 //printf("%d | %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", factor, ranks_wait[0], ranks_wait[1], ranks_wait[2], ranks_wait[3], ranks_wait[4], ranks_wait[5], ranks_wait[6], ranks_wait[7], ranks_wait[8], ranks_wait[9], ranks_wait[10], ranks_wait[11], ranks_wait[12], ranks_wait[13], ranks_wait[14], ranks_wait[15]);
   return nbuffer_out;
@@ -772,7 +778,7 @@ static int reduce_copies_recursive(enum eassembler_type erecvbufp, enum eassembl
           for (substep = 0; substep < abs(factors[step - 1]); substep++) {
 	    ranks_waitl[substep] = ranks_wait[(step - 1) * max_factor + substep];
           }
-	  nbuffer_out += wait_allgather_recursive(factors[step - 1], ranks_waitl, buffer_out + nbuffer_out, ascii);
+	  nbuffer_out += wait_allgather_recursive(factors[step - 1], ranks_waitl, on_gpu, buffer_out + nbuffer_out, ascii);
 	}
       }
       for (substep = 0; substep < factors[step]; substep++) {
@@ -793,7 +799,7 @@ static int reduce_copies_recursive(enum eassembler_type erecvbufp, enum eassembl
       for (substep = 0; substep < abs(factors[num_factors - 1]); substep++) {
 	ranks_waitl[substep] = ranks_wait[(num_factors - 1) * max_factor + substep];
       }
-      nbuffer_out += wait_allgather_recursive(factors[num_factors - 1], ranks_waitl, buffer_out + nbuffer_out, ascii);
+      nbuffer_out += wait_allgather_recursive(factors[num_factors - 1], ranks_waitl, on_gpu, buffer_out + nbuffer_out, ascii);
     }
   } else {
     for (i = 1; i < socket_size; i++) {
@@ -925,7 +931,7 @@ static int reduce_copies_tree(enum eassembler_type erecvbufp, enum eassembler_ty
           for (substep = 0; substep < abs(factors[step - 1]); substep++) {
 	    ranks_waitl[substep] = ranks_wait[(step - 1) * max_factor + substep];
           }
-	  nbuffer_out += wait_allgather_recursive(factors[step - 1], ranks_waitl, buffer_out + nbuffer_out, ascii);
+	  nbuffer_out += wait_allgather_recursive(factors[step - 1], ranks_waitl, 0, buffer_out + nbuffer_out, ascii);
 	}
       }
       if (num_sockets > 1 && gbstep == 1) {
@@ -951,7 +957,7 @@ static int reduce_copies_tree(enum eassembler_type erecvbufp, enum eassembler_ty
       for (substep = 0; substep < abs(factors[num_factors - 1]); substep++) {
 	ranks_waitl[substep] = ranks_wait[(num_factors - 1) * max_factor + substep];
       }
-      nbuffer_out += wait_allgather_recursive(factors[num_factors - 1], ranks_waitl, buffer_out + nbuffer_out, ascii);
+      nbuffer_out += wait_allgather_recursive(factors[num_factors - 1], ranks_waitl, 0, buffer_out + nbuffer_out, ascii);
     }
   } else {
     printf("reduce_copies_tree not implemented\n"); exit(1);

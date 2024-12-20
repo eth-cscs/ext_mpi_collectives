@@ -331,7 +331,6 @@ int EXT_MPI_Done_native(int handle) {
     shmemid = header->shmemid;
     shmem_sizes = header->shmem_sizes;
     locmem = header->locmem;
-//      printf("bbbbbbbbbbbbb %p %p\n", shmem, shmem[0]);
 #ifdef GPU_ENABLED
     if (header->shmem_gpu) {
       if (header->shmemid_gpu) {
@@ -557,8 +556,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
     if (code_size < 0)
       goto error;
   }
-  free(shmem);
-  shmem = NULL;
   if (alt) {
     ip = comm_code[handle + 1] = (char *)malloc(code_size);
     if (!ip)
@@ -569,7 +566,6 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       if (ext_mpi_setup_shared_memory(comm_row, my_cores_per_node_row, num_sockets_per_node, 
                                       shmem_size, 1, &shmem_sizes, &shmemid, &shmem) < 0)
         goto error_shared;
-//                  printf("aaaaaaaaaaaaaaaa %p %p\n", shmem, shmem[0]);
     }
     if (not_locmem) {
       locmem = (char *)malloc(locmem_size);
