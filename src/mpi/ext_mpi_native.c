@@ -484,8 +484,8 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       goto error_shared;
   }
 #ifdef GPU_ENABLED
-  if (gpu_is_device_pointer(recvbuf) || (recvbufs && ((unsigned long int)recvbufs[0] & 0xF000000000000000) == RECV_PTR_GPU)) {
-    if (gpu_is_device_pointer(recvbuf)) {
+  if (ext_mpi_gpu_is_device_pointer(recvbuf) || (recvbufs && ((unsigned long int)recvbufs[0] & 0xF000000000000000) == RECV_PTR_GPU)) {
+    if (ext_mpi_gpu_is_device_pointer(recvbuf)) {
       ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, (char *)sendbuf, counts_send, &sendbufs, mem_partners_send);
       ext_mpi_sendrecvbuf_init_gpu(comm_row, num_sockets_per_node * my_cores_per_node_row, num_sockets_per_node, recvbuf, counts_recv, &recvbufs, mem_partners_recv);
     }
