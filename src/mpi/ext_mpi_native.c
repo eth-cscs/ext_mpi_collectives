@@ -275,6 +275,53 @@ int EXT_MPI_Done_native(int handle) {
   int gpu_is_device_p;
 #endif
   EXT_MPI_Wait_native(handle);
+  ip = comm_code[handle + 1];
+  if (ip) {
+    header = (struct header_byte_code *)ip;
+    shmem = header->shmem;
+    shmemid = header->shmemid;
+    shmem_sizes = header->shmem_sizes;
+    locmem = header->locmem;
+#ifdef GPU_ENABLED
+    if (header->shmem_gpu) {
+      if (header->shmemid_gpu && header->shmem_sizes) {
+        ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->ranks_node, header->shmemid_gpu, header->shmem_gpu);
+      }
+      header->shmem_gpu = NULL;
+      header->shmemid_gpu = NULL;
+    }
+//    if (header->gpu_gemv_var.handle) {
+//      ext_mpi_gemv_done(&header->gpu_gemv_var);
+//    }
+#endif
+    ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->ranks_node, shmem_sizes, shmemid, shmem);
+#ifdef GPU_ENABLED
+    if (ext_mpi_gpu_is_device_pointer(header->gpu_byte_code)) {
+      ext_mpi_gpu_free(header->gpu_byte_code);
+      free(header->ranks_node);
+    } else {
+      free(header->gpu_byte_code);
+    }
+    gpu_is_device_p = gpu_is_device_pointer(header->recvbufs[0]);
+    if (!gpu_is_device_p) {
+#endif
+#ifndef XPMEM
+    free(header->sendbufs);
+    free(header->recvbufs);
+#else
+    ext_mpi_sendrecvbuf_done_xpmem(header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
+    ext_mpi_sendrecvbuf_done_xpmem(header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
+#endif
+#ifdef GPU_ENABLED
+    }
+#endif
+    free(locmem);
+    free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_node);
+    free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_socket);
+    free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_socket_small);
+    free(comm_code[handle + 1]);
+    comm_code[handle + 1] = NULL;
+  }
   ip = comm_code[handle];
   header = (struct header_byte_code *)ip;
   shmem = header->shmem;
@@ -324,55 +371,9 @@ int EXT_MPI_Done_native(int handle) {
   free(((struct header_byte_code *)comm_code[handle])->barrier_shmem_socket_small);
   free(comm_code[handle]);
   comm_code[handle] = NULL;
-  ip = comm_code[handle + 1];
-  if (ip) {
-    header = (struct header_byte_code *)ip;
-    shmem = header->shmem;
-    shmemid = header->shmemid;
-    shmem_sizes = header->shmem_sizes;
-    locmem = header->locmem;
-#ifdef GPU_ENABLED
-    if (header->shmem_gpu) {
-      if (header->shmemid_gpu) {
-        ext_mpi_gpu_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->ranks_node, header->shmemid_gpu, header->shmem_gpu);
-      }
-      header->shmem_gpu = NULL;
-      header->shmemid_gpu = NULL;
-    }
-//    if (header->gpu_gemv_var.handle) {
-//      ext_mpi_gemv_done(&header->gpu_gemv_var);
-//    }
-#endif
-    ext_mpi_destroy_shared_memory(header->num_sockets_per_node * header->node_num_cores_row, header->ranks_node, shmem_sizes, shmemid, shmem);
-#ifdef GPU_ENABLED
-    if (ext_mpi_gpu_is_device_pointer(header->gpu_byte_code)) {
-      ext_mpi_gpu_free(header->gpu_byte_code);
-      free(header->ranks_node);
-    } else {
-      free(header->gpu_byte_code);
-    }
-    if (!gpu_is_device_p) {
-#endif
-#ifndef XPMEM
-    free(header->sendbufs);
-    free(header->recvbufs);
-#else
-    ext_mpi_sendrecvbuf_done_xpmem(header->node_num_cores_row * header->num_sockets_per_node, header->sendbufs);
-    ext_mpi_sendrecvbuf_done_xpmem(header->node_num_cores_row * header->num_sockets_per_node, header->recvbufs);
-#endif
-#ifdef GPU_ENABLED
-    }
-#endif
-    free(locmem);
-    free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_node);
-    free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_socket);
-    free(((struct header_byte_code *)comm_code[handle + 1])->barrier_shmem_socket_small);
-    free(comm_code[handle + 1]);
-    comm_code[handle + 1] = NULL;
-  }
   for (i = 0; i < handle_code_max; i++) {
     if (comm_code[i] != NULL) {
-      return (0);
+      return 0;
     }
   }
   free(active_wait);
@@ -574,7 +575,7 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
       goto error;
 #ifdef GPU_ENABLED
     if (gpu_is_device_pointer(recvbuf)) {
-      if (shmem_zero || !parameters->shmem_max) {
+      if (shmem_zero) {
         shmem_gpu = shmem;
         shmemid_gpu = NULL;
       } else {

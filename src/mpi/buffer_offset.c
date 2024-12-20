@@ -64,6 +64,7 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out, MPI_Comm *
     memset(buffer_offset[i], 0, sizeof(long int) * buffer_offset_max);
   }
   nbuffer_in2 = 0;
+  if (!buffer_offset_max) buffer_offset_max = 1;
   if (buffer_offset_max) {
     do {
       nbuffer_in2 += flag =

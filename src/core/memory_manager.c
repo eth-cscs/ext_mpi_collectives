@@ -48,6 +48,9 @@ void ext_mpi_dmalloc_done(void *root) {
 
 void* ext_mpi_dmalloc(void *root, size_t numbytes) {
   struct entry *p = (struct entry *)root, *p2;
+  if (!numbytes) {
+    numbytes = 1;
+  }
   numbytes = cache_alignment(numbytes);
   while (p && (!p->available || p->size < numbytes)) {
     p = p->next;
