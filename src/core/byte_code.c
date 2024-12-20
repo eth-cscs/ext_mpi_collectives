@@ -24,7 +24,7 @@ struct gpu_stream {
 
 int gpu_byte_code_optimize(char *data, int *jump) {
   int num_streams, index = 0, num_stream = 0, num_reductions = 0, i;
-  long int max_size, size, start;
+  long int max_size, size = 0, start;
   char *ldata, *p1, *p2, *data_temp, *ldata_temp, **p1_array, **p2_array;
   num_streams = *((int *)(data + sizeof(int)));
   max_size = *((long int *)(data + 2 * sizeof(int)));
@@ -48,13 +48,9 @@ int gpu_byte_code_optimize(char *data, int *jump) {
       free(data_temp);
       return 0;
     }
-    if (size < 0) {
-      num_reductions++;
-    }
-    if (num_reductions) {
-      p1_array[num_reductions - 1] = p1;
-      p2_array[num_reductions - 1] = p2;
-    }
+    p1_array[num_reductions] = p1;
+    p2_array[num_reductions] = p2;
+    num_reductions++;
     index++;
     ldata = data + 2 * sizeof(int) + sizeof(long int) +
             (num_streams * index + num_stream) *
@@ -67,42 +63,55 @@ int gpu_byte_code_optimize(char *data, int *jump) {
     free(data_temp);
     return 0;
   }
-  for (i = 0; i < num_reductions; i++) {
-    ldata = data + 2 * sizeof(int) + sizeof(long int) +
-              (num_streams * index + num_stream) *
-                  (sizeof(char *) * 2 + sizeof(long int) * 2);
+  index = 0;
+  ldata = data + 2 * sizeof(int) + sizeof(long int) +
+            (num_streams * index + num_stream) *
+                (sizeof(char *) * 2 + sizeof(long int) * 2);
+  for (i = 0; i < 4; i++) {
     ldata_temp = data_temp + 2 * sizeof(int) + sizeof(long int) +
-              (num_reductions * index + i) *
+              (4 * index + i) *
                   (sizeof(char *) * 2 + sizeof(long int) * 2);
-    p1 = *((char **)ldata);
-    while (p1) {
-      p2 = *((char **)(ldata + sizeof(char *)));
-      size = *((long int *)(ldata + 2 * sizeof(char *)));
-      start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int)));
-      if (size > 0) {
-        *((char **)ldata_temp) = p1 + (size / num_reductions) * i;
-        *((char **)(ldata_temp + sizeof(char *))) = p2 + (size / num_reductions) * i;
-      } else {
-        *((char **)ldata_temp) = p1_array[i % num_reductions] + (size / num_reductions) * i;
-        *((char **)(ldata_temp + sizeof(char *))) = p2_array[i % num_reductions] + (size / num_reductions) * i;
-      }
-      if (i < num_reductions - 1) {
-        *((long int *)(ldata + 2 * sizeof(char *))) = size / num_reductions;
-      } else {
-        *((long int *)(ldata + 2 * sizeof(char *))) = size - (size / num_reductions) * (num_reductions - 1);
-      }
-      *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int))) = start;
-      index++;
-      ldata = data + 2 * sizeof(int) + sizeof(long int) +
-              (num_streams * index + num_stream) *
-                  (sizeof(char *) * 2 + sizeof(long int) * 2);
-      ldata_temp = data_temp + 2 * sizeof(int) + sizeof(long int) +
-              (num_reductions * index + i) *
-                  (sizeof(char *) * 2 + sizeof(long int) * 2);
-      p1 = *((char **)ldata);
-    }
   }
-  memcpy(data, data_temp, 2 * sizeof(int) + sizeof(long int) + (num_reductions * index + num_reductions - 1) * (sizeof(char *) * 2 + sizeof(long int) * 2));
+  p1 = *((char **)ldata);
+  while (p1) {
+    p2 = *((char **)(ldata + sizeof(char *)));
+    size = *((long int *)(ldata + 2 * sizeof(char *)));
+    start = *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int)));
+    if (index < 4) {
+      for (i = 0; i < 4; i++) {
+        *((char **)ldata_temp) = p1 + (labs(size) / 4) * i;
+        *((char **)(ldata_temp + sizeof(char *))) = p2_array[(index + i) % 4] + (labs(size) / 4) * i;
+        if (i < 4 - 1) {
+          *((long int *)(ldata + 2 * sizeof(char *))) = labs(size) / 4;
+        } else {
+          *((long int *)(ldata + 2 * sizeof(char *))) = labs(size) - (labs(size) / 4) * (4 - 1);
+        }
+      }
+    } else {
+      for (i = 0; i < 4; i++) {
+        *((char **)ldata_temp) = p1_array[(index - 4 + i) % 3 + 4] + (labs(size) / 3) * i;
+        *((char **)(ldata_temp + sizeof(char *))) = p2 + (labs(size) / 3) * i;
+        if (i < 3 - 1) {
+          *((long int *)(ldata + 2 * sizeof(char *))) = labs(size) / 3;
+        } else {
+          *((long int *)(ldata + 2 * sizeof(char *))) = labs(size) - (labs(size) / 3) * (3 - 1);
+        }
+      }
+    }
+    *((long int *)(ldata + 2 * sizeof(char *) + sizeof(long int))) = start;
+    index++;
+    ldata = data + 2 * sizeof(int) + sizeof(long int) +
+            (num_streams * index + num_stream) *
+                (sizeof(char *) * 2 + sizeof(long int) * 2);
+    for (i = 0; i < 4; i++) {
+      ldata_temp = data_temp + 2 * sizeof(int) + sizeof(long int) +
+              (4 * index + i) *
+                  (sizeof(char *) * 2 + sizeof(long int) * 2);
+    }
+    p1 = *((char **)ldata);
+  }
+  memcpy(data, data_temp, 2 * sizeof(int) + sizeof(long int) + (4 * index + 4 - 1) * (sizeof(char *) * 2 + sizeof(long int) * 2));
+  *jump = 2 * sizeof(int) + sizeof(long int) + (4 * index + 4 - 1) * (sizeof(char *) * 2 + sizeof(long int) * 2);
   free(p2_array);
   free(p1_array);
   free(data_temp);
@@ -470,7 +479,11 @@ static int flush_complete(char **ip, struct gpu_stream **streams,
   jump = *gpu_byte_code_counter;
   gpu_byte_code_flush2(streams, gpu_byte_code_counter);
   jump = *gpu_byte_code_counter - jump;
-//  gpu_byte_code_optimize(gpu_byte_code + *gpu_byte_code_counter + jump, &jump);
+  if (gpu_byte_code) {
+    *gpu_byte_code_counter -= jump;
+//    gpu_byte_code_optimize(gpu_byte_code + *gpu_byte_code_counter, &jump);
+    *gpu_byte_code_counter += jump;
+  }
   return ret;
 }
 #endif
