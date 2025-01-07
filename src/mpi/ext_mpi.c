@@ -167,22 +167,17 @@ static int read_env() {
     ext_mpi_copyin_factors = NULL;
   }
   if (var) {
-    i = 1;
-    j = 2;
-    while (i < mpi_comm_size) {
-      j++;
-      i *= 2;
-    }
     if (mpi_comm_rank == 0) {
       ext_mpi_scan_copyin(c, &ext_mpi_copyin_method, &ext_mpi_copyin_factors);
       for (i=0; ext_mpi_copyin_factors[i]; i++);
       i++;
-    }else{
-      ext_mpi_copyin_factors = (int *)malloc((2 * j + 1) * sizeof(int) + 1000);
+    }
+    ext_mpi_call_mpi(MPI_Bcast(&i, 1, MPI_INT, 0, MPI_COMM_WORLD));
+    if (mpi_comm_rank != 0) {
+      ext_mpi_copyin_factors = (int *)malloc(i * sizeof(int));
       if (!ext_mpi_copyin_factors)
         goto error;
     }
-    ext_mpi_call_mpi(MPI_Bcast(&i, 1, MPI_INT, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(MPI_Bcast(&ext_mpi_copyin_method, 1, MPI_INT, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(MPI_Bcast(ext_mpi_copyin_factors, i, MPI_INT, 0, MPI_COMM_WORLD));
   }
@@ -750,7 +745,12 @@ int ext_mpi_reduce_init_general(const void *sendbuf, void *recvbuf, int count,
   my_cores_per_node = ext_mpi_get_param(ext_mpi_num_tasks_per_socket, comm, info, "ext_mpi_num_tasks_per_socket", ext_mpi_get_num_tasks_per_socket(comm, num_sockets_per_node_));
   ext_mpi_call_mpi(MPI_Comm_size(comm, &comm_size_row));
   ext_mpi_call_mpi(MPI_Comm_rank(comm, &comm_rank_row));
-  copyin_factors = (int*) malloc(sizeof(int) * (comm_size_row + 1));
+  if (ext_mpi_copyin_method >= 0) {
+    for (i = 0; ext_mpi_copyin_factors[i]; i++);
+  } else {
+    i = 1;
+  }
+  copyin_factors = (int*) malloc(sizeof(int) * (i + 1));
   ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
   if (sendbuf == MPI_IN_PLACE) {
     sendbuf = recvbuf;
