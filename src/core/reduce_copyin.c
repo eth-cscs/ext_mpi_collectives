@@ -1155,6 +1155,9 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
     }
     free(moffsets);
     free(mcounts);
+    if (parameters->copyin_method == 7) {
+      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
+    }
     nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
     ext_mpi_delete_algorithm(data);
     ext_mpi_delete_parameters(parameters);
