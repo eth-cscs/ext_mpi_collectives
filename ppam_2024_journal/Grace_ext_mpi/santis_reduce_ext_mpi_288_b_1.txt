@@ -1,0 +1,125 @@
+# EXT_MPI verbose
+
+# OSU MPI Reduce Persistent Latency Test v7.4
+# Datatype: MPI_FLOAT.
+# Size       Avg Latency(us)   Min Latency(us)   Max Latency(us)  Iterations
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 16 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+8                       1.85              0.58              6.11        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 64 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+16                      2.12              0.57             10.77        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 256 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+32                      2.07              0.58              8.85        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 1024 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+64                      2.46              0.57             13.50        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 4096 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+128                     3.43              0.59             20.38        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 16384 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+256                     4.35              0.60             18.89        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 65536 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+512                     6.43              0.61             19.20        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 262144 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+1024                   11.96              0.80             21.10        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 1048576 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+2048                   11.61              6.89             20.33        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 4194304 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+4096                   10.28              6.92             17.10        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 16777216 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+8192                   13.89             10.21             20.80        1000
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 67108864 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+16384                  18.69             16.43             24.93         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 268435456 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+32768                  25.29             22.36             34.70         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 1073741824 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+65536                  43.77             40.74             54.80         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+131072                 53.71             50.56             67.87         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+262144                 67.73             62.25             89.86         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+524288                 94.17             82.20            135.69         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+1048576               326.59            271.45            377.66         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+2097152               906.25            843.86           1027.68         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+4194304              2047.78           1943.02           2266.50         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+8388608              4830.08           4762.85           5497.11         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+16777216            10835.10          10718.73          12180.98         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+33554432            28294.61          28083.89          30989.16         100
+# EXT_MPI MPI tasks per socket: 288
+# recursive
+# EXT_MPI reduce parameters 1 0 1 288 ports 1(-1)
+# EXT_MPI reduce parameters copyin 10;1 -9 -8 -4 4 8 9
+67108864            57698.78          57334.20          63072.54         100
