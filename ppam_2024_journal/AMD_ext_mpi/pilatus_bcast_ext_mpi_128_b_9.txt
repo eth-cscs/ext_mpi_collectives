@@ -9,165 +9,165 @@
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 8 1 128 ports 1(-1)
-8                       6.43              5.20              7.28        1000
+8                       1.46              0.50              2.20        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 16 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 16 1 128 ports 1(-1)
-16                      6.79              5.72              7.80        1000
+16                      2.71              1.24              4.00        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 32 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 32 1 128 ports 1(-1)
-32                      7.49              6.42              8.73        1000
+32                      3.17              1.53              4.48        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 64 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 64 1 128 ports 1(-1)
-64                      8.03              7.19              9.25        1000
+64                      3.25              1.95              4.59        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 128 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 128 1 128 ports 1(-1)
-128                     8.40              7.53              9.65        1000
+128                     3.36              2.17              4.71        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 256 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 256 1 128 ports 1(-1)
-256                     8.76              7.95             10.01        1000
+256                     4.00              2.87              5.42        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 512 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 512 1 128 ports 1(-1)
-512                     9.05              8.18             10.30        1000
+512                     4.33              3.21              5.77        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 1024 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 1024 1 128 ports 1(-1)
-1024                    8.73              7.92              9.95        1000
+1024                    4.28              3.04              5.78        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 2048 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 2048 1 128 ports 1(-1)
-2048                    8.37              7.43              9.64        1000
+2048                    4.01              2.85              5.37        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 4096 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 4096 1 128 ports 1(-1)
-4096                    8.46              7.44              9.86        1000
+4096                    4.53              3.24              6.02        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 8192 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 8192 1 128 ports 1(-1)
-8192                    8.48              7.57              9.83        1000
+8192                    4.66              3.68              5.96        1000
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 16384 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 16384 1 128 ports 1(-1)
-16384                   9.50              8.20             10.64         100
+16384                   4.85              3.84              5.94         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 32768 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 32768 1 128 ports 1(-1)
-32768                  12.45             11.91             13.11         100
+32768                   8.59              8.15              9.26         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 65536 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 65536 1 128 ports 1(-1)
-65536                  19.96             18.52             21.04         100
+65536                  16.05             14.99             16.85         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 131072 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 131072 1 128 ports 1(-1)
-131072                 37.25             34.10             39.92         100
+131072                 33.08             29.74             35.98         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 262144 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 262144 1 128 ports 1(-1)
-262144                 70.50             64.83             74.49         100
+262144                 65.55             59.83             69.61         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 524288 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 524288 1 128 ports 1(-1)
-524288                127.60            115.77            133.23         100
+524288                127.20            112.79            136.40         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 1048576 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 1048576 1 128 ports 1(-1)
-1048576               281.03            255.20            290.38         100
+1048576               287.84            261.51            298.80         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 2097152 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 2097152 1 128 ports 1(-1)
-2097152               571.13            512.88            592.04         100
+2097152               577.03            514.55            599.51         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 4194304 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 4194304 1 128 ports 1(-1)
-4194304              1592.55           1477.08           1634.99         100
+4194304              1539.38           1463.41           1588.15         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 8388608 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 8388608 1 128 ports 1(-1)
-8388608              8836.72           8423.87           9033.26         100
+8388608              8808.26           8414.02           8974.74         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 16777216 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 16777216 1 128 ports 1(-1)
-16777216            18009.44          17392.72          18448.34         100
+16777216            18065.70          17449.58          18456.25         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 33554432 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 33554432 1 128 ports 1(-1)
-33554432            35674.76          34403.26          36277.07         100
+33554432            36185.03          34963.41          37244.24         100
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 67108864 1 128 ports 1(-1)
 # EXT_MPI MPI tasks per socket: 128
 # recursive
 # EXT_MPI bcast parameters 1 67108864 1 128 ports 1(-1)
-67108864            90939.15          89122.93          91807.43         100
+67108864            90874.79          89024.94          91885.42         100

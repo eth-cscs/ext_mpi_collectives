@@ -13,6 +13,10 @@
 for i in a b
 do
   ./average.sh AMD_ext_mpi/pilatus_reduce_ext_mpi_128_"$i"_*.txt > AMD_ext_mpi_reduce_"$i".txt
+done
+
+for i in a b c d
+do
   ./average.sh AMD_ext_mpi/pilatus_bcast_ext_mpi_128_"$i"_*.txt > AMD_ext_mpi_bcast_"$i".txt
 done
 
@@ -34,6 +38,10 @@ do
   for i in a b c d
   do
     ./average.sh Grace_ext_mpi/santis_reduce_ext_mpi_"$tasks"_"$i"_*.txt > Grace_ext_mpi_reduce_"$tasks"_"$i".txt
+  done
+
+  for i in a b c d e f g h
+  do
     ./average.sh Grace_ext_mpi/santis_bcast_ext_mpi_"$tasks"_"$i"_*.txt > Grace_ext_mpi_bcast_"$tasks"_"$i".txt
   done
 
