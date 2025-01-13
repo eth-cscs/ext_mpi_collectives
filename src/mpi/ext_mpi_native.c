@@ -997,9 +997,13 @@ allreduce_short = 0;
   if (root != 0) {
     if (ext_mpi_generate_allreduce_copyout(buffer1, buffer2) < 0)
       goto error;
-  } else {
+  } else if (root != -10){
     if (ext_mpi_generate_reduce_copyout(buffer1, buffer2) < 0)
       goto error;
+  } else {
+    buffer_temp = buffer1;
+    buffer1 = buffer2;
+    buffer2 = buffer_temp;
   }
  
 /*   int mpi_rank;
