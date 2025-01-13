@@ -754,6 +754,9 @@ int ext_mpi_bcast_init_debug(void *buffer, int count, MPI_Datatype datatype,
           world_rankd * count + i + 1073;
     }
     MPI_Bcast(buffer_ref, count, datatype, root, comm);
+    if (comm_rank_row != root) {
+      memset(buffer, -1, count * type_size);
+    }
     if (ext_mpi_bcast_init_general(buffer, count, datatype, root, comm, info, handle) < 0)
       goto error;
     if (EXT_MPI_Start(*handle) < 0)

@@ -1088,7 +1088,7 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
   int num_nodes = 1, size, add, add2, node_rank, node_row_size = 1,
       node_column_size = 1, node_size, *counts = NULL, counts_max = 0,
       *displs = NULL, *iocounts = NULL, iocounts_max = 0, *iodispls = NULL,
-      *lcounts = NULL, *ldispls = NULL, lrank_row, lrank_column, instance,
+      *lcounts = NULL, *ldispls = NULL, lrank_row = -1, lrank_column, instance,
       nbuffer_out = 0, nbuffer_in = 0, *mcounts = NULL, *moffsets = NULL, i, j,
       k, *ranks, gbstep, collective_type = 1, fast,
       type_size = 1, num_ranks, num_factors, *factors, instance_max;
@@ -1140,24 +1140,42 @@ int ext_mpi_generate_reduce_copyin(char *buffer_in, char *buffer_out) {
     } else {
       ext_mpi_sizes_displs(parameters->socket_row_size, size, type_size, 0, mcounts, moffsets);
     }
+	ranks = (int*)malloc(parameters->socket_row_size * sizeof(int));
+	for (i = 0; i < parameters->socket_row_size; i++) {
+	   ranks[i] = i;
+	}
+	if (parameters->copyin_method >= 6) {
+	  for (i = 1; parameters->copyin_factors[i] < 0 && i < parameters->copyin_factors_max; i++);
+	  ext_mpi_rank_order(parameters->socket_row_size, i - 1, parameters->copyin_factors + 1, ranks);
+	  for (i = 0; i < parameters->socket_row_size; i++) {
+	    if (ranks[i] == parameters->socket_rank) {
+	      lrank_row = (parameters->socket_row_size - i) % parameters->socket_row_size;
+	      break;
+	    }
+	  }
+//          lrank_row = (parameters->socket_row_size - ranks[parameters->socket_rank]) % parameters->socket_row_size;
+	}
     data_memcpy_reduce.type = esmemcpy;
     data_memcpy_reduce.buffer_type1 = erecvbufp;
     data_memcpy_reduce.buffer_number1 = 0;
+    if (parameters->copyin_method == 7) {
+      data_memcpy_reduce.buffer_number1 = lrank_row;
+    }
     data_memcpy_reduce.is_offset1 = 0;
-    data_memcpy_reduce.offset1 = moffsets[parameters->socket_rank];
+    data_memcpy_reduce.offset1 = moffsets[ranks[parameters->socket_rank]];
     data_memcpy_reduce.buffer_type2 = esendbufp;
     data_memcpy_reduce.buffer_number2 = 0;
+      data_memcpy_reduce.buffer_number2 = lrank_row;
     data_memcpy_reduce.is_offset2 = 0;
-    data_memcpy_reduce.offset2 = moffsets[parameters->socket_rank];
-    data_memcpy_reduce.size = mcounts[parameters->socket_rank];
+    data_memcpy_reduce.offset2 = moffsets[ranks[parameters->socket_rank]];
+    data_memcpy_reduce.size = mcounts[ranks[parameters->socket_rank]];
+        free(ranks);
     if (data_memcpy_reduce.size) {
-      nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
+//      nbuffer_out += ext_mpi_write_memcpy_reduce(buffer_out + nbuffer_out, &data_memcpy_reduce, parameters->ascii_out);
     }
+//    nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
     free(moffsets);
     free(mcounts);
-    if (parameters->copyin_method == 7) {
-      nbuffer_out += ext_mpi_write_assembler_line(buffer_out + nbuffer_out, parameters->ascii_out, "s", esocket_barrier);
-    }
     nbuffer_out += ext_mpi_write_eof(buffer_out + nbuffer_out, parameters->ascii_out);
     ext_mpi_delete_algorithm(data);
     ext_mpi_delete_parameters(parameters);
