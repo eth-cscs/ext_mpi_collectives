@@ -35,7 +35,7 @@ void *ext_mpi_init_shared_memory_gpu(MPI_Comm comm_world, size_t size_shared) {
   MPI_Comm shmem_comm_node;
   my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm_world, 1);
   if (my_cores_per_node <= 1) {
-    return NULL;
+//    return NULL;
   }
   ext_mpi_call_mpi(MPI_Comm_size(comm_world, &my_mpi_size));
   ext_mpi_call_mpi(MPI_Comm_rank(comm_world, &my_mpi_rank));
@@ -150,8 +150,8 @@ int ext_mpi_gpu_setup_shared_memory(MPI_Comm comm, int my_cores_per_socket,
   (*shmemidi_gpu)[i] = -1;
   (*shmem_gpu)[i] = ext_mpi_dmalloc(shmem_root_gpu, size_shared);
   if (!(*shmem_gpu)[i]) {
-    printf("dalloc: not enough shared memory\n");
-    exit(1);
+    printf("dalloc: not sufficient shared GPU memory\n");
+    assert(0);
   }
   offset = (*shmem_gpu)[i] - shmem_global[mpi_rank_node_global];
   offsets = (long int*)malloc(my_cores_per_socket * num_sockets_per_node * sizeof(long int));
