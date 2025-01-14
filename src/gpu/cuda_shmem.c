@@ -56,7 +56,7 @@ void *ext_mpi_init_shared_memory_gpu(MPI_Comm comm_world, size_t size_shared) {
   memset(shmemid_global, 0, my_cores_per_node * sizeof(int));
   for (i = 0; i < my_cores_per_node; i++) {
     memset(&shmemid_gpu, 0, sizeof(struct cudaIpcMemHandle_st));
-    if (my_mpi_rank == i) {
+    if (mpi_rank_node_global == i) {
       if (!size_shared) {
 	shmem_global[i] = NULL;
 	shmemid_global[i] = 1;
