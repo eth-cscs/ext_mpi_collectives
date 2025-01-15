@@ -17,8 +17,8 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out, MPI_Comm *
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
-  shmem_max = (long int*)malloc(parameters->socket_row_size * sizeof(long int));
-  memset(shmem_max, 0, parameters->socket_row_size * sizeof(long int));
+  shmem_max = (long int*)malloc(parameters->socket_row_size * parameters->num_sockets_per_node * sizeof(long int));
+  memset(shmem_max, 0, parameters->socket_row_size * parameters->num_sockets_per_node * sizeof(long int));
   buffer_in += nbuffer_in;
   do {
     nbuffer_in2 += flag =
@@ -48,10 +48,10 @@ int ext_mpi_generate_buffer_offset(char *buffer_in, char *buffer_out, MPI_Comm *
   if (comm) {
     PMPI_Allreduce(MPI_IN_PLACE, &buffer_offset_max, 1, MPI_INT, MPI_MAX, *comm);
   }
-  buffer_offset = (long int **)malloc(sizeof(long int*) * parameters->socket_row_size);
+  buffer_offset = (long int **)malloc(sizeof(long int*) * parameters->socket_row_size * parameters->num_sockets_per_node);
   if (!buffer_offset)
     goto error;
-  buffer_offset2 = (long int **)malloc(sizeof(long int*) * parameters->socket_row_size);
+  buffer_offset2 = (long int **)malloc(sizeof(long int*) * parameters->socket_row_size * parameters->num_sockets_per_node);
   if (!buffer_offset2)
     goto error;
   for (i = 0; i < parameters->socket_row_size; i++) {
