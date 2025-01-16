@@ -408,16 +408,16 @@ static int init_epilogue(char *buffer_in, const void *sendbuf, void *recvbuf,
   nbuffer_in += i = ext_mpi_read_parameters(buffer_in + nbuffer_in, &parameters);
   if (i < 0)
     goto error;
+  num_sockets_per_node = parameters->num_sockets_per_node;
   ext_mpi_call_mpi(MPI_Comm_size(comm_row, &my_mpi_size_row));
   ext_mpi_call_mpi(MPI_Comm_rank(comm_row, &my_mpi_rank));
-  ext_mpi_call_mpi(PMPI_Comm_split(comm_row, my_mpi_rank / my_cores_per_node_row, my_mpi_rank % my_cores_per_node_row, &comm_node));
-  ranks_node = (int*)malloc(my_cores_per_node_row * sizeof(int));
+  ext_mpi_call_mpi(PMPI_Comm_split(comm_row, my_mpi_rank / (my_cores_per_node_row * num_sockets_per_node), my_mpi_rank % (my_cores_per_node_row * num_sockets_per_node), &comm_node));
+  ranks_node = (int*)malloc(my_cores_per_node_row * num_sockets_per_node * sizeof(int));
   ext_mpi_call_mpi(MPI_Comm_rank(ext_mpi_COMM_WORLD_dup, &i));
   ext_mpi_call_mpi(PMPI_Allgather(&i, 1, MPI_INT, ranks_node, 1, MPI_INT, comm_node));
   ext_mpi_call_mpi(PMPI_Comm_free(&comm_node));
   num_comm_max = parameters->locmem_max;
   shmem_size = parameters->shmem_max;
-  num_sockets_per_node = parameters->num_sockets_per_node;
   socket_rank = parameters->socket_rank;
   code_size = ext_mpi_generate_byte_code(
       shmem, shmemid, shmem_sizes, buffer_in, sendbufs, recvbufs,
@@ -941,7 +941,7 @@ allreduce_short = 0;
     buffer2 = buffer_temp;
   }
 //  if (my_cores_per_node_row * my_cores_per_node_column > 1 || num_sockets_per_node > 1) {
-  if (my_cores_per_node_row * my_cores_per_node_column > 1 && my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
+  if (my_cores_per_node_row * num_sockets_per_node > 1 && my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
 #ifdef GPU_ENABLED
   if (!gpu_is_device_pointer(recvbuf)) {
 #endif
