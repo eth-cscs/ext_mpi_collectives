@@ -1,0 +1,51 @@
+# nThread 1 nGpus 1 minBytes 8 maxBytes 67108864 step: 2(factor) warmup iters: 5 iters: 20 agg iters: 1 validation: 1 graph: 0
+#
+# Using devices
+#  Rank  0 Group  0 Pid 183290 on  nid007617 device  0 [0x01] NVIDIA GH200 120GB
+#  Rank  1 Group  0 Pid 183291 on  nid007617 device  1 [0x01] NVIDIA GH200 120GB
+#  Rank  2 Group  0 Pid 183292 on  nid007617 device  2 [0x01] NVIDIA GH200 120GB
+#  Rank  3 Group  0 Pid 183293 on  nid007617 device  3 [0x01] NVIDIA GH200 120GB
+#  Rank  4 Group  0 Pid 207943 on  nid007626 device  0 [0x01] NVIDIA GH200 120GB
+#  Rank  5 Group  0 Pid 207944 on  nid007626 device  1 [0x01] NVIDIA GH200 120GB
+#  Rank  6 Group  0 Pid 207945 on  nid007626 device  2 [0x01] NVIDIA GH200 120GB
+#  Rank  7 Group  0 Pid 207946 on  nid007626 device  3 [0x01] NVIDIA GH200 120GB
+#  Rank  8 Group  0 Pid 144033 on  nid007628 device  0 [0x01] NVIDIA GH200 120GB
+#  Rank  9 Group  0 Pid 144034 on  nid007628 device  1 [0x01] NVIDIA GH200 120GB
+#  Rank 10 Group  0 Pid 144035 on  nid007628 device  2 [0x01] NVIDIA GH200 120GB
+#  Rank 11 Group  0 Pid 144036 on  nid007628 device  3 [0x01] NVIDIA GH200 120GB
+#  Rank 12 Group  0 Pid 145389 on  nid007638 device  0 [0x01] NVIDIA GH200 120GB
+#  Rank 13 Group  0 Pid 145390 on  nid007638 device  1 [0x01] NVIDIA GH200 120GB
+#  Rank 14 Group  0 Pid 145391 on  nid007638 device  2 [0x01] NVIDIA GH200 120GB
+#  Rank 15 Group  0 Pid 145392 on  nid007638 device  3 [0x01] NVIDIA GH200 120GB
+#
+#                                                              out-of-place                       in-place          
+#       size         count      type   redop    root     time   algbw   busbw #wrong     time   algbw   busbw #wrong
+#        (B)    (elements)                               (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)       
+           8             2     float     sum      -1    30.60    0.00    0.00      0    26.41    0.00    0.00      0
+          16             4     float     sum      -1    28.25    0.00    0.00      0    26.64    0.00    0.00      0
+          32             8     float     sum      -1    25.64    0.00    0.00      0    25.59    0.00    0.00      0
+          64            16     float     sum      -1    26.44    0.00    0.00      0    26.37    0.00    0.00      0
+         128            32     float     sum      -1    30.20    0.00    0.01      0    29.64    0.00    0.01      0
+         256            64     float     sum      -1    30.00    0.01    0.02      0    29.87    0.01    0.02      0
+         512           128     float     sum      -1    32.58    0.02    0.03      0    32.03    0.02    0.03      0
+        1024           256     float     sum      -1    35.81    0.03    0.05      0    34.65    0.03    0.06      0
+        2048           512     float     sum      -1    197.5    0.01    0.02      0    37.11    0.06    0.10      0
+        4096          1024     float     sum      -1    40.43    0.10    0.19      0    39.71    0.10    0.19      0
+        8192          2048     float     sum      -1    56.04    0.15    0.27      0    40.41    0.20    0.38      0
+       16384          4096     float     sum      -1    55.95    0.29    0.55      0    40.46    0.40    0.76      0
+       32768          8192     float     sum      -1    56.90    0.58    1.08      0    40.90    0.80    1.50      0
+       65536         16384     float     sum      -1    52.18    1.26    2.35      0    50.20    1.31    2.45      0
+      131072         32768     float     sum      -1    92.07    1.42    2.67      0    92.28    1.42    2.66      0
+      262144         65536     float     sum      -1    82.00    3.20    5.99      0    80.14    3.27    6.13      0
+      524288        131072     float     sum      -1    155.1    3.38    6.34      0    157.1    3.34    6.26      0
+     1048576        262144     float     sum      -1    291.8    3.59    6.74      0    247.5    4.24    7.94      0
+     2097152        524288     float     sum      -1    887.1    2.36    4.43      0   1476.6    1.42    2.66      0
+     4194304       1048576     float     sum      -1    304.8   13.76   25.80      0    352.4   11.90   22.32      0
+     8388608       2097152     float     sum      -1    390.1   21.50   40.32      0    364.8   22.99   43.11      0
+    16777216       4194304     float     sum      -1    391.2   42.88   80.40      0    389.7   43.05   80.71      0
+    33554432       8388608     float     sum      -1    736.2   45.58   85.46      0    754.2   44.49   83.42      0
+    67108864      16777216     float     sum      -1   1432.2   46.86   87.86      0   1431.8   46.87   87.88      0
+# Out of bounds values : 0 OK
+# Avg bus bandwidth    : 14.5666 
+#
+

@@ -49,3 +49,14 @@ do
   ./minimum.sh Grace_ext_mpi_bcast_"$tasks"_*.txt > Grace_ext_mpi_bcast_"$tasks".txt
 
 done
+
+./average.sh Grace_Hopper_hpe_mpi/santis_gpu_1node_4tasks_hpe_mpi_*.txt > Grace_Hopper_1node_4tasks_hpe_mpi.txt
+./average.sh Grace_Hopper_ext_mpi/santis_gpu_1node_4tasks_ext_mpi_*.txt > Grace_Hopper_1node_4tasks_ext_mpi.txt
+./average_nccl.sh Grace_Hopper_nccl/santis_gpu_1node_4tasks_nccl_*.txt > Grace_Hopper_1node_4tasks_nccl.txt
+./average.sh Grace_Hopper_hpe_mpi/santis_gpu_1node_16tasks_hpe_mpi_*.txt > Grace_Hopper_1node_16tasks_hpe_mpi.txt
+./average.sh Grace_Hopper_ext_mpi/santis_gpu_1node_16tasks_ext_mpi_a_*.txt > Grace_Hopper_1node_16tasks_ext_mpi_a.txt
+./average.sh Grace_Hopper_ext_mpi/santis_gpu_1node_16tasks_ext_mpi_b_*.txt > Grace_Hopper_1node_16tasks_ext_mpi_b.txt
+./minimum.sh Grace_Hopper_1node_16tasks_ext_mpi_?.txt > Grace_Hopper_1node_16tasks_ext_mpi.txt
+./average.sh Grace_Hopper_hpe_mpi/santis_gpu_4nodes_4tasks_hpe_mpi_*.txt > Grace_Hopper_4nodes_4tasks_hpe_mpi.txt
+./average.sh Grace_Hopper_ext_mpi/santis_gpu_4nodes_4tasks_ext_mpi_b_*.txt > Grace_Hopper_4nodes_4tasks_ext_mpi.txt
+./average_nccl.sh Grace_Hopper_nccl/santis_gpu_4nodes_4tasks_nccl_*.txt > Grace_Hopper_4nodes_4tasks_nccl.txt
