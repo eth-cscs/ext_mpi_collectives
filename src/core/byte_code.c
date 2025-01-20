@@ -647,7 +647,7 @@ int ext_mpi_generate_byte_code(char **shmem,
   }
 #endif
   if (ranks_node) {
-    header->ranks_node = (int*)malloc(node_num_cores_row * sizeof(int));
+    header->ranks_node = (int*)malloc(node_num_cores_row * num_sockets_per_node * sizeof(int));
     for (i = 0; i < node_num_cores_row * num_sockets_per_node; i++) {
       header->ranks_node[i] = ranks_node[i];
     }
