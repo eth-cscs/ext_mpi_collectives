@@ -1,0 +1,105 @@
+cpu-bind=MASK - nid005229, task  0  0 [24208]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  1  1 [24209]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  2  2 [24210]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  3  3 [24211]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  4  4 [24212]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  5  5 [24213]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  6  6 [24214]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  7  7 [24215]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  8  8 [24216]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task  9  9 [24217]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 10 10 [24218]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 11 11 [24219]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 12 12 [24220]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 13 13 [24221]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 14 14 [24222]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 15 15 [24223]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+# EXT_MPI verbose
+# calls allreduce 5.900200e+04
+# size allreduce 8.665250e+03
+# timing allreduce 2.765346e-05
+# calls reduce_scatter_block 1.660000e+02
+# size reduce_scatter_block 1.893990e+07
+# timing reduce_scatter_block 2.997151e-01
+# calls allgather 2.200000e+01
+# size allgather 6.367418e+05
+# timing allgather 3.832528e-02
+# calls reduce 2.012500e+03
+# size reduce 4.520763e+04
+# timing reduce 9.966702e-05
+# calls bcast 1.654250e+03
+# size bcast 7.953392e+03
+# timing bcast 1.573883e-05
+# timing finalize 4.203059e+02
+cpu-bind=MASK - nid005229, task  0  0 [26288]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  1  1 [26289]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  2  2 [26290]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  3  3 [26291]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  4  4 [26292]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  5  5 [26293]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  6  6 [26294]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  7  7 [26295]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  8  8 [26296]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task  9  9 [26297]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 10 10 [26298]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 11 11 [26299]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 12 12 [26300]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 13 13 [26301]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 14 14 [26302]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 15 15 [26303]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+# EXT_MPI verbose
+# EXT_MPI blocking
+# calls allreduce 5.900200e+04
+# size allreduce 8.665249e+03
+# timing allreduce 2.102094e-05
+# calls my_allreduce 4.773900e+04
+# size my_allreduce 3.501342e+03
+# calls reduce_scatter_block 1.660000e+02
+# size reduce_scatter_block 1.893990e+07
+# timing reduce_scatter_block 2.551187e-01
+# calls allgather 2.200000e+01
+# size allgather 6.367418e+05
+# timing allgather 3.427319e-02
+# calls reduce 2.012500e+03
+# size reduce 4.520763e+04
+# timing reduce 8.232595e-05
+# calls bcast 1.654250e+03
+# size bcast 7.953392e+03
+# timing bcast 1.529477e-05
+# timing finalize 4.143501e+02
+cpu-bind=MASK - nid005229, task  0  0 [28036]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  1  1 [28037]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  2  2 [28038]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  3  3 [28039]: mask 0xffffffffffffffffff set
+cpu-bind=MASK - nid005229, task  4  4 [28040]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  5  5 [28041]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  6  6 [28042]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  7  7 [28043]: mask 0xffffffffffffffffff000000000000000000 set
+cpu-bind=MASK - nid005229, task  8  8 [28044]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task  9  9 [28045]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 10 10 [28046]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 11 11 [28047]: mask 0xffffffffffffffffff000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 12 12 [28048]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 13 13 [28049]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 14 14 [28050]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+cpu-bind=MASK - nid005229, task 15 15 [28051]: mask 0xffffffffffffffffff000000000000000000000000000000000000000000000000000000 set
+# EXT_MPI verbose
+# EXT_MPI blocking
+# calls allreduce 5.900200e+04
+# size allreduce 8.665252e+03
+# timing allreduce 1.915659e-05
+# calls my_allreduce 4.773900e+04
+# size my_allreduce 3.501345e+03
+# calls reduce_scatter_block 1.660000e+02
+# size reduce_scatter_block 1.893990e+07
+# timing reduce_scatter_block 2.528074e-01
+# calls allgather 2.200000e+01
+# size allgather 6.367418e+05
+# timing allgather 3.777919e-02
+# calls reduce 2.012500e+03
+# size reduce 4.520763e+04
+# timing reduce 8.225721e-05
+# calls bcast 1.654250e+03
+# size bcast 7.953392e+03
+# timing bcast 1.534181e-05
+# timing finalize 4.137107e+02
