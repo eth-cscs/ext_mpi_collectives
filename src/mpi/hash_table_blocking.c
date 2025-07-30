@@ -19,7 +19,7 @@ static int num_entries;
 
 static int hashCode(MPI_Comm *key) {
    unsigned char value = 0;
-   int i;
+   long unsigned int i;
    for (i = 0; i < sizeof(MPI_Comm); i++){
      value += ((unsigned char *)(key))[i];
    }

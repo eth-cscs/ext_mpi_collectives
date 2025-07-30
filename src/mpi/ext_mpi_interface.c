@@ -28,7 +28,8 @@ static long int size_allgather = 0;
 #endif
 
 static void mpi_init_interface() {
-  int mpi_comm_rank, var, var2, i;
+  int mpi_comm_rank, var, var2;
+  long unsigned int i;
   char *c;
   MPI_Comm comm = MPI_COMM_WORLD;
   ext_mpi_hash_init();
@@ -494,7 +495,7 @@ ext_mpi_call_mpi(PMPI_Barrier(comm));
 }
 
 int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
-  int reduction_op, lcount, i;
+  int reduction_op, i;
   int ret;
 #ifdef PROFILE
   int type_size;
@@ -507,18 +508,15 @@ ext_mpi_call_mpi(PMPI_Barrier(comm));
   if (ext_mpi_is_blocking && op == MPI_SUM) {
     if (datatype == MPI_DOUBLE) {
       reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
-      lcount = recvcount * sizeof(double);
     } else if (datatype == MPI_LONG) {
       reduction_op = OPCODE_REDUCE_SUM_LONG_INT;
-      lcount = recvcount * sizeof(long int);
     } else if (datatype == MPI_FLOAT) {
       reduction_op = OPCODE_REDUCE_SUM_FLOAT;
-      lcount = recvcount * sizeof(float);
     } else if (datatype == MPI_INT) {
       reduction_op = OPCODE_REDUCE_SUM_INT;
-      lcount = recvcount * sizeof(int);
     } else {
       ret = PMPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, datatype, op, comm);
+      reduction_op = OPCODE_REDUCE_ERROR;
     }
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {

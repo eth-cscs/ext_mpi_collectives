@@ -165,10 +165,9 @@ static int next_number(int num_nodes, int *numbers) {
 
 static int correct_number(int num_nodes, int *numbers, int *numbers_new) {
   int i, k;
-  for (i = 0, k = 1; k < num_nodes; k *= numbers[i], i++) {
-    numbers_new[i] = numbers[i];
+  for (i = -1, k = 1; k < num_nodes; k *= numbers[i + 1], i++) {
+    numbers_new[i + 1] = numbers[i + 1];
   }
-  i--;
   k /= numbers_new[i];
   numbers_new[i] = 2;
   while (numbers_new[i] * k < num_nodes) {

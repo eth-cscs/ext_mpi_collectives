@@ -1008,22 +1008,22 @@ static long int exec_padding_address(void *p, void *sendbuf, void *recvbuf, void
     case (SEND_PTR_GPU >> 60):
 #endif
     case (SEND_PTR_CPU >> 60):
-      return p - sendbuf;
+      return (char*)p - (char*)sendbuf;
       break;
 #ifdef GPU_ENABLED
     case (RECV_PTR_GPU >> 60):
 #endif
     case (RECV_PTR_CPU >> 60):
-      return p - recvbuf;
+      return (char*)p - (char*)recvbuf;
       break;
 #ifdef GPU_ENABLED
     case (SHMEM_PTR_GPU >> 60):
 #endif
     case (SHMEM_PTR_CPU >> 60):
       if (!shmem) {
-        return p - NULL;
+        return (char*)p - (char*)NULL;
       } else {
-        return p - shmem[j];
+        return (char*)p - (char*)(shmem[j]);
       }
       break;
     default:
@@ -1150,7 +1150,7 @@ int EXT_MPI_Collective_to_disc(char *ip, char *locmem_blocking, int *rank_list, 
       ip -= sizeof(int);
       for (i2 = 0; rank_list[i2] != i1; i2++);
       code_put_int(&ip, i2, 0);
-      p1 = code_get_pointer(&ip);
+      p1 = (char*)code_get_pointer(&ip);
       p1 = (char*)NULL + (p1 - locmem_blocking);
       ip -= sizeof(void *);
       code_put_pointer(&ip, p1, 0);
@@ -1162,14 +1162,14 @@ int EXT_MPI_Collective_to_disc(char *ip, char *locmem_blocking, int *rank_list, 
       ip -= sizeof(int);
       for (i2 = 0; rank_list[i2] != i1; i2++);
       code_put_int(&ip, i2, 0);
-      p1 = code_get_pointer(&ip);
+      p1 = (char*)code_get_pointer(&ip);
       p1 = (char*)NULL + (p1 - locmem_blocking);
       ip -= sizeof(void *);
       code_put_pointer(&ip, p1, 0);
       break;
     case OPCODE_MPIWAITALL:
       code_get_int(&ip);
-      p1 = code_get_pointer(&ip);
+      p1 = (char*)code_get_pointer(&ip);
       p1 = (char*)NULL + (p1 - locmem_blocking);
       ip -= sizeof(void *);
       code_put_pointer(&ip, p1, 0);
@@ -1248,7 +1248,7 @@ char * EXT_MPI_Collective_from_disc(char *raw_code, char *locmem_blocking, int *
       i1 = code_get_int(&ip);
       ip -= sizeof(int);
       code_put_int(&ip, rank_list[i1], 0);
-      p1 = code_get_pointer(&ip);
+      p1 = (char*)code_get_pointer(&ip);
       p1 = (p1 - (char*)NULL) + locmem_blocking;
       ip -= sizeof(void *);
       code_put_pointer(&ip, p1, 0);
@@ -1259,14 +1259,14 @@ char * EXT_MPI_Collective_from_disc(char *raw_code, char *locmem_blocking, int *
       i1 = code_get_int(&ip);
       ip -= sizeof(int);
       code_put_int(&ip, rank_list[i1], 0);
-      p1 = code_get_pointer(&ip);
+      p1 = (char*)code_get_pointer(&ip);
       p1 = (p1 - (char*)NULL) + locmem_blocking;
       ip -= sizeof(void *);
       code_put_pointer(&ip, p1, 0);
       break;
     case OPCODE_MPIWAITALL:
       code_get_int(&ip);
-      p1 = code_get_pointer(&ip);
+      p1 = (char*)code_get_pointer(&ip);
       p1 = (p1 - (char*)NULL) + locmem_blocking;
       ip -= sizeof(void *);
       code_put_pointer(&ip, p1, 0);

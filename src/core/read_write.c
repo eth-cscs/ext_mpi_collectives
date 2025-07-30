@@ -1264,7 +1264,7 @@ static int write_assembler_integer(char *buffer_out, int integer1, int ascii){
   return nbuffer_out;
 }
 
-int ext_mpi_write_assembler_line(char *buffer_out, int ascii, char *types, ...) {
+int ext_mpi_write_assembler_line(char *buffer_out, int ascii, const char *types, ...) {
   va_list valist;
   int num, nbuffer_out = 0, i;
   if (!ascii)
@@ -1427,7 +1427,7 @@ static int read_assembler_integer_bin(char *buffer_in, int n, int *integer1, int
   return 0;
 }
 
-int ext_mpi_read_assembler_line(char *buffer_in, int ascii, char *types, ...) {
+int ext_mpi_read_assembler_line(char *buffer_in, int ascii, const char *types, ...) {
   va_list valist;
   char cstring1[100], cstring2[100];
   int num, nbuffer_in = 0, n, i, j;

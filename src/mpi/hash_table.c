@@ -17,7 +17,7 @@ static struct DataItem* dummyItem;
 
 static int hashCode(MPI_Request *key) {
    unsigned char value = 0;
-   int i;
+   long unsigned int i;
    for (i = 0; i < sizeof(MPI_Request); i++){
      value += ((unsigned char *)(key))[i];
    }
