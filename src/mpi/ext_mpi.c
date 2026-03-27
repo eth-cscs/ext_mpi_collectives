@@ -9,8 +9,6 @@
 #include "ext_mpi_native_blocking.h"
 #include "read_write.h"
 #include "read_bench.h"
-#include "cost_simple_recursive.h"
-#include "cost_estimation.h"
 #include "count_instructions.h"
 #include "ports_groups.h"
 #include "cost_copyin_measurement.h"

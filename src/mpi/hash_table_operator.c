@@ -17,7 +17,7 @@ static struct DataItem* dummyItem;
 
 static int hashCode(MPI_Op *key) {
    unsigned char value = 0;
-   int i;
+   unsigned long int i;
    for (i = 0; i < sizeof(MPI_Op); i++){
      value += ((unsigned char *)(key))[i];
    }
@@ -63,7 +63,7 @@ MPI_User_function * ext_mpi_hash_delete_operator(MPI_Op *key) {
    while(hashArray[hashIndex] != NULL) {
 	
       if(hashArray[hashIndex]->key == *key) {
-         void *temp = hashArray[hashIndex]->data;
+         MPI_User_function *temp = hashArray[hashIndex]->data;
 	 free(hashArray[hashIndex]);
          hashArray[hashIndex] = dummyItem;
          return temp;

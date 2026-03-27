@@ -73,12 +73,13 @@ static double allreduce_measurement(const void *sendbuf, void *recvbuf, int coun
                           int num_active_ports, int *copyin_method,
                           int *copyin_factors, int num_sockets_per_node) {
   int factors_max, factors[my_cores_per_node_row+1], mpi_rank_row, mpi_rank_column, mpi_size_row, i, j, k, copyin_factors_min[my_cores_per_node_row+1], msize, on_gpu = 0;
+  long unsigned int lmsize;
   double time, time_min = 1e20;
   MPI_Comm comm_row_, comm_column_;
   MPI_Comm_size(comm_row, &mpi_size_row);
   MPI_Comm_rank(comm_row, &mpi_rank_row);
   MPI_Type_size(datatype, &msize);
-  msize *= count;
+  lmsize = msize * count;
   *copyin_method = -1;
 #ifdef GPU_ENABLED
   on_gpu = ext_mpi_gpu_is_device_pointer(recvbuf);
@@ -90,7 +91,7 @@ static double allreduce_measurement(const void *sendbuf, void *recvbuf, int coun
   } else {
     comm_column_ = MPI_COMM_NULL;
   }
-  if (msize <= CACHE_LINE_SIZE - OFFSET_FAST && !on_gpu && mpi_size_row == my_cores_per_node_row) {
+  if (lmsize <= CACHE_LINE_SIZE - OFFSET_FAST && !on_gpu && mpi_size_row == my_cores_per_node_row) {
     *copyin_method = 0;
     factors_max = 0;
     copyin_factors_min[factors_max] = copyin_factors[factors_max] = 1; factors_max++;

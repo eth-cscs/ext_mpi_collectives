@@ -103,7 +103,7 @@ int ext_mpi_sendrecvbuf_init_xpmem(MPI_Comm comm, int my_cores_per_node, int num
       }
       addr.apid = all_xpmem_id[global_ranks[i]];
       if (addr.apid != -1 && (*sendrecvbufs)[i]) {
-        a = xpmem_attach(addr, size, NULL);
+        a = (char*)xpmem_attach(addr, size, NULL);
         assert((long int)a != -1);
         (*sendrecvbufs)[i] = a + (long int)((*sendrecvbufs)[i] - addr.offset);
       } else {
@@ -294,7 +294,7 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
           addr.apid = all_xpmem_id_permutated[j];
           if (addr.apid != -1 && sendbufs[j]) {
 	    if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
-              a = xpmem_attach(addr, size, NULL);
+              a = (char*)xpmem_attach(addr, size, NULL);
               assert((long int)a != -1);
               xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
 	    }
@@ -316,7 +316,7 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
           addr.apid = all_xpmem_id_permutated[j];
           if (addr.apid != -1 && recvbufs[j]) {
 	    if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
-              a = xpmem_attach(addr, size, NULL);
+              a = (char*)xpmem_attach(addr, size, NULL);
               assert((long int)a != -1);
               xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
 	    }

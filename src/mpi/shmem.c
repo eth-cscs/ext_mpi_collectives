@@ -141,7 +141,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, in
   i = my_mpi_rank_row % (my_cores_per_node_row * num_sockets_per_node);
   if (!single_task) {
     (*shmemid)[i] = -1;
-    (*shmem)[i] = ext_mpi_dmalloc(shmem_root_cpu, size_shared);
+    (*shmem)[i] = (char*)ext_mpi_dmalloc(shmem_root_cpu, size_shared);
     if (!(*shmem)[i]) {
       printf("dalloc: not enough shared memory %d\n", size_shared);
       assert(0);
@@ -155,7 +155,7 @@ int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, in
     free(offsets);
   } else {
     (*shmemid)[i] = -2;
-    (*shmem)[i] = malloc(size_shared);
+    (*shmem)[i] = (char*)malloc(size_shared);
   }
   free(ranks_global);
   *sizes_shared = (int*)malloc(my_cores_per_node_row * num_sockets_per_node * sizeof(int));

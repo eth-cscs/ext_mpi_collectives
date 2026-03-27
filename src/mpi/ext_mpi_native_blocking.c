@@ -186,7 +186,7 @@ static int add_blocking_member(int count, MPI_Datatype datatype, int handle, cha
   return 0;
 }
 
-static int init_blocking_native(char *filename, int ctype, MPI_Comm comm, int i_comm) {
+static int init_blocking_native(const char *filename, int ctype, MPI_Comm comm, int i_comm) {
   char data_num_ports[1000], data_copyin_factors[1000], filename_complete[1000];
   FILE *data;
   int message_size, *num_ports = NULL, *groups = NULL, copyin_method, *copyin_factors = NULL, num_sockets_per_node = 1, cores_per_node, mpi_rank, mpi_size, message_size_old = -1, on_gpu = 0, i_cprop = 0, i;
@@ -346,20 +346,20 @@ static int read_wisdom(char *filename, int mpi_size, MPI_Comm comm, int i_comm, 
   FILE *data = fopen(filename, "r");
   if (!data) return -1;
   assert(fread(&isize, sizeof(int), 1, data) == 1);
-  assert(fread(mem_partners, sizeof(int), comms_blocking[i_comm]->mpi_size_blocking + 1, data) == comms_blocking[i_comm]->mpi_size_blocking + 1);
+  assert(fread(mem_partners, sizeof(int), comms_blocking[i_comm]->mpi_size_blocking + 1, data) == (comms_blocking[i_comm]->mpi_size_blocking + 1) * sizeof(char));
   *mem_partners_send = (int*)malloc((comms_blocking[i_comm]->mpi_size_blocking + 1) * sizeof(int));
   for (j = 0; mem_partners[j] >= 0; j++) {
     (*mem_partners_send)[j] = mem_partners[j];
   }
   (*mem_partners_send)[j] = mem_partners[j];
-  assert(fread(mem_partners, sizeof(int), comms_blocking[i_comm]->mpi_size_blocking + 1, data) == comms_blocking[i_comm]->mpi_size_blocking + 1);
+  assert(fread(mem_partners, sizeof(int), comms_blocking[i_comm]->mpi_size_blocking + 1, data) == (comms_blocking[i_comm]->mpi_size_blocking + 1) * sizeof(char));
   *mem_partners_recv = (int*)malloc((comms_blocking[i_comm]->mpi_size_blocking + 1) * sizeof(int));
   for (j = 0; mem_partners[j] >= 0; j++) {
     (*mem_partners_recv)[j] = mem_partners[j];
   }
   (*mem_partners_recv)[j] = mem_partners[j];
   raw_code = (char*)malloc(isize * sizeof(char));
-  assert(fread(raw_code, sizeof(char), isize, data) == isize);
+  assert(fread(raw_code, sizeof(char), isize, data) == isize * sizeof(char));
   handle = EXT_MPI_Get_handle();
 #ifdef GPU_ENABLED
   if (on_gpu) {
@@ -419,7 +419,7 @@ static void assign_permutation_gpu(int i_comm, struct comm_properties *comm_prop
 }
 #endif
 
-static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, enum ecollective_type collective_type, int i_comm, int i_alg, enum collective_subtypes collective_subtype, long int send_ptr, long int recv_ptr) {
+static int add_blocking_native(int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, int my_cores_per_node, int *num_ports, int *groups, int copyin, int *copyin_factors, int bit, int recursive, int arecursive, int blocking, enum ecollective_type collective_type, int i_comm, int i_alg, enum collective_subtypes collective_subtype, long unsigned int send_ptr, long unsigned int recv_ptr) {
   MPI_Comm comm_node;
   int handle, size_shared = 1024*1024, *recvcounts, *displs, padding_factor, type_size, my_mpi_size, my_mpi_rank, rank, flag, i, j, k;
   char filename[1000];
@@ -648,12 +648,12 @@ static int release_blocking_native(int i_comm, enum collective_subtypes collecti
 }
 
 int EXT_MPI_Release_blocking_native(int i_comm) {
-  enum collective_subtypes collective_subtype;
-  for (collective_subtype = 0; collective_subtype < (enum collective_subtypes)(size); collective_subtype++) {
+  int collective_subtype;
+  for (collective_subtype = out_of_place; collective_subtype < (enum collective_subtypes)(size); collective_subtype++) {
 #ifndef GPU_ENABLED
-    release_blocking_native(i_comm, collective_subtype, collective_subtype == in_place);
+    release_blocking_native(i_comm, (enum collective_subtypes)collective_subtype, collective_subtype == in_place);
 #else
-    release_blocking_native(i_comm, collective_subtype, collective_subtype == in_place || collective_subtype == in_place_gpu);
+    release_blocking_native(i_comm, (enum collective_subtypes)collective_subtype, collective_subtype == in_place || collective_subtype == in_place_gpu);
 #endif
   }
   return 0;
@@ -707,9 +707,9 @@ int EXT_MPI_Allreduce_native(const void *sendbuf, void *recvbuf, int count, int 
 #endif
 #ifdef XPMEM
       if (!comms_blocking_->shmem_alt) {
-        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_allreduce[i], comms_blocking_->mem_partners_recv_allreduce[i], (char ***)comms_blocking_->comm_property_allreduce[collective_subtype][i].small_mem1, (int**)comms_blocking_->comm_property_allreduce[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, (char*)recvbuf, ccount, comms_blocking_->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_allreduce[i], comms_blocking_->mem_partners_recv_allreduce[i], (char ***)comms_blocking_->comm_property_allreduce[collective_subtype][i].small_mem1, (int**)comms_blocking_->comm_property_allreduce[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
       } else {
-        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount, comms_blocking_->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_allreduce[i], comms_blocking_->mem_partners_recv_allreduce[i], (char ***)comms_blocking_->comm_property_allreduce[collective_subtype][i].small_mem2, (int**)comms_blocking_->comm_property_allreduce[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_allreduce[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, (char*)recvbuf, ccount, comms_blocking_->comm_property_allreduce[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_allreduce[i], comms_blocking_->mem_partners_recv_allreduce[i], (char ***)comms_blocking_->comm_property_allreduce[collective_subtype][i].small_mem2, (int**)comms_blocking_->comm_property_allreduce[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
       }
 #endif
 #ifdef GPU_ENABLED
@@ -785,9 +785,9 @@ int EXT_MPI_Reduce_scatter_block_native(const void *sendbuf, void *recvbuf, int 
 #endif
 #ifdef XPMEM
       if (!comms_blocking_->shmem_alt) {
-        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount * comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_reduce_scatter_block[i], comms_blocking_->mem_partners_recv_reduce_scatter_block[i], (char ***)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].small_mem1, (int**)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, (char*)recvbuf, ccount * comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_reduce_scatter_block[i], comms_blocking_->mem_partners_recv_reduce_scatter_block[i], (char ***)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].small_mem1, (int**)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
       } else {
-        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, recvbuf, ccount * comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_reduce_scatter_block[i], comms_blocking_->mem_partners_recv_reduce_scatter_block[i], (char ***)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].small_mem2, (int**)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
+        ext_mpi_sendrecvbuf_init_xpmem_blocking(comms_blocking_->xpmem_tree_root, comms_blocking_->mpi_rank_blocking, comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].num_sockets_per_node, (char*)sendbuf, (char*)recvbuf, ccount * comms_blocking_->num_cores_blocking, comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].all_xpmem_id_permutated, comms_blocking_->mem_partners_send_reduce_scatter_block[i], comms_blocking_->mem_partners_recv_reduce_scatter_block[i], (char ***)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].small_mem2, (int**)comms_blocking_->comm_property_reduce_scatter_block[collective_subtype][i].shmem_node_blocking, &comms_blocking_->counter_node_blocking, (char**)sendbufs, (char**)recvbufs);
       }
 #endif
 #ifdef GPU_ENABLED

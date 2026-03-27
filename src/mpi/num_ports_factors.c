@@ -6,7 +6,7 @@
 #include "ports_groups.h"
 #include "num_ports_factors.h"
 
-int ext_mpi_get_param(int ext_mpi_param, MPI_Comm comm, MPI_Info info, char *info_str, int de) {
+int ext_mpi_get_param(int ext_mpi_param, MPI_Comm comm, MPI_Info info, const char *info_str, int de) {
   char value[101];
   int flag, var;
   if (ext_mpi_param >= 0) {
