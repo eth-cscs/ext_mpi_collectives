@@ -943,7 +943,7 @@ allreduce_short = 0;
 //  if (my_cores_per_node_row * my_cores_per_node_column > 1 || num_sockets_per_node > 1) {
   if (my_cores_per_node_row * num_sockets_per_node > 1 && my_mpi_size_row / (my_cores_per_node_row * num_sockets_per_node) > 1) {
 #ifdef GPU_ENABLED
-  if (!gpu_is_device_pointer(recvbuf)) {
+  if (!gpu_is_device_pointer(recvbuf) || my_cores_per_node_row == 1) {
 #endif
     if (ext_mpi_generate_raw_code_tasks_node(buffer2, buffer1) < 0)
       goto error;

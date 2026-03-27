@@ -25,6 +25,13 @@ static long int size_reduce_scatter_block = 0;
 static double timing_allgather = 0e0;
 static long int calls_allgather = 0;
 static long int size_allgather = 0;
+static double timing_reduce = 0e0;
+static long int calls_reduce = 0;
+static long int size_reduce = 0;
+static double timing_bcast = 0e0;
+static long int calls_bcast = 0;
+static long int size_bcast = 0;
+static double timing_finalize = 0e0;
 #endif
 
 static void mpi_init_interface() {
@@ -55,6 +62,9 @@ static void mpi_init_interface() {
     }
     comms_blocking[0] = 1;
   }
+#ifdef PROFILE
+  timing_finalize -= MPI_Wtime();
+#endif
 }
 
 int MPI_Init(int *argc, char ***argv){
@@ -87,6 +97,7 @@ int MPI_Finalize(){
   ext_mpi_hash_done();
   ext_mpi_is_blocking = 0;
 #ifdef PROFILE
+  timing_finalize += MPI_Wtime();
   if (rank == 0) {
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
@@ -94,11 +105,18 @@ int MPI_Finalize(){
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_my_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
-    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_reduce_scatter_block, 1, MPI_LONG, MPI_MAX, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_reduce_scatter_block, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_allgather, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_reduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_reduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_reduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &calls_bcast, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &size_bcast, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_bcast, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(MPI_IN_PLACE, &timing_finalize, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
     if (calls_allreduce) {
       printf("# calls allreduce %e\n", 1.0 * calls_allreduce / size);
       printf("# size allreduce %e\n", 1.0 * size_allreduce / calls_allreduce);
@@ -112,7 +130,7 @@ int MPI_Finalize(){
     }
     if (calls_reduce_scatter_block) {
       printf("# calls reduce_scatter_block %e\n", 1.0 * calls_reduce_scatter_block / size);
-      printf("# size reduce_scatter_block %e\n", 1.0 * size_reduce_scatter_block / calls_reduce_scatter_block);
+      printf("# size reduce_scatter_block %e\n", 1.0 * size_reduce_scatter_block);
       printf("# timing reduce_scatter_block %e\n", 1.0 * timing_reduce_scatter_block / (calls_reduce_scatter_block / size));
     } else {
       printf("# no calls to reduce_scatter_block\n");
@@ -124,6 +142,21 @@ int MPI_Finalize(){
     } else {
       printf("# no calls to allgather\n");
     }
+    if (calls_reduce) {
+      printf("# calls reduce %e\n", 1.0 * calls_reduce / size);
+      printf("# size reduce %e\n", 1.0 * size_reduce / calls_reduce);
+      printf("# timing reduce %e\n", 1.0 * timing_reduce / (calls_reduce / size));
+    } else {
+      printf("# no calls to reduce\n");
+    }
+    if (calls_bcast) {
+      printf("# calls bcast %e\n", 1.0 * calls_bcast / size);
+      printf("# size bcast %e\n", 1.0 * size_bcast / calls_bcast);
+      printf("# timing bcast %e\n", 1.0 * timing_bcast / (calls_bcast / size));
+    } else {
+      printf("# no calls to bcast\n");
+    }
+    printf("# timing finalize %e\n", 1.0 * timing_finalize);
   } else {
     ext_mpi_call_mpi(PMPI_Reduce(&calls_allreduce, &calls_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&size_allreduce, &size_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
@@ -131,11 +164,18 @@ int MPI_Finalize(){
     ext_mpi_call_mpi(PMPI_Reduce(&size_my_allreduce, &size_my_allreduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&timing_allreduce, &timing_allreduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&calls_reduce_scatter_block, &calls_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
-    ext_mpi_call_mpi(PMPI_Reduce(&size_reduce_scatter_block, &size_reduce_scatter_block, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&size_reduce_scatter_block, &size_reduce_scatter_block, 1, MPI_LONG, MPI_MAX, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&timing_reduce_scatter_block, &timing_reduce_scatter_block, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&calls_allgather, &calls_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&size_allgather, &size_allgather, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
     ext_mpi_call_mpi(PMPI_Reduce(&timing_allgather, &timing_allgather, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&calls_reduce, &calls_reduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&size_reduce, &size_reduce, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&timing_reduce, &timing_reduce, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&calls_bcast, &calls_bcast, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&size_bcast, &size_bcast, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&timing_bcast, &timing_bcast, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
+    ext_mpi_call_mpi(PMPI_Reduce(&timing_finalize, &timing_finalize, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD));
   }
 #endif
   return PMPI_Finalize();
@@ -473,7 +513,7 @@ ext_mpi_call_mpi(PMPI_Barrier(comm));
   calls_allreduce++;
   size_allreduce += count * type_size;
 #endif
-  if (ext_mpi_is_blocking && count * type_size < 1024 * 1024 * 10 && (reduction_op = get_reduction_op(datatype, op)) >= 0) {
+  if (ext_mpi_is_blocking && count * type_size < 1024 * 1024 * 100 && (reduction_op = get_reduction_op(datatype, op)) >= 0) {
     i = ext_mpi_hash_search_blocking(&comm);
     if (i >= 0) {
 #ifdef PROFILE
@@ -493,35 +533,41 @@ ext_mpi_call_mpi(PMPI_Barrier(comm));
   return ret;
 }
 
+int iii = 0;
+double ddd = 0e0;
+
 int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
   int reduction_op, lcount, i;
   int ret;
-#ifdef PROFILE
   int type_size;
   ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
+#ifdef PROFILE
 ext_mpi_call_mpi(PMPI_Barrier(comm));
   timing_reduce_scatter_block -= MPI_Wtime();
+//  ddd = MPI_Wtime();
   calls_reduce_scatter_block++;
-  size_reduce_scatter_block += recvcount * type_size;
+  if ((long int)recvcount * (long int)type_size > size_reduce_scatter_block) {
+    size_reduce_scatter_block = recvcount * type_size;
+  }
 #endif
-  if (ext_mpi_is_blocking && op == MPI_SUM) {
+//  if (ext_mpi_is_blocking && op == MPI_SUM && sendbuf != MPI_IN_PLACE && recvcount * 8 * 16 <= 100 * 1024 * 1024) {
+  if (ext_mpi_is_blocking && op == MPI_SUM && sendbuf != MPI_IN_PLACE && recvcount * type_size < 1024 * 1024 * 100 / 16) {
     if (datatype == MPI_DOUBLE) {
       reduction_op = OPCODE_REDUCE_SUM_DOUBLE;
       lcount = recvcount * sizeof(double);
     } else if (datatype == MPI_LONG) {
       reduction_op = OPCODE_REDUCE_SUM_LONG_INT;
       lcount = recvcount * sizeof(long int);
-    } else if (datatype == MPI_FLOAT) {
-      reduction_op = OPCODE_REDUCE_SUM_FLOAT;
-      lcount = recvcount * sizeof(float);
-    } else if (datatype == MPI_INT) {
-      reduction_op = OPCODE_REDUCE_SUM_INT;
-      lcount = recvcount * sizeof(int);
+//    } else if (datatype == MPI_FLOAT) {
+//      reduction_op = OPCODE_REDUCE_SUM_FLOAT;
+//      lcount = recvcount * sizeof(float);
+//    } else if (datatype == MPI_INT) {
+//      reduction_op = OPCODE_REDUCE_SUM_INT;
+//      lcount = recvcount * sizeof(int);
     } else {
-      ret = PMPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, datatype, op, comm);
+      lcount = -1;
     }
-    i = ext_mpi_hash_search_blocking(&comm);
-    if (i >= 0) {
+    if (lcount > 0 && (i = ext_mpi_hash_search_blocking(&comm)) >=0) {
       ret = EXT_MPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, reduction_op, i);
     } else {
       ret = PMPI_Reduce_scatter_block(sendbuf, recvbuf, recvcount, datatype, op, comm);
@@ -531,6 +577,9 @@ ext_mpi_call_mpi(PMPI_Barrier(comm));
   }
 #ifdef PROFILE
   timing_reduce_scatter_block += MPI_Wtime();
+//  ddd = MPI_Wtime() - ddd;
+//  MPI_Comm_size(comm, &i);
+//  printf("ddd %d %d %e\n", i, recvcount, ddd);
 #endif
   return ret;
 }
@@ -561,6 +610,40 @@ ext_mpi_call_mpi(PMPI_Barrier(comm));
   } else {
     return PMPI_Allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm);
   }
+}
+
+int MPI_Reduce(const void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm) {
+  int type_size, i;
+  int ret;
+#ifdef PROFILE
+ext_mpi_call_mpi(PMPI_Barrier(comm));
+  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
+  timing_reduce -= MPI_Wtime();
+  calls_reduce++;
+  size_reduce += count * type_size;
+#endif
+  ret = PMPI_Reduce(sendbuf, recvbuf, count, datatype, op, root, comm);
+#ifdef PROFILE
+  timing_reduce += MPI_Wtime();
+#endif
+  return ret;
+}
+
+int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm) {
+  int type_size, i;
+  int ret;
+#ifdef PROFILE
+ext_mpi_call_mpi(PMPI_Barrier(comm));
+  ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
+  timing_bcast -= MPI_Wtime();
+  calls_bcast++;
+  size_bcast += count * type_size;
+#endif
+  ret = PMPI_Bcast(buffer, count, datatype, root, comm);
+#ifdef PROFILE
+  timing_bcast += MPI_Wtime();
+#endif
+  return ret;
 }
 
 static int add_comm_to_blocking(MPI_Comm *comm){

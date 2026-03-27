@@ -764,6 +764,11 @@ int ext_mpi_generate_byte_code(char **shmem,
 #endif
         code_put_char(&ip, OPCODE_MPIISEND, isdryrun);
       } else {
+#ifdef GPU_ENABLED
+        if (on_gpu) {
+          code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
+        }
+#endif
         code_put_char(&ip, OPCODE_MPIIRECV, isdryrun);
       }
       if (estring2 == esendbufp) {
@@ -796,6 +801,16 @@ int ext_mpi_generate_byte_code(char **shmem,
       code_put_pointer(&ip, header->locmem + size_request * integer4, isdryrun);
     }
     if (estring1 == enode_barrier) {
+#ifdef GPU_ENABLED
+        if (on_gpu) {
+          if (added) {
+            if (flush_complete(&ip, &streams, header->gpu_byte_code, gpu_byte_code, gpu_byte_code_counter, reduction_op, isdryrun) < 0) goto failed;
+            added = 0;
+	    memopt_number = 1;
+          }
+          code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
+        }
+#endif
       code_put_char(&ip, OPCODE_NODEBARRIER, isdryrun);
     }
     if (estring1 == ememory_fence) {
@@ -824,6 +839,16 @@ int ext_mpi_generate_byte_code(char **shmem,
     }
     if (estring1 == esocket_barrier_small) {
       if (header->num_cores != 1) {
+#ifdef GPU_ENABLED
+        if (on_gpu) {
+          if (added) {
+            if (flush_complete(&ip, &streams, header->gpu_byte_code, gpu_byte_code, gpu_byte_code_counter, reduction_op, isdryrun) < 0) goto failed;
+            added = 0;
+	    memopt_number = 1;
+          }
+          code_put_char(&ip, OPCODE_GPUSYNCHRONIZE, isdryrun);
+        }
+#endif
         code_put_char(&ip, OPCODE_SOCKETBSMALL, isdryrun);
       }
     }

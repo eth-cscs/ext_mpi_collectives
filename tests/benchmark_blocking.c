@@ -11,7 +11,7 @@
 #endif
 #endif
 
-#define MAX_MESSAGE_SIZE 5000000
+#define MAX_MESSAGE_SIZE 10000000
 #define MPI_DATA_TYPE MPI_LONG
 #define NUM_CORES 1200
 #define COLLECTIVE_TYPE 0
@@ -45,9 +45,9 @@ int main(int argc, char *argv[]) {
     sendbuf = MPI_IN_PLACE;
   } else {
 #ifndef GPU_ENABLED
-    sendbuf = malloc(bufsize);
+    sendbuf = malloc(bufsize * numprocs);
 #else
-    cudaMalloc(&sendbuf, bufsize);
+    cudaMalloc(&sendbuf, bufsize * numprocs);
 #endif
   }
 #ifndef GPU_ENABLED
@@ -69,11 +69,11 @@ int main(int argc, char *argv[]) {
   for (num_tasks = numprocs; num_tasks > 0; num_tasks -= NUM_CORES) {
     if (rank < num_tasks) {
       MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &new_comm);
-      for (size = 1; size <= MAX_MESSAGE_SIZE; size *= 2) {
+      for (size = 2367488; size <= MAX_MESSAGE_SIZE; size *= 2) {
         MPI_Barrier(new_comm);
 #ifndef GPU_ENABLED
         if (!in_place) {
-          for (i = 0; i < size; i++) {
+          for (i = 0; i < size * numprocs; i++) {
             ((long int*)sendbuf)[i] = rand();
           }
         } else {
@@ -82,8 +82,10 @@ int main(int argc, char *argv[]) {
           }
         }
 #endif
-        PMPI_Allreduce(sendbuf, recvbuf_ref, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
-        MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+//        PMPI_Allreduce(sendbuf, recvbuf_ref, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+//        MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+        PMPI_Reduce_scatter_block(sendbuf, recvbuf_ref, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+        MPI_Reduce_scatter_block(sendbuf, recvbuf_ref, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
 #ifndef GPU_ENABLED
         for (i = 0; i < size; i++) {
           if (((long int*)recvbuf)[i] != ((long int*)recvbuf_ref)[i]) {
@@ -93,8 +95,10 @@ int main(int argc, char *argv[]) {
         }
 #endif
         for (i = 0; i < 20; i++) {
-          PMPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
-          MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+//          PMPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+//          MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+          PMPI_Reduce_scatter_block(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
+          MPI_Reduce_scatter_block(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
 	}
         iterations = 1;
         flag = 1;
@@ -108,8 +112,9 @@ int main(int argc, char *argv[]) {
 //#ifdef GPU_ENABLED
 //          cudaMemcpy(sendbuf, sendbuf_device, size * type_size, cudaMemcpyDeviceToHost);
 //#endif
-              PMPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
-                             new_comm);
+//              PMPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
+//                             new_comm);
+          PMPI_Reduce_scatter_block(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
 //#ifdef GPU_ENABLED
 //          cudaMemcpy(recvbuf_device, recvbuf, size * type_size, cudaMemcpyHostToDevice);
 //#endif
@@ -124,8 +129,9 @@ int main(int argc, char *argv[]) {
 //#ifdef GPU_ENABLED
 //          cudaMemcpy(sendbuf, sendbuf_device, size * type_size, cudaMemcpyDeviceToHost);
 //#endif
-            MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
-                          new_comm);
+//            MPI_Allreduce(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM,
+//                          new_comm);
+          MPI_Reduce_scatter_block(sendbuf, recvbuf, size, MPI_DATA_TYPE, MPI_SUM, new_comm);
 //#ifdef GPU_ENABLED
 //          cudaMemcpy(recvbuf_device, recvbuf, size * type_size, cudaMemcpyHostToDevice);
 //#endif

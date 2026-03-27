@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <sys/shm.h>
 #include "constants.h"
 #include "byte_code.h"
@@ -142,8 +143,8 @@ int ext_mpi_setup_shared_memory(MPI_Comm comm_row, int my_cores_per_node_row, in
     (*shmemid)[i] = -1;
     (*shmem)[i] = ext_mpi_dmalloc(shmem_root_cpu, size_shared);
     if (!(*shmem)[i]) {
-      printf("dalloc: not enough shared memory\n");
-      exit(1);
+      printf("dalloc: not enough shared memory %d\n", size_shared);
+      assert(0);
     }
     offset = (*shmem)[i] - shmem_global[mpi_rank_node_global];
     offsets = (long int*)malloc(my_cores_per_node_row * num_sockets_per_node * sizeof(long int));

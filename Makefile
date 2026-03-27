@@ -1,3 +1,5 @@
+#CC = /capstor/scratch/cscs/ajocksch/install_mpich_todi/bin/mpicc
+#CC = /capstor/scratch/cscs/ajocksch/install_mpich/bin/mpicc
 CC = mpicc
 OBJ = obj
 BIN = bin
@@ -7,7 +9,7 @@ INCLUDE = -I. -Iinclude/core -Iinclude/mpi -I/usr/include -I/opt/cray/xpmem/defa
 DEPDIR := .deps
 directories := $(shell (mkdir -p $(DEPDIR); mkdir -p $(DEPDIR)/core; mkdir -p $(DEPDIR)/mpi; mkdir -p $(DEPDIR)/fortran; mkdir -p $(DEPDIR)/initial_benchmark; mkdir -p $(DEPDIR)/noopt; mkdir -p $(OBJ); mkdir -p $(OBJ)/core; mkdir -p $(OBJ)/mpi; mkdir -p $(OBJ)/fortran; mkdir -p $(OBJ)/initial_benchmark; mkdir -p $(OBJ)/noopt; mkdir -p $(BIN); mkdir -p lib; mkdir bin_tests))
 
-CFLAGS = -g -O2 -Wall -fPIC $(INCLUDE) -DDEBUG -DM_MAP -DXPMEM
+CFLAGS = -g -O3 -Wall -fPIC $(INCLUDE) -DXPMEM -DP_ROFILE
 
 SOURCES = $(wildcard src/core/*.c src/mpi/*.c src/fortran/*.c src/noopt/*.c src/initial_benchmark/*.c)
 OBJECTS = $(subst src,$(OBJ),$(SOURCES:.c=.o))
@@ -21,10 +23,12 @@ LIBS = -Llib -l$(LIBNAME) -lrt -lm -L/usr/lib64 -lxpmem -ldl
 all: lib/lib$(LIBNAME).a lib/lib$(LIBNAME).so $(TESTSBIN) $(INITBENCHMARKSBIN)
 
 lib/lib$(LIBNAME).a: $(OBJECTS)
-	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/fortran/*.o $(OBJ)/noopt/*.o
+#	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/fortran/*.o $(OBJ)/noopt/*.o
+	ar -r lib/lib$(LIBNAME).a $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/noopt/*.o
 
 lib/lib$(LIBNAME).so: $(OBJECTS)
-	$(CC) -shared $(LIBS) $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/fortran/*.o $(OBJ)/noopt/*.o -o lib/lib$(LIBNAME).so
+#	$(CC) -shared -lrt -lm -L/usr/lib64 -lxpmem -ldl $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/fortran/*.o $(OBJ)/noopt/*.o -o lib/lib$(LIBNAME).so
+	$(CC) -shared -lrt -lm -L/usr/lib64 -lxpmem -ldl $(OBJ)/core/*.o $(OBJ)/mpi/*.o $(OBJ)/noopt/*.o -o lib/lib$(LIBNAME).so
 
 DEPFLAGS = -MMD -MT $(OBJ)/$*.o -MP -MF $(DEPDIR)/$*.d
 DEPENDENCIES = $(subst src,$(DEPDIR),$(SOURCES:.c=.d))

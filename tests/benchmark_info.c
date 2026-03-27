@@ -14,7 +14,7 @@
 #define MAX_MESSAGE_SIZE 1000000
 #define MPI_DATA_TYPE MPI_LONG
 #define NUM_CORES 1200
-#define COLLECTIVE_TYPE 0
+#define COLLECTIVE_TYPE 1
 
 int main(int argc, char *argv[]) {
   int numprocs, rank, size, flag, type_size, bufsize, iterations, num_tasks, *counts, *displs, ninfo_arg = 0, in_place = 0, i, j;
