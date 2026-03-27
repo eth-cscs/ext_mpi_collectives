@@ -540,7 +540,7 @@ double ddd = 0e0;
 int MPI_Reduce_scatter_block(const void *sendbuf, void *recvbuf, int recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm){
   int reduction_op, i;
   int ret;
-  int type_size;
+  int type_size, lcount = 1;
   ext_mpi_call_mpi(MPI_Type_size(datatype, &type_size));
 #ifdef PROFILE
 ext_mpi_call_mpi(PMPI_Barrier(comm));
