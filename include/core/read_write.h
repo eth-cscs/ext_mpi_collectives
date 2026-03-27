@@ -173,8 +173,8 @@ int ext_mpi_write_eof(char *buffer_out, int ascii);
 
 int ext_mpi_switch_to_ascii(char *buffer);
 
-int ext_mpi_write_assembler_line(char *buffer_out, int ascii, char *types, ...);
-int ext_mpi_read_assembler_line(char *buffer_in, int ascii, char *types, ...);
+int ext_mpi_write_assembler_line(char *buffer_out, int ascii, const char *types, ...);
+int ext_mpi_read_assembler_line(char *buffer_in, int ascii, const char *types, ...);
 int ext_mpi_read_irecv_isend(char *line, struct line_irecv_isend *data);
 int ext_mpi_read_memcpy_reduce(char *line, struct line_memcpy_reduce *data);
 int ext_mpi_write_irecv_isend(char *buffer_out, struct line_irecv_isend *data, int ascii);

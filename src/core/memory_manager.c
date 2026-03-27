@@ -20,8 +20,8 @@ static size_t cache_alignment(size_t size) {
 int ext_mpi_dmalloc_init(void **root, void *memory_chunk, size_t max_bytes) {
   struct entry *start;
   void *p;
-  p = (void *)(((unsigned long)(memory_chunk + CACHE_LINE_SIZE - 1)) & (ULONG_MAX - (CACHE_LINE_SIZE - 1)));
-  max_bytes = (max_bytes - (p - memory_chunk)) & (ULONG_MAX - (CACHE_LINE_SIZE - 1));
+  p = (void *)(((unsigned long)((char *)memory_chunk + CACHE_LINE_SIZE - 1)) & (ULONG_MAX - (CACHE_LINE_SIZE - 1)));
+  max_bytes = (max_bytes - ((char *)p - (char *)memory_chunk)) & (ULONG_MAX - (CACHE_LINE_SIZE - 1));
   memory_chunk = p;
   start = (struct entry *)malloc(sizeof(struct entry));
   if (!start) {
@@ -61,7 +61,7 @@ void* ext_mpi_dmalloc(void *root, size_t numbytes) {
     return p->address;
   }
   p2 = (struct entry *)malloc(sizeof(struct entry));
-  p2->address = p->address + numbytes;
+  p2->address = (void *)((char *)p->address + numbytes);
   p2->available = 1;
   p2->size = p->size - numbytes;
   p2->next = p->next;
@@ -84,7 +84,7 @@ void ext_mpi_dfree(void *root, void* ptr) {
   }
   assert(p && !p->available);
   p->available = 1;
-  if (p->next && p->next->available && p->address + p->size == p->next->address) {
+  if (p->next && p->next->available && (char *)p->address + p->size == (char *)p->next->address) {
     p->size += p->next->size;
     p2 = p->next;
     p->next = p->next->next;
@@ -95,7 +95,7 @@ void ext_mpi_dfree(void *root, void* ptr) {
   }
   p = p->prev;
   if (p && p->available) {
-    if (p->address + p->size == p->next->address) {
+    if ((char *)p->address + p->size == (char *)p->next->address) {
       p->size += p->next->size;
       p2 = p->next;
       p->next = p->next->next;

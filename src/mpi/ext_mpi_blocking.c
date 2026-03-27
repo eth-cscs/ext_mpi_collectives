@@ -10,14 +10,11 @@
 #include "ext_mpi_native_blocking.h"
 #include "read_write.h"
 #include "read_bench.h"
-#include "cost_simple_recursive.h"
-#include "cost_estimation.h"
-#include "cost_simulation.h"
 #include "count_instructions.h"
 #include "ports_groups.h"
 #include "cost_copyin_measurement.h"
-#include "recursive_factors.h"
-#include "num_ports_factors.h"
+//#include "recursive_factors.h"
+//#include "num_ports_factors.h"
 #ifdef GPU_ENABLED
 #include "gpu_core.h"
 #endif

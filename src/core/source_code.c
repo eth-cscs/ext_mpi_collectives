@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 int ext_mpi_generate_source_code(char **shmem,
                                int *shmemid, int *shmem_sizes,
@@ -166,20 +167,20 @@ int ext_mpi_generate_source_code(char **shmem,
 	if (sendbufs) {
           code_put_pointer(&ip, (void *)(sendbufs[data_irecv_isend.buffer_number] + integer1), isdryrun);
 	} else {
-          code_put_pointer(&ip, (void *)(NULL + integer1), isdryrun);
+          code_put_pointer(&ip, (void *)((char *)NULL + integer1), isdryrun);
 	}
       } else {
         if (estring2 == erecvbufp) {
 	  if (recvbufs) {
             code_put_pointer(&ip, (void *)(recvbufs[data_irecv_isend.buffer_number] + integer1), isdryrun);
 	  } else {
-            code_put_pointer(&ip, (void *)(NULL + integer1), isdryrun);
+            code_put_pointer(&ip, (void *)((char *)NULL + integer1), isdryrun);
 	  }
         } else {
 	  if (shmem) {
             code_put_pointer(&ip, (void *)(shmem[data_irecv_isend.buffer_number] + integer1), isdryrun);
 	  } else {
-            code_put_pointer(&ip, (void *)(NULL + integer1), isdryrun);
+            code_put_pointer(&ip, (void *)((char *)NULL + integer1), isdryrun);
 	  }
         }
       }
@@ -381,8 +382,14 @@ int ext_mpi_generate_source_code(char **shmem,
   fclose(fpi);
   fclose(fp);
   sprintf(str, "gcc -O2 -w -fpic -c source_code_%d_%d.c", socket_rank, id);
-  system(str);
+  if (system(str)) {
+    printf("unsuccessful system call source_code.c");
+    assert(0);
+  }
   sprintf(str, "gcc -shared -w -o compiled_code_%d.so source_code_%d_*.o", socket_rank, socket_rank);
-  system(str);
+  if (system(str)) {
+    printf("unsuccessful system call source_code.c");
+    assert(0);
+  }
   return (ip - code_out);
 }
