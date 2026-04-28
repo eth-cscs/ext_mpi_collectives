@@ -149,7 +149,7 @@ int ext_mpi_sendrecvbuf_done_xpmem(int my_cores_per_node, char **sendrecvbufs) {
   return 0;
 }
 
-int ext_mpi_init_xpmem_blocking(MPI_Comm comm, struct xpmem_tree ***xpmem_tree_root) {
+int ext_mpi_init_xpmem_blocking(MPI_Comm comm, struct avl_tree ***xpmem_tree_root) {
   MPI_Comm xpmem_comm_node;
   int my_mpi_rank, my_mpi_size, my_cores_per_node;
   my_cores_per_node = ext_mpi_get_num_tasks_per_socket(comm, 1);
@@ -159,8 +159,8 @@ int ext_mpi_init_xpmem_blocking(MPI_Comm comm, struct xpmem_tree ***xpmem_tree_r
                   my_mpi_rank % my_cores_per_node, &xpmem_comm_node));
   ext_mpi_call_mpi(PMPI_Comm_size(xpmem_comm_node, &my_mpi_size));
   ext_mpi_call_mpi(PMPI_Comm_free(&xpmem_comm_node));
-  (*xpmem_tree_root) = (struct xpmem_tree **)malloc(my_mpi_size * sizeof(struct xpmem_tree *));
-  memset((*xpmem_tree_root), 0, my_mpi_size * sizeof(struct xpmem_tree *));
+  (*xpmem_tree_root) = (struct avl_tree **)malloc(my_mpi_size * sizeof(struct avl_tree *));
+  memset((*xpmem_tree_root), 0, my_mpi_size * sizeof(struct avl_tree *));
   return 0;
 }
 
@@ -201,18 +201,41 @@ int ext_mpi_xpmem_blocking_get_id_permutated(MPI_Comm comm, int num_sockets_per_
   return 0;
 }
 
-static void xpmem_tree_delete(struct xpmem_tree *p) {
+struct address_node {
+  struct avl_node avl;
+  unsigned long int offset;
+  size_t size;
+  char *a;
+};
+
+static int cmp_func(struct avl_node *a, struct avl_node *b, void *aux)
+{
+  struct address_node *aa, *bb;
+  aa = _get_entry(a, struct address_node, avl);
+  bb = _get_entry(b, struct address_node, avl);
+
+  if (aa->offset < bb->offset) return -1;
+  else if (aa->offset > bb->offset) return 1;
+  else return 0;
+}
+
+static void xpmem_tree_delete(struct avl_tree *root) {
   char *addr;
-  if (p) {
-    addr = (char*)((unsigned long int)p->a & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
+  struct address_node *node;
+  struct avl_node *cur;
+  if (!root) return;
+  cur = avl_first(root);
+  while(cur) {
+    node = _get_entry(cur, struct address_node, avl);
+    cur = avl_next(cur);
+    addr = (char*)((unsigned long int)node->a & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
     assert(xpmem_detach(addr) == 0);
-    if (p->left) xpmem_tree_delete(p->left);
-    if (p->right) xpmem_tree_delete(p->right);
-    if (p->next) xpmem_tree_delete(p->next);
+    avl_remove(root, &node->avl);
+    free(node);
   }
 }
 
-void ext_mpi_done_xpmem_blocking(int my_cores_per_node, struct xpmem_tree **xpmem_tree_root) {
+void ext_mpi_done_xpmem_blocking(int my_cores_per_node, struct avl_tree **xpmem_tree_root) {
   int i;
   for (i = 0; i < my_cores_per_node; i++) {
     xpmem_tree_delete(xpmem_tree_root[i]);
@@ -220,56 +243,49 @@ void ext_mpi_done_xpmem_blocking(int my_cores_per_node, struct xpmem_tree **xpme
   free(xpmem_tree_root);
 }
 
-static void xpmem_tree_put(struct xpmem_tree **xpmem_tree_root, unsigned long int offset, size_t size, int j, char *a){
-  struct xpmem_tree **p, *p2;
-  p = &xpmem_tree_root[j];
-  while (*p && (*p)->offset != offset) {
-    if (offset < (*p)->offset) {
-      p = &(*p)->left;
-    } else {
-      p = &(*p)->right;
-    }
-  }
-  if (*p) {
-    if (size > (*p)->size) {
-      p2 = *p;
-      *p = (struct xpmem_tree *)malloc(sizeof(struct xpmem_tree));
-      (*p)->left = p2->left;
-      (*p)->right = p2->right;
-      p2->left = p2->right = NULL;
-      (*p)->next = p2;
-      (*p)->offset = offset;
-      (*p)->size = size;
-      (*p)->a = a;
-    }
+static char* xpmem_tree_put(struct avl_tree **xpmem_tree_root, struct xpmem_addr *addr, size_t size, int j){
+  char *a;
+  struct avl_tree *root;
+  struct address_node *node;
+  struct address_node query;
+  root = xpmem_tree_root[j];
+  query.offset = addr->offset;
+  node = (struct address_node*)avl_search(root, (struct avl_node *)&query, cmp_func);
+  if (node) {
+    if (node->size >= size) return node->a;
+    a = (char*)((unsigned long int)node->a & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
+    assert(xpmem_detach(a) == 0);
+    node->size = size;
+    a = (char*)xpmem_attach(*addr, size, NULL);
+    assert((long int)a != -1);
+    node->a = a;
   } else {
-    *p = (struct xpmem_tree *)malloc(sizeof(struct xpmem_tree));
-    (*p)->left = (*p)->right = (*p)->next = NULL;
-    (*p)->offset = offset;
-    (*p)->size = size;
-    (*p)->a = a;
+    node = malloc(sizeof(struct address_node));
+    assert(node != NULL);
+    node->offset = addr->offset;
+    node->size = size;
+    a = (char*)xpmem_attach(*addr, size, NULL);
+    assert((long int)a != -1);
+    node->a = a;
+    avl_insert(root, &node->avl, cmp_func);
   }
+  return a;
 }
 
-static int xpmem_tree_get(struct xpmem_tree **xpmem_tree_root, unsigned long int offset, size_t size, int j, char **a){
-  struct xpmem_tree *p;
-  p = xpmem_tree_root[j];
-  while (p && p->offset != offset) {
-    if (offset < p->offset) {
-      p = p->left;
-    } else {
-      p = p->right;
-    }
-  }
-  if (p && size <= p->size) {
-    *a = p->a;
+/*static int xpmem_tree_get(struct avl_tree **xpmem_tree_root, unsigned long int offset, size_t size, int j, char **a){
+  struct avl_tree *root;
+  struct address_node *node;
+  root = xpmem_tree_root[j];
+  node = (struct address_node*)avl_search(root, (struct avl_node *)&node, cmp_func);
+  if (node && size <= node->size) {
+    *a = node->a;
     return 1;
   } else {
     return 0;
   }
-}
+}*/
 
-int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root, int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, long long int *all_xpmem_id_permutated, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
+int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct avl_tree **xpmem_tree_root, int my_mpi_rank, int my_cores_per_node, int num_sockets, char *sendbuf, char *recvbuf, size_t size, long long int *all_xpmem_id_permutated, int *mem_partners_send, int *mem_partners_recv, char ***shmem, int **shmem_node, int *counter, char **sendbufs, char **recvbufs) {
   struct xpmem_addr addr;
   int bc, i, j;
   char *a;
@@ -293,11 +309,7 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
 	  addr.offset &= 0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1);
           addr.apid = all_xpmem_id_permutated[j];
           if (addr.apid != -1 && sendbufs[j]) {
-	    if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
-              a = (char*)xpmem_attach(addr, size, NULL);
-              assert((long int)a != -1);
-              xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
-	    }
+            a = xpmem_tree_put(xpmem_tree_root, &addr, size, j);
             sendbufs[j] = a + (unsigned long int)(sendbufs[j] - addr.offset);
           } else {
 	    sendbufs[j] = sendbuf;
@@ -315,11 +327,7 @@ int ext_mpi_sendrecvbuf_init_xpmem_blocking(struct xpmem_tree **xpmem_tree_root,
 	  addr.offset &= 0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1);
           addr.apid = all_xpmem_id_permutated[j];
           if (addr.apid != -1 && recvbufs[j]) {
-	    if (!xpmem_tree_get(xpmem_tree_root, addr.offset, size, j, &a)) {
-              a = (char*)xpmem_attach(addr, size, NULL);
-              assert((long int)a != -1);
-              xpmem_tree_put(xpmem_tree_root, addr.offset, size, j, a);
-	    }
+            a = xpmem_tree_put(xpmem_tree_root, &addr, size, j);
             recvbufs[j] = a + (unsigned long int)(recvbufs[j] - addr.offset);
           } else {
 	    recvbufs[j] = recvbuf;

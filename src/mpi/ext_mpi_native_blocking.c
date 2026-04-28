@@ -118,7 +118,7 @@ struct comm_comm_blocking {
   int *mem_partners_recv_allreduce[ALGORITHM_MAX];
   int *mem_partners_send_reduce_scatter_block[ALGORITHM_MAX];
   int *mem_partners_recv_reduce_scatter_block[ALGORITHM_MAX];
-  struct xpmem_tree **xpmem_tree_root;
+  struct avl_tree **xpmem_tree_root;
   int copyin[ALGORITHM_MAX];
   int *ranks_node;
   struct comm_properties comm_property_allreduce[(enum collective_subtypes)(size)][ALGORITHM_MAX];
