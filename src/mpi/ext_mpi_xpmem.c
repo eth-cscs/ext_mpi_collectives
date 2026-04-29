@@ -239,18 +239,21 @@ void ext_mpi_done_xpmem_blocking(int my_cores_per_node, struct avl_tree **xpmem_
   int i;
   for (i = 0; i < my_cores_per_node; i++) {
     xpmem_tree_delete(xpmem_tree_root[i]);
+    free(xpmem_tree_root[i]);
   }
   free(xpmem_tree_root);
 }
 
 static char* xpmem_tree_put(struct avl_tree **xpmem_tree_root, struct xpmem_addr *addr, size_t size, int j){
   char *a;
-  struct avl_tree *root;
   struct address_node *node;
   struct address_node query;
-  root = xpmem_tree_root[j];
   query.offset = addr->offset;
-  node = (struct address_node*)avl_search(root, (struct avl_node *)&query, cmp_func);
+  if (xpmem_tree_root[j]) {
+    node = (struct address_node*)avl_search(xpmem_tree_root[j], (struct avl_node *)&query, cmp_func);
+  } else {
+    node = NULL;
+  }
   if (node) {
     if (node->size >= size) return node->a;
     a = (char*)((unsigned long int)node->a & (0xFFFFFFFFFFFFFFFF - (PAGESIZE - 1)));
@@ -260,14 +263,18 @@ static char* xpmem_tree_put(struct avl_tree **xpmem_tree_root, struct xpmem_addr
     assert((long int)a != -1);
     node->a = a;
   } else {
-    node = malloc(sizeof(struct address_node));
+    node = (struct address_node *)malloc(sizeof(struct address_node));
     assert(node != NULL);
     node->offset = addr->offset;
     node->size = size;
     a = (char*)xpmem_attach(*addr, size, NULL);
     assert((long int)a != -1);
     node->a = a;
-    avl_insert(root, &node->avl, cmp_func);
+    if (!xpmem_tree_root[j]) {
+      xpmem_tree_root[j] = (struct avl_tree *)malloc(sizeof(struct avl_tree));
+      avl_init(xpmem_tree_root[j], NULL);
+    }
+    avl_insert(xpmem_tree_root[j], &node->avl, cmp_func);
   }
   return a;
 }
