@@ -565,7 +565,8 @@ int ext_mpi_exec_native(char *ip, char **ip_exec, int active_wait) {
       instruction2 = code_get_char(&ip);
       p1 = code_get_pointer(&ip);
       i1 = code_get_int(&ip);
-      ext_mpi_gemv_exec(&header->gpu_gemv_var, instruction2, p1, i1, code_get_int(&ip));
+//      ext_mpi_gemv_exec(&header->gpu_gemv_var, instruction2, p1, i1, code_get_int(&ip));
+exit(1);
       break;
 #endif
 #ifdef NCCL_ENABLED

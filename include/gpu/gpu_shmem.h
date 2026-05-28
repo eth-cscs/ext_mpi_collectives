@@ -4,9 +4,17 @@
 
 #include <mpi.h>
 #ifdef __cplusplus
+#ifndef __HIP_PLATFORM_AMD__
 #include <cuda_runtime.h>
 #else
+#include <hip/hip_runtime.h>
+#endif
+#else
+#ifndef __HIP_PLATFORM_AMD__
 #include <cuda_runtime_api.h>
+#else
+#include <hip/hip_runtime_api.h>
+#endif
 #endif
 
 #ifdef __cplusplus

@@ -992,7 +992,7 @@ int ext_mpi_generate_byte_code(char **shmem,
     }
 //    ext_mpi_gemv_init(reduction_op, vector_length, num_cores, &header->gpu_gemv_var);
   } else {
-    header->gpu_gemv_var.handle = 0;
+//    header->gpu_gemv_var.handle = 0;
   }
   header->gpu_byte_code_size = *gpu_byte_code_counter;
   free(gpu_byte_code);

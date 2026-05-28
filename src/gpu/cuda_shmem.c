@@ -333,8 +333,13 @@ static int cmp_func(struct avl_node *a, struct avl_node *b, void *aux)
 }
 
 static int mpi_node_rank = -1, mpi_node_size = -1;
+#ifndef __HIP_PLATFORM_AMD__
 static CUresult CUDAAPI(*sys_cuMemFree) (CUdeviceptr dptr);
 static cudaError_t CUDARTAPI(*sys_cudaFree) (void *dptr);
+#else
+static hipError_t (*sys_hipMemFree) (hipDeviceptr_t dptr);
+static hipError_t (*sys_hipFree) (void *dptr);
+#endif
 static long int *shmem_offsets;
 static struct avl_tree address_lookup_root;
 
@@ -343,24 +348,50 @@ static int gpu_mem_hook_init()
     void *libcuda_handle;
     void *libcudart_handle;
 
+#ifndef __HIP_PLATFORM_AMD__
     libcuda_handle = dlopen("libcuda.so", RTLD_LAZY | RTLD_GLOBAL);
+#else
+    libcuda_handle = dlopen("libamdhip64.so", RTLD_LAZY | RTLD_GLOBAL);
+#endif
     assert(libcuda_handle);
+#ifndef __HIP_PLATFORM_AMD__
     libcudart_handle = dlopen("libcudart.so", RTLD_LAZY | RTLD_GLOBAL);
+#else
+    libcudart_handle = dlopen("libamdhip64.so", RTLD_LAZY | RTLD_GLOBAL);
+#endif
     assert(libcudart_handle);
 
+#ifndef __HIP_PLATFORM_AMD__
     sys_cuMemFree = (void *) dlsym(libcuda_handle, "cuMemFree");
     assert(sys_cuMemFree);
+#else
+    sys_hipMemFree = (void *) dlsym(libcuda_handle, "hipMemFree");
+    assert(sys_hipMemFree);
+#endif
+#ifndef __HIP_PLATFORM_AMD__
     sys_cudaFree = (void *) dlsym(libcudart_handle, "cudaFree");
     assert(sys_cudaFree);
+#else
+    sys_hipFree = (void *) dlsym(libcudart_handle, "hipFree");
+    assert(sys_hipFree);
+#endif
 
     return 0;
 }
 
+#ifndef __HIP_PLATFORM_AMD__
 CUresult CUDAAPI cuMemFree(CUdeviceptr dptr)
+#else
+hipError_t hipMemFree(hipDeviceptr_t dptr)
+#endif
 {
     CUresult result;
     static struct address_node query;
+#ifndef __HIP_PLATFORM_AMD__
     if (!sys_cuMemFree) {
+#else
+    if (!sys_hipMemFree) {
+#endif
         gpu_mem_hook_init();
     }
 
@@ -368,16 +399,28 @@ CUresult CUDAAPI cuMemFree(CUdeviceptr dptr)
       query.address_key = (void *) dptr;
       avl_remove(&address_lookup_root, avl_search(&address_lookup_root, (struct avl_node *)&query, cmp_func));
     }
+#ifndef __HIP_PLATFORM_AMD__
     result = sys_cuMemFree(dptr);
+#else
+    result = sys_hipMemFree(dptr);
+#endif
 
     return (result);
 }
 
+#ifndef __HIP_PLATFORM_AMD__
 cudaError_t CUDARTAPI cudaFree(void *dptr)
+#else
+hipError_t hipFree(void *dptr)
+#endif
 {
     cudaError_t result;
     static struct address_node query;
+#ifndef __HIP_PLATFORM_AMD__
     if (!sys_cudaFree) {
+#else
+    if (!sys_hipFree) {
+#endif
         gpu_mem_hook_init();
     }
 
@@ -385,7 +428,11 @@ cudaError_t CUDARTAPI cudaFree(void *dptr)
       query.address_key = (void *) dptr;
       avl_remove(&address_lookup_root, avl_search(&address_lookup_root, (struct avl_node *)&query, cmp_func));
     }
+#ifndef __HIP_PLATFORM_AMD__
     result = sys_cudaFree(dptr);
+#else
+    result = sys_hipFree(dptr);
+#endif
 
     return result;
 }
