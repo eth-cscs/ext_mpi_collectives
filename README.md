@@ -21,6 +21,18 @@ git clone https://github.com/eth-cscs/ext_mpi_collectives.git
 cd ext_mpi_collectives
 ```
 
+Adapt the page size to your architecture in the file
+
+```
+src/mpi/ext_mpi_xpmem.c
+```
+at
+```
+#define PAGESIZE (4096 * 16)
+```
+
+Typical page sizes are 4096 or (4096 * 16) bytes.
+
 If necessary, adapt the MPI wrapper of the C compiler in the first line of the Makefile. Then just run:
 
 ```
@@ -93,6 +105,16 @@ are provided.
 ## Current limitations
 
 Only the collective operation `MPI_Allreduce` / `MPI_Allreduce_init` is well tested. Other supported collective operations `MPI_Allgatherv_init`, `MPI_Reduce_scatter_init`, `MPI_Bcast_init`, `MPI_Reduce_init`, `MPI_Gatherv_init`, `MPI_Scatterv_init`, `MPI_Allgather_init`, `MPI_Reduce_scatter_block_init`, `MPI_Gather_init`, `MPI_Scatter_init` are experimental. Datatypes need to be contiguous and communicators need to be intra communicators. For reduction operations only the datatypes `float`, `double`, `int` and `long int` with the operation `MPI_SUM` are supported.
+
+## Benchmarks
+
+An example how to use the library is the benchmark in the
+
+```
+benchmarks
+```
+
+directory.
 
 ## Tests
 
